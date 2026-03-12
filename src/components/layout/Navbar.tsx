@@ -1,14 +1,19 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Globe, RefreshCw, Wifi, WifiOff } from 'lucide-react';
+import { Globe, RefreshCw, WifiOff, Sun, Moon, Bookmark, Keyboard } from 'lucide-react';
 
 interface NavbarProps {
   lastUpdate: string | null;
   connected: boolean;
   onRefresh: () => void;
+  theme?: 'dark' | 'light';
+  onToggleTheme?: () => void;
+  bookmarkCount?: number;
+  onToggleBookmarks?: () => void;
+  onShowShortcuts?: () => void;
 }
 
-export function Navbar({ lastUpdate, connected, onRefresh }: NavbarProps) {
+export function Navbar({ lastUpdate, connected, onRefresh, theme, onToggleTheme, bookmarkCount = 0, onToggleBookmarks, onShowShortcuts }: NavbarProps) {
   const [typedText, setTypedText] = useState('');
   const fullText = 'Syria Live Dashboard';
 
@@ -54,7 +59,7 @@ export function Navbar({ lastUpdate, connected, onRefresh }: NavbarProps) {
           </div>
 
           {/* Right side controls */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Live indicator */}
             <div className="hidden sm:flex items-center gap-2 text-xs text-text-secondary">
               {connected ? (
@@ -80,13 +85,57 @@ export function Navbar({ lastUpdate, connected, onRefresh }: NavbarProps) {
               </span>
             )}
 
+            {/* Keyboard shortcuts */}
+            {onShowShortcuts && (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onShowShortcuts}
+                className="p-2 rounded-lg hover:bg-surface-hover border border-transparent hover:border-surface-border transition-all text-text-secondary hover:text-text-primary"
+                title="Keyboard shortcuts (?)"
+              >
+                <Keyboard size={16} />
+              </motion.button>
+            )}
+
+            {/* Bookmarks button */}
+            {onToggleBookmarks && (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onToggleBookmarks}
+                className="relative p-2 rounded-lg hover:bg-surface-hover border border-transparent hover:border-surface-border transition-all text-text-secondary hover:text-text-primary"
+                title="Bookmarks (B)"
+              >
+                <Bookmark size={16} />
+                {bookmarkCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-accent-gold text-bg text-[9px] font-bold rounded-full flex items-center justify-center">
+                    {bookmarkCount > 9 ? '9+' : bookmarkCount}
+                  </span>
+                )}
+              </motion.button>
+            )}
+
+            {/* Theme toggle */}
+            {onToggleTheme && (
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={onToggleTheme}
+                className="p-2 rounded-lg hover:bg-surface-hover border border-transparent hover:border-surface-border transition-all text-text-secondary hover:text-text-primary"
+                title="Toggle theme (T)"
+              >
+                {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
+              </motion.button>
+            )}
+
             {/* Refresh button */}
             <motion.button
               whileHover={{ scale: 1.1 }}
               whileTap={{ scale: 0.9, rotate: 180 }}
               onClick={onRefresh}
               className="p-2 rounded-lg bg-surface hover:bg-surface-hover border border-surface-border transition-colors"
-              title="Refresh data"
+              title="Refresh data (R)"
             >
               <RefreshCw size={16} className="text-text-secondary" />
             </motion.button>

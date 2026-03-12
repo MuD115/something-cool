@@ -18,8 +18,9 @@ class ArticleCache {
 
   getAll(filters = {}) {
     this._evictStale();
-    let results = [...this.articles.values()].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+    let results = [...this.articles.values()];
 
+    // Apply filters
     if (filters.category) {
       results = results.filter(a => a.category === filters.category);
     }
@@ -32,6 +33,25 @@ class ArticleCache {
     }
     if (filters.source) {
       results = results.filter(a => a.source === filters.source);
+    }
+
+    // Apply sort
+    const sort = filters.sort || '';
+    switch (sort) {
+      case 'oldest':
+        results.sort((a, b) => new Date(a.publishedAt) - new Date(b.publishedAt));
+        break;
+      case 'sentiment_high':
+        results.sort((a, b) => (b.sentiment?.score || 0) - (a.sentiment?.score || 0));
+        break;
+      case 'sentiment_low':
+        results.sort((a, b) => (a.sentiment?.score || 0) - (b.sentiment?.score || 0));
+        break;
+      case 'source':
+        results.sort((a, b) => a.source.localeCompare(b.source));
+        break;
+      default:
+        results.sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
     }
 
     const page = filters.page || 1;
@@ -182,6 +202,55 @@ class ArticleCache {
         source: a.source,
         sentiment: a.sentiment?.label,
       }));
+  }
+
+  getAnalytics() {
+    const all = [...this.articles.values()];
+    const stats = this.getStats();
+    const sentimentData = this.getSentimentData();
+    const topicTrends = this.getTopicTrends();
+
+    // Source breakdown
+    const sourceCounts = {};
+    for (const a of all) {
+      sourceCounts[a.source] = (sourceCounts[a.source] || 0) + 1;
+    }
+
+    // Category breakdown
+    const categoryCounts = {};
+    for (const a of all) {
+      categoryCounts[a.category] = (categoryCounts[a.category] || 0) + 1;
+    }
+
+    // Hourly distribution (last 24h)
+    const hourly = {};
+    for (let i = 0; i < 24; i++) hourly[i] = 0;
+    for (const a of all) {
+      const hour = new Date(a.publishedAt).getHours();
+      hourly[hour] = (hourly[hour] || 0) + 1;
+    }
+
+    // Most active cities
+    const cityCounts = {};
+    for (const a of all) {
+      for (const c of (a.cities || [])) {
+        cityCounts[c.name] = (cityCounts[c.name] || 0) + 1;
+      }
+    }
+    const topCities = Object.entries(cityCounts)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 10)
+      .map(([name, count]) => ({ name, count }));
+
+    return {
+      ...stats,
+      sentimentData,
+      topicTrends,
+      sourceCounts,
+      categoryCounts,
+      hourlyDistribution: hourly,
+      topCities,
+    };
   }
 
   _hashTitle(title) {

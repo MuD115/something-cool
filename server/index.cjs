@@ -24,6 +24,7 @@ app.get('/api/news', (req, res) => {
     sentiment: req.query.sentiment,
     search: req.query.search || req.query.q,
     source: req.query.source,
+    sort: req.query.sort,
     page: parseInt(req.query.page) || 1,
     limit: parseInt(req.query.limit) || 20,
   };
@@ -60,6 +61,47 @@ app.get('/api/figures', (req, res) => {
 
 app.get('/api/timeline', (req, res) => {
   res.json(cache.getTimeline());
+});
+
+// RSS Feed endpoint
+app.get('/api/rss', (req, res) => {
+  const articles = cache.getBreaking();
+  const now = new Date().toUTCString();
+
+  let xml = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Syria Live Dashboard - News Feed</title>
+    <description>Real-time aggregated news about Syria from multiple sources</description>
+    <lastBuildDate>${now}</lastBuildDate>
+    <language>en-us</language>`;
+
+  for (const a of articles) {
+    const pubDate = new Date(a.publishedAt).toUTCString();
+    const title = a.title.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const desc = (a.description || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    xml += `
+    <item>
+      <title>${title}</title>
+      <description>${desc}</description>
+      <link>${a.url}</link>
+      <pubDate>${pubDate}</pubDate>
+      <source>${a.source}</source>
+      <category>${a.category}</category>
+    </item>`;
+  }
+
+  xml += `
+  </channel>
+</rss>`;
+
+  res.set('Content-Type', 'application/rss+xml; charset=utf-8');
+  res.send(xml);
+});
+
+// Analytics summary endpoint
+app.get('/api/analytics', (req, res) => {
+  res.json(cache.getAnalytics());
 });
 
 // SPA fallback
