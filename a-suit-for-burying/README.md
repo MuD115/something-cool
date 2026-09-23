@@ -30,7 +30,12 @@ The end card sums up the Eli you're making, and the choices are saved for Chapte
   a-suit-for-burying 8080`, then open the printed URL. Run `python3 build.py` to rebuild the
   single file after editing `src/`.
 
-Controls: click or press `1` / `2` to choose, `Space` to pause, `M` to mute, `F` for
+The main menu has **Begin**, **Settings**, **Controls** and **About**. During play, `Esc`
+(or `Space`) opens the pause menu: Resume, Settings, Controls, Restart chapter and Main menu.
+Settings (master, music and effects volume, subtitles, text size, camera shake) are saved in
+the browser.
+
+Controls: click or press `1` / `2` to choose, `Esc` for the menu, `M` to mute, `F` for
 fullscreen. Sound matters: turn it on.
 
 ## How it's made

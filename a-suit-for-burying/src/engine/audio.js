@@ -43,6 +43,7 @@ export class Sound {
     this.muted = false;
     this.mood = 'none';
     this.plucks = new Map();
+    this.levels = { master: 0.9, music: 0.55, effects: 0.9 };
   }
 
   start() {
@@ -51,7 +52,7 @@ export class Sound {
     this.ctx = ctx;
 
     this.master = ctx.createGain();
-    this.master.gain.value = 0.9;
+    this.master.gain.value = this.muted ? 0 : this.levels.master;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16;
     comp.ratio.value = 3;
@@ -71,12 +72,12 @@ export class Sound {
     this.verbIn.connect(this.verb).connect(this.master);
 
     this.sfx = ctx.createGain();
-    this.sfx.gain.value = 0.9;
+    this.sfx.gain.value = this.levels.effects;
     this.sfx.connect(this.master);
     this.sfx.connect(this.verbIn);
 
     this.music = ctx.createGain();
-    this.music.gain.value = 0.55;
+    this.music.gain.value = this.levels.music;
     this.music.connect(this.master);
     this.music.connect(this.verbIn);
 
@@ -141,7 +142,24 @@ export class Sound {
 
   setMute(m) {
     this.muted = m;
-    if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.t, 0.1);
+    if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : this.levels.master, this.t, 0.1);
+  }
+
+  // Volume settings, 0…1 each; applied now and on start.
+  setLevels({ master, music, effects }) {
+    this.levels = { master: master * 0.9, music: music * 0.55, effects: effects * 0.9 };
+    if (!this.ctx) return;
+    this.master.gain.setTargetAtTime(this.muted ? 0 : this.levels.master, this.t, 0.05);
+    this.music.gain.setTargetAtTime(this.levels.music, this.t, 0.05);
+    this.sfx.gain.setTargetAtTime(this.levels.effects, this.t, 0.05);
+  }
+
+  suspend() {
+    this.ctx?.suspend();
+  }
+
+  resume() {
+    this.ctx?.resume();
   }
 
   // Ambience levels, 0…1, eased.

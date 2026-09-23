@@ -63,7 +63,7 @@
     margin-bottom: 0.3em;
   }
   #sub-text {
-    font-size: max(15px, calc(var(--u) * 1.75));
+    font-size: calc(max(15px, calc(var(--u) * 1.75)) * var(--ts, 1));
     line-height: 1.3;
     text-wrap: balance;
   }
@@ -146,19 +146,6 @@
   }
 
   /* ---------- title ---------- */
-  #title {
-    position: absolute;
-    inset: 0;
-    display: grid;
-    align-content: center;
-    justify-items: center;
-    text-align: center;
-    padding: 0 8%;
-    gap: calc(var(--u) * 1);
-    background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.7));
-    transition: opacity 1.3s ease;
-  }
-  #title.gone { opacity: 0; pointer-events: none; }
   .kicker {
     margin: 0;
     font: max(10px, calc(var(--u) * 0.95)) / 1.2 var(--type);
@@ -180,18 +167,6 @@
     color: #d8cdb8;
     text-shadow: 0 1px 8px #000;
   }
-  #begin {
-    margin-top: calc(var(--u) * 1.2);
-    font: max(14px, calc(var(--u) * 1.5)) / 1 var(--display);
-    letter-spacing: 0.2em;
-    color: var(--black);
-    background: var(--ember);
-    border: 0;
-    padding: 0.85em 2.2em;
-    cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
-  }
-  #begin:hover, #begin:focus-visible { background: #efc07a; outline: none; transform: translateY(-1px); }
   .note {
     margin: 0;
     font: max(10px, calc(var(--u) * 0.9)) / 1.4 var(--type);
@@ -238,36 +213,76 @@
   }
   #again:hover, #again:focus-visible { background: rgba(90, 50, 20, 0.6); outline: none; }
 
-  /* ---------- hud ---------- */
-  #hud {
-    position: absolute;
-    top: 3%;
-    right: 2%;
-    display: flex;
-    gap: 6px;
-    opacity: 0.18;
-    transition: opacity 0.4s;
-  }
-  #stage:hover #hud, #hud:focus-within, #stage.paused #hud { opacity: 0.95; }
-  #hud button {
-    font: max(10px, calc(var(--u) * 0.85)) / 1 var(--type);
-    color: var(--ink);
-    background: rgba(0, 0, 0, 0.5);
-    border: 1px solid rgba(238, 228, 208, 0.2);
-    padding: 0.6em 0.9em;
-    cursor: pointer;
-  }
-  #hud button:focus-visible { outline: 1px solid var(--ember); }
-  #stage.paused::after {
-    content: 'Paused';
+  /* ---------- menus (main menu and the Esc menu) ---------- */
+  .menu {
     position: absolute;
     inset: 0;
     display: grid;
-    place-items: center;
-    font: max(18px, calc(var(--u) * 2.4)) / 1 var(--display);
-    letter-spacing: 0.3em;
-    background: rgba(0, 0, 0, 0.35);
-    pointer-events: none;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+    padding: 12px 8%;
+    overflow-y: auto;
+    background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.72));
+  }
+  .menu[data-mode='pause'] { background: rgba(5, 4, 4, 0.78); }
+  .menu[data-page='settings'], .menu[data-page='controls'], .menu[data-page='about'] { background: rgba(5, 4, 4, 0.86); }
+  .menu-panel { display: grid; justify-items: center; gap: calc(var(--u) * 0.7); max-width: min(620px, 100%); padding: 4px; }
+  .menu-header { display: grid; justify-items: center; gap: calc(var(--u) * 0.8); margin-bottom: calc(var(--u) * 0.6); }
+  .menu-list { display: grid; gap: 6px; justify-items: stretch; min-width: min(260px, 100%); }
+  .menu-btn {
+    font: max(13px, calc(var(--u) * 1.3)) / 1 var(--display);
+    letter-spacing: 0.16em;
+    color: var(--ink);
+    background: rgba(20, 14, 10, 0.6);
+    border: 1px solid rgba(217, 161, 90, 0.4);
+    padding: 0.75em 1.8em;
+    cursor: pointer;
+    display: grid;
+    gap: 0.35em;
+    transition: background 0.2s, border-color 0.2s;
+  }
+  .menu-btn:first-child { color: var(--black); background: var(--ember); border-color: var(--ember); }
+  .menu-btn:first-child .menu-btn-sub { color: rgba(5, 4, 4, 0.7); }
+  .menu-btn:hover, .menu-btn:focus-visible { background: rgba(90, 50, 20, 0.75); border-color: var(--ember); outline: none; color: var(--ink); }
+  .menu-btn:first-child:hover, .menu-btn:first-child:focus-visible { background: #efc07a; color: var(--black); }
+  .menu-btn-sub { font: max(9px, calc(var(--u) * 0.75)) / 1.2 var(--type); letter-spacing: 0.06em; color: var(--dust); }
+  .menu-back, .menu-link {
+    font: max(11px, calc(var(--u) * 0.9)) / 1 var(--type);
+    color: var(--dust);
+    background: none;
+    border: 0;
+    padding: 0.8em 1em;
+    cursor: pointer;
+  }
+  .menu-back:hover, .menu-back:focus-visible, .menu-link:hover, .menu-link:focus-visible { color: var(--ember); outline: none; }
+  .menu-title { margin: 0 0 0.2em; font: max(22px, calc(var(--u) * 2.6)) / 1 var(--display); letter-spacing: 0.06em; }
+  .menu-sub { margin: 0; color: var(--dust); font: max(11px, calc(var(--u) * 0.85)) / 1.4 var(--type); max-width: 52ch; }
+  .menu-form, .menu-keys { display: grid; gap: 4px; min-width: min(460px, 100%); text-align: start; }
+  .menu-row, .menu-key-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: 12px;
+    padding: 0.45em 0.8em;
+    background: rgba(20, 14, 10, 0.55);
+    border-left: 2px solid rgba(217, 161, 90, 0.25);
+    font-size: max(13px, calc(var(--u) * 1.05));
+  }
+  .menu-key-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .menu-row-value { font: max(11px, calc(var(--u) * 0.8)) / 1 var(--type); color: var(--dust); min-width: 3.5em; text-align: end; }
+  .menu input[type='range'] { accent-color: var(--ember); width: min(200px, 40vw); }
+  .menu input[type='checkbox'] { accent-color: var(--ember); width: 18px; height: 18px; }
+  .menu select { font: inherit; color: var(--ink); background: #1b1410; border: 1px solid rgba(217, 161, 90, 0.35); padding: 0.25em 0.4em; }
+  .menu-key { font: max(11px, calc(var(--u) * 0.85)) / 1 var(--type); color: var(--ember); border: 1px solid rgba(217, 161, 90, 0.35); padding: 0.45em 0.7em; }
+  .menu-about { max-width: 56ch; text-align: start; color: #d8cdb8; font-size: max(13px, calc(var(--u) * 1.05)); }
+  .menu-about h3 { margin: 1em 0 0.2em; font: max(11px, calc(var(--u) * 0.85)) / 1 var(--type); letter-spacing: 0.14em; color: var(--ember); }
+  .menu-about p { margin: 0.4em 0; }
+  #stage.nosubs #sub { display: none !important; }
+  .menu h1 { font-size: max(30px, calc(var(--u) * 4.6)); }
+  /* small screens: menus use the whole viewport, not just the letterboxed frame */
+  @media (max-aspect-ratio: 1/1), (max-height: 520px) {
+    .menu { position: fixed; z-index: 5; align-content: safe center; padding: calc(16px + env(safe-area-inset-top, 0px)) 16px 16px; }
   }
   #nogl {
     position: absolute;
@@ -280,7 +295,7 @@
     color: var(--dust);
   }
   @media (prefers-reduced-motion: reduce) {
-    #card, #choice, #title, #end { transition: none; }
+    #card, #choice, #end { transition: none; }
   }
   @media (max-aspect-ratio: 1/1) {
     /* portrait phones: invite a rotation, keep the frame playable */
@@ -294,7 +309,7 @@
       font: 12px/1.4 var(--type);
       color: var(--dust);
     }
-    #title { padding: 0 16px; gap: 10px; }
+    .menu { padding: 12px 16px; }
     h1 { font-size: 30px; }
     .tagline { font-size: 14px; }
     #card { padding: 0 16px; font-size: 14px; }
@@ -317,20 +332,7 @@
     <div id="choice-timer" hidden aria-hidden="true"></div>
   </div>
 
-  <div id="hud" hidden>
-    <button type="button" id="btn-pause" aria-pressed="false">Pause</button>
-    <button type="button" id="btn-mute" aria-pressed="true">Sound on</button>
-    <button type="button" id="btn-restart">Restart</button>
-  </div>
-
-  <section id="title" aria-labelledby="title-h">
-    <p class="kicker">Chapter One &middot; The Trunk</p>
-    <h1 id="title-h">A Suit for Burying</h1>
-    <p class="tagline">He buried his wife in the only suit he owned. He never took it off. Now a stranger wants the man he used to be.</p>
-    <button type="button" id="begin">Begin</button>
-    <p class="note">Sound on &middot; your choices change the story &middot; about five minutes</p>
-    <p class="note" id="saved" hidden></p>
-  </section>
+  <div id="menu" aria-label="Menu"></div>
 
   <section id="end" hidden aria-labelledby="end-h">
     <p class="kicker">End of Chapter One</p>
@@ -338,6 +340,7 @@
     <ul id="end-list"></ul>
     <p class="note">Chapter Two &middot; <em>Calvary Bend</em> is in the making. Your choices are saved for it.</p>
     <button type="button" id="again">Play again, choose differently</button>
+    <button type="button" id="end-menu" class="menu-link">Main menu</button>
   </section>
 
   <div id="nogl" hidden>This story needs WebGL2, which this browser or device doesn&rsquo;t provide. Try a recent Chrome, Edge, Firefox or Safari.</div>
@@ -459,6 +462,7 @@ class Camera {
     this.y = -220;
     this.view = BASE_VIEW;
     this.shake = 0;
+    this.shakeScale = 1; // the player's camera-shake setting
     this.time = 0;
   }
 
@@ -466,7 +470,7 @@ class Camera {
     this.x = x;
     this.y = y;
     this.view = view;
-    this.shake = shake;
+    this.shake = shake * this.shakeScale;
   }
 
   // Scale and offset for a layer at the given depth.
@@ -1095,6 +1099,7 @@ class Sound {
     this.muted = false;
     this.mood = 'none';
     this.plucks = new Map();
+    this.levels = { master: 0.9, music: 0.55, effects: 0.9 };
   }
 
   start() {
@@ -1103,7 +1108,7 @@ class Sound {
     this.ctx = ctx;
 
     this.master = ctx.createGain();
-    this.master.gain.value = 0.9;
+    this.master.gain.value = this.muted ? 0 : this.levels.master;
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value = -16;
     comp.ratio.value = 3;
@@ -1123,12 +1128,12 @@ class Sound {
     this.verbIn.connect(this.verb).connect(this.master);
 
     this.sfx = ctx.createGain();
-    this.sfx.gain.value = 0.9;
+    this.sfx.gain.value = this.levels.effects;
     this.sfx.connect(this.master);
     this.sfx.connect(this.verbIn);
 
     this.music = ctx.createGain();
-    this.music.gain.value = 0.55;
+    this.music.gain.value = this.levels.music;
     this.music.connect(this.master);
     this.music.connect(this.verbIn);
 
@@ -1193,7 +1198,24 @@ class Sound {
 
   setMute(m) {
     this.muted = m;
-    if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.t, 0.1);
+    if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : this.levels.master, this.t, 0.1);
+  }
+
+  // Volume settings, 0…1 each; applied now and on start.
+  setLevels({ master, music, effects }) {
+    this.levels = { master: master * 0.9, music: music * 0.55, effects: effects * 0.9 };
+    if (!this.ctx) return;
+    this.master.gain.setTargetAtTime(this.muted ? 0 : this.levels.master, this.t, 0.05);
+    this.music.gain.setTargetAtTime(this.levels.music, this.t, 0.05);
+    this.sfx.gain.setTargetAtTime(this.levels.effects, this.t, 0.05);
+  }
+
+  suspend() {
+    this.ctx?.suspend();
+  }
+
+  resume() {
+    this.ctx?.resume();
   }
 
   // Ambience levels, 0…1, eased.
@@ -1488,6 +1510,324 @@ class UI {
 }
 
 return { UI };
+})();
+
+// ---- src/engine/menu.js
+const __src_engine_menu = (() => {
+// Game menus: a main menu, an Esc pause menu, and the pages they share
+// (settings, controls, about). Pure DOM, keyboard- and pad-navigable, styled
+// by the host page through the .menu* classes.
+//
+// new Menu(root, {
+//   main: [{ id, label, sub, action, hidden() }],   main-menu buttons
+//   pause: [{ id, label, action }],                  pause-menu buttons
+//   settings: [{ key, label, type, ... }],           settings schema
+//   controls: { input, actions } | { list },         rebindable or static
+//   about: html string,
+//   header: html string shown above the main menu,
+//   onOpen, onClose                                   pause hooks
+// })
+
+const el = (tag, cls, html) => {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (html !== undefined) e.innerHTML = html;
+  return e;
+};
+
+class Menu {
+  constructor(root, opts) {
+    this.root = root;
+    this.o = opts;
+    this.stack = [];
+    this.mode = null; // 'main' | 'pause' | null
+    root.classList.add('menu');
+    root.hidden = true;
+    root.setAttribute('role', 'dialog');
+    root.setAttribute('aria-modal', 'true');
+    root.addEventListener('keydown', (e) => this.nav(e));
+  }
+
+  get open() {
+    return this.mode !== null;
+  }
+
+  showMain() {
+    this.mode = 'main';
+    this.stack = ['main'];
+    this.render();
+  }
+
+  showPause() {
+    if (this.mode) return;
+    this.mode = 'pause';
+    this.stack = ['pause'];
+    this.o.onOpen?.();
+    this.render();
+  }
+
+  close() {
+    const was = this.mode;
+    this.mode = null;
+    this.stack = [];
+    this.root.hidden = true;
+    this.root.innerHTML = '';
+    if (was === 'pause') this.o.onClose?.();
+  }
+
+  push(page) {
+    this.stack.push(page);
+    this.render();
+  }
+
+  back() {
+    if (this.stack.length > 1) {
+      this.stack.pop();
+      this.render();
+    } else if (this.mode === 'pause') this.close();
+  }
+
+  // Esc from the game or inside the menu.
+  toggle() {
+    if (this.mode === 'pause') this.back();
+    else if (this.mode === 'main') {
+      if (this.stack.length > 1) this.back();
+    } else this.showPause();
+  }
+
+  render() {
+    const page = this.stack[this.stack.length - 1];
+    this.root.hidden = false;
+    this.root.dataset.page = page;
+    this.root.dataset.mode = this.mode;
+    this.root.innerHTML = '';
+    const panel = el('div', 'menu-panel');
+    this.root.appendChild(panel);
+    const build = { main: this.pageMain, pause: this.pagePause, settings: this.pageSettings, controls: this.pageControls, about: this.pageAbout }[page];
+    build.call(this, panel);
+    requestAnimationFrame(() => panel.querySelector('button, input, select')?.focus({ preventScroll: true }));
+  }
+
+  list(panel, items) {
+    const ul = el('div', 'menu-list');
+    for (const it of items) {
+      if (it.hidden?.()) continue;
+      const b = el('button', 'menu-btn');
+      b.type = 'button';
+      b.innerHTML = `<span class="menu-btn-label">${it.label}</span>${it.sub ? `<span class="menu-btn-sub">${it.sub}</span>` : ''}`;
+      b.addEventListener('click', () => it.action(this));
+      ul.appendChild(b);
+    }
+    panel.appendChild(ul);
+  }
+
+  heading(panel, title, sub) {
+    panel.appendChild(el('h2', 'menu-title', title));
+    if (sub) panel.appendChild(el('p', 'menu-sub', sub));
+  }
+
+  backButton(panel, label = 'Back') {
+    const b = el('button', 'menu-back', `← ${label}`);
+    b.type = 'button';
+    b.addEventListener('click', () => this.back());
+    panel.appendChild(b);
+  }
+
+  pageMain(panel) {
+    if (this.o.header) panel.appendChild(el('div', 'menu-header', this.o.header));
+    this.list(panel, this.o.main);
+  }
+
+  pagePause(panel) {
+    this.heading(panel, this.o.pauseTitle || 'Paused');
+    this.list(panel, this.o.pause);
+  }
+
+  pageAbout(panel) {
+    panel.appendChild(el('div', 'menu-about', this.o.about));
+    this.backButton(panel);
+  }
+
+  pageSettings(panel) {
+    this.heading(panel, 'Settings');
+    const s = this.o.settingsStore;
+    const form = el('div', 'menu-form');
+    for (const f of this.o.settings) {
+      const row = el('label', 'menu-row');
+      const id = `set-${f.key}`;
+      row.htmlFor = id;
+      row.appendChild(el('span', 'menu-row-label', f.label));
+      let input;
+      if (f.type === 'range') {
+        input = el('input');
+        input.type = 'range';
+        input.min = f.min ?? 0;
+        input.max = f.max ?? 1;
+        input.step = f.step ?? 0.05;
+        input.value = s.get(f.key);
+        const out = el('output', 'menu-row-value', fmt(f, s.get(f.key)));
+        input.addEventListener('input', () => {
+          s.set(f.key, +input.value);
+          out.textContent = fmt(f, +input.value);
+        });
+        row.appendChild(input);
+        row.appendChild(out);
+      } else if (f.type === 'select') {
+        input = el('select');
+        for (const [v, label] of f.options) {
+          const o = el('option', '', label);
+          o.value = v;
+          input.appendChild(o);
+        }
+        input.value = String(s.get(f.key));
+        input.addEventListener('change', () => s.set(f.key, isNaN(+input.value) ? input.value : +input.value));
+        row.appendChild(input);
+      } else {
+        input = el('input');
+        input.type = 'checkbox';
+        input.checked = !!s.get(f.key);
+        input.addEventListener('change', () => s.set(f.key, input.checked));
+        row.appendChild(input);
+      }
+      input.id = id;
+      form.appendChild(row);
+    }
+    panel.appendChild(form);
+    const reset = el('button', 'menu-link', 'Restore defaults');
+    reset.type = 'button';
+    reset.addEventListener('click', () => {
+      const keys = s.get('keys');
+      s.reset();
+      if (keys && !this.o.resetKeys) s.set('keys', keys);
+      this.render();
+    });
+    panel.appendChild(reset);
+    this.backButton(panel);
+  }
+
+  pageControls(panel) {
+    this.heading(panel, 'Controls', this.o.controls.input ? 'Select a key to change it, then press the new key.' : '');
+    const c = this.o.controls;
+    const table = el('div', 'menu-keys');
+    if (c.input) {
+      const input = c.input;
+      const b = input.bindings();
+      for (const [a, label, ar] of c.actions) {
+        const row = el('div', 'menu-key-row');
+        row.appendChild(el('span', 'menu-row-label', `${label}${ar ? ` <span class="ar" lang="ar" dir="rtl">${ar}</span>` : ''}`));
+        const keys = el('span', 'menu-key-slots');
+        for (let slot = 0; slot < 2; slot++) {
+          const k = el('button', 'menu-key', c.label(b[a]?.[slot]));
+          k.type = 'button';
+          k.addEventListener('click', () => {
+            k.textContent = 'Press a key…';
+            k.classList.add('listening');
+            input.capture = (code) => {
+              if (code !== 'Escape') input.rebind(a, slot, code);
+              this.render();
+            };
+          });
+          keys.appendChild(k);
+        }
+        row.appendChild(keys);
+        table.appendChild(row);
+      }
+    } else {
+      for (const [keysLabel, what] of c.list) {
+        const row = el('div', 'menu-key-row');
+        row.appendChild(el('span', 'menu-row-label', what));
+        row.appendChild(el('span', 'menu-key static', keysLabel));
+        table.appendChild(row);
+      }
+    }
+    panel.appendChild(table);
+    if (c.extra) panel.appendChild(el('p', 'menu-sub', c.extra));
+    this.backButton(panel);
+  }
+
+  // Arrow keys move between controls; Esc goes back.
+  nav(e) {
+    if (e.code === 'Escape' || e.code === 'Backspace') {
+      if (e.target.closest?.('.listening')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (this.mode === 'main' && this.stack.length === 1) return;
+      this.back();
+      return;
+    }
+    if (e.code !== 'ArrowDown' && e.code !== 'ArrowUp') return;
+    if (e.target.tagName === 'SELECT') return;
+    const items = [...this.root.querySelectorAll('button, input, select')];
+    const i = items.indexOf(document.activeElement);
+    const n = items[(i + (e.code === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
+    n?.focus();
+    e.preventDefault();
+  }
+}
+
+function fmt(f, v) {
+  if (f.format) return f.format(v);
+  return `${Math.round(v * 100)}%`;
+}
+
+return { Menu };
+})();
+
+// ---- src/engine/settings.js
+const __src_engine_settings = (() => {
+// Player settings, persisted per browser. Every read and write is guarded:
+// private windows and sandboxed frames may refuse storage, and the story must
+// still run on defaults.
+
+const KEY = 'a-suit-for-burying:settings:v1';
+
+const DEFAULTS = {
+  master: 1,
+  music: 1,
+  effects: 1,
+  subtitles: true,
+  textSize: 1,
+  shake: true,
+};
+
+class Settings {
+  constructor(key = KEY, defaults = DEFAULTS) {
+    this.key = key;
+    this.defaults = defaults;
+    this.values = structuredClone(defaults);
+    this.listeners = [];
+    try {
+      const raw = localStorage.getItem(key);
+      if (raw) Object.assign(this.values, JSON.parse(raw));
+    } catch {
+      /* storage unavailable: defaults it is */
+    }
+  }
+
+  get(k) {
+    return this.values[k];
+  }
+
+  set(k, v) {
+    this.values[k] = v;
+    try {
+      localStorage.setItem(this.key, JSON.stringify(this.values));
+    } catch {
+      /* not persisted, still applied */
+    }
+    for (const fn of this.listeners) fn(k, v);
+  }
+
+  reset() {
+    for (const k of Object.keys(this.defaults)) this.set(k, structuredClone(this.defaults[k]));
+  }
+
+  onChange(fn) {
+    this.listeners.push(fn);
+  }
+}
+
+return { DEFAULTS, Settings };
 })();
 
 // ---- src/rigs/shapes.js
@@ -4420,6 +4760,8 @@ const { Renderer } = __src_engine_renderer;
 const { Director } = __src_engine_director;
 const { Sound } = __src_engine_audio;
 const { UI } = __src_engine_ui;
+const { Menu } = __src_engine_menu;
+const { Settings } = __src_engine_settings;
 const { freshState, loadState } = __src_engine_state;
 const { CHAPTER_1, summary } = __src_story_chapter1;
 const $ = (id) => document.getElementById(id);
@@ -4434,6 +4776,7 @@ try {
   throw err;
 }
 
+const settings = new Settings();
 const sound = new Sound();
 const ui = new UI();
 let state = freshState();
@@ -4462,34 +4805,52 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// --------------------------------------------------------- title card -----
+// ------------------------------------------------------------ settings ---
 
-// The title sits over a living frame of the prologue.
+function applySettings() {
+  sound.setLevels({ master: settings.get('master'), music: settings.get('music'), effects: settings.get('effects') });
+  stage.classList.toggle('nosubs', !settings.get('subtitles'));
+  stage.style.setProperty('--ts', String(settings.get('textSize')));
+  R.cam.shakeScale = settings.get('shake') ? 1 : 0;
+}
+settings.onChange(applySettings);
+applySettings();
+
+// ------------------------------------------------------ the main menu -----
+
+// The main menu sits over a living frame of the prologue.
 const titleEnv = { state, sound: { snort() {}, hoof() {} }, R, director };
 let titleScene = CHAPTER_1.scenes.prologue.create(titleEnv);
 let started = false;
 
 function begin() {
-  if (started) return;
   started = true;
-  sound.start().then(() => sound.setMood('elegy'));
-  $('title').classList.add('gone');
-  $('hud').hidden = false;
-  setTimeout(() => ($('title').hidden = true), 1400);
-  director.start(CHAPTER_1.first);
-}
-$('begin').addEventListener('click', begin);
-
-function restart() {
+  menu.close();
   state = freshState();
   director.state = state;
+  director.paused = false;
   $('end').hidden = true;
   $('end').classList.remove('show');
   ui.clearText();
   ui.hideChoice();
-  director.paused = false;
-  updatePause();
+  sound.start().then(() => {
+    sound.resume();
+    sound.setLevels({ master: settings.get('master'), music: settings.get('music'), effects: settings.get('effects') });
+    sound.setMood('elegy');
+  });
   director.start(CHAPTER_1.first);
+}
+
+function toMainMenu() {
+  started = false;
+  director.paused = false;
+  $('end').hidden = true;
+  $('end').classList.remove('show');
+  ui.clearText();
+  ui.hideChoice();
+  sound.suspend();
+  titleScene = CHAPTER_1.scenes.prologue.create(titleEnv);
+  menu.showMain();
 }
 
 director.on('end', (s) => {
@@ -4504,51 +4865,82 @@ director.on('end', (s) => {
   requestAnimationFrame(() => $('end').classList.add('show'));
   $('again').focus({ preventScroll: true });
 });
-$('again').addEventListener('click', restart);
+$('again').addEventListener('click', begin);
+$('end-menu').addEventListener('click', toMainMenu);
 
-// Returning players: the title mentions their last ending.
-const saved = loadState();
-if (saved && saved.river) {
-  $('saved').hidden = false;
-  $('saved').textContent = `Last time: ${summary(saved)[1]}`;
+// Returning players: the menu mentions their last ending.
+function lastTime() {
+  const saved = loadState();
+  return saved && saved.river ? `<p class="note" id="saved">Last time: ${summary(saved)[1]}</p>` : '';
 }
+
+const menu = new Menu($('menu'), {
+  get header() {
+    return `<p class="kicker">Chapter One &middot; The Trunk</p>
+    <h1 id="title-h">A Suit for Burying</h1>
+    <p class="tagline">He buried his wife in the only suit he owned. He never took it off. Now a stranger wants the man he used to be.</p>
+    ${lastTime()}`;
+  },
+  main: [
+    { label: 'Begin', sub: 'Sound on · about five minutes', action: () => begin() },
+    { label: 'Settings', action: (m) => m.push('settings') },
+    { label: 'Controls', action: (m) => m.push('controls') },
+    { label: 'About', action: (m) => m.push('about') },
+  ],
+  pause: [
+    { label: 'Resume', action: (m) => m.close() },
+    { label: 'Settings', action: (m) => m.push('settings') },
+    { label: 'Controls', action: (m) => m.push('controls') },
+    { label: 'Restart chapter', action: () => begin() },
+    { label: 'Main menu', action: () => toMainMenu() },
+  ],
+  onOpen: () => {
+    director.paused = true;
+    sound.suspend();
+  },
+  onClose: () => {
+    director.paused = false;
+    sound.resume();
+  },
+  settingsStore: settings,
+  settings: [
+    { key: 'master', label: 'Master volume', type: 'range' },
+    { key: 'music', label: 'Music', type: 'range' },
+    { key: 'effects', label: 'Sound effects', type: 'range' },
+    { key: 'subtitles', label: 'Subtitles', type: 'toggle' },
+    { key: 'textSize', label: 'Text size', type: 'select', options: [[0.85, 'Small'], [1, 'Medium'], [1.2, 'Large'], [1.4, 'Extra large']] },
+    { key: 'shake', label: 'Camera shake', type: 'toggle' },
+  ],
+  controls: {
+    list: [
+      ['1 / 2', 'Make a choice (or click it)'],
+      ['Esc / Space', 'Open or close this menu'],
+      ['M', 'Sound on or off'],
+      ['F', 'Full screen'],
+      ['Enter', 'Begin, from the main menu'],
+    ],
+    extra: 'Some choices are timed. If you hesitate, the story chooses for him.',
+  },
+  about: `<h2 class="menu-title">About</h2>
+    <p><strong>A Suit for Burying</strong> is a short interactive Western. A widower in a black suit, his late wife&rsquo;s grey mare, and a stranger who knew the man he used to be.</p>
+    <p>This is Chapter One. Your choices change how it plays out, and they&rsquo;re saved for the next chapter.</p>
+    <p class="menu-sub">Everything is drawn, lit and synthesised in code, in real time. There are no images or recordings.</p>`,
+});
+menu.showMain();
 
 // ------------------------------------------------------------- controls ---
 
-const pauseBtn = $('btn-pause');
-const muteBtn = $('btn-mute');
-function updatePause() {
-  pauseBtn.textContent = director.paused ? 'Resume' : 'Pause';
-  pauseBtn.setAttribute('aria-pressed', String(director.paused));
-  stage.classList.toggle('paused', director.paused);
-}
-function togglePause() {
-  if (!started) return;
-  director.paused = !director.paused;
-  if (sound.ctx) director.paused ? sound.ctx.suspend() : sound.ctx.resume();
-  updatePause();
-}
-function toggleMute() {
-  sound.setMute(!sound.muted);
-  muteBtn.textContent = sound.muted ? 'Sound off' : 'Sound on';
-  muteBtn.setAttribute('aria-pressed', String(!sound.muted));
-}
-pauseBtn.addEventListener('click', togglePause);
-muteBtn.addEventListener('click', toggleMute);
-$('btn-restart').addEventListener('click', restart);
-
 window.addEventListener('keydown', (e) => {
-  if (e.target.closest('input, textarea')) return;
+  if (e.target.closest('input, textarea, select')) return;
   const k = e.key.toLowerCase();
-  if (!started && (k === 'enter' || k === ' ')) {
+  if (k === 'escape' || (k === ' ' && started && !menu.open)) {
+    if (e.target.closest('button') && k === ' ') return;
     e.preventDefault();
-    begin();
+    if (started) menu.toggle();
+  } else if (menu.open) {
+    return;
   } else if (k === '1' || k === '2') director.choose(+k - 1);
-  else if (k === ' ') {
-    if (e.target.closest('button')) return;
-    e.preventDefault();
-    togglePause();
-  } else if (k === 'm') toggleMute();
+  else if (k === 'm') sound.setMute(!sound.muted);
   else if (k === 'f') {
     const el = document.documentElement;
     (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen?.())?.catch?.(() => {});
@@ -4556,7 +4948,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && started && !director.paused) togglePause();
+  if (document.hidden && started && !menu.open) menu.showPause();
 });
 
 // ----------------------------------------------------------------- loop ---
@@ -4603,6 +4995,8 @@ window.story = {
   get state() {
     return director.state;
   },
+  menu,
+  settings,
   begin,
   jump: (id) => {
     if (!started) begin();

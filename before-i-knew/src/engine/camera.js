@@ -12,7 +12,6 @@ export class Camera {
     this.y = -220;
     this.view = BASE_VIEW;
     this.shake = 0;
-    this.shakeScale = 1; // the player's camera-shake setting
     this.time = 0;
   }
 
@@ -20,7 +19,7 @@ export class Camera {
     this.x = x;
     this.y = y;
     this.view = view;
-    this.shake = shake * this.shakeScale;
+    this.shake = shake;
   }
 
   // Scale and offset for a layer at the given depth.

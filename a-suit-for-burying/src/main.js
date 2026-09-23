@@ -2,6 +2,8 @@ import { Renderer } from './engine/renderer.js';
 import { Director } from './engine/director.js';
 import { Sound } from './engine/audio.js';
 import { UI } from './engine/ui.js';
+import { Menu } from './engine/menu.js';
+import { Settings } from './engine/settings.js';
 import { freshState, loadState } from './engine/state.js';
 import { CHAPTER_1, summary } from './story/chapter1.js';
 
@@ -17,6 +19,7 @@ try {
   throw err;
 }
 
+const settings = new Settings();
 const sound = new Sound();
 const ui = new UI();
 let state = freshState();
@@ -45,34 +48,52 @@ function resize() {
 window.addEventListener('resize', resize);
 resize();
 
-// --------------------------------------------------------- title card -----
+// ------------------------------------------------------------ settings ---
 
-// The title sits over a living frame of the prologue.
+function applySettings() {
+  sound.setLevels({ master: settings.get('master'), music: settings.get('music'), effects: settings.get('effects') });
+  stage.classList.toggle('nosubs', !settings.get('subtitles'));
+  stage.style.setProperty('--ts', String(settings.get('textSize')));
+  R.cam.shakeScale = settings.get('shake') ? 1 : 0;
+}
+settings.onChange(applySettings);
+applySettings();
+
+// ------------------------------------------------------ the main menu -----
+
+// The main menu sits over a living frame of the prologue.
 const titleEnv = { state, sound: { snort() {}, hoof() {} }, R, director };
 let titleScene = CHAPTER_1.scenes.prologue.create(titleEnv);
 let started = false;
 
 function begin() {
-  if (started) return;
   started = true;
-  sound.start().then(() => sound.setMood('elegy'));
-  $('title').classList.add('gone');
-  $('hud').hidden = false;
-  setTimeout(() => ($('title').hidden = true), 1400);
-  director.start(CHAPTER_1.first);
-}
-$('begin').addEventListener('click', begin);
-
-function restart() {
+  menu.close();
   state = freshState();
   director.state = state;
+  director.paused = false;
   $('end').hidden = true;
   $('end').classList.remove('show');
   ui.clearText();
   ui.hideChoice();
-  director.paused = false;
-  updatePause();
+  sound.start().then(() => {
+    sound.resume();
+    sound.setLevels({ master: settings.get('master'), music: settings.get('music'), effects: settings.get('effects') });
+    sound.setMood('elegy');
+  });
   director.start(CHAPTER_1.first);
+}
+
+function toMainMenu() {
+  started = false;
+  director.paused = false;
+  $('end').hidden = true;
+  $('end').classList.remove('show');
+  ui.clearText();
+  ui.hideChoice();
+  sound.suspend();
+  titleScene = CHAPTER_1.scenes.prologue.create(titleEnv);
+  menu.showMain();
 }
 
 director.on('end', (s) => {
@@ -87,51 +108,82 @@ director.on('end', (s) => {
   requestAnimationFrame(() => $('end').classList.add('show'));
   $('again').focus({ preventScroll: true });
 });
-$('again').addEventListener('click', restart);
+$('again').addEventListener('click', begin);
+$('end-menu').addEventListener('click', toMainMenu);
 
-// Returning players: the title mentions their last ending.
-const saved = loadState();
-if (saved && saved.river) {
-  $('saved').hidden = false;
-  $('saved').textContent = `Last time: ${summary(saved)[1]}`;
+// Returning players: the menu mentions their last ending.
+function lastTime() {
+  const saved = loadState();
+  return saved && saved.river ? `<p class="note" id="saved">Last time: ${summary(saved)[1]}</p>` : '';
 }
+
+const menu = new Menu($('menu'), {
+  get header() {
+    return `<p class="kicker">Chapter One &middot; The Trunk</p>
+    <h1 id="title-h">A Suit for Burying</h1>
+    <p class="tagline">He buried his wife in the only suit he owned. He never took it off. Now a stranger wants the man he used to be.</p>
+    ${lastTime()}`;
+  },
+  main: [
+    { label: 'Begin', sub: 'Sound on · about five minutes', action: () => begin() },
+    { label: 'Settings', action: (m) => m.push('settings') },
+    { label: 'Controls', action: (m) => m.push('controls') },
+    { label: 'About', action: (m) => m.push('about') },
+  ],
+  pause: [
+    { label: 'Resume', action: (m) => m.close() },
+    { label: 'Settings', action: (m) => m.push('settings') },
+    { label: 'Controls', action: (m) => m.push('controls') },
+    { label: 'Restart chapter', action: () => begin() },
+    { label: 'Main menu', action: () => toMainMenu() },
+  ],
+  onOpen: () => {
+    director.paused = true;
+    sound.suspend();
+  },
+  onClose: () => {
+    director.paused = false;
+    sound.resume();
+  },
+  settingsStore: settings,
+  settings: [
+    { key: 'master', label: 'Master volume', type: 'range' },
+    { key: 'music', label: 'Music', type: 'range' },
+    { key: 'effects', label: 'Sound effects', type: 'range' },
+    { key: 'subtitles', label: 'Subtitles', type: 'toggle' },
+    { key: 'textSize', label: 'Text size', type: 'select', options: [[0.85, 'Small'], [1, 'Medium'], [1.2, 'Large'], [1.4, 'Extra large']] },
+    { key: 'shake', label: 'Camera shake', type: 'toggle' },
+  ],
+  controls: {
+    list: [
+      ['1 / 2', 'Make a choice (or click it)'],
+      ['Esc / Space', 'Open or close this menu'],
+      ['M', 'Sound on or off'],
+      ['F', 'Full screen'],
+      ['Enter', 'Begin, from the main menu'],
+    ],
+    extra: 'Some choices are timed. If you hesitate, the story chooses for him.',
+  },
+  about: `<h2 class="menu-title">About</h2>
+    <p><strong>A Suit for Burying</strong> is a short interactive Western. A widower in a black suit, his late wife&rsquo;s grey mare, and a stranger who knew the man he used to be.</p>
+    <p>This is Chapter One. Your choices change how it plays out, and they&rsquo;re saved for the next chapter.</p>
+    <p class="menu-sub">Everything is drawn, lit and synthesised in code, in real time. There are no images or recordings.</p>`,
+});
+menu.showMain();
 
 // ------------------------------------------------------------- controls ---
 
-const pauseBtn = $('btn-pause');
-const muteBtn = $('btn-mute');
-function updatePause() {
-  pauseBtn.textContent = director.paused ? 'Resume' : 'Pause';
-  pauseBtn.setAttribute('aria-pressed', String(director.paused));
-  stage.classList.toggle('paused', director.paused);
-}
-function togglePause() {
-  if (!started) return;
-  director.paused = !director.paused;
-  if (sound.ctx) director.paused ? sound.ctx.suspend() : sound.ctx.resume();
-  updatePause();
-}
-function toggleMute() {
-  sound.setMute(!sound.muted);
-  muteBtn.textContent = sound.muted ? 'Sound off' : 'Sound on';
-  muteBtn.setAttribute('aria-pressed', String(!sound.muted));
-}
-pauseBtn.addEventListener('click', togglePause);
-muteBtn.addEventListener('click', toggleMute);
-$('btn-restart').addEventListener('click', restart);
-
 window.addEventListener('keydown', (e) => {
-  if (e.target.closest('input, textarea')) return;
+  if (e.target.closest('input, textarea, select')) return;
   const k = e.key.toLowerCase();
-  if (!started && (k === 'enter' || k === ' ')) {
+  if (k === 'escape' || (k === ' ' && started && !menu.open)) {
+    if (e.target.closest('button') && k === ' ') return;
     e.preventDefault();
-    begin();
+    if (started) menu.toggle();
+  } else if (menu.open) {
+    return;
   } else if (k === '1' || k === '2') director.choose(+k - 1);
-  else if (k === ' ') {
-    if (e.target.closest('button')) return;
-    e.preventDefault();
-    togglePause();
-  } else if (k === 'm') toggleMute();
+  else if (k === 'm') sound.setMute(!sound.muted);
   else if (k === 'f') {
     const el = document.documentElement;
     (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen?.())?.catch?.(() => {});
@@ -139,7 +191,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && started && !director.paused) togglePause();
+  if (document.hidden && started && !menu.open) menu.showPause();
 });
 
 // ----------------------------------------------------------------- loop ---
@@ -186,6 +238,8 @@ window.story = {
   get state() {
     return director.state;
   },
+  menu,
+  settings,
   begin,
   jump: (id) => {
     if (!started) begin();
