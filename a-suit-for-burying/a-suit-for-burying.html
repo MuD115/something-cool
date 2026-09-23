@@ -1,0 +1,4618 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>A Suit for Burying</title>
+<meta name="description" content="An interactive 2D Western with real-time lighting and shadows. A widower in a black suit, his late wife's grey mare, and choices that decide who he becomes." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Special+Elite&display=swap" />
+<style>
+  :root {
+    color-scheme: dark;
+    --black: #050404;
+    --ink: #eee4d0;
+    --dust: #a8977c;
+    --faint: #6b5f4f;
+    --ember: #d9a15a;
+    --blood: #9a3322;
+    --display: 'IM Fell English SC', 'Iowan Old Style', Georgia, serif;
+    --serif: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
+    --type: 'Special Elite', 'Courier New', ui-monospace, monospace;
+  }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--black);
+    color: var(--ink);
+    font: 16px/1.4 var(--serif);
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  #stage {
+    position: relative;
+    width: 100vw;
+    height: calc(100vw / 2.39);
+    max-width: 100%;
+    overflow: hidden;
+    background: #000;
+    /* --u is 1% of the stage width, set by script, so type scales with the frame */
+    --u: 1vw;
+  }
+  #view { display: block; width: 100%; height: 100%; }
+  [hidden] { display: none !important; }
+
+  /* ---------- subtitles and cards ---------- */
+  #sub {
+    position: absolute;
+    left: 50%;
+    bottom: 5.5%;
+    transform: translateX(-50%);
+    width: min(78%, 60ch);
+    text-align: center;
+    text-shadow: 0 1px 3px #000, 0 0 18px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+  }
+  #sub-who {
+    display: block;
+    font: max(10px, calc(var(--u) * 0.95)) / 1.2 var(--display);
+    letter-spacing: 0.18em;
+    color: var(--ember);
+    margin-bottom: 0.3em;
+  }
+  #sub-text {
+    font-size: max(15px, calc(var(--u) * 1.75));
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+  #sub[data-style='memory'] #sub-text { font-style: italic; color: #d8cdb8; opacity: 0.9; }
+  #sub[data-style='memory'] #sub-who { color: var(--dust); }
+  #sub[data-style='shout'] #sub-text { letter-spacing: 0.02em; }
+
+  #card {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0 18%;
+    text-align: center;
+    font: max(15px, calc(var(--u) * 1.9)) / 1.45 var(--type);
+    color: var(--ink);
+    text-shadow: 0 0 20px #000, 0 1px 2px #000;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 70%);
+    opacity: 0;
+    transition: opacity 1.1s ease;
+    pointer-events: none;
+    text-wrap: balance;
+  }
+  #card.show { opacity: 1; }
+
+  /* ---------- choices ---------- */
+  #choice {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 2.4% 6% 3%;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.55) 70%, rgba(0, 0, 0, 0));
+    display: grid;
+    justify-items: center;
+    gap: calc(var(--u) * 1.1);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  #choice.show { opacity: 1; transform: none; }
+  #choice-prompt {
+    margin: 0;
+    font: italic max(14px, calc(var(--u) * 1.6)) / 1.3 var(--serif);
+    color: var(--dust);
+    text-align: center;
+    text-wrap: balance;
+  }
+  #choice-opts { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--u) * 1.2); }
+  .opt {
+    font: max(13px, calc(var(--u) * 1.45)) / 1 var(--display);
+    letter-spacing: 0.08em;
+    color: var(--ink);
+    background: rgba(20, 14, 10, 0.75);
+    border: 1px solid rgba(217, 161, 90, 0.45);
+    padding: 0.7em 1.3em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8em;
+    transition: background 0.2s, border-color 0.2s, opacity 0.4s;
+  }
+  .opt:hover, .opt:focus-visible { background: rgba(60, 36, 18, 0.85); border-color: var(--ember); outline: none; }
+  .opt kbd { font: max(10px, calc(var(--u) * 0.9)) / 1 var(--type); color: var(--ember); }
+  .opt.picked { border-color: var(--ember); background: rgba(90, 50, 20, 0.9); }
+  .opt.faded { opacity: 0.25; }
+  #choice-timer {
+    width: min(40%, 320px);
+    height: 2px;
+    background: rgba(238, 228, 208, 0.15);
+    position: relative;
+  }
+  #choice-timer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform-origin: left;
+    transform: scaleX(var(--left, 1));
+    background: var(--blood);
+  }
+
+  /* ---------- title ---------- */
+  #title {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+    padding: 0 8%;
+    gap: calc(var(--u) * 1);
+    background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.7));
+    transition: opacity 1.3s ease;
+  }
+  #title.gone { opacity: 0; pointer-events: none; }
+  .kicker {
+    margin: 0;
+    font: max(10px, calc(var(--u) * 0.95)) / 1.2 var(--type);
+    letter-spacing: 0.3em;
+    color: var(--dust);
+  }
+  h1 {
+    margin: 0;
+    font: max(34px, calc(var(--u) * 6.4)) / 0.95 var(--display);
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    text-shadow: 0 2px 30px rgba(0, 0, 0, 0.9);
+    text-wrap: balance;
+  }
+  .tagline {
+    margin: 0;
+    max-width: 44ch;
+    font: italic max(14px, calc(var(--u) * 1.55)) / 1.4 var(--serif);
+    color: #d8cdb8;
+    text-shadow: 0 1px 8px #000;
+  }
+  #begin {
+    margin-top: calc(var(--u) * 1.2);
+    font: max(14px, calc(var(--u) * 1.5)) / 1 var(--display);
+    letter-spacing: 0.2em;
+    color: var(--black);
+    background: var(--ember);
+    border: 0;
+    padding: 0.85em 2.2em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  #begin:hover, #begin:focus-visible { background: #efc07a; outline: none; transform: translateY(-1px); }
+  .note {
+    margin: 0;
+    font: max(10px, calc(var(--u) * 0.9)) / 1.4 var(--type);
+    color: var(--dust);
+    letter-spacing: 0.05em;
+  }
+  #saved { color: var(--ember); }
+
+  /* ---------- end ---------- */
+  #end {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: calc(var(--u) * 1.2);
+    padding: 0 10%;
+    background: rgba(4, 3, 3, 0.9);
+    opacity: 0;
+    transition: opacity 1.4s;
+    text-align: center;
+  }
+  #end.show { opacity: 1; }
+  #end h2 { margin: 0; font: max(24px, calc(var(--u) * 3.6)) / 1 var(--display); }
+  #end-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.45em;
+    font: italic max(14px, calc(var(--u) * 1.45)) / 1.35 var(--serif);
+    color: #d8cdb8;
+    max-width: 52ch;
+  }
+  #end-list li::before { content: '\2014\2002'; color: var(--ember); font-style: normal; }
+  #again {
+    font: max(13px, calc(var(--u) * 1.3)) / 1 var(--display);
+    letter-spacing: 0.16em;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid rgba(217, 161, 90, 0.6);
+    padding: 0.8em 1.8em;
+    cursor: pointer;
+  }
+  #again:hover, #again:focus-visible { background: rgba(90, 50, 20, 0.6); outline: none; }
+
+  /* ---------- hud ---------- */
+  #hud {
+    position: absolute;
+    top: 3%;
+    right: 2%;
+    display: flex;
+    gap: 6px;
+    opacity: 0.18;
+    transition: opacity 0.4s;
+  }
+  #stage:hover #hud, #hud:focus-within, #stage.paused #hud { opacity: 0.95; }
+  #hud button {
+    font: max(10px, calc(var(--u) * 0.85)) / 1 var(--type);
+    color: var(--ink);
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(238, 228, 208, 0.2);
+    padding: 0.6em 0.9em;
+    cursor: pointer;
+  }
+  #hud button:focus-visible { outline: 1px solid var(--ember); }
+  #stage.paused::after {
+    content: 'Paused';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font: max(18px, calc(var(--u) * 2.4)) / 1 var(--display);
+    letter-spacing: 0.3em;
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+  #nogl {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0 12%;
+    text-align: center;
+    font: 16px/1.5 var(--type);
+    color: var(--dust);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #card, #choice, #title, #end { transition: none; }
+  }
+  @media (max-aspect-ratio: 1/1) {
+    /* portrait phones: invite a rotation, keep the frame playable */
+    body::before {
+      content: 'Turn your phone sideways for the full frame.';
+      position: fixed;
+      top: calc(16px + env(safe-area-inset-top, 0px));
+      left: 16px;
+      right: 16px;
+      text-align: center;
+      font: 12px/1.4 var(--type);
+      color: var(--dust);
+    }
+    #title { padding: 0 16px; gap: 10px; }
+    h1 { font-size: 30px; }
+    .tagline { font-size: 14px; }
+    #card { padding: 0 16px; font-size: 14px; }
+    #sub { width: calc(100% - 32px); }
+    #choice { padding: 12px 16px 14px; }
+    #end { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="view" aria-label="A Suit for Burying: animated story"></canvas>
+
+  <div id="card" role="status" aria-live="polite"></div>
+  <div id="sub" hidden aria-live="polite"><span id="sub-who"></span><span id="sub-text"></span></div>
+
+  <div id="choice" hidden role="group" aria-labelledby="choice-prompt">
+    <p id="choice-prompt"></p>
+    <div id="choice-opts"></div>
+    <div id="choice-timer" hidden aria-hidden="true"></div>
+  </div>
+
+  <div id="hud" hidden>
+    <button type="button" id="btn-pause" aria-pressed="false">Pause</button>
+    <button type="button" id="btn-mute" aria-pressed="true">Sound on</button>
+    <button type="button" id="btn-restart">Restart</button>
+  </div>
+
+  <section id="title" aria-labelledby="title-h">
+    <p class="kicker">Chapter One &middot; The Trunk</p>
+    <h1 id="title-h">A Suit for Burying</h1>
+    <p class="tagline">He buried his wife in the only suit he owned. He never took it off. Now a stranger wants the man he used to be.</p>
+    <button type="button" id="begin">Begin</button>
+    <p class="note">Sound on &middot; your choices change the story &middot; about five minutes</p>
+    <p class="note" id="saved" hidden></p>
+  </section>
+
+  <section id="end" hidden aria-labelledby="end-h">
+    <p class="kicker">End of Chapter One</p>
+    <h2 id="end-h">The man you&rsquo;re making</h2>
+    <ul id="end-list"></ul>
+    <p class="note">Chapter Two &middot; <em>Calvary Bend</em> is in the making. Your choices are saved for it.</p>
+    <button type="button" id="again">Play again, choose differently</button>
+  </section>
+
+  <div id="nogl" hidden>This story needs WebGL2, which this browser or device doesn&rsquo;t provide. Try a recent Chrome, Edge, Firefox or Safari.</div>
+</div>
+<script type="module">
+// ---- src/engine/util.js
+const __src_engine_util = (() => {
+// Small maths and animation helpers shared by the whole engine.
+
+const TAU = Math.PI * 2;
+const DEG = Math.PI / 180;
+
+const clamp = (v, a = 0, b = 1) => Math.min(Math.max(v, a), b);
+const lerp = (a, b, t) => a + (b - a) * t;
+const invLerp = (a, b, v) => clamp((v - a) / (b - a));
+const smooth = (a, b, v) => {
+  const t = invLerp(a, b, v);
+  return t * t * (3 - 2 * t);
+};
+
+const ease = {
+  linear: (t) => t,
+  in: (t) => t * t * t,
+  out: (t) => 1 - Math.pow(1 - t, 3),
+  inOut: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+  sine: (t) => 0.5 - 0.5 * Math.cos(Math.PI * t),
+  back: (t) => {
+    const c = 1.70158;
+    return 1 + (c + 1) * Math.pow(t - 1, 3) + c * Math.pow(t - 1, 2);
+  },
+};
+
+// Keyframes: [[time, value], ...] with optional easing per segment
+// ([time, value, 'out']). Values may be numbers or flat objects of numbers.
+function key(t, frames, defaultEase = 'inOut') {
+  if (t <= frames[0][0]) return frames[0][1];
+  for (let i = 1; i < frames.length; i++) {
+    const [t1, v1, e] = frames[i];
+    if (t <= t1) {
+      const [t0, v0] = frames[i - 1];
+      const k = ease[e || defaultEase]((t - t0) / (t1 - t0));
+      return mix(v0, v1, k);
+    }
+  }
+  return frames[frames.length - 1][1];
+}
+
+function mix(a, b, k) {
+  if (typeof a === 'number') return a + (b - a) * k;
+  const out = {};
+  for (const n in a) out[n] = typeof a[n] === 'number' && typeof b[n] === 'number' ? a[n] + (b[n] - a[n]) * k : k < 0.5 ? a[n] : b[n];
+  for (const n in b) if (!(n in out)) out[n] = b[n];
+  return out;
+}
+
+// Deterministic PRNG so procedural sets look the same on every visit.
+function rng(seed) {
+  let s = seed >>> 0;
+  return () => {
+    s = (s + 0x6d2b79f5) >>> 0;
+    let t = s;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const hash1 = (n) => {
+  const x = Math.sin(n * 127.1) * 43758.5453;
+  return x - Math.floor(x);
+};
+// Smooth 1D value noise in [-1, 1].
+function noise1(x) {
+  const i = Math.floor(x);
+  const f = x - i;
+  const u = f * f * (3 - 2 * f);
+  return (hash1(i) * (1 - u) + hash1(i + 1) * u) * 2 - 1;
+}
+
+// Colour helpers: 'rgb(…)' strings from arrays, and mixing.
+const rgb = (c, a = 1) =>
+  a >= 1 ? `rgb(${c[0] | 0},${c[1] | 0},${c[2] | 0})` : `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const mixc = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+const hex = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+
+// Two-bone inverse kinematics. Returns the middle joint for a limb rooted at
+// (rx, ry) reaching toward (tx, ty); bend = +1 or −1 picks the elbow side.
+function ik2(rx, ry, tx, ty, a, b, bend) {
+  let dx = tx - rx;
+  let dy = ty - ry;
+  let d = Math.hypot(dx, dy);
+  const max = (a + b) * 0.999;
+  if (d > max) {
+    dx *= max / d;
+    dy *= max / d;
+    d = max;
+  }
+  d = Math.max(d, Math.abs(a - b) + 0.01);
+  const cosA = (a * a + d * d - b * b) / (2 * a * d);
+  const ang = Math.atan2(dy, dx) + bend * Math.acos(clamp(cosA, -1, 1));
+  return { jx: rx + Math.cos(ang) * a, jy: ry + Math.sin(ang) * a, ex: rx + dx, ey: ry + dy };
+}
+
+return { TAU, DEG, clamp, lerp, invLerp, smooth, ease, key, mix, rng, noise1, rgb, mixc, hex, ik2 };
+})();
+
+// ---- src/engine/camera.js
+const __src_engine_camera = (() => {
+// A 2D film camera: centre, framing width (in world units) and shake.
+// Layers take a parallax depth: 1 is the action plane, <1 is further away,
+// >1 is foreground that sweeps past faster than the actors.
+
+const { noise1 } = __src_engine_util;
+const BASE_VIEW = 1400;
+
+class Camera {
+  constructor() {
+    this.x = 0;
+    this.y = -220;
+    this.view = BASE_VIEW;
+    this.shake = 0;
+    this.time = 0;
+  }
+
+  set({ x = this.x, y = this.y, view = this.view, shake = 0 } = {}) {
+    this.x = x;
+    this.y = y;
+    this.view = view;
+    this.shake = shake;
+  }
+
+  // Scale and offset for a layer at the given depth.
+  frame(W, H, depth = 1) {
+    // The view width is framed for 2.39:1; taller frames keep the same
+    // vertical coverage plus a little, rather than zooming out sideways.
+    const base = Math.max(W / BASE_VIEW, (H * 2.39 * 0.62) / BASE_VIEW);
+    const s = base * Math.pow(BASE_VIEW / this.view, depth);
+    const sx = this.shake * 14 * noise1(this.time * 23.1);
+    const sy = this.shake * 10 * noise1(this.time * 19.7 + 40);
+    return {
+      s,
+      ox: W / 2 - this.x * depth * s + sx * depth,
+      oy: H / 2 - this.y * depth * s + sy * depth,
+    };
+  }
+
+  apply(ctx, W, H, depth = 1) {
+    const f = this.frame(W, H, depth);
+    ctx.setTransform(f.s, 0, 0, f.s, f.ox, f.oy);
+  }
+
+  // World point → texture coordinates (0…1, y down).
+  toUv(x, y, W, H, depth = 1) {
+    const f = this.frame(W, H, depth);
+    return [(x * f.s + f.ox) / W, (y * f.s + f.oy) / H];
+  }
+}
+
+return { BASE_VIEW, Camera };
+})();
+
+// ---- src/engine/renderer.js
+const __src_engine_renderer = (() => {
+// Deferred 2D lighting.
+//
+// Scenes paint into four Canvas 2D layers each frame:
+//   albedo    – the painted colours of everything that receives light
+//   occluders – alpha of anything that casts a shadow
+//   emissive  – light sources and sky (not lit, but glowing)
+//   ground    – contact/cast shadows projected onto the ground plane
+// A WebGL2 pass then lights the albedo with up to four point or directional
+// lights: projected shadows on backdrops (so a lantern throws giant shadows
+// on a barn wall), rim light on silhouettes from the occluder gradient,
+// god rays, bloom, lightning flashes, film grain and a vignette.
+
+const { Camera } = __src_engine_camera;
+const MAX_LIGHTS = 4;
+
+const VERT = `#version 300 es
+in vec2 aPos;
+out vec2 vUv;
+void main() {
+  vUv = vec2(aPos.x * 0.5 + 0.5, 0.5 - aPos.y * 0.5);
+  gl_Position = vec4(aPos, 0.0, 1.0);
+}`;
+
+const FRAG = `#version 300 es
+precision highp float;
+in vec2 vUv;
+out vec4 outColor;
+
+uniform sampler2D uAlb;
+uniform sampler2D uOcc;
+uniform sampler2D uEmit;
+uniform sampler2D uShd;
+uniform vec2 uRes;
+uniform vec3 uAmbient;
+uniform int uCount;
+uniform vec2 uLP[${MAX_LIGHTS}];
+uniform vec3 uLC[${MAX_LIGHTS}];
+uniform vec4 uLK[${MAX_LIGHTS}];   // falloff radius, projection k, softness, rim
+uniform vec2 uGodPos;
+uniform float uGod;
+uniform float uBloom;
+uniform vec3 uFlash;
+uniform float uGroundShadow;
+uniform float uTime;
+uniform float uFade;
+uniform float uGrain;
+uniform float uExposure;
+
+vec3 toLin(vec3 c) { return pow(c, vec3(2.2)); }
+
+vec3 aces(vec3 x) {
+  return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+}
+
+float hash(vec2 p) {
+  p = fract(p * vec2(123.34, 456.21));
+  p += dot(p, p + 45.32);
+  return fract(p.x * p.y);
+}
+
+void main() {
+  vec2 uv = vUv;
+  float aspect = uRes.x / uRes.y;
+  vec4 alb = texture(uAlb, uv);
+  float occ = texture(uOcc, uv).a;
+  vec3 emit = toLin(texture(uEmit, uv).rgb);
+  float gshd = textureLod(uShd, uv, 1.2).a;
+  vec3 base = toLin(alb.rgb);
+
+  // Outward normal of silhouettes, from the occluder alpha gradient.
+  vec2 px = 1.0 / uRes;
+  float rr = 2.5;
+  float ax = texture(uOcc, uv + vec2(px.x * rr, 0.0)).a - texture(uOcc, uv - vec2(px.x * rr, 0.0)).a;
+  float ay = texture(uOcc, uv + vec2(0.0, px.y * rr)).a - texture(uOcc, uv - vec2(0.0, px.y * rr)).a;
+  vec2 grad = vec2(ax * aspect, ay);
+  float edge = clamp(length(grad) * 0.7, 0.0, 1.0);
+  vec2 nrm = edge > 0.001 ? -normalize(grad) : vec2(0.0);
+
+  vec3 light = uAmbient + uFlash;
+  vec3 rim = vec3(0.0);
+
+  for (int i = 0; i < ${MAX_LIGHTS}; i++) {
+    if (i >= uCount) break;
+    vec2 d = uLP[i] - uv;
+    vec2 da = vec2(d.x * aspect, d.y);
+    float dist = length(da);
+    vec4 k = uLK[i];
+    float att = k.x > 0.0 ? 1.0 / (1.0 + (dist * dist) / (k.x * k.x)) : 1.0;
+
+    float sh = 1.0;
+    if (k.y > 0.0) {
+      // The backdrop sits behind the actors: a backdrop pixel is shadowed
+      // by whatever occluder lies on the line back toward the light,
+      // scaled by 1/k — which enlarges shadows the further the wall is.
+      vec2 src = uLP[i] + (uv - uLP[i]) / k.y;
+      float s = texture(uOcc, src).a * 0.28;
+      s += texture(uOcc, src + vec2(k.z, 0.0)).a * 0.18;
+      s += texture(uOcc, src - vec2(k.z, 0.0)).a * 0.18;
+      s += texture(uOcc, src + vec2(0.0, k.z * aspect)).a * 0.18;
+      s += texture(uOcc, src - vec2(0.0, k.z * aspect)).a * 0.18;
+      sh = 1.0 - s * (1.0 - occ) * 0.92;
+    }
+    if (i == 0) sh *= 1.0 - gshd * uGroundShadow * (1.0 - occ);
+
+    light += uLC[i] * att * sh;
+    vec2 ld = dist > 0.0001 ? da / dist : vec2(0.0);
+    rim += uLC[i] * min(att * 1.6, 1.0) * k.w * edge * max(dot(nrm, ld), 0.0);
+  }
+
+  vec3 col = base * light + rim * occ + emit;
+
+  // Light shafts: march toward the sun through the emissive sky, blocked by occluders.
+  if (uGod > 0.0) {
+    vec2 dir = (uv - uGodPos) / 48.0;
+    vec2 c = uv;
+    float decay = 1.0;
+    vec3 acc = vec3(0.0);
+    for (int i = 0; i < 48; i++) {
+      c -= dir;
+      vec3 s = toLin(texture(uEmit, c).rgb) * (1.0 - texture(uOcc, c).a);
+      acc += s * decay;
+      decay *= 0.955;
+    }
+    col += acc / 48.0 * uGod;
+  }
+
+  // Bloom from the emissive layer's mip chain.
+  vec3 glow = toLin(textureLod(uEmit, uv, 3.0).rgb) * 0.5 + toLin(textureLod(uEmit, uv, 5.0).rgb) * 0.8;
+  col += max(glow - 0.05, 0.0) * uBloom;
+
+  col = aces(col * uExposure);
+  col = pow(col, vec3(1.0 / 2.2));
+
+  vec2 q = uv - 0.5;
+  col *= 1.0 - dot(q * vec2(0.9, 1.3), q * vec2(0.9, 1.3)) * 0.9;
+  col += (hash(uv * uRes + fract(uTime * 7.13) * 91.0) - 0.5) * uGrain;
+  col *= 1.0 - uFade;
+  outColor = vec4(col, 1.0);
+}`;
+
+class Renderer {
+  constructor(canvas) {
+    this.canvas = canvas;
+    const gl = canvas.getContext('webgl2', { antialias: false, alpha: false, preserveDrawingBuffer: false });
+    if (!gl) throw new Error('WebGL2 is required');
+    this.gl = gl;
+    this.cam = new Camera();
+
+    const mk = () => {
+      const c = document.createElement('canvas');
+      return { c, x: c.getContext('2d') };
+    };
+    this.layers = { alb: mk(), occ: mk(), emit: mk(), shd: mk() };
+
+    this.prog = this.program(VERT, FRAG);
+    this.u = {};
+    const n = gl.getProgramParameter(this.prog, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) {
+      const name = gl.getActiveUniform(this.prog, i).name.replace(/\[0\]$/, '');
+      this.u[name] = gl.getUniformLocation(this.prog, name);
+    }
+
+    const buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 3, -1, -1, 3]), gl.STATIC_DRAW);
+    const loc = gl.getAttribLocation(this.prog, 'aPos');
+    gl.enableVertexAttribArray(loc);
+    gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+
+    this.tex = {};
+    ['alb', 'occ', 'emit', 'shd'].forEach((k, i) => {
+      const t = gl.createTexture();
+      gl.activeTexture(gl.TEXTURE0 + i);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      const mip = k === 'emit' || k === 'shd';
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      this.tex[k] = { t, unit: i, mip };
+    });
+    // Canvas pixels are premultiplied internally; keep them that way so a
+    // faint glow stays faint and mipmaps (bloom) average correctly.
+    gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, true);
+    gl.useProgram(this.prog);
+    gl.uniform1i(this.u.uAlb, 0);
+    gl.uniform1i(this.u.uOcc, 1);
+    gl.uniform1i(this.u.uEmit, 2);
+    gl.uniform1i(this.u.uShd, 3);
+  }
+
+  program(vs, fs) {
+    const gl = this.gl;
+    const sh = (type, src) => {
+      const s = gl.createShader(type);
+      gl.shaderSource(s, src);
+      gl.compileShader(s);
+      if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+      return s;
+    };
+    const p = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
+    gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    return p;
+  }
+
+  resize(w, h) {
+    this.W = w;
+    this.H = h;
+    this.canvas.width = w;
+    this.canvas.height = h;
+    for (const k in this.layers) {
+      this.layers[k].c.width = w;
+      this.layers[k].c.height = h;
+    }
+  }
+
+  // ---- painting API used by sets, rigs and scenes -------------------------
+
+  // Set every layer's transform for a parallax depth.
+  layer(depth = 1) {
+    for (const k in this.layers) this.cam.apply(this.layers[k].x, this.W, this.H, depth);
+    this.depth = depth;
+  }
+
+  // Sky and light sources: emissive only.
+  sky(fn) {
+    fn(this.layers.emit.x);
+  }
+
+  // Opaque, lit, casts no shadow. Covers anything glowing behind it.
+  paint(fn) {
+    fn(this.layers.alb.x);
+    const e = this.layers.emit.x;
+    e.save();
+    e.globalCompositeOperation = 'destination-out';
+    fn(e);
+    e.restore();
+  }
+
+  // Opaque, lit and shadow-casting.
+  cast(fn) {
+    this.paint(fn);
+    fn(this.layers.occ.x);
+  }
+
+  // Opaque and lit, and hides any occluder beneath it (water over legs).
+  cover(fn) {
+    this.paint(fn);
+    const o = this.layers.occ.x;
+    o.save();
+    o.globalCompositeOperation = 'destination-out';
+    fn(o);
+    o.restore();
+  }
+
+  // Additive light on top: flames, windows, glints, lightning.
+  glow(fn) {
+    const e = this.layers.emit.x;
+    e.save();
+    e.globalCompositeOperation = 'lighter';
+    fn(e);
+    e.restore();
+  }
+
+  // A shadow on the ground: fn's shape, sheared away from the key light and
+  // flattened onto the ground plane about the point (ax, ay).
+  shadow(fn, ax, ay, shear, squash = 0.16) {
+    const s = this.layers.shd.x;
+    s.save();
+    s.translate(ax, ay);
+    s.transform(1, 0, shear, squash, 0, 0);
+    s.translate(-ax, -ay);
+    fn(s);
+    s.restore();
+  }
+
+  // ---- frame ---------------------------------------------------------------
+
+  frame(draw, look) {
+    const { W, H } = this;
+    for (const k in this.layers) {
+      const x = this.layers[k].x;
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.globalCompositeOperation = 'source-over';
+      x.globalAlpha = 1;
+      x.clearRect(0, 0, W, H);
+    }
+    this.layers.alb.x.fillStyle = '#000';
+    this.layers.alb.x.fillRect(0, 0, W, H);
+    this.layer(1);
+    draw(this);
+
+    const gl = this.gl;
+    gl.viewport(0, 0, W, H);
+    for (const k in this.tex) {
+      const { t, unit, mip } = this.tex[k];
+      gl.activeTexture(gl.TEXTURE0 + unit);
+      gl.bindTexture(gl.TEXTURE_2D, t);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, this.layers[k].c);
+      if (mip) gl.generateMipmap(gl.TEXTURE_2D);
+    }
+
+    const u = this.u;
+    const lights = (look.lights || []).slice(0, MAX_LIGHTS);
+    const lp = new Float32Array(MAX_LIGHTS * 2);
+    const lc = new Float32Array(MAX_LIGHTS * 3);
+    const lk = new Float32Array(MAX_LIGHTS * 4);
+    lights.forEach((l, i) => {
+      const [ux, uy] = l.uv || this.cam.toUv(l.x, l.y, W, H, l.depth ?? 1);
+      lp[i * 2] = ux;
+      lp[i * 2 + 1] = uy;
+      const inten = l.intensity ?? 1;
+      lc[i * 3] = l.color[0] * inten;
+      lc[i * 3 + 1] = l.color[1] * inten;
+      lc[i * 3 + 2] = l.color[2] * inten;
+      lk[i * 4] = l.radius ?? 0;
+      lk[i * 4 + 1] = l.project ?? 0;
+      lk[i * 4 + 2] = l.soft ?? 0.004;
+      lk[i * 4 + 3] = l.rim ?? 0.45;
+    });
+    gl.uniform2fv(u.uLP, lp);
+    gl.uniform3fv(u.uLC, lc);
+    gl.uniform4fv(u.uLK, lk);
+    gl.uniform1i(u.uCount, lights.length);
+    gl.uniform2f(u.uRes, W, H);
+    gl.uniform3fv(u.uAmbient, look.ambient || [0.2, 0.2, 0.25]);
+    gl.uniform3fv(u.uFlash, look.flash || [0, 0, 0]);
+    const god = look.god;
+    if (god) {
+      const [gx, gy] = god.uv || this.cam.toUv(god.x, god.y, W, H, god.depth ?? 1);
+      gl.uniform2f(u.uGodPos, gx, gy);
+      gl.uniform1f(u.uGod, god.strength);
+    } else gl.uniform1f(u.uGod, 0);
+    gl.uniform1f(u.uBloom, look.bloom ?? 0.6);
+    gl.uniform1f(u.uGroundShadow, look.groundShadow ?? 0.7);
+    gl.uniform1f(u.uTime, look.time || 0);
+    gl.uniform1f(u.uFade, look.fade || 0);
+    gl.uniform1f(u.uGrain, look.grain ?? 0.05);
+    gl.uniform1f(u.uExposure, look.exposure ?? 1);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+  }
+}
+
+return { Renderer };
+})();
+
+// ---- src/engine/state.js
+const __src_engine_state = (() => {
+// The player's story so far. Chapter 1 writes it; later chapters read it.
+
+const KEY = 'a-suit-for-burying:v1';
+
+function freshState() {
+  return {
+    chapter: 1,
+    resolve: null, // 'willing' | 'reluctant'
+    armed: null, // true | false
+    junePacked: false,
+    trust: null, // 'high' | 'low'
+    river: null, // 'carried' | 'struggled' | 'thrown'
+    choices: [],
+  };
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(KEY);
+    return raw ? { ...freshState(), ...JSON.parse(raw) } : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveState(s) {
+  try {
+    localStorage.setItem(KEY, JSON.stringify(s));
+  } catch {
+    /* private mode or blocked storage: the story still plays */
+  }
+}
+
+return { freshState, loadState, saveState };
+})();
+
+// ---- src/engine/director.js
+const __src_engine_director = (() => {
+// The director runs one scene at a time: it advances the scene clock, fires
+// dialogue, title cards and sound cues on schedule, presents choices, and
+// fades between scenes along the branch the player picks.
+
+const { saveState } = __src_engine_state;
+const FADE = 0.9;
+
+class Director {
+  constructor({ R, sound, ui, scenes, state }) {
+    this.R = R;
+    this.sound = sound;
+    this.ui = ui;
+    this.scenes = scenes;
+    this.state = state;
+    this.paused = false;
+    this.scene = null;
+    this.listeners = {};
+  }
+
+  on(ev, fn) {
+    (this.listeners[ev] ||= []).push(fn);
+  }
+
+  emit(ev, arg) {
+    for (const fn of this.listeners[ev] || []) fn(arg);
+  }
+
+  start(id, { cut = false } = {}) {
+    const def = this.scenes[id];
+    if (!def) throw new Error(`No scene "${id}"`);
+    const env = { state: this.state, sound: this.sound, R: this.R, director: this };
+    this.scene = { id, def, inst: def.create(env), env };
+    this.t = 0;
+    this.fired = new Set();
+    this.choiceShown = false;
+    this.choiceMade = false;
+    this.leaving = null;
+    this.fadeIn = cut ? 0 : FADE;
+    this.ui.clearText();
+    this.ui.hideChoice();
+    if (def.mood !== undefined) this.sound.setMood(def.mood);
+    if (def.ambience) this.sound.ambience(def.ambience);
+    this.emit('scene', id);
+  }
+
+  // Leave the current scene for another, with a fade unless cut.
+  go(next, { cut = false } = {}) {
+    if (this.leaving) return;
+    if (next === '@end') {
+      this.leaving = { next, cut: false, t: 0 };
+      return;
+    }
+    this.leaving = { next, cut, t: 0 };
+  }
+
+  choose(i) {
+    const { def } = this.scene;
+    const c = def.choice;
+    if (!c || !this.choiceShown || this.choiceMade) return;
+    const opt = c.options[i];
+    if (!opt) return;
+    this.choiceMade = true;
+    opt.apply?.(this.state);
+    this.state.choices.push(`${this.scene.id}:${i}`);
+    saveState(this.state);
+    this.sound.click();
+    this.ui.pickChoice(i);
+    this.emit('choice', { scene: this.scene.id, i });
+    setTimeout(() => this.ui.hideChoice(), 450);
+    const next = typeof opt.next === 'function' ? opt.next(this.state) : opt.next;
+    this.go(next, { cut: !!opt.cut });
+  }
+
+  update(dt) {
+    if (!this.scene || this.paused) return;
+    const { def, inst } = this.scene;
+    this.t += dt;
+    const t = this.t;
+
+    for (const [i, line] of (def.lines?.(this.state) || []).entries()) {
+      if (t >= line.t && !this.fired.has(`l${i}`)) {
+        this.fired.add(`l${i}`);
+        this.ui.line(line.who, line.text, line.dur ?? 4, line.style);
+      }
+    }
+    for (const [i, card] of (def.cards || []).entries()) {
+      if (card.when && !card.when(this.state)) continue;
+      if (t >= card.t && !this.fired.has(`c${i}`)) {
+        this.fired.add(`c${i}`);
+        this.ui.card(card.text, card.dur ?? 5);
+      }
+    }
+    for (const [i, cue] of (def.cues || []).entries()) {
+      if (t >= cue.t && !this.fired.has(`q${i}`)) {
+        this.fired.add(`q${i}`);
+        cue.fn(this.scene.env, inst);
+      }
+    }
+
+    inst.update?.(t, dt);
+
+    const c = def.choice;
+    if (c && !this.choiceShown && t >= (c.at ?? def.duration)) {
+      this.choiceShown = true;
+      this.choiceStart = t;
+      this.sound.sting();
+      const prompt = typeof c.prompt === 'function' ? c.prompt(this.state) : c.prompt;
+      this.ui.showChoice(prompt, c.options.map((o) => o.label), c.timed || 0, (i) => this.choose(i));
+    }
+    if (c && this.choiceShown && !this.choiceMade && c.timed) {
+      const left = c.timed - (t - this.choiceStart);
+      this.ui.choiceTimer(left / c.timed);
+      if (left <= 0) this.choose(c.default ?? 0);
+    }
+    if (!c && !this.leaving && t >= def.duration) {
+      const next = typeof def.next === 'function' ? def.next(this.state) : def.next;
+      this.go(next, { cut: !!def.cutNext });
+    }
+
+    if (this.leaving) {
+      this.leaving.t += dt;
+      const dur = this.leaving.cut ? 0 : FADE;
+      if (this.leaving.t >= dur) {
+        const { next, cut } = this.leaving;
+        if (next === '@end') {
+          this.leaving = null;
+          this.scene = null;
+          this.sound.setMood('resolve');
+          this.emit('end', this.state);
+          return;
+        }
+        this.start(next, { cut });
+      }
+    }
+  }
+
+  fade() {
+    let f = 0;
+    if (this.fadeIn > 0) f = Math.max(f, 1 - this.t / this.fadeIn);
+    if (this.leaving && !this.leaving.cut) f = Math.max(f, this.leaving.t / FADE);
+    return Math.min(Math.max(f, 0), 1);
+  }
+
+  render(time) {
+    if (!this.scene) return;
+    const { inst } = this.scene;
+    const t = this.t;
+    const cam = inst.camera(t);
+    this.R.cam.time = time;
+    this.R.cam.set(cam);
+    const look = inst.look(t);
+    this.R.frame((R) => inst.draw(R, t), { ...look, time, fade: Math.max(look.fade || 0, this.fade()) });
+  }
+}
+
+return { Director };
+})();
+
+// ---- src/engine/audio.js
+const __src_engine_audio = (() => {
+// Procedural sound: wind, rain and river beds, foley (hooves, falls,
+// thunder, snorts) and a sparse Western score played on a Karplus–Strong
+// plucked string over a low drone. Nothing is sampled; it's all synthesis.
+
+const NOTE = {
+  E2: 82.41, G2: 98.0, A2: 110.0, B2: 123.47, C3: 130.81, D3: 146.83, E3: 164.81, F3: 174.61, G3: 196.0,
+  A3: 220.0, B3: 246.94, C4: 261.63, D4: 293.66, E4: 329.63, Fs4: 369.99, G4: 392.0, A4: 440.0, B4: 493.88,
+};
+
+// Score patterns: arrays of [note or null, beats]. Tempo in beats per minute.
+const MOODS = {
+  none: null,
+  elegy: {
+    bpm: 58,
+    drone: 0.05,
+    notes: [['E3', 1], ['B3', 1], ['E4', 1], ['G4', 2], ['Fs4', 1], ['E4', 1], ['B3', 2], [null, 1], ['D4', 1], ['B3', 1], ['A3', 1], ['G3', 2], ['E3', 3], [null, 2]],
+  },
+  tension: {
+    bpm: 50,
+    drone: 0.08,
+    notes: [['E2', 2], [null, 2], ['F3', 1], ['E3', 3], [null, 2], ['B2', 2], [null, 4]],
+  },
+  ride: {
+    bpm: 150,
+    drone: 0.07,
+    notes: [['E3', 0.5], ['E3', 0.5], ['B3', 0.5], ['E3', 0.5], ['D4', 0.5], ['E3', 0.5], ['B3', 0.5], ['E3', 0.5], ['E3', 0.5], ['E3', 0.5], ['G3', 0.5], ['E3', 0.5], ['A3', 0.5], ['G3', 0.5], ['D3', 0.5], ['E3', 0.5]],
+  },
+  storm: {
+    bpm: 70,
+    drone: 0.12,
+    notes: [['E2', 1], [null, 1], ['E2', 1], ['F3', 1], [null, 4]],
+  },
+  resolve: {
+    bpm: 52,
+    drone: 0.05,
+    notes: [['G3', 1], ['B3', 1], ['D4', 1], ['G4', 3], ['Fs4', 1], ['D4', 1], ['E4', 3], [null, 1], ['B3', 1], ['G3', 1], ['E3', 4], [null, 2]],
+  },
+};
+
+class Sound {
+  constructor() {
+    this.ctx = null;
+    this.muted = false;
+    this.mood = 'none';
+    this.plucks = new Map();
+  }
+
+  start() {
+    if (this.ctx) return this.ctx.resume();
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.ctx = ctx;
+
+    this.master = ctx.createGain();
+    this.master.gain.value = 0.9;
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -16;
+    comp.ratio.value = 3;
+    this.master.connect(comp).connect(ctx.destination);
+
+    // A long synthetic hall for the score and distant thunder.
+    this.verb = ctx.createConvolver();
+    const len = ctx.sampleRate * 3;
+    const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    for (let ch = 0; ch < 2; ch++) {
+      const d = ir.getChannelData(ch);
+      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.2);
+    }
+    this.verb.buffer = ir;
+    this.verbIn = ctx.createGain();
+    this.verbIn.gain.value = 0.5;
+    this.verbIn.connect(this.verb).connect(this.master);
+
+    this.sfx = ctx.createGain();
+    this.sfx.gain.value = 0.9;
+    this.sfx.connect(this.master);
+    this.sfx.connect(this.verbIn);
+
+    this.music = ctx.createGain();
+    this.music.gain.value = 0.55;
+    this.music.connect(this.master);
+    this.music.connect(this.verbIn);
+
+    // White noise, shared by the ambience beds.
+    const nb = ctx.createBuffer(1, ctx.sampleRate * 4, ctx.sampleRate);
+    const nd = nb.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    this.noiseBuf = nb;
+    const bed = (type, freq, q) => {
+      const src = ctx.createBufferSource();
+      src.buffer = nb;
+      src.loop = true;
+      src.playbackRate.value = 0.5 + Math.random() * 0.5;
+      const f = ctx.createBiquadFilter();
+      f.type = type;
+      f.frequency.value = freq;
+      f.Q.value = q;
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      src.connect(f).connect(g).connect(this.master);
+      src.start();
+      return { g, f };
+    };
+    this.beds = {
+      wind: bed('bandpass', 420, 0.6),
+      rain: bed('highpass', 1800, 0.4),
+      river: bed('lowpass', 520, 0.8),
+      fire: bed('bandpass', 2400, 3),
+    };
+    // Wind gusts: slow modulation of the band.
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 0.09;
+    const lg = ctx.createGain();
+    lg.gain.value = 220;
+    lfo.connect(lg).connect(this.beds.wind.f.frequency);
+    lfo.start();
+
+    // Drone for the score.
+    this.droneGain = ctx.createGain();
+    this.droneGain.gain.value = 0;
+    const df = ctx.createBiquadFilter();
+    df.type = 'lowpass';
+    df.frequency.value = 260;
+    this.droneGain.connect(df).connect(this.music);
+    for (const [fr, type] of [[41.2, 'sawtooth'], [41.5, 'sawtooth'], [82.4, 'triangle']]) {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = fr;
+      o.connect(this.droneGain);
+      o.start();
+    }
+
+    this.step = 0;
+    this.nextNote = ctx.currentTime + 0.2;
+    this.timer = setInterval(() => this.schedule(), 90);
+    return Promise.resolve();
+  }
+
+  get t() {
+    return this.ctx ? this.ctx.currentTime : 0;
+  }
+
+  setMute(m) {
+    this.muted = m;
+    if (this.ctx) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.t, 0.1);
+  }
+
+  // Ambience levels, 0…1, eased.
+  ambience(levels, time = 1.5) {
+    if (!this.ctx) return;
+    const scale = { wind: 0.35, rain: 0.22, river: 0.5, fire: 0.05 };
+    for (const k in levels) {
+      if (this.beds[k]) this.beds[k].g.gain.setTargetAtTime(levels[k] * scale[k], this.t, time / 3);
+    }
+  }
+
+  setMood(m) {
+    if (!this.ctx || this.mood === m) return;
+    this.mood = m;
+    this.step = 0;
+    this.nextNote = Math.max(this.nextNote, this.t + 0.4);
+    const mood = MOODS[m];
+    this.droneGain.gain.setTargetAtTime(mood ? mood.drone : 0, this.t, 1.2);
+  }
+
+  schedule() {
+    const mood = MOODS[this.mood];
+    if (!mood) return;
+    while (this.nextNote < this.t + 0.3) {
+      const [n, beats] = mood.notes[this.step % mood.notes.length];
+      if (n) this.pluck(NOTE[n], this.nextNote, this.mood === 'ride' ? 0.32 : 0.42);
+      this.nextNote += (beats * 60) / mood.bpm;
+      this.step++;
+    }
+  }
+
+  // Karplus–Strong plucked string, rendered once per pitch and cached.
+  pluck(freq, when = this.t, vol = 0.4) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    let buf = this.plucks.get(freq);
+    if (!buf) {
+      const sr = ctx.sampleRate;
+      const len = Math.floor(sr * 3);
+      buf = ctx.createBuffer(1, len, sr);
+      const d = buf.getChannelData(0);
+      const N = Math.round(sr / freq);
+      for (let i = 0; i < N; i++) d[i] = (Math.random() * 2 - 1) * (0.6 + 0.4 * Math.sin((i / N) * Math.PI));
+      for (let i = N; i < len; i++) d[i] = (d[i - N] + d[i - N + 1 < i ? i - N + 1 : i - N]) * 0.4985;
+      this.plucks.set(freq, buf);
+    }
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const g = ctx.createGain();
+    g.gain.value = vol;
+    const tone = ctx.createBiquadFilter();
+    tone.type = 'lowpass';
+    tone.frequency.value = 2600;
+    src.connect(tone).connect(g).connect(this.music);
+    src.start(when);
+  }
+
+  noiseHit({ when = this.t, dur = 0.2, freq = 800, q = 1, type = 'bandpass', vol = 0.5, attack = 0.005, dest = this.sfx }) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const src = ctx.createBufferSource();
+    src.buffer = this.noiseBuf;
+    const f = ctx.createBiquadFilter();
+    f.type = type;
+    f.frequency.value = freq;
+    f.Q.value = q;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(vol, when + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    src.connect(f).connect(g).connect(dest);
+    src.start(when, Math.random() * 3);
+    src.stop(when + dur + 0.05);
+  }
+
+  thump(freq0, freq1, dur, vol, when = this.t) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    o.frequency.setValueAtTime(freq0, when);
+    o.frequency.exponentialRampToValueAtTime(freq1, when + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(vol, when);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
+    o.connect(g).connect(this.sfx);
+    o.start(when);
+    o.stop(when + dur + 0.02);
+  }
+
+  // ---- foley ----
+
+  hoof(surface = 'dirt', vol = 0.5) {
+    const v = vol * (0.8 + Math.random() * 0.4);
+    if (surface === 'water') {
+      this.noiseHit({ dur: 0.25, freq: 900, q: 0.7, vol: v * 0.5 });
+      return;
+    }
+    this.thump(170 + Math.random() * 40, 55, 0.09, v * 0.9);
+    this.noiseHit({ dur: surface === 'mud' ? 0.12 : 0.05, freq: surface === 'mud' ? 400 : 1800, q: 1.2, vol: v * (surface === 'wood' ? 0.9 : 0.5) });
+  }
+
+  fall() {
+    this.thump(120, 38, 0.35, 0.9);
+    this.noiseHit({ dur: 0.4, freq: 300, q: 0.6, vol: 0.6, type: 'lowpass' });
+  }
+
+  splash(vol = 0.7) {
+    this.noiseHit({ dur: 0.9, freq: 1200, q: 0.5, vol, attack: 0.02 });
+    this.noiseHit({ dur: 0.6, freq: 300, q: 0.6, vol: vol * 0.6, type: 'lowpass' });
+  }
+
+  thunder(strength = 1, delay = 0) {
+    const w = this.t + delay;
+    this.noiseHit({ when: w, dur: 0.25, freq: 2500, type: 'highpass', vol: 0.5 * strength, q: 0.3 });
+    this.noiseHit({ when: w + 0.05, dur: 4.5, freq: 120, type: 'lowpass', vol: 1.0 * strength, q: 0.4, attack: 0.2 });
+    this.noiseHit({ when: w + 0.6, dur: 3, freq: 70, type: 'lowpass', vol: 0.8 * strength, q: 0.4, attack: 0.4 });
+  }
+
+  snort(vol = 0.5) {
+    this.noiseHit({ dur: 0.35, freq: 700, q: 2.5, vol, attack: 0.03 });
+    this.noiseHit({ when: this.t + 0.12, dur: 0.3, freq: 500, q: 2, vol: vol * 0.6, attack: 0.02 });
+  }
+
+  // A distressed horse: a harsh, falling squeal.
+  neigh(vol = 0.35) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    const w = this.t;
+    o.frequency.setValueAtTime(680, w);
+    o.frequency.linearRampToValueAtTime(920, w + 0.18);
+    o.frequency.exponentialRampToValueAtTime(380, w + 1.1);
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 22;
+    const vg = ctx.createGain();
+    vg.gain.value = 40;
+    vib.connect(vg).connect(o.frequency);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 1400;
+    f.Q.value = 1.4;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0, w);
+    g.gain.linearRampToValueAtTime(vol, w + 0.06);
+    g.gain.exponentialRampToValueAtTime(0.001, w + 1.2);
+    o.connect(f).connect(g).connect(this.sfx);
+    o.start(w);
+    vib.start(w);
+    o.stop(w + 1.3);
+    vib.stop(w + 1.3);
+  }
+
+  hammer() {
+    this.thump(420, 180, 0.06, 0.4);
+    this.noiseHit({ dur: 0.05, freq: 2600, q: 2, vol: 0.3 });
+  }
+
+  creak() {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    o.type = 'square';
+    o.frequency.setValueAtTime(90, this.t);
+    o.frequency.linearRampToValueAtTime(140, this.t + 0.6);
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.frequency.value = 700;
+    f.Q.value = 8;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, this.t);
+    g.gain.linearRampToValueAtTime(0.12, this.t + 0.1);
+    g.gain.exponentialRampToValueAtTime(0.0001, this.t + 0.7);
+    o.connect(f).connect(g).connect(this.sfx);
+    o.start();
+    o.stop(this.t + 0.75);
+  }
+
+  cough() {
+    this.noiseHit({ dur: 0.18, freq: 900, q: 1.5, vol: 0.18, attack: 0.01 });
+    this.noiseHit({ when: this.t + 0.28, dur: 0.16, freq: 850, q: 1.5, vol: 0.14, attack: 0.01 });
+  }
+
+  match() {
+    this.noiseHit({ dur: 0.25, freq: 3000, q: 1, vol: 0.25, type: 'highpass' });
+  }
+
+  click() {
+    this.noiseHit({ dur: 0.03, freq: 3200, q: 4, vol: 0.35 });
+    this.thump(900, 400, 0.03, 0.2);
+  }
+
+  // Short chord cue when a choice appears.
+  sting() {
+    [NOTE.E3, NOTE.B3, NOTE.G4].forEach((f, i) => this.pluck(f, this.t + i * 0.06, 0.3));
+  }
+}
+
+return { Sound };
+})();
+
+// ---- src/engine/ui.js
+const __src_engine_ui = (() => {
+// DOM overlays: subtitles, title cards, choices and the end card.
+
+const $ = (id) => document.getElementById(id);
+
+class UI {
+  constructor() {
+    this.sub = $('sub');
+    this.subWho = $('sub-who');
+    this.subText = $('sub-text');
+    this.cardEl = $('card');
+    this.choiceEl = $('choice');
+    this.promptEl = $('choice-prompt');
+    this.optsEl = $('choice-opts');
+    this.timerEl = $('choice-timer');
+    this.timers = [];
+    this.typing = null;
+  }
+
+  clearText() {
+    this.sub.hidden = true;
+    this.cardEl.classList.remove('show');
+    this.timers.forEach(clearTimeout);
+    this.timers = [];
+  }
+
+  // Dialogue with a typewriter reveal.
+  line(who, text, dur, style) {
+    clearInterval(this.typing);
+    this.sub.hidden = false;
+    this.sub.dataset.style = style || '';
+    this.subWho.textContent = who || '';
+    this.subWho.hidden = !who;
+    this.subText.textContent = '';
+    let i = 0;
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduce) this.subText.textContent = text;
+    else {
+      this.typing = setInterval(() => {
+        i += 2;
+        this.subText.textContent = text.slice(0, i);
+        if (i >= text.length) clearInterval(this.typing);
+      }, 22);
+    }
+    const lineId = (this.lineId = (this.lineId || 0) + 1);
+    const id = setTimeout(() => {
+      if (this.lineId === lineId) this.sub.hidden = true;
+    }, dur * 1000);
+    this.timers.push(id);
+  }
+
+  card(text, dur) {
+    this.cardEl.textContent = text;
+    this.cardEl.classList.add('show');
+    const id = setTimeout(() => this.cardEl.classList.remove('show'), dur * 1000);
+    this.timers.push(id);
+  }
+
+  showChoice(prompt, labels, timed, onPick) {
+    this.promptEl.textContent = prompt;
+    this.optsEl.innerHTML = '';
+    labels.forEach((label, i) => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'opt';
+      b.innerHTML = `<kbd>${i + 1}</kbd><span></span>`;
+      b.querySelector('span').textContent = label;
+      b.addEventListener('click', () => onPick(i));
+      this.optsEl.appendChild(b);
+    });
+    this.timerEl.hidden = !timed;
+    this.timerEl.style.setProperty('--left', '1');
+    this.choiceEl.hidden = false;
+    requestAnimationFrame(() => this.choiceEl.classList.add('show'));
+    this.optsEl.querySelector('button')?.focus({ preventScroll: true });
+  }
+
+  choiceTimer(frac) {
+    this.timerEl.style.setProperty('--left', String(Math.max(frac, 0)));
+  }
+
+  pickChoice(i) {
+    this.optsEl.querySelectorAll('.opt').forEach((b, k) => b.classList.add(k === i ? 'picked' : 'faded'));
+  }
+
+  hideChoice() {
+    this.choiceEl.classList.remove('show');
+    this.choiceEl.hidden = true;
+  }
+}
+
+return { UI };
+})();
+
+// ---- src/rigs/shapes.js
+const __src_rigs_shapes = (() => {
+// Path helpers for hand-built silhouettes.
+
+// Smooth closed (or open) curve through points, Catmull-Rom → Bézier.
+function smoothPath(ctx, pts, closed = true, tension = 1) {
+  const n = pts.length;
+  const p = (i) => (closed ? pts[(i + n) % n] : pts[Math.min(Math.max(i, 0), n - 1)]);
+  ctx.moveTo(pts[0][0], pts[0][1]);
+  const last = closed ? n : n - 1;
+  for (let i = 0; i < last; i++) {
+    const p0 = p(i - 1);
+    const p1 = p(i);
+    const p2 = p(i + 1);
+    const p3 = p(i + 2);
+    const t = tension / 6;
+    ctx.bezierCurveTo(
+      p1[0] + (p2[0] - p0[0]) * t,
+      p1[1] + (p2[1] - p0[1]) * t,
+      p2[0] - (p3[0] - p1[0]) * t,
+      p2[1] - (p3[1] - p1[1]) * t,
+      p2[0],
+      p2[1],
+    );
+  }
+  if (closed) ctx.closePath();
+}
+
+function fillSmooth(ctx, pts, color) {
+  ctx.beginPath();
+  smoothPath(ctx, pts, true);
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+// A limb segment as a tapered capsule from (x0, y0, w0) to (x1, y1, w1).
+function limb(ctx, x0, y0, x1, y1, w0, w1, color) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const len = Math.hypot(dx, dy) || 1;
+  const nx = -dy / len;
+  const ny = dx / len;
+  ctx.beginPath();
+  ctx.moveTo(x0 + nx * w0 * 0.5, y0 + ny * w0 * 0.5);
+  ctx.lineTo(x1 + nx * w1 * 0.5, y1 + ny * w1 * 0.5);
+  ctx.arc(x1, y1, w1 * 0.5, Math.atan2(ny, nx), Math.atan2(ny, nx) + Math.PI, false);
+  ctx.lineTo(x0 - nx * w0 * 0.5, y0 - ny * w0 * 0.5);
+  ctx.arc(x0, y0, w0 * 0.5, Math.atan2(-ny, -nx), Math.atan2(-ny, -nx) + Math.PI, false);
+  ctx.closePath();
+  ctx.fillStyle = color;
+  ctx.fill();
+}
+
+function shade(hexColor, k) {
+  const n = parseInt(hexColor.slice(1), 16);
+  const r = Math.min(255, ((n >> 16) & 255) * k);
+  const g = Math.min(255, ((n >> 8) & 255) * k);
+  const b = Math.min(255, (n & 255) * k);
+  return `rgb(${r | 0},${g | 0},${b | 0})`;
+}
+
+return { smoothPath, fillSmooth, limb, shade };
+})();
+
+// ---- src/rigs/person.js
+const __src_rigs_person = (() => {
+// A side-on human rig. Angles are absolute, in radians: limbs hang at 0 and
+// swing positive toward the way the figure faces; the torso leans positive
+// forward. Drawn in a local frame with the hip at the origin.
+
+const { clamp, lerp } = __src_engine_util;
+const { limb, shade } = __src_rigs_shapes;
+const L = { thigh: 46, shin: 45, torso: 60, neck: 7, head: 11.5, upper: 31, fore: 29 };
+
+const OUTFITS = {
+  // Eli: black frock-coat suit, white collar, black hat.
+  suit: { coat: '#18181d', trousers: '#16161a', shirt: '#cfc8b8', tie: '#0b0b0d', skin: '#a8795b', hair: '#3b3632', hat: '#121215', band: '#3a2e26', boots: '#0e0d0c', tails: true },
+  // Tobias: shirtsleeves, leather vest, bandana, a wide pale hat.
+  vest: { coat: '#5a3a22', trousers: '#4a3b2c', shirt: '#b3a386', tie: '#8e2a1c', skin: '#b8866a', hair: '#6b4a2a', hat: '#8a6c4a', band: '#3d2a1c', boots: '#2a1c12', sleeves: true },
+  // June: a calico dress and a braid.
+  dress: { coat: '#6d4a55', trousers: '#6d4a55', shirt: '#d8ccb6', skin: '#c4957a', hair: '#4a3222', boots: '#2a2019', dress: true },
+};
+
+const POSES = {
+  stand: { torso: 0.02, head: 0, thighN: 0.06, shinN: 0.02, thighF: -0.07, shinF: -0.07, armN: 0.06, foreN: 0.12, armF: -0.06, foreF: -0.02 },
+  kneel: { torso: 0.12, head: 0.25, thighN: 1.45, shinN: 0.05, thighF: 0.15, shinF: -1.55, armN: 0.5, foreN: 1.1, armF: 0.35, foreF: 0.9 },
+  ride: { torso: 0.08, head: 0.02, thighN: 1.0, shinN: 0.12, thighF: 1.0, shinF: 0.12, armN: 0.55, foreN: 1.35, armF: 0.5, foreF: 1.3 },
+  sit: { torso: -0.35, head: 0.15, thighN: 2.1, shinN: 0.7, thighF: 1.95, shinF: 0.5, armN: -0.6, foreN: -0.3, armF: -0.7, foreF: -0.4 },
+  reach: { torso: 0.18, head: 0.15, thighN: 0.1, shinN: 0.05, thighF: -0.12, shinF: -0.1, armN: 1.3, foreN: 1.5, armF: 0.9, foreF: 1.2 },
+  hands: { torso: 0.06, head: 0.1, thighN: 0.05, shinN: 0.02, thighF: -0.07, shinF: -0.07, armN: 0.5, foreN: 1.25, armF: 0.45, foreF: 1.2 },
+  lie: { torso: -1.45, head: -0.1, thighN: 1.5, shinN: 1.4, thighF: 1.45, shinF: 1.5, armN: -1.7, foreN: -1.5, armF: -1.3, foreF: -1.2 },
+};
+
+// A walking cycle at phase p (radians).
+function walkPose(p, stride = 1) {
+  const leg = (q) => {
+    const th = 0.42 * stride * Math.sin(q);
+    const bend = 0.75 * stride * Math.max(0, Math.sin(q - 1.2)) + 0.05;
+    return [th, th - bend];
+  };
+  const [tn, sn] = leg(p);
+  const [tf, sf] = leg(p + Math.PI);
+  return {
+    torso: 0.06,
+    head: 0.02,
+    thighN: tn,
+    shinN: sn,
+    thighF: tf,
+    shinF: sf,
+    armN: -0.32 * stride * Math.sin(p),
+    foreN: -0.32 * stride * Math.sin(p) + 0.3,
+    armF: 0.32 * stride * Math.sin(p),
+    foreF: 0.32 * stride * Math.sin(p) + 0.3,
+  };
+}
+
+const down = (a) => [Math.sin(a), Math.cos(a)];
+
+class Person {
+  constructor(outfit = 'suit', scale = 1) {
+    this.o = OUTFITS[outfit];
+    this.scale = scale;
+    this.x = 0;
+    this.y = 0; // ground level (when grounded) or hip position (when not)
+    this.f = 1;
+    this.grounded = true;
+    this.hat = this.o.hat ? 'on' : 'none';
+    this.pose = { ...POSES.stand };
+    this.joints = {};
+  }
+
+  setPose(p) {
+    Object.assign(this.pose, p);
+  }
+
+  // Local joint positions (hip at origin, facing right).
+  solve() {
+    const p = this.pose;
+    const j = {};
+    const kN = down(p.thighN);
+    const kF = down(p.thighF);
+    j.kneeN = [kN[0] * L.thigh, kN[1] * L.thigh];
+    j.kneeF = [kF[0] * L.thigh, kF[1] * L.thigh];
+    const sN = down(p.shinN);
+    const sF = down(p.shinF);
+    j.footN = [j.kneeN[0] + sN[0] * L.shin, j.kneeN[1] + sN[1] * L.shin];
+    j.footF = [j.kneeF[0] + sF[0] * L.shin, j.kneeF[1] + sF[1] * L.shin];
+    const up = [Math.sin(p.torso), -Math.cos(p.torso)];
+    j.neck = [up[0] * L.torso, up[1] * L.torso];
+    j.shoulder = [up[0] * (L.torso - 7), up[1] * (L.torso - 7)];
+    const ha = p.torso + p.head;
+    j.head = [j.neck[0] + Math.sin(ha) * (L.neck + L.head), j.neck[1] - Math.cos(ha) * (L.neck + L.head)];
+    const aN = down(p.armN);
+    const aF = down(p.armF);
+    j.elbowN = [j.shoulder[0] + aN[0] * L.upper, j.shoulder[1] + aN[1] * L.upper];
+    j.elbowF = [j.shoulder[0] + aF[0] * L.upper, j.shoulder[1] + aF[1] * L.upper];
+    const fN = down(p.foreN);
+    const fF = down(p.foreF);
+    j.handN = [j.elbowN[0] + fN[0] * L.fore, j.elbowN[1] + fN[1] * L.fore];
+    j.handF = [j.elbowF[0] + fF[0] * L.fore, j.elbowF[1] + fF[1] * L.fore];
+    this.local = j;
+    return j;
+  }
+
+  // Hip position in the world, standing on this.y if grounded.
+  hip() {
+    const j = this.local || this.solve();
+    if (!this.grounded) return [this.x, this.y];
+    const low = Math.max(j.footN[1], j.footF[1]) + 5;
+    return [this.x, this.y - low * this.scale];
+  }
+
+  toWorld(pt) {
+    const [hx, hy] = this.hip();
+    return [hx + pt[0] * this.f * this.scale, hy + pt[1] * this.scale];
+  }
+
+  // Positions of named joints in world space, for props and attachments.
+  world(name) {
+    this.solve();
+    return this.toWorld(this.local[name]);
+  }
+
+  draw(ctx) {
+    const j = this.solve();
+    const [hx, hy] = this.hip();
+    const o = this.o;
+    const p = this.pose;
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.scale(this.f * this.scale, this.scale);
+
+    const far = (c) => shade(c, 0.62);
+
+    // far arm, far leg
+    this.arm(ctx, j.shoulder, j.elbowF, j.handF, far(o.sleeves ? o.shirt : o.coat), far(o.skin));
+    this.leg(ctx, j.kneeF, j.footF, p.shinF, far(o.trousers), far(o.boots));
+
+    // coat tails / skirt behind the near leg
+    if (o.dress) {
+      const hem = 44;
+      const sw = clamp((p.thighN - p.thighF) * 0.5, -0.4, 0.8);
+      ctx.beginPath();
+      ctx.moveTo(-11, -4);
+      ctx.lineTo(12, -4);
+      ctx.lineTo(18 + sw * 30 + Math.max(p.thighN, p.thighF) * 18, hem);
+      ctx.lineTo(-18 + Math.min(p.thighN, p.thighF) * 18, hem + 2);
+      ctx.closePath();
+      ctx.fillStyle = o.coat;
+      ctx.fill();
+    }
+    this.leg(ctx, j.kneeN, j.footN, p.shinN, o.trousers, o.boots, o.dress);
+
+    // torso
+    const up = [Math.sin(p.torso), -Math.cos(p.torso)];
+    const side = [Math.cos(p.torso), Math.sin(p.torso)];
+    const at = (d, s) => [up[0] * d + side[0] * s, up[1] * d + side[1] * s];
+    ctx.beginPath();
+    const pts = [at(-4, -13), at(-2, 13), at(L.torso - 16, 14), at(L.torso - 2, 10), at(L.torso, -3), at(L.torso - 6, -12), at(20, -14)];
+    ctx.moveTo(...pts[0]);
+    for (const q of pts.slice(1)) ctx.lineTo(...q);
+    ctx.closePath();
+    ctx.fillStyle = o.dress ? o.coat : o.sleeves ? o.coat : o.coat;
+    ctx.fill();
+
+    if (o.tails) {
+      // frock-coat tails, swinging with the legs
+      const k = Math.max(p.thighN, p.thighF) * 0.5 + Math.min(p.thighN, p.thighF) * 0.5;
+      const tail = down(clamp(k * 0.7 - p.torso * 0.5, -1.4, 1.4));
+      ctx.beginPath();
+      ctx.moveTo(...at(2, -13));
+      ctx.lineTo(...at(2, 12));
+      ctx.lineTo(12 + tail[0] * 40, tail[1] * 40);
+      ctx.lineTo(-14 + tail[0] * 36 - 4, tail[1] * 38);
+      ctx.closePath();
+      ctx.fillStyle = shade(o.coat, 0.85);
+      ctx.fill();
+    }
+
+    if (!o.dress) {
+      // collar, shirt front and tie
+      ctx.beginPath();
+      ctx.moveTo(...at(L.torso - 1, 6));
+      ctx.lineTo(...at(L.torso - 20, 12));
+      ctx.lineTo(...at(L.torso - 2, 11));
+      ctx.closePath();
+      ctx.fillStyle = o.shirt;
+      ctx.fill();
+      ctx.strokeStyle = o.tie;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(...at(L.torso - 2, 9.5));
+      ctx.lineTo(...at(L.torso - 17, 11.5));
+      ctx.stroke();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(...at(L.torso - 1, 7));
+      ctx.lineTo(...at(L.torso - 8, 12));
+      ctx.lineTo(...at(L.torso - 1, 11));
+      ctx.fillStyle = o.shirt;
+      ctx.fill();
+    }
+
+    // head
+    const ha = p.torso + p.head;
+    const [hdx, hdy] = j.head;
+    limb(ctx, j.neck[0], j.neck[1] + 2, hdx - Math.sin(ha) * 6, hdy + Math.cos(ha) * 6, 9, 8, o.skin);
+    ctx.save();
+    ctx.translate(hdx, hdy);
+    ctx.rotate(ha);
+    ctx.beginPath();
+    ctx.ellipse(0, 0, L.head * 0.92, L.head * 1.08, 0, 0, Math.PI * 2);
+    ctx.fillStyle = o.skin;
+    ctx.fill();
+    // nose and jaw
+    ctx.beginPath();
+    ctx.moveTo(9, -3);
+    ctx.lineTo(14.5, 3);
+    ctx.lineTo(9.5, 5);
+    ctx.closePath();
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-6, 8);
+    ctx.quadraticCurveTo(4, 15, 10, 8);
+    ctx.lineTo(4, 4);
+    ctx.fill();
+    // hair
+    ctx.beginPath();
+    ctx.ellipse(-3, -5, L.head * 0.85, L.head * 0.72, -0.3, 0, Math.PI * 2);
+    ctx.fillStyle = o.hair;
+    ctx.fill();
+    if (o.dress) {
+      // braid
+      ctx.strokeStyle = o.hair;
+      ctx.lineWidth = 4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-9, 2);
+      ctx.quadraticCurveTo(-15, 14, -11, 26);
+      ctx.stroke();
+    } else {
+      // beard shadow
+      ctx.beginPath();
+      ctx.moveTo(-4, 6);
+      ctx.quadraticCurveTo(4, 14, 11, 7);
+      ctx.lineTo(8, 11);
+      ctx.quadraticCurveTo(2, 16, -3, 10);
+      ctx.fillStyle = shade(o.hair, 0.9);
+      ctx.fill();
+    }
+    if (this.hat === 'on') this.hatShape(ctx, 0, -9, 0.08);
+    ctx.restore();
+
+    // near arm on top
+    const handProp = this.prop;
+    this.arm(ctx, j.shoulder, j.elbowN, j.handN, o.sleeves ? o.shirt : o.coat, o.skin);
+    if (this.hat === 'hand') {
+      ctx.save();
+      ctx.translate(j.handN[0] + 3, j.handN[1] + 6);
+      ctx.rotate(-1.35);
+      this.hatShape(ctx, 0, 0, 0);
+      ctx.restore();
+    }
+    if (handProp) handProp(ctx, j.handN, j.handF);
+    ctx.restore();
+  }
+
+  hatShape(ctx, x, y, tilt) {
+    const o = this.o;
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(tilt);
+    ctx.fillStyle = o.hat;
+    ctx.beginPath();
+    ctx.ellipse(1, 0, 19, 3.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.beginPath();
+    ctx.moveTo(-9, 0);
+    ctx.lineTo(-8, -12);
+    ctx.quadraticCurveTo(1, -16, 10, -12);
+    ctx.lineTo(11, 0);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = o.band;
+    ctx.fillRect(-8.5, -4, 19.5, 3);
+    ctx.restore();
+  }
+
+  leg(ctx, knee, foot, shinA, cloth, boot, bare) {
+    limb(ctx, 0, 0, knee[0], knee[1], bare ? 8 : 16, bare ? 7 : 13, bare ? this.o.skin : cloth);
+    limb(ctx, knee[0], knee[1], foot[0], foot[1], bare ? 7 : 13, bare ? 6 : 11, bare ? this.o.skin : cloth);
+    // boot: toe points forward, perpendicular to the shin (kept a little flatter)
+    ctx.save();
+    ctx.translate(foot[0], foot[1]);
+    ctx.rotate(-shinA * 0.8);
+    ctx.beginPath();
+    ctx.moveTo(-5, -4);
+    ctx.lineTo(13, -3);
+    ctx.quadraticCurveTo(17, 2, 13, 5);
+    ctx.lineTo(-6, 5);
+    ctx.closePath();
+    ctx.fillStyle = boot;
+    ctx.fill();
+    ctx.restore();
+  }
+
+  arm(ctx, s, e, h, cloth, skin) {
+    limb(ctx, s[0], s[1], e[0], e[1], 11, 10, cloth);
+    limb(ctx, e[0], e[1], h[0], h[1], 10, 8, cloth);
+    ctx.beginPath();
+    ctx.arc(h[0], h[1], 4.6, 0, Math.PI * 2);
+    ctx.fillStyle = skin;
+    ctx.fill();
+  }
+}
+
+// Interpolate two poses.
+function blendPose(a, b, t) {
+  const out = {};
+  for (const k in a) out[k] = lerp(a[k], b[k] ?? a[k], t);
+  return out;
+}
+
+return { OUTFITS, POSES, walkPose, Person, blendPose };
+})();
+
+// ---- src/rigs/horse.js
+const __src_rigs_horse = (() => {
+// A side-on horse. Legs are two-bone IK chains driven by gait cycles with
+// real footfall orders: the walk is a four-beat lateral sequence, the trot
+// pairs diagonals, the gallop is a transverse four-beat with a suspension
+// phase. Local frame: facing right, ground at y = 0.
+
+const { clamp, lerp, ik2, noise1 } = __src_engine_util;
+const { smoothPath, limb, shade } = __src_rigs_shapes;
+// Leg order: near fore, far fore, near hind, far hind.
+const GAITS = {
+  stand: { freq: 0, duty: 1, lift: 0, bob: 0, pitch: 0, off: [0, 0, 0, 0] },
+  walk: { freq: 0.95, duty: 0.62, lift: 15, bob: 2.5, pitch: 0.01, off: [0.25, 0.75, 0.0, 0.5] },
+  trot: { freq: 1.45, duty: 0.44, lift: 26, bob: 6, pitch: 0.015, off: [0.5, 0.0, 0.0, 0.5] },
+  gallop: { freq: 2.15, duty: 0.34, lift: 34, bob: 11, pitch: 0.075, off: [0.56, 0.46, 0.1, 0.0] },
+  swim: { freq: 1.1, duty: 0.5, lift: 30, bob: 4, pitch: 0.03, off: [0.0, 0.5, 0.5, 0.0] },
+};
+
+const BODY_Y = -120; // body centre height
+const FORE_ROOT = [60, 14];
+const HIND_ROOT = [-64, 4];
+const REST_X = [66, 58, -62, -70];
+
+const COATS = {
+  dove: { coat: '#9ea2a6', dark: '#6c7075', mane: '#dcdcd8', hoof: '#2b2a28', muzzle: '#4e4f52' },
+  chestnut: { coat: '#7b4125', dark: '#4f2a17', mane: '#3e1f10', hoof: '#221a14', muzzle: '#3a2216' },
+};
+
+class Horse {
+  constructor(coat = 'dove', scale = 1) {
+    this.c = COATS[coat];
+    this.scale = scale;
+    this.x = 0;
+    this.y = 0;
+    this.f = 1;
+    this.gait = 'stand';
+    this.prevGait = 'stand';
+    this.blend = 1;
+    this.speed = 0;
+    this.phase = 0;
+    this.neck = -0.9; // radians from horizontal, negative = up
+    this.head = 1.05;
+    this.rear = 0; // 0…1 rearing on the hind legs
+    this.buck = 0; // −1…1 extra pitch
+    this.lift = 0; // extra vertical offset (swimming, jumping)
+    this.ears = 0; // 0 forward … 1 pinned back
+    this.saddled = false;
+    this.bags = false;
+    this.reins = null; // world point the reins run to, or null to hang
+    this.tailVel = 0;
+    this.tailAng = 0.25;
+    this.time = 0;
+    this.onStep = null;
+    this.lastPh = [0, 0, 0, 0];
+    this.pitch = 0;
+    this.bob = 0;
+  }
+
+  setGait(g, speed) {
+    if (g !== this.gait) {
+      this.prevGait = this.gait;
+      this.gait = g;
+      this.blend = 0;
+    }
+    if (speed !== undefined) this.speed = speed;
+  }
+
+  // Advance the gait cycle and move the horse through the world.
+  update(dt, move = true) {
+    this.time += dt;
+    const g = GAITS[this.gait];
+    this.blend = Math.min(this.blend + dt / 0.45, 1);
+    if (g.freq > 0) this.phase = (this.phase + dt * g.freq * Math.sign(this.speed || 1)) % 1;
+    if (this.phase < 0) this.phase += 1;
+    if (move) this.x += this.speed * this.f * dt;
+
+    // Footfall events for hoof sounds.
+    if (g.freq > 0 && this.onStep) {
+      for (let i = 0; i < 4; i++) {
+        const ph = (this.phase - g.off[i] + 1) % 1;
+        if (ph < this.lastPh[i] && this.speed !== 0) this.onStep(i, this.gait);
+        this.lastPh[i] = ph;
+      }
+    }
+
+    // A springy tail that lags behind the body's motion.
+    const target = 0.28 + Math.abs(this.speed) * 0.0012 + 0.08 * noise1(this.time * 0.7) + this.rear * 0.5;
+    this.tailVel += (target - this.tailAng) * dt * 30 - this.tailVel * dt * 5;
+    this.tailAng += this.tailVel * dt;
+  }
+
+  // Hoof targets (local) for one gait at the current phase.
+  hooves(gname) {
+    const g = GAITS[gname];
+    const out = [];
+    const stride = g.freq > 0 ? (Math.abs(this.speed) * g.duty) / g.freq : 0;
+    for (let i = 0; i < 4; i++) {
+      let hx = REST_X[i];
+      let hy = 0;
+      if (g.freq > 0) {
+        const ph = (this.phase - g.off[i] + 1) % 1;
+        if (ph < g.duty) {
+          hx += lerp(stride / 2, -stride / 2, ph / g.duty);
+        } else {
+          const s = (ph - g.duty) / (1 - g.duty);
+          hx += lerp(-stride / 2, stride / 2, s);
+          hy = -g.lift * Math.sin(Math.PI * s) * (i < 2 ? 1 : 0.8);
+        }
+      }
+      out.push([hx, hy]);
+    }
+    return out;
+  }
+
+  solve() {
+    const g = GAITS[this.gait];
+    const gp = GAITS[this.prevGait];
+    const b = this.blend;
+    const h1 = this.hooves(this.gait);
+    const h0 = this.hooves(this.prevGait);
+    const hv = h1.map((h, i) => [lerp(h0[i][0], h[0], b), lerp(h0[i][1], h[1], b)]);
+
+    const cyc = Math.sin(this.phase * Math.PI * 2 * (this.gait === 'walk' || this.gait === 'trot' ? 2 : 1));
+    const bob = lerp(gp.bob, g.bob, b) * cyc + this.lift;
+    const pitch = lerp(gp.pitch, g.pitch, b) * Math.sin(this.phase * Math.PI * 2 + 0.6) - this.rear * 0.78 + this.buck * 0.35;
+    this.pitch = pitch;
+    this.bob = bob;
+
+    // Body frame: rotate about the hind hip so rearing stays planted.
+    const piv = [HIND_ROOT[0], BODY_Y + HIND_ROOT[1]];
+    const cs = Math.cos(pitch);
+    const sn = Math.sin(pitch);
+    const body = (x, y) => {
+      const lx = x - piv[0];
+      const ly = y + BODY_Y - piv[1];
+      return [piv[0] + lx * cs - ly * sn, piv[1] + lx * sn + ly * cs - bob];
+    };
+
+    // Rearing tucks the forelegs up under the chest.
+    const tuck = clamp(this.rear * 1.4);
+    for (let i = 0; i < 2; i++) {
+      const t = body(FORE_ROOT[0] + 22 + i * 6, FORE_ROOT[1] + 70);
+      hv[i] = [lerp(hv[i][0], t[0], tuck), lerp(hv[i][1], t[1], tuck)];
+    }
+    this.frame = { body, hv, pitch };
+    return this.frame;
+  }
+
+  toWorld(lx, ly) {
+    return [this.x + lx * this.f * this.scale, this.y + ly * this.scale];
+  }
+
+  // Seat of the saddle in world space, plus body pitch, for a rider.
+  seat() {
+    const { body, pitch } = this.frame || this.solve();
+    const p = body(-2, -46);
+    return { x: this.toWorld(p[0], p[1])[0], y: this.toWorld(p[0], p[1])[1], pitch: pitch * this.f, f: this.f };
+  }
+
+  // Bit (for reins) in world space.
+  bit() {
+    return this.bitWorld || [this.x, this.y - 120];
+  }
+
+  draw(ctx) {
+    const { body, hv } = this.solve();
+    const c = this.c;
+    ctx.save();
+    ctx.translate(this.x, this.y);
+    ctx.scale(this.f * this.scale, this.scale);
+
+    const farCoat = shade(c.coat, 0.66);
+    const legs = [
+      { root: FORE_ROOT, fore: true },
+      { root: FORE_ROOT, fore: true },
+      { root: HIND_ROOT, fore: false },
+      { root: HIND_ROOT, fore: false },
+    ];
+    const drawLeg = (i, near) => {
+      const L = legs[i];
+      const r = body(L.root[0] + (near ? 0 : -6), L.root[1]);
+      const hoof = hv[i];
+      const fet = [hoof[0] + (L.fore ? -3 : -4), hoof[1] - 13];
+      const a = L.fore ? 54 : 58;
+      const bl = L.fore ? 52 : 52;
+      const bend = L.fore ? -1 : 1; // knees forward, hocks back
+      const j = ik2(r[0], r[1], fet[0], fet[1], a, bl, bend);
+      const col = near ? c.coat : farCoat;
+      const low = near ? c.dark : shade(c.dark, 0.7);
+      limb(ctx, j.jx, j.jy, j.ex, j.ey, 13, 9.5, col);
+      limb(ctx, r[0], r[1] - 8, j.jx, j.jy, L.fore ? 26 : 36, 14, col);
+      limb(ctx, j.ex, j.ey, hoof[0] + 3, hoof[1] - 4, 10, 9, low);
+      ctx.beginPath();
+      ctx.moveTo(hoof[0] - 5, hoof[1] - 7);
+      ctx.lineTo(hoof[0] + 8, hoof[1] - 7);
+      ctx.lineTo(hoof[0] + 10, hoof[1]);
+      ctx.lineTo(hoof[0] - 5, hoof[1]);
+      ctx.closePath();
+      ctx.fillStyle = near ? c.hoof : shade(c.hoof, 0.7);
+      ctx.fill();
+    };
+
+    // tail (behind everything)
+    const tr = body(-88, -28);
+    ctx.save();
+    ctx.translate(tr[0], tr[1]);
+    ctx.rotate(-this.frame.pitch * 0.3);
+    ctx.strokeStyle = c.mane;
+    ctx.lineCap = 'round';
+    for (let k = 0; k < 6; k++) {
+      const sw = this.tailAng + k * 0.05 + 0.04 * noise1(this.time * 1.6 + k * 3);
+      ctx.lineWidth = 7 - k * 0.6;
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      const len = 88 + k * 4;
+      ctx.bezierCurveTo(-18, 8, -Math.sin(sw) * len * 0.8 - 10, Math.cos(sw) * len * 0.45, -Math.sin(sw) * len * 0.7 - 6, Math.cos(sw) * len);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    drawLeg(1, false);
+    drawLeg(3, false);
+
+    // body
+    const pts = [
+      [88, 0], [85, -26], [58, -44], [18, -35], [-24, -39], [-66, -42], [-90, -28],
+      [-96, -4], [-88, 20], [-70, 32], [-38, 34], [-6, 42], [38, 40], [64, 30], [82, 18],
+    ].map(([x, y]) => body(x, y));
+    ctx.beginPath();
+    smoothPath(ctx, pts, true);
+    ctx.fillStyle = c.coat;
+    ctx.fill();
+
+    // neck and head
+    const nb1 = body(44, -40);
+    const nb2 = body(88, -8);
+    const na = this.neck + this.frame.pitch;
+    const poll = [lerp(nb1[0], nb2[0], 0.35) + Math.cos(na) * 78, lerp(nb1[1], nb2[1], 0.35) + Math.sin(na) * 78];
+    const perp = [-Math.sin(na), Math.cos(na)];
+    ctx.beginPath();
+    smoothPath(ctx, [
+      nb1,
+      [lerp(nb1[0], poll[0], 0.55) - perp[0] * 10, lerp(nb1[1], poll[1], 0.55) - perp[1] * 10],
+      [poll[0] - perp[0] * 7, poll[1] - perp[1] * 7],
+      [poll[0] + perp[0] * 16, poll[1] + perp[1] * 16],
+      [lerp(nb2[0], poll[0], 0.5) + perp[0] * 12, lerp(nb2[1], poll[1], 0.5) + perp[1] * 12],
+      nb2,
+      body(40, -8),
+    ], true);
+    ctx.fill();
+
+    // mane along the crest
+    ctx.strokeStyle = c.mane;
+    ctx.lineWidth = 3;
+    for (let k = 0; k <= 9; k++) {
+      const t = k / 9;
+      const px = lerp(nb1[0] + 4, poll[0], t) - perp[0] * (8 - t * 2);
+      const py = lerp(nb1[1] - 2, poll[1], t) - perp[1] * (8 - t * 2);
+      const sway = 0.3 * noise1(this.time * 2 + k) + Math.min(Math.abs(this.speed) * 0.002, 0.5);
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.quadraticCurveTo(px - 6 - sway * 10, py + 6, px - 10 - sway * 16, py + 16);
+      ctx.stroke();
+    }
+
+    const ha = na + this.head + 0.95;
+    ctx.save();
+    ctx.translate(poll[0], poll[1]);
+    ctx.rotate(ha);
+    ctx.beginPath();
+    smoothPath(ctx, [[-2, -9], [22, -10], [48, -6], [62, -2], [65, 6], [60, 13], [46, 13], [22, 17], [2, 14]], true);
+    ctx.fillStyle = c.coat;
+    ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(56, 6, 9, 7.5, 0, 0, Math.PI * 2);
+    ctx.fillStyle = c.muzzle;
+    ctx.fill();
+    // ears
+    const ep = this.ears;
+    ctx.fillStyle = c.coat;
+    ctx.beginPath();
+    ctx.moveTo(1, -8);
+    ctx.lineTo(-4 - ep * 16, -26 + ep * 14);
+    ctx.lineTo(9, -10);
+    ctx.fill();
+    // forelock and eye
+    ctx.strokeStyle = c.mane;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(2, -8);
+    ctx.quadraticCurveTo(10, -4, 14, 4);
+    ctx.stroke();
+    ctx.fillStyle = '#0c0b0a';
+    ctx.beginPath();
+    ctx.ellipse(21, -3, 3, 2.2, 0.3, 0, Math.PI * 2);
+    ctx.fill();
+    if (this.saddled) {
+      // bridle
+      ctx.strokeStyle = '#2a1a10';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(6, -9);
+      ctx.lineTo(18, 16);
+      ctx.moveTo(46, -6);
+      ctx.lineTo(56, 12);
+      ctx.moveTo(8, 4);
+      ctx.lineTo(50, 2);
+      ctx.stroke();
+    }
+    const bitL = [56, 11];
+    ctx.restore();
+    const bx = poll[0] + Math.cos(ha) * bitL[0] - Math.sin(ha) * bitL[1];
+    const by = poll[1] + Math.sin(ha) * bitL[0] + Math.cos(ha) * bitL[1];
+    this.bitWorld = this.toWorld(bx, by);
+
+    if (this.saddled) {
+      // blanket, saddle, cinch, horn
+      const s = (x, y) => body(x, y);
+      ctx.fillStyle = '#6a2a22';
+      ctx.beginPath();
+      smoothPath(ctx, [s(30, -38), s(-36, -40), s(-40, -8), s(28, -6)], true);
+      ctx.fill();
+      ctx.fillStyle = '#4a2c18';
+      ctx.beginPath();
+      smoothPath(ctx, [s(26, -40), s(16, -54), s(-6, -46), s(-26, -52), s(-32, -40), s(-30, -22), s(22, -20)], true);
+      ctx.fill();
+      ctx.strokeStyle = '#2e1b0e';
+      ctx.lineWidth = 5;
+      ctx.beginPath();
+      ctx.moveTo(...s(4, -24));
+      ctx.lineTo(...s(8, 40));
+      ctx.stroke();
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(...s(-4, -30));
+      ctx.lineTo(...s(-2, 12));
+      ctx.stroke();
+      ctx.fillStyle = '#1c120a';
+      ctx.fillRect(...s(-3, 10), 6, 7); // stirrup
+      if (this.bags) {
+        ctx.fillStyle = '#3c2616';
+        ctx.beginPath();
+        smoothPath(ctx, [s(-30, -38), s(-54, -36), s(-58, -8), s(-34, -6)], true);
+        ctx.fill();
+      }
+      ctx.fillStyle = '#3a2412';
+      ctx.beginPath();
+      const hn = s(22, -52);
+      ctx.arc(hn[0], hn[1], 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    drawLeg(0, true);
+    drawLeg(2, true);
+    ctx.restore();
+
+    // reins, in world space
+    if (this.saddled) {
+      const [bxw, byw] = this.bitWorld;
+      ctx.strokeStyle = '#1e140c';
+      ctx.lineWidth = 1.8;
+      ctx.beginPath();
+      ctx.moveTo(bxw, byw);
+      if (this.reins) {
+        const [rx, ry] = this.reins;
+        ctx.quadraticCurveTo((bxw + rx) / 2, Math.max(byw, ry) + 14, rx, ry);
+      } else {
+        const w = this.toWorld(...body(30, -30));
+        ctx.quadraticCurveTo((bxw + w[0]) / 2, Math.max(byw, w[1]) + 30, w[0], w[1]);
+      }
+      ctx.stroke();
+    }
+  }
+}
+
+return { COATS, Horse };
+})();
+
+// ---- src/sets/scenery.js
+const __src_sets_scenery = (() => {
+// Painted sets: every function paints through the renderer's layer API so it
+// is lit, casts shadows or glows as appropriate.
+
+const { rng, noise1, lerp } = __src_engine_util;
+const { smoothPath } = __src_rigs_shapes;
+// ---------------------------------------------------------------- sky ------
+
+// Vertical gradient in screen space. stops: [[0…1, '#hex'], …]
+function skyGradient(R, stops) {
+  R.sky((c) => {
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    const g = c.createLinearGradient(0, 0, 0, R.H);
+    for (const [p, col] of stops) g.addColorStop(p, col);
+    c.fillStyle = g;
+    c.fillRect(0, 0, R.W, R.H);
+    c.restore();
+  });
+}
+
+function stars(R, amount, seed = 3) {
+  if (amount <= 0) return;
+  R.sky((c) => {
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    const r = rng(seed);
+    for (let i = 0; i < 260; i++) {
+      const x = r() * R.W;
+      const y = r() * R.H * 0.6;
+      const b = r();
+      c.fillStyle = `rgba(230,235,255,${amount * (0.2 + b * 0.8) * (1 - y / (R.H * 0.6))})`;
+      c.fillRect(x, y, b > 0.9 ? 2 : 1.2, b > 0.9 ? 2 : 1.2);
+    }
+    c.restore();
+  });
+}
+
+function sun(R, x, y, radius, color, depth = 0.05) {
+  R.layer(depth);
+  R.sky((c) => {
+    const g = c.createRadialGradient(x, y, 0, x, y, radius * 5);
+    g.addColorStop(0, color);
+    g.addColorStop(0.18, color);
+    g.addColorStop(0.22, 'rgba(255,190,120,0.35)');
+    g.addColorStop(1, 'rgba(255,140,80,0)');
+    c.fillStyle = g;
+    c.fillRect(x - radius * 5, y - radius * 5, radius * 10, radius * 10);
+  });
+  R.layer(1);
+}
+
+// Soft cloud banks drawn over the sky.
+function clouds(R, { seed = 1, y = -500, color = 'rgba(60,40,60,0.6)', count = 8, depth = 0.1, spread = 3000, t = 0, drift = 4 }) {
+  R.layer(depth);
+  R.sky((c) => {
+    const r = rng(seed);
+    c.fillStyle = color;
+    for (let i = 0; i < count; i++) {
+      const cx = (r() - 0.5) * spread + ((t * drift) % spread);
+      const cy = y + (r() - 0.5) * 120;
+      const w = 200 + r() * 420;
+      c.beginPath();
+      for (let k = 0; k < 6; k++) {
+        const ox = (k / 5 - 0.5) * w;
+        c.ellipse(cx + ox, cy - Math.sin((k / 5) * Math.PI) * 26, w * 0.22, 24 + r() * 26, 0, 0, Math.PI * 2);
+      }
+      c.fill();
+    }
+  });
+  R.layer(1);
+}
+
+// ------------------------------------------------------------- terrain -----
+
+// A ridge line of hills or mountains filling down from its crest.
+function ridge(R, { depth = 0.3, base = 0, height = 200, freq = 0.004, rough = 0.5, seed = 0, color = '#2a2230', haze = null, mesa = false, cast = false }) {
+  R.layer(depth);
+  const cam = R.cam;
+  const span = 700 * Math.pow(cam.view / 1400, depth) + 300;
+  const x0 = cam.x * depth - span;
+  const x1 = cam.x * depth + span;
+  const f = (x) => {
+    let n = noise1(x * freq + seed) * 0.6 + noise1(x * freq * 2.3 + seed * 3) * 0.3 * rough + noise1(x * freq * 6 + seed * 7) * 0.12 * rough;
+    if (mesa) n = n > 0.05 ? 0.35 + n * 0.1 : n * 0.9 - 0.2;
+    return base - height * (0.55 + 0.5 * n);
+  };
+  const path = (c) => {
+    c.beginPath();
+    c.moveTo(x0, base + 3000);
+    for (let x = x0; x <= x1; x += 14) c.lineTo(x, f(x));
+    c.lineTo(x1, base + 3000);
+    c.closePath();
+  };
+  const draw = (c) => {
+    path(c);
+    c.fillStyle = color;
+    c.fill();
+  };
+  if (cast) R.cast(draw);
+  else R.paint(draw);
+  // Atmospheric haze: distant ranges scatter a little sky light back at us.
+  if (haze) {
+    R.glow((c) => {
+      path(c);
+      c.globalAlpha = haze[1];
+      c.fillStyle = haze[0];
+      c.fill();
+    });
+  }
+  R.layer(1);
+  return f;
+}
+
+function ground(R, y, color, depth = 1, top = null) {
+  R.layer(depth);
+  R.paint((c) => {
+    c.fillStyle = color;
+    c.fillRect(R.cam.x * depth - 6000, y, 12000, 4000);
+    if (top) {
+      c.fillStyle = top;
+      c.fillRect(R.cam.x * depth - 6000, y, 12000, 5);
+    }
+  });
+  R.layer(1);
+}
+
+// Dry grass tufts along the ground line.
+function grass(R, { y = 0, x0 = -2000, x1 = 2000, seed = 5, color = '#3a2a1a', density = 0.06, height = 26, t = 0, wind = 1, cast = false }) {
+  const draw = (c) => {
+    const r = rng(seed);
+    c.strokeStyle = color;
+    c.lineWidth = 2;
+    c.beginPath();
+    for (let x = x0; x < x1; x += 1 / density) {
+      const gx = x + r() * 12;
+      const h = height * (0.4 + r());
+      const sway = Math.sin(t * 1.3 + gx * 0.02) * 4 * wind;
+      for (let k = -1; k <= 1; k++) {
+        c.moveTo(gx + k * 3, y + 2);
+        c.quadraticCurveTo(gx + k * 4 + sway * 0.5, y - h * 0.5, gx + k * 7 + sway, y - h * (0.8 + r() * 0.3));
+      }
+    }
+    c.stroke();
+  };
+  if (cast) R.cast(draw);
+  else R.paint(draw);
+}
+
+// --------------------------------------------------------------- props -----
+
+const treeCache = new Map();
+
+function buildTree(seed) {
+  const r = rng(seed);
+  const segs = [];
+  const leaves = [];
+  const grow = (x, y, ang, len, w, depth) => {
+    const x2 = x + Math.cos(ang) * len;
+    const y2 = y + Math.sin(ang) * len;
+    segs.push([x, y, x2, y2, w, w * 0.72, depth]);
+    if (depth >= 6 || len < 18) {
+      for (let i = 0; i < 3; i++) leaves.push([x2 + (r() - 0.5) * 40, y2 + (r() - 0.5) * 30, 26 + r() * 30, r() * 6]);
+      return;
+    }
+    const n = depth < 2 ? 3 : 2;
+    for (let i = 0; i < n; i++) {
+      const spread = depth === 0 ? 0.9 : 0.75;
+      const a = ang + (i / (n - 1 || 1) - 0.5) * spread * 2 + (r() - 0.5) * 0.5;
+      grow(x2, y2, a, len * (0.68 + r() * 0.18), w * 0.66, depth + 1);
+    }
+  };
+  grow(0, 0, -Math.PI / 2 + 0.08, 150, 34, 0);
+  return { segs, leaves };
+}
+
+// A lone oak. It casts shadows and breaks sunlight into shafts.
+function oak(R, x, y, { seed = 7, scale = 1, t = 0, leafColor = '#1e1a16', barkColor = '#221b15', bare = false } = {}) {
+  if (!treeCache.has(seed)) treeCache.set(seed, buildTree(seed));
+  const tree = treeCache.get(seed);
+  R.cast((c) => {
+    c.save();
+    c.translate(x, y);
+    c.scale(scale, scale);
+    c.lineCap = 'round';
+    for (const [x0, y0, x1, y1, w0, w1, d] of tree.segs) {
+      const sway = d > 2 ? Math.sin(t * 0.9 + d) * (d - 2) * 0.8 : 0;
+      c.strokeStyle = barkColor;
+      c.lineWidth = (w0 + w1) / 2;
+      c.beginPath();
+      c.moveTo(x0, y0);
+      c.lineTo(x1 + sway, y1);
+      c.stroke();
+    }
+    if (!bare) {
+      c.fillStyle = leafColor;
+      for (const [lx, ly, lr, ph] of tree.leaves) {
+        const sway = Math.sin(t * 0.8 + ph) * 3;
+        c.beginPath();
+        c.ellipse(lx + sway, ly, lr, lr * 0.72, 0, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    // roots flare
+    c.fillStyle = barkColor;
+    c.beginPath();
+    c.moveTo(-40, 2);
+    c.quadraticCurveTo(-14, -8, -16, -40);
+    c.lineTo(16, -40);
+    c.quadraticCurveTo(14, -8, 44, 2);
+    c.closePath();
+    c.fill();
+    c.restore();
+  });
+}
+
+function grave(R, x, y, { tilt = -0.05 } = {}) {
+  R.paint((c) => {
+    c.fillStyle = '#2a1f17';
+    c.beginPath();
+    c.ellipse(x + 50, y + 2, 70, 12, 0, Math.PI, 0);
+    c.fill();
+  });
+  R.cast((c) => {
+    c.save();
+    c.translate(x, y);
+    c.rotate(tilt);
+    c.fillStyle = '#4a3a2a';
+    c.fillRect(-5, -92, 10, 94);
+    c.fillRect(-26, -72, 52, 9);
+    c.restore();
+  });
+  // a few wildflowers laid at the foot
+  R.paint((c) => {
+    c.fillStyle = '#8a7a58';
+    for (let i = 0; i < 5; i++) c.fillRect(x + 14 + i * 6, y - 3 - (i % 2) * 2, 3, 3);
+  });
+}
+
+function fence(R, x0, x1, y, { broken = [], color = '#3b2d20' } = {}) {
+  R.cast((c) => {
+    c.fillStyle = color;
+    for (let x = x0, i = 0; x <= x1; x += 110, i++) {
+      const lean = broken.includes(i) ? 0.25 : 0.02 * Math.sin(i * 7);
+      c.save();
+      c.translate(x, y);
+      c.rotate(lean);
+      c.fillRect(-4, -82, 8, 84);
+      c.restore();
+    }
+    for (const ry of [-70, -40]) {
+      c.save();
+      c.fillRect(x0, y + ry, x1 - x0, 5);
+      c.restore();
+    }
+  });
+}
+
+function cornField(R, x0, x1, y, { seed = 11, t = 0, color = '#5a4a2a' } = {}) {
+  R.cast((c) => {
+    const r = rng(seed);
+    c.strokeStyle = color;
+    c.lineCap = 'round';
+    for (let x = x0; x < x1; x += 26 + r() * 10) {
+      const h = 70 + r() * 50;
+      const lean = (r() - 0.5) * 0.4 + Math.sin(t + x * 0.01) * 0.04;
+      const tx = x + Math.sin(lean) * h;
+      c.lineWidth = 2.5;
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(tx, y - h);
+      c.stroke();
+      c.lineWidth = 1.8;
+      for (let k = 1; k < 4; k++) {
+        const px = lerp(x, tx, k / 4);
+        const py = y - (h * k) / 4;
+        const s = k % 2 ? 1 : -1;
+        c.beginPath();
+        c.moveTo(px, py);
+        c.quadraticCurveTo(px + s * 18, py - 6, px + s * 26, py + 10 + r() * 8);
+        c.stroke();
+      }
+    }
+  });
+}
+
+function farmhouse(R, x, y, { lit = 1, t = 0 } = {}) {
+  const W = 300;
+  const H = 170;
+  R.cast((c) => {
+    c.fillStyle = '#3a2e24';
+    c.fillRect(x, y - H, W, H);
+    // boards
+    c.strokeStyle = 'rgba(0,0,0,0.25)';
+    c.lineWidth = 2;
+    for (let yy = y - H + 14; yy < y; yy += 14) {
+      c.beginPath();
+      c.moveTo(x, yy);
+      c.lineTo(x + W, yy);
+      c.stroke();
+    }
+    // roof
+    c.fillStyle = '#2a211b';
+    c.beginPath();
+    c.moveTo(x - 30, y - H + 4);
+    c.lineTo(x + W / 2, y - H - 110);
+    c.lineTo(x + W + 30, y - H + 4);
+    c.closePath();
+    c.fill();
+    c.fillRect(x + W * 0.7, y - H - 90, 24, 70); // chimney
+    // porch roof and posts
+    c.fillStyle = '#2f251d';
+    c.fillRect(x - 70, y - 118, 90, 10);
+    c.fillRect(x - 66, y - 110, 6, 110);
+    // door
+    c.fillStyle = '#211913';
+    c.fillRect(x + 22, y - 104, 44, 104);
+    // step
+    c.fillStyle = '#2d241c';
+    c.fillRect(x - 70, y - 8, 140, 8);
+    // window frame
+    c.fillStyle = '#1a1411';
+    c.fillRect(x + 150, y - 118, 66, 56);
+  });
+  if (lit > 0) {
+    const fl = 0.85 + 0.15 * noise1(t * 6);
+    R.glow((c) => {
+      c.fillStyle = `rgba(255,${150 + 40 * fl},${70},${lit * fl})`;
+      c.fillRect(x + 155, y - 113, 26, 20);
+      c.fillRect(x + 185, y - 113, 26, 20);
+      c.fillRect(x + 155, y - 89, 26, 22);
+      c.fillRect(x + 185, y - 89, 26, 22);
+    });
+  }
+  return { window: [x + 183, y - 90], door: [x + 44, y] };
+}
+
+function signpost(R, x, y, lines) {
+  R.cast((c) => {
+    c.fillStyle = '#3a2b1e';
+    c.fillRect(x - 6, y - 200, 12, 202);
+    c.save();
+    c.translate(x, y - 170);
+    c.rotate(-0.04);
+    c.fillStyle = '#6a5a44';
+    c.fillRect(-130, -46, 260, 92);
+    c.restore();
+  });
+  R.paint((c) => {
+    c.save();
+    c.translate(x, y - 170);
+    c.rotate(-0.04);
+    c.fillStyle = '#1c140e';
+    c.textAlign = 'center';
+    lines.forEach((ln, i) => {
+      c.font = i === 0 ? '24px "IM Fell English SC", Georgia, serif' : '12.5px "Special Elite", "Courier New", monospace';
+      c.fillText(ln, 0, -18 + i * 19 + (i > 0 ? 6 : 0));
+    });
+    c.restore();
+  });
+}
+
+function splitRock(R, x, y, scale = 1) {
+  R.cast((c) => {
+    c.save();
+    c.translate(x, y);
+    c.scale(scale, scale);
+    c.fillStyle = '#4a3528';
+    c.beginPath();
+    smoothPath(c, [[-160, 0], [-150, -90], [-90, -170], [-24, -186], [-10, -60], [-20, 0]], true, 0.6);
+    c.fill();
+    c.beginPath();
+    smoothPath(c, [[10, 0], [4, -70], [22, -176], [90, -160], [150, -80], [170, 0]], true, 0.6);
+    c.fill();
+    c.restore();
+  });
+}
+
+// Scrub and rocks sweeping past in the foreground (depth > 1).
+function foreground(R, { depth = 1.6, y = 60, seed = 21, color = '#0e0a08', count = 14, spread = 5000 }) {
+  R.layer(depth);
+  R.paint((c) => {
+    const r = rng(seed);
+    c.fillStyle = color;
+    for (let i = 0; i < count; i++) {
+      const x = (r() - 0.5) * spread;
+      const w = 60 + r() * 160;
+      const h = 30 + r() * 90;
+      c.beginPath();
+      if (r() > 0.5) {
+        smoothPath(c, [[x - w / 2, y + 100], [x - w * 0.4, y - h * 0.6], [x, y - h], [x + w * 0.4, y - h * 0.5], [x + w / 2, y + 100]], true, 0.8);
+      } else {
+        for (let k = 0; k < 9; k++) {
+          const a = -Math.PI + (k / 8) * Math.PI;
+          c.moveTo(x, y + 20);
+          c.lineTo(x + Math.cos(a) * h * 1.2, y + Math.sin(a) * h * 1.1);
+        }
+        c.strokeStyle = color;
+        c.lineWidth = 3;
+        c.stroke();
+        continue;
+      }
+      c.fill();
+    }
+  });
+  R.layer(1);
+}
+
+// ---------------------------------------------------------------- barn -----
+
+function barnInterior(R, { t = 0, doorOpen = 1, moon = 0.6 } = {}) {
+  // back wall of vertical planks, with gaps letting in moonlight
+  R.paint((c) => {
+    const r = rng(41);
+    for (let x = -1400; x < 1400; x += 44) {
+      const v = 0.8 + r() * 0.35;
+      c.fillStyle = `rgb(${(92 * v) | 0},${(66 * v) | 0},${(44 * v) | 0})`;
+      c.fillRect(x, -760, 42, 760);
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      c.fillRect(x + 12 + r() * 16, -700 + r() * 500, 3, 18 + r() * 30); // knots
+    }
+    // floor
+    c.fillStyle = '#2b2016';
+    c.fillRect(-1400, 0, 2800, 600);
+    c.fillStyle = '#3a2c1f';
+    c.fillRect(-1400, 0, 2800, 6);
+    // hay pile
+    c.fillStyle = '#7a6036';
+    c.beginPath();
+    smoothPath(c, [[520, 2], [560, -70], [640, -110], [760, -96], [860, -40], [900, 2]], true, 0.8);
+    c.fill();
+  });
+  // a small high window to the night
+  R.glow((c) => {
+    c.fillStyle = `rgba(90,120,170,${moon})`;
+    c.fillRect(640, -600, 90, 70);
+  });
+  R.paint((c) => {
+    c.fillStyle = '#1a120c';
+    c.fillRect(682, -600, 6, 70);
+    c.fillRect(640, -568, 90, 6);
+  });
+  // posts, beam, stall and tack on pegs: all cast shadows onto the wall
+  R.cast((c) => {
+    c.fillStyle = '#2e2117';
+    for (const px of [-640, -40, 560]) c.fillRect(px - 16, -760, 32, 762);
+    c.fillRect(-1400, -430, 2800, 26);
+  });
+  // coiled rope and a hanging bridle: too thin to cast well, so just painted
+  R.paint((c) => {
+    c.strokeStyle = '#3a2a1c';
+    c.lineWidth = 5;
+    c.beginPath();
+    c.ellipse(-400, -300, 30, 38, 0, 0, Math.PI * 2);
+    c.stroke();
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(300, -330);
+    c.quadraticCurveTo(290, -250, 320, -230);
+    c.stroke();
+  });
+}
+
+// Stall boards stand in front of the horse, so they're drawn after it.
+function barnStall(R) {
+  R.cast((c) => {
+    c.fillStyle = '#3d2c1e';
+    c.fillRect(40, -130, 360, 14);
+    c.fillRect(40, -80, 360, 14);
+    c.fillRect(392, -150, 16, 152);
+  });
+}
+
+function trunk(R, x, y, { open = 0 } = {}) {
+  R.cast((c) => {
+    c.fillStyle = '#3e2a1a';
+    c.fillRect(x - 70, y - 64, 140, 64);
+    c.fillStyle = '#26190f';
+    c.fillRect(x - 70, y - 40, 140, 5);
+    c.fillStyle = '#6a5436';
+    c.fillRect(x - 6, y - 60, 12, 10); // clasp
+    // lid hinged at the back edge
+    c.save();
+    c.translate(x - 70, y - 64);
+    c.rotate(-open * 1.9);
+    c.fillStyle = '#4a321f';
+    c.fillRect(0, -16, 140, 16);
+    c.restore();
+  });
+  if (open > 0.3) {
+    R.paint((c) => {
+      c.fillStyle = '#140d08';
+      c.fillRect(x - 64, y - 64, 128, 6);
+    });
+  }
+}
+
+function lantern(R, x, y, { lit = 1, t = 0 } = {}) {
+  const fl = lit * (0.82 + 0.1 * noise1(t * 9) + 0.08 * noise1(t * 23));
+  R.cast((c) => {
+    c.strokeStyle = '#1a140e';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.arc(x, y - 22, 8, Math.PI, 0);
+    c.stroke();
+    c.fillStyle = '#231a12';
+    c.fillRect(x - 11, y - 16, 22, 5);
+    c.fillRect(x - 11, y + 14, 22, 5);
+    c.fillRect(x - 11, y - 12, 2, 26);
+    c.fillRect(x + 9, y - 12, 2, 26);
+  });
+  if (lit > 0) {
+    R.glow((c) => {
+      const g = c.createRadialGradient(x, y + 2, 0, x, y + 2, 14);
+      g.addColorStop(0, `rgba(255,240,200,${fl})`);
+      g.addColorStop(0.5, `rgba(255,170,70,${fl * 0.8})`);
+      g.addColorStop(1, 'rgba(255,120,40,0)');
+      c.fillStyle = g;
+      c.fillRect(x - 14, y - 12, 28, 28);
+    });
+  }
+  return fl;
+}
+
+// ----------------------------------------------------------- weather -------
+
+function rain(R, t, amount = 1, wind = 0.25) {
+  if (amount <= 0) return;
+  R.glow((c) => {
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    const r = rng(77);
+    c.strokeStyle = `rgba(170,190,215,${0.16 * amount})`;
+    c.lineWidth = 1.2;
+    c.beginPath();
+    const n = (500 * amount) | 0;
+    for (let i = 0; i < n; i++) {
+      const sp = 900 + r() * 500;
+      const x0 = r() * (R.W + 200) - 100;
+      const y = ((r() * R.H + t * sp) % (R.H + 60)) - 30;
+      const x = (x0 + t * sp * wind) % (R.W + 200) - 100;
+      c.moveTo(x, y);
+      c.lineTo(x - 18 * wind * 2, y - 26);
+    }
+    c.stroke();
+    c.restore();
+  });
+}
+
+// A jagged bolt from the clouds to (x, y). Returns nothing; add a flash too.
+function lightningBolt(R, x, y, seed, strength) {
+  if (strength <= 0.02) return;
+  R.layer(0.4);
+  R.glow((c) => {
+    const r = rng(seed);
+    const pts = [[x + (r() - 0.5) * 200, y - 900]];
+    for (let i = 1; i <= 14; i++) pts.push([lerp(pts[0][0], x, i / 14) + (r() - 0.5) * 70, lerp(pts[0][1], y, i / 14)]);
+    c.lineCap = 'round';
+    for (const [w, a] of [[16, 0.15], [6, 0.5], [2.5, 1]]) {
+      c.strokeStyle = `rgba(210,225,255,${a * strength})`;
+      c.lineWidth = w;
+      c.beginPath();
+      pts.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
+      c.stroke();
+    }
+  });
+  R.layer(1);
+}
+
+// A flooded river: dark water with moving highlights, drawn over whatever
+// stands in it so legs and bodies disappear below the surface.
+function river(R, y, t, { flash = 0, x0 = -3000, x1 = 3000, rush = 1 } = {}) {
+  R.cover((c) => {
+    c.fillStyle = '#0d1418';
+    c.fillRect(x0, y, x1 - x0, 1200);
+  });
+  R.glow((c) => {
+    const r = rng(90);
+    c.lineCap = 'round';
+    for (let i = 0; i < 90; i++) {
+      const row = r();
+      const yy = y + 4 + row * row * 260;
+      const speed = 90 * rush * (1 + r());
+      const len = 30 + r() * 90;
+      const xx = x0 + ((r() * (x1 - x0) + t * speed) % (x1 - x0));
+      const a = (0.1 + 0.25 * r()) * (1 - row * 0.7) + flash * 0.4;
+      c.strokeStyle = `rgba(${140 + flash * 100},${170 + flash * 70},${200 + flash * 55},${a})`;
+      c.lineWidth = 1.5 + (1 - row) * 1.5;
+      c.beginPath();
+      c.moveTo(xx, yy + Math.sin(t * 3 + i) * 2);
+      c.lineTo(xx + len, yy + Math.sin(t * 3 + i + 1) * 2);
+      c.stroke();
+    }
+  });
+}
+
+// Foam boiling around something standing in the current.
+function foam(R, x, y, w, t, amount = 1) {
+  R.glow((c) => {
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * Math.PI;
+      const px = x + Math.cos(a) * w * 0.5 + Math.sin(t * 5 + i) * 6;
+      c.fillStyle = `rgba(190,205,215,${0.18 * amount})`;
+      c.beginPath();
+      c.ellipse(px, y + Math.sin(t * 7 + i * 2) * 3, 16, 5, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+  });
+}
+
+function townLights(R, x, y, t, depth = 0.35) {
+  R.layer(depth);
+  R.paint((c) => {
+    const r = rng(55);
+    c.fillStyle = '#0c0b10';
+    for (let i = 0; i < 22; i++) {
+      const bx = x + i * 38 + r() * 10;
+      const h = 30 + r() * 50;
+      c.fillRect(bx, y - h, 30 + r() * 14, h + 40);
+    }
+    c.fillRect(x + 260, y - 120, 12, 90); // church steeple
+    c.beginPath();
+    c.moveTo(x + 252, y - 118);
+    c.lineTo(x + 266, y - 150);
+    c.lineTo(x + 280, y - 118);
+    c.fill();
+  });
+  R.glow((c) => {
+    const r2 = rng(56);
+    for (let i = 0; i < 30; i++) {
+      const fl = 0.7 + 0.3 * noise1(t * 2 + i * 5);
+      c.fillStyle = `rgba(255,${150 + r2() * 60},70,${0.8 * fl})`;
+      c.fillRect(x + r2() * 860, y - 10 - r2() * 60, 4, 5);
+    }
+  });
+  R.layer(1);
+}
+
+
+return { skyGradient, stars, sun, clouds, ridge, ground, grass, oak, grave, fence, cornField, farmhouse, signpost, splitRock, foreground, barnInterior, barnStall, trunk, lantern, rain, lightningBolt, river, foam, townLights };
+})();
+
+// ---- src/story/staging.js
+const __src_story_staging = (() => {
+// Staging helpers shared by the chapter's scenes: moving actors, seating
+// riders, hoof sounds, and the recurring farm set.
+
+const { clamp, lerp, smooth } = __src_engine_util;
+const { POSES, walkPose, blendPose } = __src_rigs_person;
+const S = __src_sets_scenery;
+// Drive a horse to a scripted x position, deriving its gait from the speed.
+function drive(horse, x, dt) {
+  const v = dt > 0 ? (x - horse.x) / dt : 0;
+  const sp = Math.abs(v);
+  const g = sp < 6 ? 'stand' : sp < 120 ? 'walk' : sp < 280 ? 'trot' : 'gallop';
+  if (horse.gait !== 'swim') horse.setGait(g);
+  horse.speed = sp;
+  horse.x = x;
+  horse.update(dt, false);
+}
+
+// Seat a person on a horse, leaning with the gait.
+function seatRider(p, horse, { lean = 0, arms = null } = {}) {
+  const s = horse.seat();
+  p.grounded = false;
+  p.f = horse.f;
+  p.x = s.x;
+  p.y = s.y + 2;
+  const gallop = horse.gait === 'gallop';
+  p.setPose({
+    ...POSES.ride,
+    torso: POSES.ride.torso + (gallop ? 0.32 : 0) - s.pitch * p.f * 0.8 + lean + (gallop ? 0.05 * Math.sin(horse.phase * Math.PI * 2) : 0),
+    ...(arms || {}),
+  });
+}
+
+// Walk a person from x0 to x1 between t0 and t1 (holding pose outside it).
+function walk(p, t, x0, x1, t0, t1, base = POSES.stand) {
+  const k = clamp((t - t0) / (t1 - t0));
+  p.grounded = true;
+  p.x = lerp(x0, x1, k);
+  if (x1 !== x0 && k > 0 && k < 1) {
+    p.f = x1 > x0 ? 1 : -1;
+    const stepIn = smooth(0, 0.08, k) * (1 - smooth(0.92, 1, k));
+    p.setPose(blendPose(base, walkPose((Math.abs(p.x - x0) / 88) * Math.PI * 2 * 0.5), stepIn));
+    return true;
+  }
+  return false;
+}
+
+// Blend between two poses over a time window.
+function poseAt(p, t, t0, t1, from, to) {
+  p.setPose(blendPose(from, to, smooth(t0, t1, t)));
+}
+
+function hooves(sound, horse, surface = 'dirt', vol = 0.35) {
+  horse.onStep = () => sound.hoof(surface, vol);
+}
+
+// Draw an actor with its ground shadow.
+function actor(R, a, { shear = 0, squash = 0.14, groundY = 0, shadow = true } = {}) {
+  R.cast((c) => a.draw(c));
+  if (shadow) R.shadow((c) => a.draw(c), a.x, groundY, shear, squash);
+}
+
+// ---------------------------------------------------------------- farm -----
+
+const FARM = { houseX: 240, fenceX0: -760, fenceX1: 120, postX: -210 };
+
+const SKIES = {
+  dusk: [[0, '#1c1a31'], [0.35, '#4d2f4c'], [0.6, '#b8623f'], [0.72, '#e39352']],
+  night: [[0, '#05060c'], [0.4, '#0b1020'], [0.72, '#1a2236']],
+  dawn: [[0, '#2c3150'], [0.35, '#6a5a78'], [0.6, '#d48a72'], [0.72, '#f2c089']],
+  sunset: [[0, '#2a1d3a'], [0.3, '#6e3346'], [0.55, '#d0603c'], [0.7, '#f4a650']],
+  golden: [[0, '#3c4a72'], [0.35, '#8c6a6a'], [0.6, '#e09a58'], [0.72, '#f8cc86']],
+  storm: [[0, '#04050a'], [0.5, '#0a0d16'], [0.75, '#121826']],
+};
+
+// Blend two sky gradients (same stop positions).
+function mixSky(a, b, k) {
+  const hx = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  return a.map(([p, ca], i) => {
+    const A = hx(ca);
+    const B = hx(b[Math.min(i, b.length - 1)][1]);
+    const c = A.map((v, j) => Math.round(lerp(v, B[j], k)).toString(16).padStart(2, '0'));
+    return [p, `#${c.join('')}`];
+  });
+}
+
+// The Marrow farm: failing corn, a split-rail fence, the house.
+function farmSet(R, t, { sky = SKIES.dusk, lit = 1, stars = 0, handbill = false } = {}) {
+  S.skyGradient(R, sky);
+  S.stars(R, stars);
+  S.clouds(R, { seed: 4, y: -430, color: 'rgba(40,24,40,0.45)', count: 7, t, drift: 3 });
+  S.ridge(R, { depth: 0.18, base: -6, height: 150, freq: 0.003, seed: 2, color: '#3a2c40', haze: ['#7a4a5a', 0.18] });
+  S.ridge(R, { depth: 0.45, base: 12, height: 70, freq: 0.006, seed: 9, rough: 0.3, color: '#2a1f26' });
+  S.ground(R, 0, '#241a14', 1, '#2e2219');
+  S.cornField(R, -1100, -260, -18, { t, color: '#5d4a2c' });
+  const house = S.farmhouse(R, FARM.houseX, 0, { lit, t });
+  S.fence(R, FARM.fenceX0, FARM.fenceX1, 6, { broken: [2] });
+  if (handbill) {
+    R.paint((c) => {
+      c.save();
+      c.translate(FARM.postX - 11, -64);
+      c.rotate(0.06);
+      c.fillStyle = '#c9bb96';
+      c.fillRect(0, 0, 22, 28);
+      c.fillStyle = '#3a2e22';
+      for (let i = 0; i < 5; i++) c.fillRect(3, 4 + i * 5, 16 - (i % 2) * 5, 1.5);
+      c.restore();
+    });
+  }
+  S.grass(R, { y: 2, x0: -1600, x1: 1400, seed: 8, color: '#3a2b1a', t, density: 0.05 });
+  return house;
+}
+
+
+return { drive, seatRider, walk, poseAt, hooves, actor, FARM, SKIES, mixSky, farmSet };
+})();
+
+// ---- src/story/props.js
+const __src_story_props = (() => {
+// Small hand props, drawn in world space at a person's hands.
+
+function hammer(c, x, y, ang) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(ang);
+  c.fillStyle = '#3a2a1a';
+  c.fillRect(-2, -4, 4, 34);
+  c.fillStyle = '#1a1a1c';
+  c.fillRect(-9, 26, 18, 8);
+  c.restore();
+}
+
+// Ada's shawl, folded around the pistol. open: 0 bundled … 1 unwrapped.
+function bundle(c, x, y, open = 0) {
+  c.save();
+  c.translate(x, y);
+  c.fillStyle = '#4b2330';
+  c.beginPath();
+  c.ellipse(0, 0, 20 + open * 16, 11 - open * 4, 0, 0, Math.PI * 2);
+  c.fill();
+  c.strokeStyle = '#6b3a44';
+  c.lineWidth = 1.5;
+  for (let i = -3; i <= 3; i++) {
+    c.beginPath();
+    c.moveTo(i * 5 * (1 + open), 9 - open * 3);
+    c.lineTo(i * 5 * (1 + open) + 1, 15);
+    c.stroke();
+  }
+  if (open > 0.4) pistol(c, 0, -4, 0, open);
+  c.restore();
+}
+
+function pistol(c, x, y, ang = 0, alpha = 1) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(ang);
+  c.globalAlpha *= alpha;
+  c.fillStyle = '#16161a';
+  c.fillRect(-4, -3, 26, 5); // barrel
+  c.fillRect(-6, -5, 10, 9); // cylinder
+  c.beginPath();
+  c.moveTo(-6, 3);
+  c.lineTo(-14, 14);
+  c.lineTo(-8, 16);
+  c.lineTo(-1, 4);
+  c.fill(); // grip
+  c.restore();
+}
+
+function hatOnGround(c, x, y) {
+  c.fillStyle = '#121215';
+  c.beginPath();
+  c.ellipse(x, y - 2, 19, 3.5, 0.1, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.moveTo(x - 10, y - 3);
+  c.lineTo(x - 8, y - 14);
+  c.quadraticCurveTo(x + 1, y - 18, x + 9, y - 13);
+  c.lineTo(x + 11, y - 3);
+  c.fill();
+}
+
+function paper(c, x, y, ang = 0) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(ang);
+  c.fillStyle = '#cbbd98';
+  c.fillRect(-9, -12, 18, 24);
+  c.restore();
+}
+
+function match(c, x, y) {
+  c.fillStyle = '#2a1e14';
+  c.fillRect(x - 1, y, 2, 12);
+}
+
+return { hammer, bundle, pistol, hatOnGround, paper, match };
+})();
+
+// ---- src/story/chapter1.js
+const __src_story_chapter1 = (() => {
+// Chapter One: "The Trunk".
+//
+// Each scene is data plus a small director's script: timed dialogue, title
+// cards and sound cues, and a create() that stages the actors and returns
+// update / camera / look / draw functions. Choices name the next scene.
+
+const { key, smooth, clamp, lerp, noise1 } = __src_engine_util;
+const { Person, POSES, blendPose } = __src_rigs_person;
+const { Horse } = __src_rigs_horse;
+const S = __src_sets_scenery;
+const { drive, seatRider, walk, poseAt, hooves, actor, farmSet, FARM, SKIES, mixSky } = __src_story_staging;
+const P = __src_story_props;
+const ELI = 'Eli';
+const TOBIAS = 'Tobias Quill';
+const JUNE = 'June';
+const ADA = 'Ada, remembered';
+
+const P_STAND = POSES.stand;
+const P_GRIEF = { ...POSES.stand, head: 0.4, torso: 0.08, armN: 0.3, foreN: 0.75, armF: 0.1, foreF: 0.4 };
+const P_HATUP = { ...POSES.stand, head: 0.05, armN: 2.6, foreN: 3.1 };
+const P_MOUNT = { torso: 0.12, head: -0.1, thighN: 1.45, shinN: 0.35, thighF: 0.02, shinF: 0.0, armN: 2.5, foreN: 2.8, armF: 2.3, foreF: 2.6 };
+const P_CARRY = { armN: 0.4, foreN: 0.25 };
+const P_BELT = { ...POSES.stand, armN: 0.25, foreN: 1.25 };
+const P_PORCH = { ...POSES.stand, torso: -0.02, head: 0.05 };
+const P_COUGH = { ...POSES.stand, torso: 0.38, head: 0.3, armN: 0.9, foreN: 2.0 };
+
+const hand = (p, which = 'handN') => p.world(which);
+const foreAng = (p) => -p.pose.foreN * p.f;
+
+// Lightning: sum of quickly decaying flashes.
+function flashAt(t, strikes) {
+  let f = 0;
+  for (const [ts, s] of strikes) {
+    const d = t - ts;
+    if (d >= 0 && d < 1.2) f += s * Math.exp(-d * 5) * (0.7 + 0.3 * Math.sin(d * 60));
+  }
+  return clamp(f, 0, 1.4);
+}
+
+const uvOf = (R, x, y, depth = 1) => R.cam.toUv(x, y, R.W, R.H, depth);
+
+// ========================================================== 1. prologue ====
+
+const prologue = {
+  duration: 36,
+  mood: 'elegy',
+  ambience: { wind: 0.7, rain: 0, river: 0, fire: 0 },
+  cards: [
+    { t: 2, dur: 6.4, text: 'Ada Marrow married the most feared gun in the territory. Nobody in three counties could say why.' },
+    { t: 9.3, dur: 6.4, text: 'She asked him for one thing. He locked the pistol in a cedar trunk, and for eleven years he kept it there.' },
+    { t: 16.6, dur: 6.4, text: 'The fever took her in the winter of ’79. He buried her in the only suit he owned.' },
+    { t: 23.9, dur: 5, text: 'He has not taken it off since.' },
+    { t: 30.5, dur: 4.5, text: 'Chapter One · The Trunk' },
+  ],
+  cues: [{ t: 21, fn: ({ sound }) => sound.snort(0.35) }],
+  next: 'farm',
+  create({ R }) {
+    const eli = new Person('suit');
+    eli.x = -40;
+    eli.hat = 'hand';
+    eli.setPose(P_GRIEF);
+    const dove = new Horse('dove');
+    dove.x = -430;
+    dove.neck = 0.55;
+    dove.head = 0.05;
+    let last = 0;
+    return {
+      update(t, dt) {
+        if (t < 30.2) eli.setPose(P_GRIEF);
+        else if (t < 31.4) poseAt(eli, t, 30.2, 31.2, P_GRIEF, P_HATUP);
+        else poseAt(eli, t, 31.4, 32.6, P_HATUP, { ...P_STAND, head: -0.05 });
+        eli.hat = t < 31.3 ? 'hand' : 'on';
+        // Dove grazes, steps once, and lifts her head toward him.
+        const up = smooth(19.5, 21.5, t) * (1 - smooth(25, 27.5, t));
+        dove.neck = lerp(0.55, -0.75, up);
+        dove.head = lerp(0.05, 1.0, up);
+        drive(dove, key(t, [[9, -430], [11.5, -380]]), t - last || dt);
+        last = t;
+      },
+      camera: (t) => ({
+        x: key(t, [[0, -150], [36, -60]], 'sine'),
+        y: key(t, [[0, -300], [36, -205]], 'sine'),
+        view: key(t, [[0, 1900], [36, 1150]], 'sine'),
+      }),
+      look(t) {
+        const sunUv = uvOf(R, 520, 70, 0.05);
+        return {
+          ambient: [0.22, 0.15, 0.22],
+          lights: [{ uv: sunUv, color: [1.0, 0.6, 0.34], intensity: 1.35, radius: 0, rim: 1.3 }],
+          god: { uv: sunUv, strength: 0.55 },
+          groundShadow: 0.75,
+          bloom: 0.7,
+          exposure: 1.05,
+        };
+      },
+      draw(R, t) {
+        S.skyGradient(R, SKIES.sunset);
+        S.sun(R, 520, 70, 34, 'rgba(255,226,170,1)');
+        S.clouds(R, { seed: 2, y: -260, color: 'rgba(90,40,50,0.55)', count: 9, t, drift: 6 });
+        S.ridge(R, { depth: 0.12, base: 20, height: 140, freq: 0.0025, seed: 5, color: '#4a2a3a', haze: ['#d0704a', 0.28] });
+        S.ridge(R, { depth: 0.4, base: 40, height: 110, freq: 0.009, seed: 12, rough: 0.6, color: '#2a1a20', haze: ['#a04a3a', 0.1] });
+        S.ground(R, 0, '#1c130f', 1, '#2a1c14');
+        S.oak(R, 420, 2, { seed: 7, scale: 0.78, t });
+        S.grave(R, 120, 0);
+        const shear = 2.4;
+        actor(R, dove, { shear, squash: 0.1 });
+        actor(R, eli, { shear, squash: 0.1 });
+        S.grass(R, { y: 3, x0: -1400, x1: 1200, seed: 3, color: '#2a1b12', t, density: 0.07, cast: true });
+      },
+    };
+  },
+};
+
+// ============================================================ 2. farm =======
+
+function farmActors() {
+  const eli = new Person('suit');
+  eli.x = -150;
+  eli.f = -1;
+  const june = new Person('dress', 0.62);
+  june.x = 205;
+  june.y = -8;
+  june.f = -1;
+  june.setPose(P_PORCH);
+  const tob = new Person('vest');
+  const ches = new Horse('chestnut');
+  ches.saddled = true;
+  ches.bags = true;
+  ches.x = -1500;
+  return { eli, june, tob, ches };
+}
+
+function farmLook(R, house, night = 0) {
+  return {
+    ambient: [lerp(0.17, 0.05, night), lerp(0.15, 0.06, night), lerp(0.26, 0.12, night)],
+    lights: [
+      { uv: [-0.08, 0.64], color: night ? [0.4, 0.5, 0.85] : [0.95, 0.55, 0.38], intensity: lerp(0.95, 0.35, night), radius: 0, rim: 1.0 },
+      { x: house.window[0], y: house.window[1], color: [1.0, 0.64, 0.3], intensity: lerp(1.3, 1.8, night), radius: 0.2, rim: 0.7 },
+    ],
+    groundShadow: lerp(0.6, 0.3, night),
+    bloom: 0.8,
+  };
+}
+
+function drawFarm(R, t, a, opts = {}) {
+  const house = farmSet(R, t, opts);
+  const shear = -1.5;
+  actor(R, a.ches, { shear });
+  if (a.tob.visible !== false) R.cast((c) => a.tob.draw(c));
+  if (a.june.visible !== false) actor(R, a.june, { shear, groundY: -8 });
+  actor(R, a.eli, { shear });
+  return house;
+}
+
+const farm = {
+  duration: 34,
+  mood: 'tension',
+  ambience: { wind: 0.45 },
+  lines: () => [
+    { t: 6.5, who: JUNE, text: 'Pa. Rider coming.', dur: 3 },
+    { t: 12.5, who: TOBIAS, text: 'You Eli Marrow? The Eli Marrow they tell about in Blackwater?', dur: 4.2 },
+    { t: 17.2, who: ELI, text: 'I raise corn, son. Or I did, till the blight took it.', dur: 4 },
+    { t: 21.6, who: TOBIAS, text: 'Two drovers carved up a laundress in Calvary Bend. The marshal fined ’em a pony apiece.', dur: 5 },
+    { t: 27, who: TOBIAS, text: 'The women put up a thousand dollars for their hides. I need a man who’s done this before.', dur: 5.2 },
+  ],
+  cues: [{ t: 32, fn: ({ sound }) => sound.cough() }],
+  choice: {
+    at: 33.5,
+    prompt: 'A thousand dollars. A girl with a cough that won’t quit.',
+    options: [
+      { label: 'Hear him out', next: 'farm-hear', cut: true, apply: (s) => (s.resolve = 'willing') },
+      { label: 'Send him away', next: 'farm-refuse', cut: true, apply: (s) => (s.resolve = 'reluctant') },
+    ],
+  },
+  create({ R, sound }) {
+    const a = farmActors();
+    hooves(sound, a.ches, 'dirt', 0.3);
+    let house = { window: [400, -90] };
+    let last = 0;
+    let beat = -1;
+    return {
+      update(t, dt) {
+        // Hammering at the fence until the rider appears.
+        const ph = t * 1.3;
+        const swing = t < 8 ? Math.max(0, Math.sin(ph * Math.PI * 2)) : 0;
+        a.eli.setPose(blendPose({ ...P_STAND, torso: 0.12, head: 0.2, armN: 1.2 + swing * 1.2, foreN: 1.9 + swing * 1.0, armF: 0.9, foreF: 1.5 }, { ...P_STAND, head: -0.02 }, smooth(8, 9.2, t)));
+        if (t < 7.8 && Math.floor(ph) !== beat) {
+          beat = Math.floor(ph);
+          if (beat > 0) sound.hammer();
+        }
+        drive(a.ches, key(t, [[3, -1500], [9, -560, 'out'], [11.5, -470, 'out']]), t - last || dt);
+        last = t;
+        seatRider(a.tob, a.ches, { lean: -0.04 });
+        a.june.setPose(t > 31.5 && t < 33.5 ? blendPose(P_PORCH, P_COUGH, Math.sin(clamp((t - 31.5) / 2) * Math.PI)) : P_PORCH);
+      },
+      camera: (t) => ({ x: key(t, [[0, -170], [4, -170], [11, -330]]), y: -205, view: key(t, [[0, 1150], [11, 1420]]) }),
+      look: () => farmLook(R, house),
+      draw(R, t) {
+        house = drawFarm(R, t, a);
+        if (t < 8.3) R.paint((c) => P.hammer(c, ...hand(a.eli), foreAng(a.eli)));
+      },
+    };
+  },
+};
+
+const farmHear = {
+  duration: 20.5,
+  ambience: { wind: 0.45 },
+  lines: () => [
+    { t: 0.6, who: ELI, text: 'I ain’t that man anymore. Ada took the meanness out of me.', dur: 4.4 },
+    { t: 5.4, who: TOBIAS, text: 'Then be a rich man instead. I ride at first light, past the split rock.', dur: 5 },
+    { t: 12.4, who: ELI, text: '…I’ll think on it.', dur: 3 },
+  ],
+  next: 'barn',
+  create({ R, sound }) {
+    const a = farmActors();
+    a.ches.x = -470;
+    hooves(sound, a.ches, 'dirt', 0.3);
+    let house = { window: [400, -90] };
+    let last = 0;
+    return {
+      update(t, dt) {
+        // He looks back at June on the porch before he answers.
+        const look = smooth(10.2, 11, t) * (1 - smooth(15, 16, t));
+        a.eli.f = look > 0.5 ? 1 : -1;
+        a.eli.setPose({ ...P_STAND, head: look > 0.5 ? 0.12 : -0.02 });
+        a.ches.f = t > 14 ? -1 : 1;
+        drive(a.ches, key(t, [[14, -470], [20.5, -1500, 'in']]), t - last || dt);
+        last = t;
+        seatRider(a.tob, a.ches);
+      },
+      camera: (t) => ({ x: key(t, [[0, -330], [11, -150], [16, -150], [20, -330]]), y: -205, view: key(t, [[0, 1420], [11, 1250], [20, 1420]]) }),
+      look: () => farmLook(R, house),
+      draw(R, t) {
+        house = drawFarm(R, t, a);
+      },
+    };
+  },
+};
+
+const farmRefuse = {
+  duration: 28,
+  ambience: { wind: 0.4 },
+  lines: () => [
+    { t: 0.6, who: ELI, text: 'Ride on. There’s nothing here for you.', dur: 3.4 },
+    { t: 4.2, who: TOBIAS, text: 'Suit yourself. Split rock, first light, if you change your mind.', dur: 4.4 },
+  ],
+  cards: [
+    { t: 15.5, dur: 4.2, text: 'That night, June’s cough got worse.' },
+    { t: 22.6, dur: 5, text: 'REWARD — $1,000 — for the two drovers who cut Maggie Lowe. Inquire at Calvary Bend.' },
+  ],
+  cues: [
+    { t: 16, fn: ({ sound }) => sound.cough() },
+    { t: 18.5, fn: ({ sound }) => sound.cough() },
+    { t: 12, fn: ({ sound }) => sound.setMood('elegy') },
+  ],
+  next: 'barn',
+  create({ R, sound }) {
+    const a = farmActors();
+    a.ches.x = -470;
+    hooves(sound, a.ches, 'dirt', 0.3);
+    let house = { window: [400, -90] };
+    let last = 0;
+    let bill = false;
+    return {
+      night: 0,
+      update(t, dt) {
+        this.night = smooth(11, 15.5, t);
+        // Tobias pins a handbill to the fence post, then leaves.
+        a.ches.f = t > 9.6 ? -1 : 1;
+        drive(a.ches, key(t, [[6, -470], [8, -330], [9.6, -330], [15, -1500, 'in']]), t - last || dt);
+        last = t;
+        const lean = smooth(8, 8.6, t) * (1 - smooth(9, 9.6, t));
+        seatRider(a.tob, a.ches, { lean: lean * 0.5, arms: lean > 0.1 ? { armN: 1.2, foreN: 1.1 } : null });
+        if (t > 8.8 && t < 21.5) bill = true;
+        if (t >= 21.5) bill = false;
+        // June goes in; Eli goes to the post and reads the bill.
+        walk(a.june, t, 205, 284, 12, 13.6, P_PORCH);
+        a.june.visible = t < 13.7;
+        if (!walk(a.eli, t, -150, -180, 19, 20.5)) {
+          const reach = smooth(20.6, 21.3, t) * (1 - smooth(21.6, 22.2, t));
+          a.eli.setPose(t > 22 ? { ...P_STAND, head: 0.35, armN: 0.7, foreN: 1.5, armF: 0.6, foreF: 1.4 } : blendPose(P_STAND, { ...POSES.reach, torso: 0.1 }, reach));
+        }
+        if (t < 19) a.eli.f = -1;
+        this.bill = bill;
+      },
+      camera: (t) => ({ x: key(t, [[0, -330], [12, -200], [22, -150]]), y: -205, view: key(t, [[0, 1420], [22, 1000]]) }),
+      look() {
+        return farmLook(R, house, this.night);
+      },
+      draw(R, t) {
+        house = drawFarm(R, t, a, { sky: mixSky(SKIES.dusk, SKIES.night, this.night), stars: this.night, handbill: this.bill });
+        if (t > 22) R.paint((c) => P.paper(c, ...hand(a.eli), 0.2));
+      },
+    };
+  },
+};
+
+// ============================================================= 3. barn ======
+
+function barnActors() {
+  const eli = new Person('suit');
+  const dove = new Horse('dove');
+  dove.x = 230;
+  dove.f = -1;
+  const june = new Person('dress', 0.62);
+  june.x = -830;
+  june.visible = false;
+  return { eli, dove, june };
+}
+
+function barnLook(R, lamp, moon = 0.45, extra = []) {
+  return {
+    ambient: [0.035, 0.034, 0.05],
+    lights: [
+      { x: lamp.x, y: lamp.y, color: [1.0, 0.64, 0.33], intensity: 2.7 * lamp.fl, radius: 0.5, project: 1.85, soft: 0.003, rim: 0.55 },
+      { x: 685, y: -565, color: [0.35, 0.45, 0.75], intensity: moon, radius: 0.9, project: 1.3, soft: 0.006, rim: 0.6 },
+      ...extra,
+    ],
+    bloom: 0.9,
+    groundShadow: 0,
+    exposure: 1.1,
+  };
+}
+
+function drawBarn(R, t, a, lamp, { bundle = null, doorway = true } = {}) {
+  S.barnInterior(R, { t });
+  if (doorway) {
+    // the open door: moonlit yard beyond, framed by dark jambs
+    R.glow((c) => {
+      const g = c.createLinearGradient(0, -330, 0, 0);
+      g.addColorStop(0, 'rgba(30,40,70,0.7)');
+      g.addColorStop(0.7, 'rgba(60,78,120,0.8)');
+      g.addColorStop(1, 'rgba(40,50,70,0.8)');
+      c.fillStyle = g;
+      c.fillRect(-940, -330, 150, 330);
+    });
+    R.paint((c) => {
+      c.fillStyle = '#1c130c';
+      c.fillRect(-952, -342, 12, 342);
+      c.fillRect(-790, -342, 12, 342);
+      c.fillRect(-952, -350, 174, 16);
+    });
+  }
+  S.trunk(R, -120, 0, { open: a.lid || 0 });
+  R.cast((c) => a.dove.draw(c));
+  S.barnStall(R);
+  if (a.june.visible) R.cast((c) => a.june.draw(c));
+  R.cast((c) => a.eli.draw(c));
+  if (bundle) R.cast((c) => P.bundle(c, bundle.x, bundle.y, bundle.open));
+  lamp.fl = S.lantern(R, lamp.x, lamp.y, { lit: lamp.lit, t });
+}
+
+const barn = {
+  duration: 29,
+  mood: 'tension',
+  ambience: { wind: 0.25, fire: 1 },
+  lines: () => [
+    { t: 16.6, who: ADA, text: 'Whatever comes, Eli, you leave it be.', dur: 5, style: 'memory' },
+    { t: 22.4, who: ELI, text: 'You said you’d stay, too.', dur: 4 },
+  ],
+  cues: [
+    { t: 12, fn: ({ sound }) => sound.creak() },
+    { t: 25.5, fn: ({ sound }) => sound.snort(0.3) },
+  ],
+  choice: {
+    at: 28.5,
+    prompt: 'Her shawl. His pistol, wrapped inside it.',
+    options: [
+      { label: 'Take the gun', next: 'barn-take', cut: true, apply: (s) => (s.armed = true) },
+      { label: 'Leave it in the trunk', next: 'barn-leave', cut: true, apply: (s) => ((s.armed = false), (s.junePacked = true)) },
+    ],
+  },
+  create({ R, sound }) {
+    const a = barnActors();
+    const lamp = { x: -900, y: -120, lit: 1, fl: 1 };
+    hooves(sound, a.dove, 'wood', 0.25);
+    let last = 0;
+    return {
+      update(t, dt) {
+        const e = a.eli;
+        if (walk(e, t, -900, -380, 0, 6)) e.setPose(P_CARRY);
+        else if (t < 8) {
+          e.f = 1;
+          const up = smooth(6, 7, t) * (1 - smooth(7.4, 8, t));
+          e.setPose(blendPose({ ...P_STAND, ...P_CARRY }, { ...POSES.reach, armN: 2.7, foreN: 2.9, torso: -0.05 }, up));
+        } else if (walk(e, t, -380, -205, 8, 10)) {
+          /* walking to the trunk */
+        } else {
+          e.f = 1;
+          const kneel = smooth(10, 11.2, t);
+          const lift = smooth(14.5, 16, t);
+          e.setPose(blendPose(blendPose(P_STAND, POSES.kneel, kneel), { ...POSES.kneel, armN: 0.9, foreN: 1.6, armF: 0.8, foreF: 1.5, head: 0.35 }, lift));
+        }
+        // Lantern: in his hand, then on the hook.
+        if (t < 7.2) {
+          const [hx, hy] = hand(e);
+          lamp.x = hx;
+          lamp.y = hy + 20;
+        } else {
+          lamp.x = -330;
+          lamp.y = -262;
+        }
+        a.lid = smooth(12, 13.6, t);
+        a.bundle = t > 15 ? { x: hand(e)[0] + 4, y: hand(e)[1] - 2, open: 0 } : t > 14 ? { x: -120, y: -60, open: 0 } : null;
+        // Dove shifts in the stall; ears flick toward the trunk.
+        drive(a.dove, key(t, [[20, 230], [21.5, 250], [26, 250], [27, 220]]), t - last || dt);
+        last = t;
+        a.dove.neck = -0.8 + 0.12 * noise1(t * 0.4);
+        a.dove.ears = smooth(15, 16, t) * 0.6;
+      },
+      camera: (t) => ({ x: key(t, [[0, -520], [10, -220], [29, -140]]), y: key(t, [[0, -270], [29, -225]]), view: key(t, [[0, 1350], [29, 1020]]) }),
+      look: () => barnLook(R, lamp),
+      draw(R, t) {
+        drawBarn(R, t, a, lamp, { bundle: a.bundle });
+      },
+    };
+  },
+};
+
+const barnTake = {
+  duration: 13.5,
+  ambience: { wind: 0.25, fire: 1 },
+  cues: [
+    { t: 2.4, fn: ({ sound }) => sound.click() },
+    { t: 6, fn: ({ sound }) => sound.snort(0.5) },
+    { t: 11, fn: ({ sound }) => sound.ambience({ fire: 0 }) },
+  ],
+  next: 'dawn',
+  create({ R, sound }) {
+    const a = barnActors();
+    a.lid = 1;
+    const lamp = { x: -330, y: -262, lit: 1, fl: 1 };
+    hooves(sound, a.dove, 'wood', 0.3);
+    let last = 0;
+    const kneelHold = { ...POSES.kneel, armN: 0.9, foreN: 1.6, armF: 0.8, foreF: 1.5, head: 0.35 };
+    return {
+      update(t, dt) {
+        const e = a.eli;
+        e.x = -205;
+        e.f = 1;
+        if (t < 3) e.setPose(kneelHold);
+        else if (t < 5) poseAt(e, t, 3, 4.6, kneelHold, P_BELT);
+        else if (t < 7.2) e.setPose(P_BELT);
+        else if (walk(e, t, -205, -345, 7.2, 8.6)) {
+          /* to the lantern */
+        } else {
+          e.f = 1;
+          const up = smooth(8.8, 9.6, t) * (1 - smooth(10.8, 11.4, t));
+          e.setPose(blendPose(P_STAND, { ...POSES.reach, armN: 2.7, foreN: 2.9, torso: -0.05 }, up));
+        }
+        a.bundle = t < 4.6 ? { x: hand(e)[0] + 4, y: hand(e)[1] - 2, open: smooth(0.3, 2, t) } : null;
+        a.glint = t > 2.2 && t < 3.2 ? Math.sin(((t - 2.2) / 1) * Math.PI) : 0;
+        lamp.lit = 1 - smooth(10.8, 11.6, t);
+        // Dove backs away from what he's holding, ears pinned.
+        drive(a.dove, key(t, [[5.4, 230], [6.8, 300]]), t - last || dt);
+        last = t;
+        a.dove.ears = smooth(5, 6, t);
+        a.dove.neck = key(t, [[5, -0.8], [6, -1.15], [9, -0.85]]);
+      },
+      camera: (t) => ({ x: key(t, [[0, -150], [13, -210]]), y: -225, view: key(t, [[0, 1000], [4, 860], [13, 1150]]) }),
+      look() {
+        return barnLook(R, lamp, 0.45);
+      },
+      draw(R, t) {
+        drawBarn(R, t, a, lamp, { bundle: a.bundle });
+        if (a.glint > 0) {
+          const [hx, hy] = hand(a.eli);
+          R.glow((c) => {
+            c.fillStyle = `rgba(255,240,210,${a.glint})`;
+            c.beginPath();
+            c.ellipse(hx + 10, hy - 6, 14 * a.glint, 1.6, 0, 0, Math.PI * 2);
+            c.ellipse(hx + 10, hy - 6, 1.6, 10 * a.glint, 0, 0, Math.PI * 2);
+            c.fill();
+          });
+        }
+        if (t >= 4.6 && t < 7.2) R.cast((c) => P.pistol(c, ...hand(a.eli), 0.4));
+      },
+    };
+  },
+};
+
+const barnLeave = {
+  duration: 15.5,
+  ambience: { wind: 0.25, fire: 1 },
+  lines: () => [{ t: 6.2, who: ELI, text: 'All right, Ada. All right.', dur: 3.4 }],
+  cues: [
+    { t: 3.4, fn: ({ sound }) => sound.creak() },
+    { t: 4.4, fn: ({ sound }) => sound.fall() },
+  ],
+  next: 'dawn',
+  create({ R }) {
+    const a = barnActors();
+    a.lid = 1;
+    const lamp = { x: -330, y: -262, lit: 1, fl: 1 };
+    const kneelHold = { ...POSES.kneel, armN: 0.9, foreN: 1.6, armF: 0.8, foreF: 1.5, head: 0.35 };
+    return {
+      update(t) {
+        const e = a.eli;
+        if (t < 5) {
+          e.x = -205;
+          e.f = 1;
+          const down = smooth(1.6, 2.8, t);
+          e.setPose(blendPose(kneelHold, POSES.kneel, down));
+        } else if (t < 7) {
+          poseAt(e, t, 5, 6.5, POSES.kneel, P_STAND);
+        } else if (walk(e, t, -205, -345, 7.4, 8.6)) {
+          /* to the lantern */
+        } else if (t < 10) {
+          e.f = 1;
+          const up = smooth(8.8, 9.4, t) * (1 - smooth(9.6, 10, t));
+          e.setPose(blendPose(P_STAND, { ...POSES.reach, armN: 2.7, foreN: 2.9 }, up));
+        } else if (walk(e, t, -345, 1100, 10, 15.5)) e.setPose(P_CARRY);
+        a.bundle = t < 2.8 ? { x: lerp(hand(e)[0] + 4, -120, smooth(1.6, 2.8, t)), y: lerp(hand(e)[1] - 2, -60, smooth(1.6, 2.8, t)), open: 0 } : null;
+        a.lid = 1 - smooth(3.4, 4.4, t);
+        if (t > 9.6) {
+          const [hx, hy] = hand(e);
+          lamp.x = hx;
+          lamp.y = hy + 20;
+        }
+        // June has been watching from the doorway.
+        a.june.visible = t > 11.5;
+        walk(a.june, t, -840, -700, 13.2, 15.2);
+        if (t < 13.2) a.june.f = 1;
+      },
+      camera: (t) => ({ x: key(t, [[0, -150], [10, -250], [15.5, -560]]), y: -225, view: key(t, [[0, 1000], [15.5, 1250]]) }),
+      look(t) {
+        // Moonlight through the open door rims June's silhouette.
+        const door = { x: -865, y: -170, color: [0.45, 0.55, 0.85], intensity: 0.9 * smooth(10, 13, t), radius: 0.35, rim: 1.6 };
+        return barnLook(R, lamp, 0.45 + smooth(10, 14, t) * 0.25, [door]);
+      },
+      draw(R, t) {
+        drawBarn(R, t, a, lamp, { bundle: a.bundle });
+      },
+    };
+  },
+};
+
+// ============================================================ 4. dawn =======
+
+function dawnActors() {
+  const eli = new Person('suit');
+  const dove = new Horse('dove');
+  dove.saddled = true;
+  dove.bags = true;
+  dove.x = -60;
+  dove.f = -1;
+  const june = new Person('dress', 0.62);
+  june.x = 205;
+  june.y = -8;
+  june.f = -1;
+  june.setPose(P_PORCH);
+  return { eli, dove, june };
+}
+
+function dawnLook(R, house) {
+  return {
+    ambient: [0.25, 0.24, 0.33],
+    lights: [
+      { uv: [-0.06, 0.66], color: [1.0, 0.7, 0.52], intensity: 1.05, radius: 0, rim: 1.1 },
+      { x: house.window[0], y: house.window[1], color: [1.0, 0.64, 0.3], intensity: 0.5, radius: 0.18, rim: 0.3 },
+    ],
+    groundShadow: 0.6,
+    bloom: 0.7,
+  };
+}
+
+function drawDawn(R, t, a, extra) {
+  const house = farmSet(R, t, { sky: SKIES.dawn, lit: 0.35 });
+  // hitching post
+  R.cast((c) => {
+    c.fillStyle = '#3b2d20';
+    c.fillRect(-262, -100, 9, 102);
+    c.fillRect(-275, -104, 36, 7);
+  });
+  const shear = -1.6;
+  actor(R, a.june, { shear, groundY: -8 });
+  actor(R, a.dove, { shear });
+  actor(R, a.eli, { shear });
+  if (a.hatX !== undefined) R.cast((c) => P.hatOnGround(c, a.hatX, 4));
+  extra?.(R);
+  // morning mist hanging over the ground
+  R.layer(0.8);
+  R.glow((c) => {
+    const g = c.createLinearGradient(0, -120, 0, 40);
+    g.addColorStop(0, 'rgba(210,200,220,0)');
+    g.addColorStop(0.7, 'rgba(210,200,220,0.13)');
+    g.addColorStop(1, 'rgba(210,200,220,0.05)');
+    c.fillStyle = g;
+    c.fillRect(-3000, -120, 6000, 160);
+  });
+  R.layer(1);
+  return house;
+}
+
+const dawn = {
+  duration: 28,
+  mood: 'tension',
+  ambience: { wind: 0.3 },
+  lines: () => [
+    { t: 18.6, who: JUNE, text: 'She never let anybody up easy but Ma.', dur: 4 },
+    { t: 23, who: ELI, text: 'I know it, June. I know it.', dur: 3.6 },
+  ],
+  cues: [
+    { t: 8.6, fn: ({ sound }) => sound.snort(0.5) },
+    { t: 9.4, fn: ({ sound }) => sound.fall() },
+    { t: 15.4, fn: ({ sound }) => sound.neigh(0.3) },
+    { t: 16.5, fn: ({ sound }) => sound.fall() },
+  ],
+  choice: {
+    at: 27.5,
+    prompt: 'Dove won’t have him.',
+    options: [
+      { label: 'Speak to her softly', next: 'mount-soft', cut: true, apply: (s) => (s.trust = 'high') },
+      { label: 'Force her', next: 'mount-force', cut: true, apply: (s) => (s.trust = 'low') },
+    ],
+  },
+  create({ R, sound }) {
+    const a = dawnActors();
+    hooves(sound, a.dove, 'mud', 0.35);
+    let house = { window: [420, -90] };
+    let last = 0;
+    return {
+      update(t, dt) {
+        const e = a.eli;
+        const d = a.dove;
+        drive(d, key(t, [[8.5, -60], [9.7, -150, 'out'], [15.3, -150], [16.6, -70, 'out']]), t - last || dt);
+        last = t;
+        d.rear = key(t, [[15.2, 0], [15.7, 0.45, 'out'], [17.4, 0]]);
+        d.ears = smooth(7.5, 8.2, t) * (1 - smooth(20, 22, t));
+        e.hat = (t > 9.1 && t < 12.2) || t > 16.2 ? 'off' : 'on';
+        a.hatX = (t > 9.1 && t < 12.2) ? e.x + 34 : t > 16.2 ? -205 : undefined;
+
+        if (walk(e, t, 290, -10, 0, 6)) return;
+        if (t < 8.6) {
+          e.f = -1;
+          poseAt(e, t, 6.6, 8, P_STAND, P_MOUNT);
+        } else if (t < 10.4) {
+          e.f = -1;
+          e.x = lerp(-10, 20, smooth(8.6, 9.4, t));
+          poseAt(e, t, 8.6, 9.4, P_MOUNT, POSES.sit);
+        } else if (t < 12.6) {
+          poseAt(e, t, 10.6, 12.4, POSES.sit, P_STAND);
+        } else if (walk(e, t, 20, -100, 12.6, 14)) {
+          /* back to the stirrup */
+        } else if (t < 15.4) {
+          e.f = -1;
+          poseAt(e, t, 14, 15.2, P_STAND, P_MOUNT);
+        } else {
+          e.f = -1;
+          e.x = lerp(-100, -150, smooth(15.4, 16.4, t));
+          poseAt(e, t, 15.4, 16.4, P_MOUNT, POSES.sit);
+          if (t > 22.5) e.setPose({ ...POSES.sit, head: 0.4, torso: 0.1 });
+        }
+      },
+      camera: (t) => ({ x: key(t, [[0, 60], [7, -40], [28, -60]]), y: -210, view: key(t, [[0, 1250], [28, 1080]]) }),
+      look: () => dawnLook(R, house),
+      draw(R, t) {
+        house = drawDawn(R, t, a);
+      },
+    };
+  },
+};
+
+// Standing hip → saddle, as one continuous mount.
+function mountOnto(e, d, t, t0, t1) {
+  const k = smooth(t0, t1, t);
+  const s = d.seat();
+  e.grounded = true;
+  const [sx, sy] = e.hip();
+  e.grounded = false;
+  e.f = d.f;
+  e.x = lerp(sx, s.x, k);
+  e.y = lerp(sy, s.y + 2, k) - Math.sin(k * Math.PI) * 30;
+  e.setPose(blendPose(P_MOUNT, POSES.ride, smooth(t0 + (t1 - t0) * 0.4, t1, t)));
+}
+
+const mountSoft = {
+  duration: 21,
+  mood: 'elegy',
+  lines: () => [
+    { t: 5.6, who: ELI, text: 'I know I ain’t her. I know what I was.', dur: 4.4 },
+    { t: 10.4, who: ELI, text: 'Carry me to Calvary Bend and back. I won’t ask you twice.', dur: 5 },
+  ],
+  cues: [{ t: 7, fn: ({ sound }) => sound.snort(0.25) }],
+  next: 'ride',
+  create({ R, sound }) {
+    const a = dawnActors();
+    a.dove.x = -70;
+    hooves(sound, a.dove, 'mud', 0.35);
+    let house = { window: [420, -90] };
+    let last = 0;
+    return {
+      update(t, dt) {
+        const e = a.eli;
+        const d = a.dove;
+        const tenderness = smooth(5, 7.5, t) * (1 - smooth(14.5, 15.5, t));
+        d.neck = lerp(-0.85, 0.05, tenderness);
+        d.head = lerp(1.05, 0.7, tenderness);
+        d.ears = 0;
+        e.hat = t < 2.4 ? 'off' : 'on';
+        a.hatX = t < 2.4 ? -205 : undefined;
+        if (t < 2.5) {
+          e.x = -150;
+          e.f = -1;
+          poseAt(e, t, 0.2, 2.4, POSES.sit, P_STAND);
+        } else if (walk(e, t, -150, -270, 2.5, 4.3)) {
+          /* to her head */
+        } else if (t < 15) {
+          e.f = 1;
+          e.setPose(blendPose(P_STAND, { ...POSES.hands, armN: 1.2, foreN: 1.7, head: 0.1 }, tenderness));
+        } else if (walk(e, t, -270, -30, 15, 16.4)) {
+          /* round to the stirrup */
+        } else if (t < 18.3) {
+          e.f = -1;
+          mountOnto(e, d, t, 16.5, 18.2);
+        }
+        drive(d, key(t, [[18.4, -70], [21, -330, 'in']]), t - last || dt);
+        last = t;
+        if (t >= 18.3) seatRider(e, d);
+        a.june.setPose(t > 18.2 ? blendPose(P_PORCH, { ...P_PORCH, armN: 2.8, foreN: 3.0 }, smooth(18.2, 19, t)) : P_PORCH);
+      },
+      camera: (t) => ({ x: key(t, [[0, -120], [14, -180], [21, -200]]), y: -215, view: key(t, [[0, 1080], [8, 900], [15, 900], [21, 1200]]) }),
+      look: () => dawnLook(R, house),
+      draw(R, t) {
+        house = drawDawn(R, t, a);
+      },
+    };
+  },
+};
+
+const mountForce = {
+  duration: 18.5,
+  mood: 'tension',
+  lines: () => [
+    { t: 4.6, who: JUNE, text: 'Pa!', dur: 2 },
+    { t: 13.4, who: ELI, text: 'Git.', dur: 2 },
+  ],
+  cues: [
+    { t: 3.8, fn: ({ sound }) => sound.snort(0.6) },
+    { t: 4.2, fn: ({ sound }) => sound.neigh(0.35) },
+    { t: 10.5, fn: ({ sound }) => sound.neigh(0.25) },
+  ],
+  next: 'ride',
+  create({ R, sound }) {
+    const a = dawnActors();
+    a.dove.x = -70;
+    hooves(sound, a.dove, 'mud', 0.4);
+    let house = { window: [420, -90] };
+    let last = 0;
+    return {
+      update(t, dt) {
+        const e = a.eli;
+        const d = a.dove;
+        d.ears = smooth(3.4, 3.9, t);
+        d.neck = key(t, [[3.5, -0.85], [3.9, -1.3], [7, -1.0], [14, -0.9]]);
+        d.rear = key(t, [[3.9, 0], [4.8, 0.78, 'out'], [6.4, 0.2], [6.9, 0]]);
+        d.buck = t > 10 && t < 13.5 ? 0.55 * Math.sin((t - 10) * 8) * (1 - smooth(12.5, 13.5, t)) : 0;
+        d.lift = t > 10 && t < 13.5 ? Math.abs(Math.sin((t - 10) * 8)) * 14 * (1 - smooth(12.5, 13.5, t)) : 0;
+        e.hat = t < 2.2 ? 'off' : 'on';
+        a.hatX = t < 2.2 ? -205 : undefined;
+        if (t < 2.2) {
+          e.x = -150;
+          e.f = -1;
+          poseAt(e, t, 0.1, 2, POSES.sit, P_STAND);
+        } else if (walk(e, t, -150, -250, 2.2, 3.3)) {
+          /* grabs for the reins */
+        } else if (t < 7) {
+          e.f = 1;
+          const yank = smooth(3.4, 3.8, t) * (1 - smooth(4.4, 5, t));
+          e.x = lerp(-250, -290, smooth(4.2, 5, t));
+          e.setPose(blendPose({ ...POSES.reach, armN: 1.5, foreN: 1.6 }, { ...P_STAND, torso: -0.2, armN: 0.9, foreN: 0.6 }, yank));
+          d.reins = t < 5 ? hand(e) : null;
+        } else if (walk(e, t, -290, -30, 7, 8.6)) {
+          d.reins = null;
+        } else if (t < 10) {
+          mountOnto(e, d, t, 8.6, 10);
+        }
+        drive(d, key(t, [[14.5, -70], [18.5, -800, 'in']]), t - last || dt);
+        last = t;
+        if (t >= 10) seatRider(e, d, { lean: t < 13.5 ? -0.25 * Math.sin((t - 10) * 8) : 0.05 });
+      },
+      camera: (t) => ({
+        x: key(t, [[0, -120], [6, -170], [18, -300]]),
+        y: -215,
+        view: key(t, [[0, 1080], [18.5, 1250]]),
+        shake: t > 4 && t < 6 ? 0.35 : t > 10 && t < 13 ? 0.25 : 0,
+      }),
+      look: () => dawnLook(R, house),
+      draw(R, t) {
+        house = drawDawn(R, t, a);
+      },
+    };
+  },
+};
+
+// ============================================================= 5. ride ======
+
+const ride = {
+  duration: 21,
+  mood: 'ride',
+  ambience: { wind: 0.8 },
+  lines: (s) => [
+    { t: 8.6, who: TOBIAS, text: 'Knew you’d come! Knew it!', dur: 3 },
+    { t: 12.2, who: ELI, text: 'Save your breath for the ride.', dur: 3.4 },
+    s.trust === 'low'
+      ? { t: 16.2, who: TOBIAS, text: 'That mare hates you, old man.', dur: 3.6 }
+      : { t: 16.2, who: TOBIAS, text: 'She runs like she’s glad of you.', dur: 3.6 },
+  ],
+  next: 'river',
+  create({ R, sound, state }) {
+    const eli = new Person('suit');
+    const tob = new Person('vest');
+    const dove = new Horse('dove');
+    const ches = new Horse('chestnut');
+    for (const h of [dove, ches]) {
+      h.saddled = true;
+      h.bags = true;
+      h.f = -1;
+    }
+    hooves(sound, dove, 'dirt', 0.22);
+    hooves(sound, ches, 'dirt', 0.14);
+    const low = state.trust === 'low';
+    const SPEED = 520;
+    let last = 0;
+    return {
+      update(t, dt) {
+        drive(dove, -SPEED * t, t - last || dt);
+        drive(ches, dove.x + key(t, [[0, 900], [6, 900], [10.5, 230, 'out'], [21, 200]]) + 20 * Math.sin(t * 0.7), t - last || dt);
+        last = t;
+        // A mare with no trust in her rider fights the bit.
+        dove.neck = -0.75 + (low ? 0.18 * Math.sin(t * 3.1) : 0.03 * Math.sin(t * 2));
+        dove.ears = low ? 0.6 : 0;
+        seatRider(eli, dove);
+        seatRider(tob, ches);
+      },
+      camera: (t) => ({ x: -SPEED * t - 140 + 60 * Math.sin(t * 0.3), y: -200, view: key(t, [[0, 1500], [21, 1300]]) }),
+      look() {
+        const sunUv = uvOf(R, 640, 30, 0.05);
+        return {
+          ambient: [0.3, 0.23, 0.26],
+          lights: [{ uv: [1.08, 0.6], color: [1.0, 0.66, 0.42], intensity: 1.25, radius: 0, rim: 1.5 }],
+          god: { uv: sunUv, strength: 0.35 },
+          groundShadow: 0.7,
+          bloom: 0.8,
+        };
+      },
+      draw(R, t) {
+        S.skyGradient(R, SKIES.golden);
+        S.sun(R, 640, 30, 30, 'rgba(255,230,180,1)');
+        S.clouds(R, { seed: 9, y: -300, color: 'rgba(120,70,70,0.4)', count: 10, t, drift: 10 });
+        S.ridge(R, { depth: 0.12, base: 10, height: 150, freq: 0.004, seed: 31, color: '#6a3f3a', mesa: true, haze: ['#e09a68', 0.3] });
+        S.ridge(R, { depth: 0.35, base: 30, height: 80, freq: 0.006, seed: 17, rough: 0.4, color: '#40262a', haze: ['#c07050', 0.12] });
+        R.layer(0.6);
+        S.splitRock(R, -2650, 40, 1.1);
+        R.layer(1);
+        S.ground(R, 0, '#3a2518', 1, '#4a3020');
+        const shear = 2.2;
+        actor(R, ches, { shear });
+        R.cast((c) => tob.draw(c));
+        actor(R, dove, { shear });
+        R.cast((c) => eli.draw(c));
+        // Grass in fixed 1000-unit tiles so each tuft keeps its place as we pass.
+        for (let k = Math.floor((dove.x - 1500) / 1000); k <= Math.floor((dove.x + 1500) / 1000); k++) {
+          S.grass(R, { y: 3, x0: k * 1000, x1: (k + 1) * 1000, seed: (k & 1023) + 2000, color: '#2e1d12', t, density: 0.04, cast: true });
+        }
+        S.foreground(R, { depth: 1.7, y: 90, seed: 23, color: '#120c09', count: 70, spread: 44000 });
+      },
+    };
+  },
+};
+
+// ============================================================ 6. river ======
+
+const WATER = 0;
+const BED = 72;
+const BANK_L = -640;
+const BANK_R = 620;
+
+function riverActors() {
+  const eli = new Person('suit');
+  const tob = new Person('vest');
+  const dove = new Horse('dove');
+  const ches = new Horse('chestnut');
+  dove.saddled = ches.saddled = true;
+  dove.bags = ches.bags = true;
+  dove.f = -1;
+  dove.y = BED;
+  ches.x = -1120;
+  ches.y = -40;
+  ches.f = 1;
+  return { eli, tob, dove, ches };
+}
+
+// Ground height along the river crossing: banks either side, bed between.
+const bedAt = (x) => (x < BANK_L ? lerp(BED, -40, smooth(BANK_L, BANK_L - 130, x)) : x > BANK_R ? lerp(BED, -40, smooth(BANK_R, BANK_R + 130, x)) : BED);
+
+function drawRiver(R, t, a, flash, strikeX, extra) {
+  S.skyGradient(R, SKIES.storm);
+  S.clouds(R, { seed: 13, y: -380, color: `rgba(${20 + flash * 90},${24 + flash * 100},${38 + flash * 130},0.9)`, count: 14, t, drift: 18 });
+  S.ridge(R, { depth: 0.25, base: -20, height: 110, freq: 0.004, seed: 44, color: '#0b0d12' });
+  // banks
+  R.paint((c) => {
+    c.fillStyle = '#15120f';
+    c.beginPath();
+    c.moveTo(-3000, 400);
+    c.lineTo(-3000, -40);
+    c.lineTo(BANK_L - 130, -40);
+    c.quadraticCurveTo(BANK_L - 40, -38, BANK_L, 20);
+    c.lineTo(BANK_R, 20);
+    c.quadraticCurveTo(BANK_R + 40, -38, BANK_R + 130, -40);
+    c.lineTo(3000, -40);
+    c.lineTo(3000, 400);
+    c.fill();
+  });
+  S.oak(R, -1420, -38, { seed: 19, scale: 0.9, t: t * 2, bare: true, barkColor: '#141210' });
+  S.lightningBolt(R, strikeX * 0.4, -40 * 0.4, 7, flash);
+  R.cast((c) => a.ches.draw(c));
+  R.cast((c) => a.tob.draw(c));
+  R.cast((c) => a.dove.draw(c));
+  if (a.eli.visible !== false) R.cast((c) => a.eli.draw(c));
+  extra?.(R);
+  S.river(R, WATER, t, { flash, x0: BANK_L - 40, x1: BANK_R + 40, rush: 1.4 });
+  if (a.dove.y > 20) S.foam(R, a.dove.x, WATER, 170, t, 1);
+  if (a.eli.inWater) S.foam(R, a.eli.x, WATER, 60, t, 1.2);
+  S.rain(R, t, 1, 0.3);
+}
+
+function riverLook(flash, R, strikeX) {
+  return {
+    ambient: [0.035, 0.045, 0.08],
+    flash: [0.45 * flash, 0.55 * flash, 0.85 * flash],
+    lights: [
+      { x: strikeX, y: -200, color: [0.7, 0.8, 1.0], intensity: 2.5 * flash, radius: 0.6, rim: 1.6 },
+      { uv: [0.5, -0.4], color: [0.3, 0.38, 0.6], intensity: 0.28, radius: 0, rim: 0.7 },
+    ],
+    groundShadow: 0,
+    bloom: 1.0,
+    grain: 0.07,
+  };
+}
+
+const RIVER_STRIKES = [[2.2, 0.35], [7.6, 1.2], [7.8, 0.6], [11.6, 0.45]];
+
+const riverScene = {
+  duration: 13.3,
+  mood: 'storm',
+  ambience: { wind: 0.8, rain: 1, river: 1, fire: 0 },
+  lines: () => [{ t: 3, who: TOBIAS, text: 'Keep her head up! Current’s fast!', dur: 3.4, style: 'shout' }],
+  cues: [
+    { t: 2.2, fn: ({ sound }) => sound.thunder(0.5, 1.3) },
+    { t: 7.6, fn: ({ sound }) => sound.thunder(1.2, 0) },
+    { t: 7.9, fn: ({ sound }) => sound.neigh(0.4) },
+    { t: 8.4, fn: ({ sound }) => sound.splash(0.7) },
+    { t: 11.6, fn: ({ sound }) => sound.thunder(0.6, 0.4) },
+  ],
+  choice: {
+    at: 8.3,
+    timed: 5,
+    default: 0,
+    prompt: 'Lightning. Dove panics in the flood.',
+    options: [
+      { label: 'Hold the reins', cut: true, next: (s) => (s.trust === 'high' ? 'river-struggle' : 'river-thrown'), apply: (s) => (s.riverChoice = 'hold') },
+      { label: 'Let go. Trust her.', cut: true, next: (s) => (s.trust === 'high' ? 'river-carried' : 'river-thrown'), apply: (s) => (s.riverChoice = 'letgo') },
+    ],
+  },
+  create({ R, sound }) {
+    const a = riverActors();
+    hooves(sound, a.dove, 'water', 0.4);
+    let last = 0;
+    return {
+      update(t, dt) {
+        a.flash = flashAt(t, RIVER_STRIKES);
+        drive(a.dove, key(t, [[0, 700], [7.6, 150], [13.3, 130]], 'linear'), t - last || dt);
+        last = t;
+        a.dove.y = bedAt(a.dove.x);
+        a.dove.rear = t > 7.7 ? 0.5 + 0.25 * Math.sin((t - 7.7) * 5) : 0;
+        a.dove.ears = t > 7.6 ? 1 : 0.2;
+        a.dove.neck = t > 7.6 ? -1.2 : -0.9;
+        seatRider(a.eli, a.dove, { lean: t > 7.7 ? -0.3 : 0.05, arms: t > 7.7 ? { armN: 0.6, foreN: 1.6 } : null });
+        a.ches.setGait('stand');
+        a.ches.update(dt, false);
+        seatRider(a.tob, a.ches, { arms: t > 3 && t < 6 ? { armN: 2.3, foreN: 2.6 } : null });
+      },
+      camera: (t) => ({ x: key(t, [[0, 350], [8, 40]]), y: -150, view: key(t, [[0, 1500], [8, 1250]]), shake: a.flash > 0.8 ? 0.6 : 0.1 }),
+      look: () => riverLook(a.flash, R, -300),
+      draw(R, t) {
+        drawRiver(R, t, a, a.flash, -300);
+      },
+    };
+  },
+};
+
+function riverAfter({ duration, lines, strikes, script, next = 'ridge', river }) {
+  return {
+    duration,
+    ambience: { wind: 0.8, rain: 1, river: 1 },
+    lines,
+    cues: [{ t: 0, fn: ({ state }) => (state.river = river) }, ...(strikes || []).map(([ts, s]) => ({ t: ts, fn: ({ sound }) => sound.thunder(s * 0.8, 0.3) }))],
+    next,
+    create({ R, sound, state }) {
+      const a = riverActors();
+      a.dove.x = 130;
+      hooves(sound, a.dove, 'water', 0.35);
+      let last = 0;
+      return {
+        update(t, dt) {
+          a.flash = flashAt(t, strikes || []);
+          script(a, t, t - last || dt, sound, state);
+          last = t;
+          a.ches.setGait('stand');
+          a.ches.update(dt, false);
+          seatRider(a.tob, a.ches);
+        },
+        camera: (t) => ({ x: key(t, [[0, 40], [duration, lerp(40, a.dove.x, 0.6)]]), y: -150, view: key(t, [[0, 1250], [duration, 1350]]) }),
+        look: () => riverLook(a.flash, R, -300),
+        draw(R, t) {
+          drawRiver(R, t, a, a.flash, -300);
+        },
+      };
+    },
+  };
+}
+
+const riverCarried = riverAfter({
+  duration: 16,
+  river: 'carried',
+  strikes: [[6, 0.35]],
+  lines: () => [
+    { t: 3.2, who: ELI, text: 'That’s it. You’ve got us. You’ve got us.', dur: 3.6 },
+    { t: 12.4, who: ELI, text: 'Good girl.', dur: 2.6 },
+  ],
+  script(a, t, dt) {
+    const d = a.dove;
+    d.rear = 0.5 * (1 - smooth(0, 2.2, t));
+    d.ears = 1 - smooth(0.5, 2.5, t);
+    d.neck = lerp(-1.2, -0.7, smooth(0, 2, t));
+    if (t > 2 && t < 10.5) d.setGait('swim');
+    else if (d.gait === 'swim') d.setGait('walk');
+    drive(d, key(t, [[2, 130], [10.5, -760, 'linear'], [12, -840, 'out']]), dt);
+    d.y = bedAt(d.x);
+    d.buck = t > 12.3 && t < 13.4 ? 0.2 * Math.sin((t - 12.3) * 18) : 0;
+    seatRider(a.eli, d, { lean: 0.3 * (1 - smooth(10, 11, t)), arms: t < 10.5 ? { armN: 1.1, foreN: 1.3 } : null });
+  },
+});
+
+const riverStruggle = riverAfter({
+  duration: 16,
+  river: 'struggled',
+  strikes: [[4.5, 0.5], [9, 0.3]],
+  lines: () => [
+    { t: 1.6, who: ELI, text: 'Easy! Easy, damn you!', dur: 3 },
+    { t: 12.6, who: TOBIAS, text: 'Thought the river had you both!', dur: 3.2 },
+  ],
+  script(a, t, dt, sound) {
+    const d = a.dove;
+    const fight = 1 - smooth(6, 10, t);
+    d.rear = (0.35 + 0.3 * Math.sin(t * 5.5)) * fight;
+    d.ears = fight;
+    if (t > 1 && t < 11) d.setGait('swim');
+    else if (d.gait === 'swim') d.setGait('walk');
+    drive(d, 130 - 900 * smooth(1, 11.5, t) + 20 * Math.sin(t * 4) * fight, dt);
+    d.y = bedAt(d.x);
+    seatRider(a.eli, d, { lean: -0.2 * fight + 0.25, arms: { armN: 0.4, foreN: 1.1 } });
+  },
+});
+
+const riverThrown = riverAfter({
+  duration: 23,
+  river: 'thrown',
+  strikes: [[3, 0.4], [13.5, 0.5]],
+  lines: () => [
+    { t: 7.2, who: TOBIAS, text: 'She’s going back for him!', dur: 3.2, style: 'shout' },
+    { t: 19.6, who: ELI, text: 'Why’d you come back for me?', dur: 3.4 },
+  ],
+  script(a, t, dt, sound, state) {
+    const d = a.dove;
+    const e = a.eli;
+    if (!a.splashed && t > 1.3) {
+      a.splashed = true;
+      sound.splash(0.9);
+    }
+    if (!a.called && t > 6) {
+      a.called = true;
+      sound.neigh(0.35);
+    }
+    // Dove: to the bank, turn back, swim to him, turn, tow him out.
+    let x;
+    if (t < 5) x = lerp(130, -700, smooth(0.2, 5, t));
+    else if (t < 7) x = -700;
+    else if (t < 11.2) x = lerp(-700, 180, smooth(7, 11.2, t));
+    else if (t < 12.4) x = 180;
+    else x = lerp(180, -720, smooth(12.4, 18, t));
+    d.f = t < 6 || t > 12 ? -1 : 1;
+    d.setGait((t > 0.5 && t < 4.4) || (t > 7.2 && t < 11) || (t > 12.6 && t < 17.2) ? 'swim' : 'walk');
+    drive(d, x, dt);
+    d.y = bedAt(d.x);
+    d.rear = t < 0.8 ? 0.6 : 0;
+    d.neck = t > 6 && t < 7.2 ? -1.25 : t > 19 ? 0.1 : -0.85;
+    d.head = t > 19 ? 0.6 : 1.05;
+
+    // Eli: thrown, then fighting the current, then hanging on, then ashore.
+    e.visible = true;
+    e.inWater = t > 1.3 && t < 18.2;
+    const drift = 220 + 11 * (t - 1.3);
+    if (t < 1.3) {
+      const k = t / 1.3;
+      const s = { x: 130, y: -140 };
+      e.grounded = false;
+      e.x = lerp(s.x, 240, k);
+      e.y = lerp(s.y, 50, k) - Math.sin(k * Math.PI) * 120;
+      e.setPose(POSES.lie);
+      e.hat = 'off';
+    } else if (t < 11.6) {
+      e.grounded = false;
+      e.x = drift;
+      e.y = 46 + Math.sin(t * 3) * 6;
+      e.f = -1;
+      e.setPose({ ...POSES.stand, torso: 0.1, head: -0.3, armN: 2.3 + 0.5 * Math.sin(t * 4), foreN: 2.6 + 0.4 * Math.sin(t * 4 + 1), armF: 2.0 + 0.5 * Math.sin(t * 4 + 2), foreF: 2.4 });
+    } else if (t < 18.2) {
+      e.grounded = false;
+      e.f = -1;
+      e.x = d.x + (t < 12.4 ? 40 : 70);
+      e.y = 40 + Math.sin(t * 3) * 3;
+      e.setPose({ ...POSES.stand, torso: -0.2, armN: 2.6, foreN: 2.9, armF: 2.4, foreF: 2.8 });
+    } else {
+      e.grounded = true;
+      e.y = -40;
+      e.x = lerp(-640, -660, smooth(18.2, 19, t));
+      e.f = -1;
+      e.setPose(t < 19.5 ? blendPose(POSES.lie, POSES.sit, smooth(18.2, 19.5, t)) : { ...POSES.sit, head: -0.25 });
+    }
+    state.mercy = true;
+  },
+});
+
+// ============================================================ 7. ridge =======
+
+const ridgeScene = {
+  duration: 35,
+  mood: 'tension',
+  ambience: { wind: 0.5, rain: 0.45, river: 0 },
+  cards: [{ t: 9.6, dur: 5, text: 'CALVARY BEND — No firearms within town limits. By order of Marshal H. Grady.' }],
+  lines: (s) => {
+    const out = [];
+    if (s.armed) {
+      out.push({ t: 15.6, who: ELI, text: 'Marshal can ask me for it himself.', dur: 4 });
+      out.push({ t: 20.4, who: TOBIAS, text: 'So what do we do now?', dur: 3 });
+      out.push({ t: 24, who: ELI, text: 'We wait for the town to go to sleep.', dur: 4 });
+    } else {
+      out.push({ t: 26, who: ELI, text: 'Oh, June.', dur: 3 });
+    }
+    if (s.river === 'thrown') out.push({ t: 29.6, who: ELI, text: 'Reckon I owe you twice now, girl.', dur: 3.4 });
+    else if (s.river === 'carried') out.push({ t: 29.6, who: ELI, text: 'Ada’s girl. Always were.', dur: 3.4 });
+    return out;
+  },
+  create({ R, sound, state }) {
+    const eli = new Person('suit');
+    const tob = new Person('vest');
+    const dove = new Horse('dove');
+    const ches = new Horse('chestnut');
+    dove.saddled = ches.saddled = true;
+    dove.bags = ches.bags = true;
+    ches.x = -380;
+    ches.f = 1;
+    hooves(sound, dove, 'mud', 0.3);
+    const armed = !!state.armed;
+    let last = 0;
+    const note = !armed;
+    const a = { flash: 0, matchT: -1 };
+    const strikes = [[12, 0.3], [21, 0.2]];
+    return {
+      update(t, dt) {
+        a.flash = flashAt(t, strikes);
+        if (Math.abs(t - 12) < dt) sound.thunder(0.35, 1.6);
+        drive(dove, key(t, [[0, -1000], [5, -90, 'out']]), t - last || dt);
+        last = t;
+        ches.setGait('stand');
+        ches.update(dt, false);
+        seatRider(tob, ches);
+        if (t < 5.4) seatRider(eli, dove);
+        else if (t < 7) {
+          // dismount: saddle to ground
+          const k = smooth(5.4, 7, t);
+          const s = dove.seat();
+          eli.grounded = true;
+          eli.x = dove.x + 60;
+          eli.setPose(P_STAND);
+          const [gx, gy] = eli.hip();
+          eli.grounded = false;
+          eli.x = lerp(s.x, gx, k);
+          eli.y = lerp(s.y, gy, k) - Math.sin(k * Math.PI) * 24;
+          eli.setPose(blendPose(POSES.ride, P_STAND, k));
+        } else if (walk(eli, t, dove.x + 60, 70, 7.2, 9.2)) {
+          /* to the sign */
+        } else if (armed) {
+          eli.f = 1;
+          eli.setPose(t > 15 ? blendPose(P_STAND, P_BELT, smooth(15, 16, t)) : { ...P_STAND, head: -0.1 });
+        } else if (t < 14) {
+          eli.f = 1;
+          eli.setPose({ ...P_STAND, head: -0.1 });
+        } else if (walk(eli, t, 70, dove.x - 60, 14, 15.8)) {
+          /* back to the saddlebag */
+        } else {
+          eli.f = -1;
+          const reach = smooth(16, 16.6, t) * (1 - smooth(17, 17.6, t));
+          eli.setPose(blendPose(t > 17.4 ? { ...POSES.hands, head: 0.35 } : P_STAND, { ...POSES.reach, armN: 1.4, foreN: 1.7 }, reach));
+          if (t > 18.8 && a.matchT < 0) {
+            a.matchT = t;
+            sound.match();
+          }
+        }
+      },
+      camera: (t) => ({
+        x: key(t, [[0, -520], [6, -150], [10, 0], [28, 0], [35, 260]]),
+        y: key(t, [[0, -210], [28, -200], [35, -60]]),
+        view: key(t, [[0, 1300], [10, 1100], [28, 1150], [35, 1750]]),
+      }),
+      look(t) {
+        const matchLit = a.matchT > 0 ? clamp((t - a.matchT) * 6) * (1 - smooth(a.matchT + 7.5, a.matchT + 8.5, t)) : 0;
+        const [hx, hy] = hand(eli);
+        const townUv = uvOf(R, 800, 20, 0.35);
+        const lights = [
+          { uv: [0.15, -0.4], color: [0.4, 0.5, 0.78], intensity: 0.45, radius: 0, rim: 0.9 },
+          { uv: townUv, color: [1.0, 0.58, 0.3], intensity: 0.55, radius: 0.35, rim: 0.9 },
+        ];
+        if (matchLit > 0) lights.unshift({ x: hx, y: hy - 12, color: [1.0, 0.65, 0.3], intensity: 2.2 * matchLit * (0.85 + 0.15 * noise1(t * 20)), radius: 0.12, rim: 1.2 });
+        a.matchLit = matchLit;
+        return { ambient: [0.05, 0.06, 0.1], flash: [0.3 * a.flash, 0.35 * a.flash, 0.55 * a.flash], lights, groundShadow: 0, bloom: 1.1 };
+      },
+      draw(R, t) {
+        S.skyGradient(R, SKIES.night);
+        S.clouds(R, { seed: 21, y: -380, color: `rgba(${24 + a.flash * 80},${28 + a.flash * 90},${44 + a.flash * 120},0.85)`, count: 12, t, drift: 8 });
+        S.ridge(R, { depth: 0.2, base: 60, height: 120, freq: 0.004, seed: 61, color: '#0c0d14' });
+        S.townLights(R, 420, 40, t, 0.35);
+        // the ridge top, falling away to the town below
+        R.paint((c) => {
+          c.fillStyle = '#16120f';
+          c.beginPath();
+          c.moveTo(-3000, 600);
+          c.lineTo(-3000, 0);
+          c.lineTo(300, 0);
+          c.quadraticCurveTo(360, 8, 390, 60);
+          c.lineTo(430, 600);
+          c.fill();
+        });
+        S.signpost(R, 150, 0, ['CALVARY BEND', 'NO FIREARMS WITHIN TOWN LIMITS.', 'BY ORDER OF', 'MARSHAL H. GRADY']);
+        R.cast((c) => ches.draw(c));
+        R.cast((c) => tob.draw(c));
+        R.cast((c) => dove.draw(c));
+        R.cast((c) => eli.draw(c));
+        if (!armed && t > 17.2) {
+          const [hx, hy] = hand(eli);
+          R.cast((c) => P.bundle(c, hx - 6, hy + 2, smooth(19.4, 20.4, t)));
+          if (note && t > 19.8) R.paint((c) => P.paper(c, hx + 16, hy - 10, -0.3));
+        }
+        if (a.matchLit > 0) {
+          const [hx, hy] = hand(eli);
+          R.glow((c) => {
+            const g = c.createRadialGradient(hx, hy - 12, 0, hx, hy - 12, 10);
+            g.addColorStop(0, `rgba(255,230,170,${a.matchLit})`);
+            g.addColorStop(1, 'rgba(255,140,40,0)');
+            c.fillStyle = g;
+            c.fillRect(hx - 12, hy - 24, 24, 24);
+          });
+        }
+        S.rain(R, t, 0.45, 0.2);
+      },
+    };
+  },
+  next: '@end',
+};
+
+// A card for the unarmed path, where June's note is read by match-light.
+ridgeScene.cards.push({ t: 20.4, dur: 5.4, text: '“Pa — You promised Ma. But I want you home more. — June”', when: (s) => !s.armed });
+
+const CHAPTER_1 = {
+  first: 'prologue',
+  scenes: {
+    prologue,
+    farm,
+    'farm-hear': farmHear,
+    'farm-refuse': farmRefuse,
+    barn,
+    'barn-take': barnTake,
+    'barn-leave': barnLeave,
+    dawn,
+    'mount-soft': mountSoft,
+    'mount-force': mountForce,
+    ride,
+    river: riverScene,
+    'river-carried': riverCarried,
+    'river-struggle': riverStruggle,
+    'river-thrown': riverThrown,
+    ridge: ridgeScene,
+  },
+};
+
+// What the player's choices say about their Eli, for the end card.
+function summary(s) {
+  return [
+    s.resolve === 'willing' ? 'You heard Tobias out, and took the money on offer.' : 'You sent Tobias away. A long night changed your mind.',
+    s.armed ? 'Eli carries Ada’s pistol.' : 'You left the pistol in the trunk. June packed it for him anyway.',
+    s.trust === 'high' ? 'You spoke softly, and Dove chose to carry him.' : 'You forced her. Dove carries him because she has to.',
+    s.river === 'carried'
+      ? 'In the flood you let go, and she brought you both across.'
+      : s.river === 'struggled'
+        ? 'In the flood you held on, and you both came out bruised.'
+        : 'In the flood she threw him, then turned back for him.',
+  ];
+}
+
+return { CHAPTER_1, summary };
+})();
+
+// ---- src/main.js
+const __src_main = (() => {
+const { Renderer } = __src_engine_renderer;
+const { Director } = __src_engine_director;
+const { Sound } = __src_engine_audio;
+const { UI } = __src_engine_ui;
+const { freshState, loadState } = __src_engine_state;
+const { CHAPTER_1, summary } = __src_story_chapter1;
+const $ = (id) => document.getElementById(id);
+const stage = $('stage');
+const canvas = $('view');
+
+let R;
+try {
+  R = new Renderer(canvas);
+} catch (err) {
+  $('nogl').hidden = false;
+  throw err;
+}
+
+const sound = new Sound();
+const ui = new UI();
+let state = freshState();
+const director = new Director({ R, sound, ui, scenes: CHAPTER_1.scenes, state });
+
+// ------------------------------------------------------------ sizing -------
+
+// Cinemascope where there's room; a taller frame on portrait phones so the
+// action and the text still fit.
+let quality = 1;
+function resize() {
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const aspect = vw / vh < 1 ? 1.6 : 2.39;
+  const w = Math.min(vw, vh * aspect);
+  const h = w / aspect;
+  stage.style.width = `${w}px`;
+  stage.style.height = `${h}px`;
+  // Type scales with the frame, but never below what a phone needs.
+  stage.style.setProperty('--u', `${Math.max(w, h * 2.39) / 100}px`);
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const px = Math.round(Math.min(1400, Math.max(640, w * dpr)) * quality);
+  const py = Math.round(px / aspect);
+  if (px !== R.W || py !== R.H) R.resize(px, py);
+}
+window.addEventListener('resize', resize);
+resize();
+
+// --------------------------------------------------------- title card -----
+
+// The title sits over a living frame of the prologue.
+const titleEnv = { state, sound: { snort() {}, hoof() {} }, R, director };
+let titleScene = CHAPTER_1.scenes.prologue.create(titleEnv);
+let started = false;
+
+function begin() {
+  if (started) return;
+  started = true;
+  sound.start().then(() => sound.setMood('elegy'));
+  $('title').classList.add('gone');
+  $('hud').hidden = false;
+  setTimeout(() => ($('title').hidden = true), 1400);
+  director.start(CHAPTER_1.first);
+}
+$('begin').addEventListener('click', begin);
+
+function restart() {
+  state = freshState();
+  director.state = state;
+  $('end').hidden = true;
+  $('end').classList.remove('show');
+  ui.clearText();
+  ui.hideChoice();
+  director.paused = false;
+  updatePause();
+  director.start(CHAPTER_1.first);
+}
+
+director.on('end', (s) => {
+  const list = $('end-list');
+  list.innerHTML = '';
+  for (const line of summary(s)) {
+    const li = document.createElement('li');
+    li.textContent = line;
+    list.appendChild(li);
+  }
+  $('end').hidden = false;
+  requestAnimationFrame(() => $('end').classList.add('show'));
+  $('again').focus({ preventScroll: true });
+});
+$('again').addEventListener('click', restart);
+
+// Returning players: the title mentions their last ending.
+const saved = loadState();
+if (saved && saved.river) {
+  $('saved').hidden = false;
+  $('saved').textContent = `Last time: ${summary(saved)[1]}`;
+}
+
+// ------------------------------------------------------------- controls ---
+
+const pauseBtn = $('btn-pause');
+const muteBtn = $('btn-mute');
+function updatePause() {
+  pauseBtn.textContent = director.paused ? 'Resume' : 'Pause';
+  pauseBtn.setAttribute('aria-pressed', String(director.paused));
+  stage.classList.toggle('paused', director.paused);
+}
+function togglePause() {
+  if (!started) return;
+  director.paused = !director.paused;
+  if (sound.ctx) director.paused ? sound.ctx.suspend() : sound.ctx.resume();
+  updatePause();
+}
+function toggleMute() {
+  sound.setMute(!sound.muted);
+  muteBtn.textContent = sound.muted ? 'Sound off' : 'Sound on';
+  muteBtn.setAttribute('aria-pressed', String(!sound.muted));
+}
+pauseBtn.addEventListener('click', togglePause);
+muteBtn.addEventListener('click', toggleMute);
+$('btn-restart').addEventListener('click', restart);
+
+window.addEventListener('keydown', (e) => {
+  if (e.target.closest('input, textarea')) return;
+  const k = e.key.toLowerCase();
+  if (!started && (k === 'enter' || k === ' ')) {
+    e.preventDefault();
+    begin();
+  } else if (k === '1' || k === '2') director.choose(+k - 1);
+  else if (k === ' ') {
+    if (e.target.closest('button')) return;
+    e.preventDefault();
+    togglePause();
+  } else if (k === 'm') toggleMute();
+  else if (k === 'f') {
+    const el = document.documentElement;
+    (document.fullscreenElement ? document.exitFullscreen() : el.requestFullscreen?.())?.catch?.(() => {});
+  }
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && started && !director.paused) togglePause();
+});
+
+// ----------------------------------------------------------------- loop ---
+
+let lastNow = performance.now();
+let time = 0;
+let frames = 0;
+let fpsT = 0;
+function frame(now) {
+  const dt = Math.min((now - lastNow) / 1000, 0.1);
+  lastNow = now;
+  time += dt;
+
+  if (!started) {
+    titleScene.update(12 + time * 0.2, dt);
+    R.cam.time = time;
+    R.cam.set({ x: -80, y: -230, view: 1350 });
+    R.frame((r) => titleScene.draw(r, 12 + time), { ...titleScene.look(12), time, fade: 0.35 });
+  } else {
+    director.update(dt * (window.story?.speed || 1));
+    director.render(time);
+  }
+
+  // Drop resolution once if the machine is struggling.
+  frames++;
+  fpsT += dt;
+  if (fpsT > 2) {
+    const fps = frames / fpsT;
+    frames = 0;
+    fpsT = 0;
+    if (fps < 34 && quality > 0.6) {
+      quality -= 0.2;
+      resize();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+// Debug and testing hook.
+window.story = {
+  speed: 1,
+  director,
+  get state() {
+    return director.state;
+  },
+  begin,
+  jump: (id) => {
+    if (!started) begin();
+    director.start(id, { cut: true });
+  },
+  choose: (i) => director.choose(i),
+};
+
+return {  };
+})();
+</script>
+</body>
+</html>

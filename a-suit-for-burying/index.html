@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>A Suit for Burying</title>
+<meta name="description" content="An interactive 2D Western with real-time lighting and shadows. A widower in a black suit, his late wife's grey mare, and choices that decide who he becomes." />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English+SC&family=IM+Fell+English:ital@0;1&family=Special+Elite&display=swap" />
+<style>
+  :root {
+    color-scheme: dark;
+    --black: #050404;
+    --ink: #eee4d0;
+    --dust: #a8977c;
+    --faint: #6b5f4f;
+    --ember: #d9a15a;
+    --blood: #9a3322;
+    --display: 'IM Fell English SC', 'Iowan Old Style', Georgia, serif;
+    --serif: 'IM Fell English', 'Iowan Old Style', Georgia, serif;
+    --type: 'Special Elite', 'Courier New', ui-monospace, monospace;
+  }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--black);
+    color: var(--ink);
+    font: 16px/1.4 var(--serif);
+    overflow: hidden;
+    display: grid;
+    place-items: center;
+    -webkit-font-smoothing: antialiased;
+  }
+  #stage {
+    position: relative;
+    width: 100vw;
+    height: calc(100vw / 2.39);
+    max-width: 100%;
+    overflow: hidden;
+    background: #000;
+    /* --u is 1% of the stage width, set by script, so type scales with the frame */
+    --u: 1vw;
+  }
+  #view { display: block; width: 100%; height: 100%; }
+  [hidden] { display: none !important; }
+
+  /* ---------- subtitles and cards ---------- */
+  #sub {
+    position: absolute;
+    left: 50%;
+    bottom: 5.5%;
+    transform: translateX(-50%);
+    width: min(78%, 60ch);
+    text-align: center;
+    text-shadow: 0 1px 3px #000, 0 0 18px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+  }
+  #sub-who {
+    display: block;
+    font: max(10px, calc(var(--u) * 0.95)) / 1.2 var(--display);
+    letter-spacing: 0.18em;
+    color: var(--ember);
+    margin-bottom: 0.3em;
+  }
+  #sub-text {
+    font-size: max(15px, calc(var(--u) * 1.75));
+    line-height: 1.3;
+    text-wrap: balance;
+  }
+  #sub[data-style='memory'] #sub-text { font-style: italic; color: #d8cdb8; opacity: 0.9; }
+  #sub[data-style='memory'] #sub-who { color: var(--dust); }
+  #sub[data-style='shout'] #sub-text { letter-spacing: 0.02em; }
+
+  #card {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0 18%;
+    text-align: center;
+    font: max(15px, calc(var(--u) * 1.9)) / 1.45 var(--type);
+    color: var(--ink);
+    text-shadow: 0 0 20px #000, 0 1px 2px #000;
+    background: radial-gradient(ellipse at center, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0) 70%);
+    opacity: 0;
+    transition: opacity 1.1s ease;
+    pointer-events: none;
+    text-wrap: balance;
+  }
+  #card.show { opacity: 1; }
+
+  /* ---------- choices ---------- */
+  #choice {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 2.4% 6% 3%;
+    background: linear-gradient(0deg, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0.55) 70%, rgba(0, 0, 0, 0));
+    display: grid;
+    justify-items: center;
+    gap: calc(var(--u) * 1.1);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.5s, transform 0.5s;
+  }
+  #choice.show { opacity: 1; transform: none; }
+  #choice-prompt {
+    margin: 0;
+    font: italic max(14px, calc(var(--u) * 1.6)) / 1.3 var(--serif);
+    color: var(--dust);
+    text-align: center;
+    text-wrap: balance;
+  }
+  #choice-opts { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--u) * 1.2); }
+  .opt {
+    font: max(13px, calc(var(--u) * 1.45)) / 1 var(--display);
+    letter-spacing: 0.08em;
+    color: var(--ink);
+    background: rgba(20, 14, 10, 0.75);
+    border: 1px solid rgba(217, 161, 90, 0.45);
+    padding: 0.7em 1.3em;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.8em;
+    transition: background 0.2s, border-color 0.2s, opacity 0.4s;
+  }
+  .opt:hover, .opt:focus-visible { background: rgba(60, 36, 18, 0.85); border-color: var(--ember); outline: none; }
+  .opt kbd { font: max(10px, calc(var(--u) * 0.9)) / 1 var(--type); color: var(--ember); }
+  .opt.picked { border-color: var(--ember); background: rgba(90, 50, 20, 0.9); }
+  .opt.faded { opacity: 0.25; }
+  #choice-timer {
+    width: min(40%, 320px);
+    height: 2px;
+    background: rgba(238, 228, 208, 0.15);
+    position: relative;
+  }
+  #choice-timer::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    transform-origin: left;
+    transform: scaleX(var(--left, 1));
+    background: var(--blood);
+  }
+
+  /* ---------- title ---------- */
+  #title {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    text-align: center;
+    padding: 0 8%;
+    gap: calc(var(--u) * 1);
+    background: radial-gradient(ellipse at 50% 55%, rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.7));
+    transition: opacity 1.3s ease;
+  }
+  #title.gone { opacity: 0; pointer-events: none; }
+  .kicker {
+    margin: 0;
+    font: max(10px, calc(var(--u) * 0.95)) / 1.2 var(--type);
+    letter-spacing: 0.3em;
+    color: var(--dust);
+  }
+  h1 {
+    margin: 0;
+    font: max(34px, calc(var(--u) * 6.4)) / 0.95 var(--display);
+    letter-spacing: 0.02em;
+    color: var(--ink);
+    text-shadow: 0 2px 30px rgba(0, 0, 0, 0.9);
+    text-wrap: balance;
+  }
+  .tagline {
+    margin: 0;
+    max-width: 44ch;
+    font: italic max(14px, calc(var(--u) * 1.55)) / 1.4 var(--serif);
+    color: #d8cdb8;
+    text-shadow: 0 1px 8px #000;
+  }
+  #begin {
+    margin-top: calc(var(--u) * 1.2);
+    font: max(14px, calc(var(--u) * 1.5)) / 1 var(--display);
+    letter-spacing: 0.2em;
+    color: var(--black);
+    background: var(--ember);
+    border: 0;
+    padding: 0.85em 2.2em;
+    cursor: pointer;
+    transition: background 0.2s, transform 0.2s;
+  }
+  #begin:hover, #begin:focus-visible { background: #efc07a; outline: none; transform: translateY(-1px); }
+  .note {
+    margin: 0;
+    font: max(10px, calc(var(--u) * 0.9)) / 1.4 var(--type);
+    color: var(--dust);
+    letter-spacing: 0.05em;
+  }
+  #saved { color: var(--ember); }
+
+  /* ---------- end ---------- */
+  #end {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: calc(var(--u) * 1.2);
+    padding: 0 10%;
+    background: rgba(4, 3, 3, 0.9);
+    opacity: 0;
+    transition: opacity 1.4s;
+    text-align: center;
+  }
+  #end.show { opacity: 1; }
+  #end h2 { margin: 0; font: max(24px, calc(var(--u) * 3.6)) / 1 var(--display); }
+  #end-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 0.45em;
+    font: italic max(14px, calc(var(--u) * 1.45)) / 1.35 var(--serif);
+    color: #d8cdb8;
+    max-width: 52ch;
+  }
+  #end-list li::before { content: '\2014\2002'; color: var(--ember); font-style: normal; }
+  #again {
+    font: max(13px, calc(var(--u) * 1.3)) / 1 var(--display);
+    letter-spacing: 0.16em;
+    color: var(--ink);
+    background: transparent;
+    border: 1px solid rgba(217, 161, 90, 0.6);
+    padding: 0.8em 1.8em;
+    cursor: pointer;
+  }
+  #again:hover, #again:focus-visible { background: rgba(90, 50, 20, 0.6); outline: none; }
+
+  /* ---------- hud ---------- */
+  #hud {
+    position: absolute;
+    top: 3%;
+    right: 2%;
+    display: flex;
+    gap: 6px;
+    opacity: 0.18;
+    transition: opacity 0.4s;
+  }
+  #stage:hover #hud, #hud:focus-within, #stage.paused #hud { opacity: 0.95; }
+  #hud button {
+    font: max(10px, calc(var(--u) * 0.85)) / 1 var(--type);
+    color: var(--ink);
+    background: rgba(0, 0, 0, 0.5);
+    border: 1px solid rgba(238, 228, 208, 0.2);
+    padding: 0.6em 0.9em;
+    cursor: pointer;
+  }
+  #hud button:focus-visible { outline: 1px solid var(--ember); }
+  #stage.paused::after {
+    content: 'Paused';
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    font: max(18px, calc(var(--u) * 2.4)) / 1 var(--display);
+    letter-spacing: 0.3em;
+    background: rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+  }
+  #nogl {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 0 12%;
+    text-align: center;
+    font: 16px/1.5 var(--type);
+    color: var(--dust);
+  }
+  @media (prefers-reduced-motion: reduce) {
+    #card, #choice, #title, #end { transition: none; }
+  }
+  @media (max-aspect-ratio: 1/1) {
+    /* portrait phones: invite a rotation, keep the frame playable */
+    body::before {
+      content: 'Turn your phone sideways for the full frame.';
+      position: fixed;
+      top: calc(16px + env(safe-area-inset-top, 0px));
+      left: 16px;
+      right: 16px;
+      text-align: center;
+      font: 12px/1.4 var(--type);
+      color: var(--dust);
+    }
+    #title { padding: 0 16px; gap: 10px; }
+    h1 { font-size: 30px; }
+    .tagline { font-size: 14px; }
+    #card { padding: 0 16px; font-size: 14px; }
+    #sub { width: calc(100% - 32px); }
+    #choice { padding: 12px 16px 14px; }
+    #end { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="view" aria-label="A Suit for Burying: animated story"></canvas>
+
+  <div id="card" role="status" aria-live="polite"></div>
+  <div id="sub" hidden aria-live="polite"><span id="sub-who"></span><span id="sub-text"></span></div>
+
+  <div id="choice" hidden role="group" aria-labelledby="choice-prompt">
+    <p id="choice-prompt"></p>
+    <div id="choice-opts"></div>
+    <div id="choice-timer" hidden aria-hidden="true"></div>
+  </div>
+
+  <div id="hud" hidden>
+    <button type="button" id="btn-pause" aria-pressed="false">Pause</button>
+    <button type="button" id="btn-mute" aria-pressed="true">Sound on</button>
+    <button type="button" id="btn-restart">Restart</button>
+  </div>
+
+  <section id="title" aria-labelledby="title-h">
+    <p class="kicker">Chapter One &middot; The Trunk</p>
+    <h1 id="title-h">A Suit for Burying</h1>
+    <p class="tagline">He buried his wife in the only suit he owned. He never took it off. Now a stranger wants the man he used to be.</p>
+    <button type="button" id="begin">Begin</button>
+    <p class="note">Sound on &middot; your choices change the story &middot; about five minutes</p>
+    <p class="note" id="saved" hidden></p>
+  </section>
+
+  <section id="end" hidden aria-labelledby="end-h">
+    <p class="kicker">End of Chapter One</p>
+    <h2 id="end-h">The man you&rsquo;re making</h2>
+    <ul id="end-list"></ul>
+    <p class="note">Chapter Two &middot; <em>Calvary Bend</em> is in the making. Your choices are saved for it.</p>
+    <button type="button" id="again">Play again, choose differently</button>
+  </section>
+
+  <div id="nogl" hidden>This story needs WebGL2, which this browser or device doesn&rsquo;t provide. Try a recent Chrome, Edge, Firefox or Safari.</div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
