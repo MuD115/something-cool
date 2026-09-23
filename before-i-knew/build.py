@@ -1,4 +1,4 @@
-"""Bundle A Suit for Burying into one self-contained HTML file.
+"""Bundle Before I Knew into one self-contained HTML file.
 
 Usage: python3 build.py [output path]   (default: before-i-knew.html)
 
@@ -38,7 +38,9 @@ def load(path):
         deps.append(dep)
         if star:
             return f'const {star} = {var_for(dep)};'
-        return f'const {{ {names.strip()} }} = {var_for(dep)};'
+        # `import { a as b }` becomes the destructuring `{ a: b }`
+        names = re.sub(r'(\w+)\s+as\s+(\w+)', r'\1: \2', names.strip())
+        return f'const {{ {names} }} = {var_for(dep)};'
 
     body = IMPORT.sub(rewrite, src)
     leftover = re.findall(r"^import .*$", body, re.M)

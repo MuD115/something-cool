@@ -61,8 +61,9 @@ export class Level {
     let bd = Infinity;
     for (const t of this.things) {
       if (!t.enabled()) continue;
-      const d = Math.abs(t.x - x);
-      if (d < t.range && d < bd) {
+      // things marked urgent (a scripted action) win over plain examine points
+      const d = Math.abs(t.x - x) - (t.urgent ? 1e6 : 0);
+      if (Math.abs(t.x - x) < t.range && d < bd) {
         best = t;
         bd = d;
       }

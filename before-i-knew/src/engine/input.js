@@ -3,15 +3,16 @@
 // are rebindable and persisted through settings.
 
 export const ACTIONS = [
-  ['left', 'Move left', 'تحرّك يسار'],
-  ['right', 'Move right', 'تحرّك يمين'],
-  ['run', 'Run (hold)', 'ركض'],
-  ['jump', 'Jump / climb', 'اقفز / اطلع'],
-  ['crouch', 'Crouch (toggle)', 'انحني'],
+  ['left', 'Move left', 'روح عاليسار'],
+  ['right', 'Move right', 'روح عاليمين'],
+  ['run', 'Run (hold)', 'اركض'],
+  ['jump', 'Jump / climb', 'نطّ / اطلع'],
+  ['crouch', 'Crouch (toggle)', 'وطّي'],
   ['prone', 'Go prone (toggle)', 'انبطح'],
-  ['interact', 'Interact / examine', 'تفاعل / تفحّص'],
-  ['tool', 'Next tool', 'الأداة التالية'],
-  ['use', 'Use tool (hold to crank the torch)', 'استخدم الأداة'],
+  ['interact', 'Interact / examine', 'استعمل / اتفرّج'],
+  ['tool', 'Next tool', 'الغرض الجاي'],
+  ['use', 'Use tool (hold to crank the torch)', 'استعمل الغرض'],
+  ['skip', 'Skip line (hold)', 'فوّت الحكي (ضل ضاغط)'],
   ['menu', 'Menu', 'القائمة'],
 ];
 
@@ -25,11 +26,12 @@ export const DEFAULT_KEYS = {
   interact: ['KeyE', 'Enter'],
   tool: ['KeyQ', 'Tab'],
   use: ['KeyF'],
+  skip: ['KeyX', 'Backspace'],
   menu: ['Escape', 'KeyP'],
 };
 
 // Standard gamepad mapping.
-const PAD = { jump: 0, prone: 1, interact: 2, tool: 3, use: 5, crouch: 4, menu: 9, run: 7 };
+const PAD = { jump: 0, prone: 1, interact: 2, tool: 3, use: 5, crouch: 4, menu: 9, run: 7, skip: 6 };
 
 export function keyLabel(code) {
   if (!code) return '—';
@@ -132,6 +134,11 @@ export class Input {
       if (pad.buttons[13]?.pressed && !this.padPrev.dpadDown) this.pressed.add('crouch');
       this.padPrev.dpadDown = !!pad.buttons[13]?.pressed;
     }
+  }
+
+  // Anything at all held or pressed this frame (for idle detection).
+  busy() {
+    return this.down.size > 0 || this.pressed.size > 0;
   }
 
   held(a) {

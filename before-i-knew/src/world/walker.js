@@ -40,6 +40,16 @@ export class Walker {
     this.lastStep = 0;
     this.time = 0;
     this.blocked = null; // why we couldn't move this frame: 'ceiling' | 'wall' | null
+    this.seed = Math.random() * 100; // so idle glances aren't in step
+  }
+
+  // 'side' | 'front' | 'back': see Person.face.
+  face(view) {
+    this.rig.face(view);
+  }
+
+  get view() {
+    return this.rig.view;
   }
 
   place(x, y = null) {
@@ -222,8 +232,16 @@ export class Walker {
       if (this.carry) target = { ...target, ...POSES.carry, thighN: target.thighN, shinN: target.shinN, thighF: target.thighF, shinF: target.shinF, torso: -0.08 };
     } else {
       target = this.carry ? POSES.carry : POSES.stand;
-      // idle breathing
-      target = { ...target, torso: target.torso + 0.01 * Math.sin(this.time * 1.7) };
+      // idle life: breathing, and a glance around now and then
+      const tt = this.time + this.seed;
+      const glance = Math.max(0, Math.sin(tt * 0.23) - 0.6) * 0.5 * Math.sin(tt * 0.9);
+      target = {
+        ...target,
+        torso: target.torso + 0.012 * Math.sin(tt * 1.7),
+        head: target.head + glance - 0.05 * Math.max(0, Math.sin(tt * 0.11 + 2) - 0.8) * 5,
+        armN: target.armN + 0.02 * Math.sin(tt * 1.7),
+        armF: target.armF + 0.02 * Math.sin(tt * 1.7 + 0.4),
+      };
     }
 
     // footsteps
@@ -245,6 +263,7 @@ export class Walker {
     } else this.overrideBlend = 0;
 
     const r = this.rig;
+    r.tick(dt);
     r.setPose(final);
     r.x = this.x;
     r.y = this.y;

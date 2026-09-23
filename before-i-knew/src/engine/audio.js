@@ -4,7 +4,7 @@
 //        music (ney and oud) → master, beside the world bus
 // Settings drive master / music / effects volumes.
 
-const BAYATI = {
+export const BAYATI = {
   // D Bayati with its half-flat second (E↓), in Hz.
   D3: 146.83, Eb3: 151.1, F3: 174.61, G3: 196.0, A3: 220.0, Bb3: 233.08, C4: 261.63, D4: 293.66, Ed4: 318.0, F4: 349.23, G4: 392.0,
 };
@@ -83,6 +83,7 @@ export class Sound {
 
     this.buildBeds();
     this.applyVolumes();
+    this.score?.start();
     this.settings.onChange(() => this.applyVolumes());
     return Promise.resolve();
   }
@@ -151,34 +152,40 @@ export class Sound {
     syl.connect(sg).connect(this.beds.crowd.g.gain);
     syl.start();
 
-    // A generator in a basement: 50 Hz and friends, chugging.
+    // A generator in a basement: a steady low hum through walls, sagging
+    // slowly under load. (No fast modulation: that reads as rotor blades.)
     const gen = ctx.createGain();
     gen.gain.value = 0;
     const gf = ctx.createBiquadFilter();
     gf.type = 'lowpass';
-    gf.frequency.value = 320;
-    gen.connect(gf).connect(this.amb);
-    for (const [f, type] of [[50, 'sawtooth'], [100, 'square'], [49.3, 'sawtooth']]) {
+    gf.frequency.value = 180;
+    gf.Q.value = 0.3;
+    const gv = ctx.createGain();
+    gv.gain.value = 1;
+    gv.connect(gf).connect(gen).connect(this.amb);
+    for (const [f, type, v] of [[50, 'triangle', 0.14], [100, 'sine', 0.06], [150, 'sine', 0.025]]) {
       const o = ctx.createOscillator();
       o.type = type;
       o.frequency.value = f;
       const og = ctx.createGain();
-      og.gain.value = 0.12;
-      o.connect(og).connect(gen);
+      og.gain.value = v;
+      o.connect(og).connect(gv);
       o.start();
     }
-    const chug = ctx.createOscillator();
-    chug.frequency.value = 7.5;
-    const cg = ctx.createGain();
-    cg.gain.value = 0.3;
-    chug.connect(cg).connect(gen.gain);
-    chug.start();
+    for (const [rate, depth] of [[0.23, 0.12], [0.071, 0.1]]) {
+      const sag = ctx.createOscillator();
+      sag.frequency.value = rate;
+      const sg2 = ctx.createGain();
+      sg2.gain.value = depth;
+      sag.connect(sg2).connect(gv.gain);
+      sag.start();
+    }
     this.beds.generator = { g: gen };
   }
 
   ambience(levels, time = 1.2) {
     if (!this.ctx) return;
-    const scale = { wind: 0.3, air: 0.35, traffic: 0.5, crowd: 0.12, generator: 0.25 };
+    const scale = { wind: 0.3, air: 0.35, traffic: 0.5, crowd: 0.12, generator: 0.12 };
     for (const k in levels) this.beds[k]?.g.gain.setTargetAtTime((levels[k] || 0) * scale[k], this.t, time / 3);
   }
 
@@ -275,52 +282,110 @@ export class Sound {
     this.noise({ when: this.t + dur, dur: 0.1, freq: 2400, q: 0.8, vol: 0.1 });
   }
 
+  // A helicopter, high and slow: the low thud of the blades arrives before
+  // the machine. Only ever heard with a barrel bomb.
   helicopter(dur = 12) {
     if (!this.ctx) return;
+    this.heliCount = (this.heliCount || 0) + 1;
     const ctx = this.ctx;
     const w = this.t;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, w);
-    g.gain.exponentialRampToValueAtTime(0.9, w + dur * 0.45);
-    g.gain.exponentialRampToValueAtTime(0.5, w + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.85, w + dur * 0.45);
+    g.gain.exponentialRampToValueAtTime(0.45, w + dur * 0.62);
     g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
-    g.connect(this.fx);
-    // blade slap: noise gated at the blade rate
-    const src = this.noiseSrc(this.brownBuf);
-    const f = ctx.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 260;
-    const vca = ctx.createGain();
-    vca.gain.value = 0;
-    const blade = ctx.createOscillator();
-    blade.type = 'square';
-    blade.frequency.setValueAtTime(10.5, w);
-    blade.frequency.linearRampToValueAtTime(11.5, w + dur);
-    const bg = ctx.createGain();
-    bg.gain.value = 0.6;
-    blade.connect(bg).connect(vca.gain);
-    src.connect(f).connect(vca).connect(g);
-    // turbine whine
+    // distance: the highs roll off as it comes and goes
+    const air = ctx.createBiquadFilter();
+    air.type = 'lowpass';
+    air.frequency.setValueAtTime(260, w);
+    air.frequency.exponentialRampToValueAtTime(900, w + dur * 0.5);
+    air.frequency.exponentialRampToValueAtTime(240, w + dur);
+    g.connect(air).connect(this.fx);
+    // blade thump: short brown-noise bursts at the blade-pass rate, with a
+    // Doppler drop as it passes over
+    const rate0 = 4.6;
+    let tt = w + 0.05;
+    let i = 0;
+    while (tt < w + dur) {
+      const k = (tt - w) / dur;
+      const rate = rate0 * (k < 0.5 ? 1.04 : 0.95);
+      const n = ctx.createBufferSource();
+      n.buffer = this.brownBuf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 170 + (i % 2) * 40;
+      const e = ctx.createGain();
+      e.gain.setValueAtTime(0.0001, tt);
+      e.gain.exponentialRampToValueAtTime(1, tt + 0.012);
+      e.gain.exponentialRampToValueAtTime(0.0001, tt + 0.14);
+      n.connect(f).connect(e).connect(g);
+      n.start(tt, Math.random() * 3);
+      n.stop(tt + 0.16);
+      tt += 1 / rate;
+      i++;
+    }
+    // a thin turbine whine, far off
     const tur = ctx.createOscillator();
     tur.type = 'sawtooth';
-    tur.frequency.value = 1450;
+    tur.frequency.setValueAtTime(1180, w);
+    tur.frequency.linearRampToValueAtTime(1240, w + dur * 0.5);
+    tur.frequency.linearRampToValueAtTime(1090, w + dur);
     const tf = ctx.createBiquadFilter();
     tf.type = 'bandpass';
-    tf.frequency.value = 1500;
-    tf.Q.value = 9;
+    tf.frequency.value = 1200;
+    tf.Q.value = 12;
     const tg = ctx.createGain();
-    tg.gain.value = 0.04;
+    tg.gain.value = 0.018;
     tur.connect(tf).connect(tg).connect(g);
-    blade.start(w);
     tur.start(w);
-    blade.stop(w + dur);
     tur.stop(w + dur);
+  }
+
+  // A jet: a tearing roar that crosses the sky faster than the eye.
+  jet(dur = 7) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const w = this.t;
+    const src = this.noiseSrc();
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 0.7;
+    f.frequency.setValueAtTime(2600, w);
+    f.frequency.exponentialRampToValueAtTime(900, w + dur * 0.45);
+    f.frequency.exponentialRampToValueAtTime(320, w + dur);
+    const rumble = this.noiseSrc(this.brownBuf);
+    const rf = ctx.createBiquadFilter();
+    rf.type = 'lowpass';
+    rf.frequency.value = 140;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    g.gain.exponentialRampToValueAtTime(0.5, w + dur * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
+    src.connect(f).connect(g);
+    rumble.connect(rf).connect(g);
+    g.connect(this.fx);
     src.stop(w + dur);
+    rumble.stop(w + dur);
+  }
+
+  // A missile strike beyond the rooftops: sharper than a barrel, shorter tail.
+  strikeFar(delay = 0) {
+    const w = this.t + delay;
+    this.duck(0.9, 3);
+    this.noise({ when: w, dur: 0.12, freq: 1800, type: 'lowpass', vol: 0.25, q: 0.4 });
+    this.noise({ when: w + 0.02, dur: 2.4, freq: 120, type: 'lowpass', vol: 0.8, q: 0.5, buf: this.brownBuf, attack: 0.01 });
+    this.tone(55, 1.2, { when: w, vol: 0.4, to: 30 });
+  }
+
+  // Music steps back for blasts and speech: amount 0…1 of the music gain.
+  duck(amount = 0.6, time = 2.5) {
+    this.onDuck?.(amount, time);
   }
 
   // A barrel bomb somewhere else: the ground feels it before the ears do.
   barrelFar(delay = 0) {
     const w = this.t + delay;
+    this.duck(0.95, 5);
     this.noise({ when: w, dur: 3.5, freq: 90, type: 'lowpass', vol: 1.0, q: 0.5, attack: 0.03, buf: this.brownBuf });
     this.noise({ when: w + 0.08, dur: 2.5, freq: 400, type: 'lowpass', vol: 0.35, q: 0.4, attack: 0.1 });
     this.tone(48, 1.8, { when: w, vol: 0.5, to: 28 });
@@ -332,6 +397,7 @@ export class Sound {
 
   mortarImpact(dist = 1) {
     const v = 1 / Math.max(dist, 0.6);
+    this.duck(0.8, 2.5);
     this.noise({ dur: 0.18, freq: 2600, type: 'highpass', vol: 0.45 * v, q: 0.4 });
     this.noise({ dur: 1.8, freq: 160, type: 'lowpass', vol: 0.9 * v, q: 0.5, buf: this.brownBuf, attack: 0.01 });
     this.tone(70, 0.6, { vol: 0.5 * v, to: 35 });
@@ -348,16 +414,16 @@ export class Sound {
   }
 
   // The ney: breath, a wandering pitch and slow vibrato.
-  ney(freq, dur, vol = 0.22) {
+  ney(freq, dur, vol = 0.22, { when = this.t, dest = this.music } = {}) {
     if (!this.ctx) return;
     const ctx = this.ctx;
-    const w = this.t;
+    const w = when;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, w);
     g.gain.linearRampToValueAtTime(vol, w + Math.min(2.5, dur * 0.3));
     g.gain.setValueAtTime(vol, w + dur * 0.7);
     g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
-    g.connect(this.music);
+    g.connect(dest);
     const o = ctx.createOscillator();
     o.frequency.value = freq;
     const vib = ctx.createOscillator();
@@ -389,7 +455,7 @@ export class Sound {
   }
 
   // Karplus–Strong oud pluck, cached per pitch.
-  pluck(freq, when = this.t, vol = 0.35) {
+  pluck(freq, when = this.t, vol = 0.35, dest = this.music, bright = 1900) {
     if (!this.ctx) return;
     const ctx = this.ctx;
     this.plucks ||= new Map();
@@ -410,8 +476,8 @@ export class Sound {
     g.gain.value = vol;
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.frequency.value = 1900;
-    src.connect(tone).connect(g).connect(this.music);
+    tone.frequency.value = bright;
+    src.connect(tone).connect(g).connect(dest);
     src.start(when);
   }
 

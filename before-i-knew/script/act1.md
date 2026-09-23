@@ -1,4 +1,4 @@
-# Act 1: The Afternoon — الضهرية
+# Act 1: The Afternoon — بعد الضهر
 
 **Full production script — 15–20 minutes of play**
 **Time:** 3:00 PM – 4:15 PM, August 2014
@@ -89,11 +89,11 @@ A **grape vine** grows from a crack in the rubble on the right side, climbing th
 *[ACTING NOTE: Khaled's smile carries a double meaning he half-intends. The students learn tenses. The town has a past, a present, and a future — maybe. He means both.]*
 
 **خالد:**
-> بتعرف رامي؟ ابن أبو علي؟ يلي ساكنين بآخر الشارع؟
+> بتعرف رامي؟ ابن أبو علي؟ اللي ساكنين بآخر الشارع؟
 > *You know Rami? Abu Ali's son? The ones who live at the end of the street?*
 
 **سامي:**
-> الصغير؟ يلي ما بيوقف حكي؟
+> الصغير؟ اللي ما بيوقف حكي؟
 > *The little one? Who never stops talking?*
 
 **خالد:**
@@ -119,7 +119,7 @@ They approach a gap between two buildings. Across the gap, a **sniper curtain** 
 
 **[GAMEPLAY BEAT]** The player must crouch to pass under a section where the curtain has sagged, its support wire cut by shrapnel. A prompt appears:
 
-> **[Crouch]** — انحني / Crouch down
+> **[Crouch]** — وطّي / Crouch down
 
 *[TUTORIAL: Crouching introduced. The player ducks under the sagging curtain. Khaled does the same beside them.]*
 
@@ -137,7 +137,7 @@ They continue. Ahead, part of a building has collapsed across the street — con
 
 **[GAMEPLAY BEAT]** The player must jump/climb over the rubble.
 
-> **[Jump + Climb]** — اقفز / Jump — اطلع / Climb
+> **[Jump + Climb]** — نطّ / Jump — اطلع / Climb
 
 *[TUTORIAL: Jumping and climbing introduced. Sami clambers over. Khaled follows, steadying himself on a piece of rebar.]*
 
@@ -145,7 +145,7 @@ On the other side, the street opens slightly. To the left, the remains of a **sm
 
 **[INTERACTION — EMPTY SHOP]**
 
-> **Arabic:** دكّان أبو ريّان. كانت تبيع كل شي — خبز وسكّر وسجاير. هلّق ما فيها غير غبرة.
+> **Arabic:** دكّان أبو ريّان. كان يبيع كل شي — خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.
 > **English:** Abu Rayyan's shop. It used to sell everything — bread, sugar, cigarettes. Now there's nothing in it but dust.
 
 *[ACTING NOTE: Sami's examination text is factual, not sentimental. He has passed this shop a thousand times. The emptiness is normal now. That normalcy is the point.]*
@@ -164,7 +164,7 @@ On the other side, the street opens slightly. To the left, the remains of a **sm
 *They reach the junction. The road splits: east continues toward Sami's neighbourhood and the water infrastructure he tends; south goes toward the frontline quarter where Khaled is heading to check on a family.*
 
 **خالد:**
-> *(stopping)* يلا، أنا رايح من هون. بدي فوت عأم سعيد وعيلتو — بنتهن عيانة وما في حدا يشوفها.
+> *(stopping)* يلا، أنا رايح من هون. بدي مرّ عند أم سعيد وعيلتا — بنتن مريضة وما في حدا يشوفها.
 > *(stopping)* Right, I'm heading off from here. I want to check on Um Said and her family — their daughter's ill and there's no one to see her.
 
 **سامي:**
@@ -182,7 +182,7 @@ On the other side, the street opens slightly. To the left, the remains of a **sm
 > *Take care of yourself.*
 
 **خالد:**
-> *(lightly)* دايماً. بشوفك بالليل إن شاء الله. عندي نكتة جديدة — مش رح تصدّقها.
+> *(lightly)* دايماً. بشوفك بالليل إن شاء الله. عندي نكتة جديدة — مو رح تصدّقها.
 > *(lightly)* Always. I'll see you tonight, God willing. I've got a new joke — you won't believe it.
 
 **سامي:**
@@ -256,7 +256,7 @@ Sami walks north-east. He passes into a narrower street. Ahead, an **old man** (
 **[GAMEPLAY BEAT]** The player walks slowly, carrying the jug. Movement is reduced — Sami leans under the weight. They move down the alley together.
 
 **الختيار:**
-> كنت بشيل زيتون من الضيعة، شوالين عكتافي، ولا بحس فيهن. هلّق غالون مي بيكسرني.
+> كنت بشيل زيتون من الضيعة، شوالين عكتافي، وما كنت حسّ فيهن. هلّق غالون مي بيكسرني.
 > *I used to carry olives from the village, sacks on my shoulders, and feel nothing. Now a jug of water breaks me.*
 
 *They reach a doorway. The old man knocks. A woman's voice from inside. The door opens a crack.*
@@ -294,17 +294,17 @@ Sami passes a collapsed section of wall. Among the debris — broken tiles, a ch
 
 **[INTERACTION — MIRROR SHARD]**
 
-> **Arabic:** شقفة مراية. بتشوف فيها حالك — أو بتشوف فيها شو وراء الحيطان.
+> **Arabic:** شقفة مراية. بتشوف فيها حالك — أو بتشوف فيها شو ورا الحيطان.
 > **English:** A shard of mirror. You can see yourself in it — or you can see what's around walls.
 
 **[TOOL ACQUIRED: MIRROR SHARD]**
 
-> شقفة مراية — بتنعكس فيها الطريق يلي ما بتشوفها.
+> شقفة مراية — بتبيّن فيها الطريق اللي ما عم تشوفها.
 > *Mirror shard — reflects the road you can't see.*
 
 **[GAMEPLAY BEAT]** A prompt introduces the mirror mechanic. Ahead, the road passes an intersection exposed to the west — potential sniper angle.
 
-> **[Use mirror]** — استخدم المراية / Use the mirror
+> **[Use mirror]** — استعمل المراية / Use the mirror
 
 The player holds the mirror at the corner. The reflected view shows the intersection: empty, a curtain flapping in a window across the way, no movement. Safe to cross.
 
@@ -319,8 +319,8 @@ The player holds the mirror at the corner. The reflected view shows the intersec
 
 Sami passes below a building where a **spotter** sits — a young man, maybe twenty, on the third floor with binoculars and a walkie-talkie, watching the sky. He spots Sami below.
 
-**الراصد / The Spotter:**
-> *(calling down)* يا زلمة! وين رايح؟ البراميل عم تنزل ع الجنوبي.
+**المرصد / The Spotter:**
+> *(calling down)* يا زلمة! وين رايح؟ البراميل عم تنزل عالقبلي.
 > *(calling down)* Hey, man! Where are you headed? Barrels are falling on the southern quarter.
 
 *[ACTING NOTE: "The southern quarter" — where Khaled went. The player doesn't know what this means yet. The spotter says it factually; barrel bombs fall on different quarters at different times. It's weather.]*
@@ -329,7 +329,7 @@ Sami passes below a building where a **spotter** sits — a young man, maybe twe
 > رايح عالشرقي. عالأنابيب.
 > *Heading to the eastern quarter. To the pipes.*
 
-**الراصد:**
+**المرصد:**
 > خود هاد. أحسنلك.
 > *Take this. Better for you.*
 
@@ -340,9 +340,9 @@ Sami passes below a building where a **spotter** sits — a young man, maybe twe
 > لاسلكي — بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.
 > *Walkie-talkie — hear the spotters' warnings. Receive only.*
 
-**الراصد:**
-> الموجة ٣. إذا سمعت "طيّارة" — انبطح. إذا سمعت "فيل" — الله يستر.
-> *Channel 3. If you hear "helicopter" — get flat. If you hear "elephant" — God help us.*
+**المرصد:**
+> الموجة ٣. إذا سمعت "مروحي" أو "حربي" — انبطح. إذا سمعت "فيل" — الله يستر.
+> *Channel 3. If you hear "mirwahi" (helicopter) or "harbi" (jet) — get flat. If you hear "elephant" — God help us.*
 
 *[ACTING NOTE: The spotter says "God help us" about the فيل missile not dramatically but with the flat resignation of someone who has seen what it does. The فيل — an enormous improvised rocket — cannot be outrun or hidden from. You hear it and you wait.]*
 
@@ -357,7 +357,7 @@ Sami passes below a building where a **spotter** sits — a young man, maybe twe
 
 **[WALKIE-TALKIE — AUDIO CUE]**
 
-> **لاسلكي:** *(static)* ...طيّارة... طيّارة فوق الشرقي... طيّارة...
+> **لاسلكي:** *(static)* ...مروحي... مروحي فوق الشرقي... مروحي...
 > **Walkie-talkie:** *(static)* ...helicopter... helicopter over the eastern quarter... helicopter...
 
 *The sound builds: a deep, rhythmic thudding — rotor blades. Growing louder. The shadow of the helicopter hasn't appeared yet but the sound fills the sky.*
@@ -378,12 +378,12 @@ The helicopter moves away. The rotor sound fades. A beat.
 
 The walkie-talkie crackles again:
 
-> **لاسلكي:** *(static)* ...نزل برميل... الحارة الجنوبية الغربية... نزل برميل...
-> **Walkie-talkie:** *(static)* ...barrel dropped... south-western quarter... barrel dropped...
+> **لاسلكي:** *(static)* ...نزل برميل... عالحارة القبلية... نزل برميل...
+> **Walkie-talkie:** *(static)* ...barrel dropped... the southern quarter... barrel dropped...
 
 *Sami stands. He brushes dust from his shirt. He keeps walking. He does not react visibly. This is not bravery; this is Tuesday.*
 
-*[ACTING NOTE: The barrel bomb fell on the south-western quarter — not where Khaled went (southern quarter). The player won't register this distinction now. It matters later.]*
+*[ACTING NOTE: The barrel bomb fell on the the southern quarter — not where Khaled went (southern quarter). The player won't register this distinction now. It matters later.]*
 
 ---
 
@@ -403,7 +403,7 @@ One of them is **Layla** — ten, thin, dark hair pulled back, wearing a too-lar
 *If the player approaches Layla:*
 
 **ليلى:**
-> *(not looking up)* بتعرف كم كيلو حديد بدّو الواحد يجمّع تيشتري كيس برغل؟
+> *(not looking up)* بتعرف قدّيش كيلو حديد لازم الواحد يلمّ لحتى يشتري كيس برغل؟
 > *(not looking up)* Do you know how many kilos of scrap metal you need to collect for a bag of bulgur?
 
 **سامي:**
@@ -439,7 +439,7 @@ One of them is **Layla** — ten, thin, dark hair pulled back, wearing a too-lar
 *The children scatter — most of them running toward the school basement entrance (a reinforced stairwell). Layla and one younger boy are further away, near the scrap pile, exposed. They're frozen — the boy is crying.*
 
 > **B1:** احمي الولاد / Shield the children — *[Sami runs to Layla and the boy, covers them, guides them toward shelter]*
-> **B2:** احتمي / Take cover — *[Sami dives behind the nearest wall]*
+> **B2:** تخبّى / Take cover — *[Sami dives behind the nearest wall]*
 
 #### Branch B1: Shield the Children
 
@@ -492,7 +492,7 @@ On a **section of collapsed wall**, at eye level, sits a **cat**. A thin tabby w
 
 *The player approaches. The cat doesn't move. It blinks slowly — once.*
 
-> **Arabic:** بسّة. مش جوعانة أكتر من أي حدا هون. وعم تستنى نفس الشي: إنو يخلص.
+> **Arabic:** بسّة. مو جوعانة أكتر من أي حدا هون. وعم تستنى نفس الشي: إنو يخلص.
 > **English:** A cat. No hungrier than anyone else here. Waiting for the same thing: for it to end.
 
 *The cat holds Sami's gaze for a long moment. Then it turns, drops off the wall, and disappears into the rubble without sound.*
@@ -521,7 +521,7 @@ On a **section of collapsed wall**, at eye level, sits a **cat**. A thin tabby w
 *Sami and Khaled are younger — twenty-three, twenty-four. They sit in a small garden behind someone's house. A **grape arbour** overhead, heavy with ripe fruit. Glasses of tea on a low table. The light is the warm orange of late summer sunset.*
 
 **خالد:**
-> *(picking a grape, eating it)* بتعرف شو بدي أساوي لمّا خلّص تدريب المعلمين؟
+> *(picking a grape, eating it)* بتعرف شو بدي أعمل لمّا خلّص تدريب المعلمين؟
 > *(picking a grape, eating it)* You know what I'm going to do when I finish teacher training?
 
 **سامي:**
@@ -529,7 +529,7 @@ On a **section of collapsed wall**, at eye level, sits a **cat**. A thin tabby w
 > *What?*
 
 **خالد:**
-> بدي افتح مدرسة. مش مدرسة حكومية — مدرسة خاصة. ببيت. غرفة وحدة، كراسي وطبشور، وكتب كتير.
+> بدي افتح مدرسة. مو مدرسة حكومية — مدرسة خاصة. ببيت. غرفة وحدة، كراسي وطبشور، وكتب كتير.
 > *I'm going to open a school. Not a government school — a private one. In a house. One room, chairs, chalk, and lots of books.*
 
 **سامي:**
@@ -549,7 +549,7 @@ On a **section of collapsed wall**, at eye level, sits a **cat**. A thin tabby w
 *The mood shifts. Khaled's face changes. He lowers his voice — instinctively, automatically, the way everyone does.*
 
 **خالد:**
-> *(quietly)* هلّق لا. بس مش لازم يضل هيك.
+> *(quietly)* هلّق لا. بس مو لازم يضل هيك.
 > *(quietly)* Not now. But it doesn't have to stay this way.*
 
 *[ACTING NOTE: The lowered voice is the pre-revolution reflex. Even in a private garden, among friends, you lower your voice when you say something true. The walls listen. The mukhabarat have informants everywhere. This is the unspoken terror: not a single dramatic event but a lifetime of calibrating every word, every glance, every silence. Khaled's quiet defiance — "it doesn't have to stay this way" — is the seed of everything that follows. He says it like a man testing the weight of a locked door.]*
@@ -577,10 +577,24 @@ Sami passes an open door. Inside, a group of three people sit around a **car bat
 
 **[INTERACTION — CAR BATTERY]**
 
-> **Arabic:** بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش — صار المسؤول عنها لأنو هوي الوحيد يلي بيعرف يفكّ ويركّب.
+> **Arabic:** بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش — صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.
 > **English:** A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen — he became responsible for it because he's the only one who knows how to wire it.
 
 *[ACTING NOTE: This is not a plot moment. It's texture — the infrastructure of siege life. The player sees ordinary people solving ordinary problems with extraordinary patience. The woman waiting for her phone to charge might be trying to call a relative. The boy's competence is a kind of quiet heroism. Sami walks past.]*
+
+### 3i. The Jet
+
+*A little further on, the walkie-talkie crackles again. Spotters say "مروحي" (helicopter) for rotor aircraft and "حربي" (jet) for fixed-wing strikes.*
+
+> **لاسلكي:** *(static)* ...حربي بالجو... حربي...
+> **Walkie-talkie:** *(static)* ...jet in the air... jet...
+
+**Sound:** A high tearing roar crosses the sky, faster than the eye. A contrail. Seconds later, a flat thump from the direction of the farms.
+
+> **لاسلكي:** ...ضرب حربي... عالمرج... ضرب حربي...
+> **Walkie-talkie:** ...airstrike... out by the farms... airstrike...
+
+*[ACTING NOTE: No prompt. The player may go prone or not. Nobody on the street looks up any more.]*
 
 ---
 
@@ -656,10 +670,10 @@ Sami approaches the corner. A **group of six or seven people** stand in a loose 
 > **C1:** بدي شوفو. / I need to see him.
 > *[Sami pulls away from Abu Yazan and takes a step south — toward the frontline, toward School Street, toward where Khaled fell.]*
 
-> **C2:** مين ساوى هيك؟ / Who did this?
+> **C2:** مين عمل هيك؟ / Who did this?
 > *[Sami turns to the man with the walkie-talkie. His voice is controlled. He wants information — position, timing, what was seen.]*
 
-> **C3:** *(صمت)* / *(Silence)*
+> **C3:** *(سكوت)* / *(Silence)*
 > *[Sami says nothing. His legs give way — not dramatically, just a slow folding. He sits down on the kerb, in the exact spot where the woman was sitting. She moves to make room. He stares at the ground.]*
 
 ### Branch C1: "I need to see him"
@@ -688,19 +702,19 @@ Sami approaches the corner. A **group of six or seven people** stand in a loose 
 ### Branch C2: "Who did this?"
 
 **سامي:**
-> *(turning to the man with the walkie-talkie, voice flat)* مين ساوى هيك. من وين إجت الطلقة.
+> *(turning to the man with the walkie-talkie, voice flat)* مين عمل هيك. من وين إجت الطلقة.
 > *(turning to the man with the walkie-talkie, voice flat)* Who did this. Where did the shot come from.
 
-**رجل اللاسلكي / Walkie-talkie man:**
-> القنّاص عالتلّة الغربية. ضمن المبنى يلي فيه العلم — بتعرفو. نفس القنّاص يلي من أسبوع.
+**زلمة اللاسلكي / Walkie-talkie man:**
+> القنّاص عالتلّة الغربية. بالبناية اللي عليها العلم — بتعرفو. نفس القنّاص اللي من أسبوع.
 > *The sniper on the western hill. In the building with the flag — you know it. Same sniper from last week.*
 
 **سامي:**
-> في حدا شافو وهوي واقع؟
+> في حدا شافو وهوّي واقع؟
 > *Did anyone see him fall?*
 
-**رجل اللاسلكي:**
-> أم سعيد — هيي يلي طلعت عليه. لحقوها الشباب بعدها. بس ما قدروا يجرّوه — الشارع مكشوف.
+**زلمة اللاسلكي:**
+> أم سعيد — هيّي اللي طلعت عليه. لحقوها الشباب بعدها. بس ما قدروا يجرّوه — الشارع مكشوف.
 > *Um Said — she's the one who went to him. Some of the men followed her. But they couldn't move him — the street is exposed.*
 
 *[ACTING NOTE: Sami's grief expresses as control. He gathers facts. He organizes information. This is how an engineer processes the unbearable — by turning it into a problem with parameters.]*

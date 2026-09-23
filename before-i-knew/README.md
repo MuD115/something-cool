@@ -10,7 +10,7 @@ yet.
 - [`script/act1.md`](script/act1.md) is the Act One script. The game follows it line for
   line.
 
-Dialogue is in Damascene Arabic with English subtitles. The depiction is restrained: violence
+Dialogue is in the Damascus dialect with English subtitles. The depiction is restrained: violence
 is heard and implied, never shown.
 
 **Content note:** life under military siege, shelling, sniper fire, hunger, the death of a
@@ -29,14 +29,17 @@ From 3:05 to 4:15 pm, about 10–20 minutes to play.
    - The old man with the jerrycans. ◆ **Choice A:** help carry his water, or keep walking.
    - The mirror shard, which lets you look around a corner.
    - The spotter, who hands you a walkie-talkie.
-   - The helicopter. Get flat before the barrel bomb falls.
+   - The helicopter. On channel 3 the spotters say «مروحي» for a helicopter and «حربي» for a
+     jet. Get flat before the barrel bomb falls.
    - Mortars fall around Layla and the scrap-collecting children. ◆ **Choice B:** run for
      the children, or take cover. Running for them takes you down into a dark stairwell,
      where you need the hand-crank torch.
    - A cat on a wall.
    - A flashback to 2010.
    - A car battery charging the neighbourhood's phones.
-4. **The News.** At the corner with the dead olive tree, Abu Yazan is waiting for you.
+   - A jet over the farms, heard before it's seen.
+4. **The News.** At the corner with the dead olive tree, Abu Yazan comes up the southern
+   street to meet you.
    ◆ **Choice C:** *I need to see him*, *Who did this?* or silence. Each answer takes Sami
    into a different night.
 
@@ -61,15 +64,24 @@ the children and the path. It's saved in the browser.
 | Switch tool | Q or Tab | Y |
 | Use tool (tap F for the torch, hold F to crank it) | F | RB |
 | Choose | 1 / 2 / 3, or click | |
+| Skip a line (hold) | X or Backspace | LT |
 | Menu | Esc or P | Start |
 
 You can rebind every key under **Controls**. On phones and tablets, on-screen buttons appear.
 
 **Menus.** The main menu has Continue (from the last checkpoint), New game, Settings, Controls
-and About. During play, `Esc` pauses the game and opens Resume, Settings, Controls, Restart from
-checkpoint and Main menu. Settings cover master, music and effects volume, subtitles (Arabic
-and English, English only or Arabic only), text size, camera shake, reduce flashes and control
-hints.
+and About. During play, `Esc` pauses the game and opens Resume, Dialogue log, Settings, Controls,
+Restart from checkpoint and Main menu. The pause screen also shows the current objective, what
+you're carrying and the checkpoint. Settings:
+
+- **Sound:** master, music and effects volume.
+- **Text:** the menu language (English or Arabic, with right-to-left menus), subtitles (Arabic
+  and English, English only or Arabic only), text size and the subtitle backing.
+- **Display:** graphics quality (Auto, Low, Medium, High), camera shake and reduce flashes.
+- **Play:** control hints.
+
+Control prompts step aside once you've done what they ask, or after a few seconds. They come
+back if you stand idle while the story is still waiting on them.
 
 ## How it's made
 
@@ -83,10 +95,16 @@ Everything is drawn and synthesised in code. There are no images or recordings.
   mantle; ceilings you can only pass under crouched; and walls you climb. Story beats are
   generator scripts, triggered by position.
 - **People and the cat** ([`src/rigs/`](src/rigs)): one procedural rig, with outfits for each
-  character and a pose library. The tabby is a separate small rig.
+  character and a pose library. It has side, front and back views, with a quick turn between
+  them, for anyone walking into or out of a side street. Idle figures breathe, blink and glance
+  around, and passers-by cross the side streets in the calm stretches. The tabby is a separate
+  small rig.
 - **Sound** ([`src/engine/audio.js`](src/engine/audio.js)) is all Web Audio:
   - the ambience: a generator hum, pigeons, wind;
-  - distant shots, a helicopter rotor, mortar whistles and impacts, car alarms;
-  - walkie-talkie static;
-  - a ney, and an oud playing in maqam Bayati for the flashback;
+  - distant shots, mortar whistles and impacts, car alarms;
+  - walkie-talkie static, a jet's roar, and a helicopter's rotor (only ever with a barrel bomb);
   - ringing ears at the news.
+- **Score** ([`src/engine/score.js`](src/engine/score.js)): a light generative score in maqam
+  Bayati on D. A deep sub-bass swells slowly under a soft pad in open fifths, with an oud or
+  qanun phrase and a breath of ney now and then. The story sets its mood (the walk, the hour,
+  danger, memory, silence at the news, and after), and it steps back under speech and blasts.

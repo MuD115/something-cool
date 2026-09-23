@@ -98,6 +98,27 @@ export class Person {
     this.pose = { ...POSES.stand };
     this.prop = null;
     this.dust = 0; // 0…1 grey dust after shelling
+    // Facing: 'side' (profile, the default), 'front' (towards us, out of a
+    // side street) or 'back' (away from us, into one). viewK eases 0…1 as
+    // the figure turns; the drawing flips through a narrow silhouette.
+    this.view = 'side';
+    this.viewFrom = 'side';
+    this.viewK = 1;
+    this.blink = 0; // > 0 while the eyes are shut
+  }
+
+  // Turn to face a new way; the rig animates the turn.
+  face(view) {
+    if (view === this.view) return;
+    this.viewFrom = this.viewK < 0.5 ? this.viewFrom : this.view;
+    this.view = view;
+    this.viewK = 0;
+  }
+
+  tick(dt) {
+    if (this.viewK < 1) this.viewK = Math.min(1, this.viewK + dt * 4);
+    if (this.blink > 0) this.blink -= dt;
+    else if (Math.random() < dt * 0.3) this.blink = 0.13;
   }
 
   setPose(p) {
@@ -164,6 +185,235 @@ export class Person {
   }
 
   draw(ctx) {
+    // mid-turn: squeeze to a sliver, then open out into the new view
+    const k = this.viewK;
+    const shown = k < 0.5 ? this.viewFrom : this.view;
+    const squeeze = k < 1 ? Math.max(0.12, Math.abs(Math.cos(k * Math.PI))) : 1;
+    if (squeeze < 1) {
+      const [hx] = this.hip();
+      ctx.save();
+      ctx.translate(hx, 0);
+      ctx.scale(squeeze, 1);
+      ctx.translate(-hx, 0);
+    }
+    if (shown === 'side') this.drawSide(ctx);
+    else this.drawFrontBack(ctx, shown === 'front');
+    if (squeeze < 1) ctx.restore();
+  }
+
+  // Facing us or facing away. The same pose drives it: the side view's
+  // vertical extents of knees, feet, elbows and hands foreshorten naturally.
+  drawFrontBack(ctx, front) {
+    const j = this.solve();
+    const [hx, hy] = this.hip();
+    const o = this.o;
+    const p = this.pose;
+    const dusty = (c) => (this.dust > 0 ? mixHex(c, '#8a857c', this.dust * 0.55) : c);
+    const top = dusty(o.top);
+    const trousers = dusty(o.trousers);
+    const armCloth = o.sleeve === 'short' ? o.skin : top;
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.scale(this.scale, this.scale);
+    const wide = o.baggy ? 17 : 14;
+    const sy = j.shoulder[1];
+    const ny = j.neck[1];
+    // legs: side-view vertical extents, spread either side of the hips
+    // one stroke per limb, so no seams at the joints
+    const stroke = (pts, w, color) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = w;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(...pts[0]);
+      for (const q of pts.slice(1)) ctx.lineTo(...q);
+      ctx.stroke();
+    };
+    const leg = (side, knee, foot, cloth, shoe) => {
+      const x0 = side * 7;
+      const kx = x0 + side * 1.5;
+      stroke([[x0, 0], [kx, Math.max(10, knee[1])], [x0, Math.max(knee[1] + 8, foot[1])]], 13, cloth);
+      ctx.beginPath();
+      ctx.ellipse(x0, Math.max(knee[1] + 8, foot[1]) + 2, 6.5, 4.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = shoe;
+      ctx.fill();
+    };
+    // the far leg (the one further back in the stride) first
+    const nFirst = j.footN[1] < j.footF[1];
+    const legs = [
+      [-1, j.kneeN, j.footN],
+      [1, j.kneeF, j.footF],
+    ];
+    if (!nFirst) legs.reverse();
+    for (const [side, kn, ft] of legs) leg(side, kn, ft, o.robe ? shade(top, 0.9) : trousers, o.shoes);
+    if (o.robe) {
+      const bottom = Math.max(j.footN[1], j.footF[1]) - 6;
+      ctx.beginPath();
+      ctx.moveTo(-wide, -2);
+      ctx.lineTo(wide, -2);
+      ctx.lineTo(wide + 5, bottom);
+      ctx.lineTo(-wide - 5, bottom);
+      ctx.closePath();
+      ctx.fillStyle = top;
+      ctx.fill();
+    }
+    // arms hang at the torso's sides; the swing reads as a lift of the hand
+    const arm = (side, e, h) => {
+      const sx = side * (wide + 2);
+      const ex = sx + side * 3.5;
+      const hxx = sx + side * 3;
+      const ey = Math.max(sy + 8, e[1]);
+      const hy3 = Math.max(sy + 14, h[1]);
+      stroke([[sx, sy + 3], [ex, ey]], 10, shade(top, 0.92));
+      stroke([[ex, ey], [hxx, hy3]], o.sleeve === 'short' ? 7.5 : 9, o.sleeve === 'short' ? o.skin : shade(top, 0.92));
+      ctx.beginPath();
+      ctx.arc(hxx, hy3 + 1, 4.4, 0, Math.PI * 2);
+      ctx.fillStyle = o.skin;
+      ctx.fill();
+    };
+    // torso: shoulders wider than the hips
+    ctx.beginPath();
+    ctx.moveTo(-wide + 1, 2);
+    ctx.lineTo(wide - 1, 2);
+    ctx.lineTo(wide + 2, sy + 4);
+    ctx.quadraticCurveTo(wide, ny + 1, 6, ny);
+    ctx.lineTo(-6, ny);
+    ctx.quadraticCurveTo(-wide, ny + 1, -wide - 2, sy + 4);
+    ctx.closePath();
+    ctx.fillStyle = top;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.16)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    if (front) {
+      // a button line and collar
+      ctx.moveTo(0, ny + 3);
+      ctx.lineTo(0, -2);
+      ctx.moveTo(-5, ny + 1);
+      ctx.lineTo(0, ny + 6);
+      ctx.lineTo(5, ny + 1);
+    } else {
+      // shoulder blades
+      ctx.moveTo(-wide + 4, sy + 10);
+      ctx.quadraticCurveTo(0, sy + 16, wide - 4, sy + 10);
+    }
+    ctx.stroke();
+    arm(-1, j.elbowN, j.handN);
+    arm(1, j.elbowF, j.handF);
+    if (o.satchel) {
+      ctx.strokeStyle = shade(o.satchel, 0.9);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-wide + 3, ny + 2);
+      ctx.lineTo(wide - 2, -4);
+      ctx.stroke();
+      if (!front) {
+        ctx.fillStyle = o.satchel;
+        ctx.fillRect(wide - 12, -12, 16, 18);
+      }
+    }
+    // neck and head
+    const hr = L.head;
+    const hy2 = j.head[1];
+    limb(ctx, 0, ny + 2, 0, hy2 + hr * 0.6, 9, 8, o.skin);
+    ctx.save();
+    ctx.translate(0, hy2);
+    ctx.rotate(Math.sin(p.head) * 0.15);
+    const hair = dusty(o.hair);
+    if (o.headwear === 'hijab') {
+      ctx.beginPath();
+      ctx.ellipse(0, 1, hr * 1.12, hr * 1.28, 0, 0, Math.PI * 2);
+      ctx.moveTo(-hr * 1.1, 4);
+      ctx.quadraticCurveTo(-hr * 1.3, hr * 2.2, 0, hr * 2.3);
+      ctx.quadraticCurveTo(hr * 1.3, hr * 2.2, hr * 1.1, 4);
+      ctx.fillStyle = dusty(o.headColor);
+      ctx.fill();
+      if (front) {
+        ctx.beginPath();
+        ctx.ellipse(0, 1.5, hr * 0.66, hr * 0.84, 0, 0, Math.PI * 2);
+        ctx.fillStyle = o.skin;
+        ctx.fill();
+        this.drawFace(ctx, hr, o, true);
+      }
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, hr * 0.9, hr * 1.06, 0, 0, Math.PI * 2);
+      ctx.fillStyle = o.skin;
+      ctx.fill();
+      // ears
+      ctx.beginPath();
+      ctx.ellipse(-hr * 0.9, 1, 2.2, 3.4, 0, 0, Math.PI * 2);
+      ctx.ellipse(hr * 0.9, 1, 2.2, 3.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      if (front) {
+        // hairline across the top
+        ctx.ellipse(0, -hr * 0.45, hr * 0.92, hr * 0.62, 0, Math.PI, 0);
+      } else {
+        // the back of the head is all hair, down to the nape
+        ctx.ellipse(0, -1, hr * 0.94, hr * 1.02, 0, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = hair;
+      ctx.fill();
+      if (!front && (o.ponytail || o.braid)) {
+        ctx.strokeStyle = hair;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, hr * 0.6);
+        ctx.lineTo(0, o.braid ? hr * 2.3 : hr * 1.6);
+        ctx.stroke();
+      }
+      if (front) this.drawFace(ctx, hr, o, false);
+      if (o.headwear === 'kufi') {
+        ctx.beginPath();
+        ctx.ellipse(0, -hr * 0.55, hr * 0.92, hr * 0.5, 0, Math.PI, 0);
+        ctx.fillStyle = o.headColor;
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    if (this.prop) this.prop(ctx, [-(wide + 3), j.handN[1]], [wide + 3, j.handF[1]]);
+    ctx.restore();
+  }
+
+  // A face towards us: eyes, a brow, the beard. Kept as simple as the rest.
+  drawFace(ctx, hr, o, veiled) {
+    const bc = o.beardColor || shade(o.hair, 0.95);
+    if (!veiled && (o.beard === 'full' || o.beard === 'stubble')) {
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.86, 0);
+      ctx.quadraticCurveTo(-hr * 0.8, hr * (o.beard === 'full' ? 1.4 : 1.15), 0, hr * (o.beard === 'full' ? 1.5 : 1.2));
+      ctx.quadraticCurveTo(hr * 0.8, hr * (o.beard === 'full' ? 1.4 : 1.15), hr * 0.86, 0);
+      ctx.lineTo(hr * 0.5, hr * 0.42);
+      ctx.lineTo(-hr * 0.5, hr * 0.42);
+      ctx.closePath();
+      ctx.fillStyle = o.beard === 'full' ? bc : 'rgba(40,30,25,0.4)';
+      ctx.fill();
+    }
+    if (!veiled && (o.beard === 'moustache' || o.beard === 'full')) {
+      ctx.fillStyle = bc;
+      ctx.fillRect(-4.5, 4.5, 9, 2);
+    }
+    // brows and a mouth line
+    ctx.fillStyle = 'rgba(25,18,14,0.55)';
+    ctx.fillRect(-5.2, -3.6, 3.8, 1.1);
+    ctx.fillRect(1.4, -3.6, 3.8, 1.1);
+    ctx.fillRect(-2.2, hr * 0.5, 4.4, 1);
+    ctx.fillStyle = 'rgba(25,18,14,0.85)';
+    if (this.blink > 0) {
+      ctx.fillRect(-5, -0.5, 3.4, 1);
+      ctx.fillRect(1.6, -0.5, 3.4, 1);
+    } else {
+      ctx.beginPath();
+      ctx.arc(-3.3, -0.5, 1.4, 0, Math.PI * 2);
+      ctx.arc(3.3, -0.5, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  drawSide(ctx) {
     const j = this.solve();
     const [hx, hy] = this.hip();
     const o = this.o;
@@ -285,6 +535,14 @@ export class Person {
       ctx.ellipse(-3, -5, hr * 0.88, hr * 0.74, -0.3, 0, Math.PI * 2);
       ctx.fillStyle = dusty(o.hair);
       ctx.fill();
+      // the eye, blinking now and then
+      ctx.fillStyle = 'rgba(25,18,14,0.8)';
+      if (this.blink > 0) ctx.fillRect(4.2, -1.2, 3.2, 1);
+      else {
+        ctx.beginPath();
+        ctx.arc(5.6, -1, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
       if (o.ponytail || o.braid) {
         ctx.strokeStyle = o.hair;
         ctx.lineWidth = 4;

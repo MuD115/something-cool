@@ -15,6 +15,9 @@ export const DEFAULTS = {
   shake: true,
   reduceFlashes: false,
   hints: true,
+  lang: 'en', // menu language: 'en' | 'ar'
+  backing: 'light', // subtitle backing: 'off' | 'light' | 'dark'
+  quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'
   keys: DEFAULT_KEYS,
 };
 

@@ -7,34 +7,39 @@
 <meta name="description" content="Before I Knew · قبل ما عرفت. An interactive story set in besieged Ghouta, August 2014: an ordinary afternoon, a friend who goes home another way, and the hour before the news." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 <style>
   :root {
     color-scheme: dark;
     --night: #0b0a09;
-    --ink: #efe8dc;
-    --dust: #a79c8a;
+    --ink: #f5f1ea;
+    --paper: #efe6d4;
+    --dust: #aaa08e;
     --faint: #6d6558;
-    --leaf: #9bb068;
+    --leaf: #aec178;
     --leaf-deep: #5f7440;
-    --blood: #b24a3a;
-    --scrim: rgba(10, 9, 8, 0.72);
+    --blood: #c4563f;
+    --line: rgba(245, 241, 234, 0.14);
+    --glass: rgba(12, 11, 10, 0.62);
     --serif: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
+    --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
     --arabic: 'Noto Naskh Arabic', 'Geeza Pro', 'Arial', serif;
     --ruqaa: 'Aref Ruqaa', 'Noto Naskh Arabic', serif;
     --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
+    --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   }
   html, body { height: 100%; margin: 0; }
   body {
     background: var(--night);
     color: var(--ink);
-    font: 16px/1.45 var(--serif);
+    font: 16px/1.45 var(--sans);
     overflow: hidden;
     display: grid;
     place-items: center;
     -webkit-font-smoothing: antialiased;
   }
   [hidden] { display: none !important; }
+  button { font: inherit; }
   #stage {
     position: relative;
     width: 100vw;
@@ -48,11 +53,28 @@
   }
   #view { display: block; width: 100%; height: 100%; transition: transform 0.35s ease; }
   .ar { font-family: var(--arabic); direction: rtl; }
+  kbd {
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.9em;
+    padding: 0.28em 0.5em 0.34em;
+    font: 500 max(10px, calc(var(--t) * 0.8)) / 1 var(--mono);
+    color: var(--night);
+    background: var(--paper);
+    border-radius: 4px;
+    box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.28);
+  }
 
-  /* subtitle language modes (the menus always show both) */
+  /* subtitle language modes (the menus follow the menu language instead) */
   #stage[data-subs='en'] :is(#sub, #card, #choice, #prompt, #objective, #tools, #hint) .ar { display: none !important; }
   #stage[data-subs='ar'] :is(#sub, #card, #choice, #prompt, #objective, #tools) .en { display: none !important; }
   #stage[data-hints='off'] #hint, #stage[data-hints='off'] #prompt kbd { display: none !important; }
+  /* HUD only while playing, and never behind a menu or the end */
+  #stage:not(.playing) :is(#prompt, #hint, #tools, #objective, #sub, #choice),
+  #stage.paused :is(#prompt, #hint),
+  #stage.ended :is(#prompt, #hint, #tools, #objective, #card) { visibility: hidden; }
+  #stage:has(#choice:not([hidden])) :is(#sub, #prompt) { visibility: hidden; }
+  #stage.blackout :is(#tools, #objective, #hint, #prompt) { opacity: 0; transition: opacity 0.6s; }
 
   /* ------------------------------------------------------ subtitles -- */
   #sub {
@@ -60,26 +82,66 @@
     left: 50%;
     bottom: 5%;
     transform: translateX(-50%);
-    width: min(74%, 62ch);
-    text-align: center;
+    width: min(78%, 64ch);
+    display: grid;
+    justify-items: center;
     pointer-events: none;
-    text-shadow: 0 1px 3px #000, 0 0 16px rgba(0, 0, 0, 0.95);
+    z-index: 6;
   }
-  #sub .who { display: flex; justify-content: center; gap: 0.7em; margin-bottom: 0.25em; }
-  #sub .who .ar { font-size: max(12px, calc(var(--t) * 1.05)); color: var(--leaf); }
-  #sub .who .en { font: max(10px, calc(var(--t) * 0.78)) / 1.6 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--leaf); }
-  #sub p { margin: 0; text-wrap: balance; }
-  #sub p.ar { font-size: max(16px, calc(var(--t) * 1.8)); line-height: 1.55; }
-  #sub p.en { font-size: max(13px, calc(var(--t) * 1.28)); color: #d9d1c3; margin-top: 0.15em; }
-  #stage[data-subs='en'] #sub p.en { font-size: max(15px, calc(var(--t) * 1.6)); color: var(--ink); }
-  #sub[data-style='examine'] p.en, #sub[data-style='item'] p.en { font-style: italic; }
-  #sub[data-style='examine'] p.ar { color: #e0d6c4; }
-  #sub[data-style='item'] { border-top: 1px solid rgba(155, 176, 104, 0.5); border-bottom: 1px solid rgba(155, 176, 104, 0.5); padding: 0.4em 1em; background: rgba(10, 9, 8, 0.45); }
-  #sub[data-style='radio'] p { font-family: var(--mono); color: #cfd8c0; }
-  #sub[data-style='radio'] p.ar { font-family: var(--arabic); }
-  #sub[data-style='radio'] .who .en, #sub[data-style='radio'] .who .ar { color: #9fb4a0; }
-  #sub[data-style='whisper'] p { opacity: 0.82; font-style: italic; }
-  #sub[data-style='shout'] p.ar { font-weight: 600; }
+  .sub-box {
+    display: grid;
+    justify-items: center;
+    gap: 0.2em;
+    padding: 0.55em 1.1em 0.6em;
+    border-radius: 6px;
+    text-align: center;
+    color: #fff;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 12px rgba(0, 0, 0, 0.75);
+  }
+  #stage[data-backing='light'] .sub-box { background: rgba(0, 0, 0, 0.34); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
+  #stage[data-backing='dark'] .sub-box { background: rgba(0, 0, 0, 0.74); text-shadow: none; }
+  #sub .who {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55em;
+    margin-bottom: 0.3em;
+    padding: 0.18em 0.75em 0.22em;
+    border: 2px solid #fff;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.6);
+    text-shadow: none;
+  }
+  #sub .who .ar { font: 700 max(12px, calc(var(--t) * 1.02)) / 1.4 var(--arabic); color: #fff; }
+  #sub .who .en { font: 600 max(10px, calc(var(--t) * 0.74)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; }
+  #sub .who .sep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.5); }
+  #stage[data-subs='en'] #sub .who .sep, #stage[data-subs='ar'] #sub .who .sep { display: none; }
+  #sub p { margin: 0; text-wrap: balance; color: #fff; }
+  #sub p.ar { font-size: max(17px, calc(var(--t) * 1.8)); line-height: 1.55; font-weight: 600; }
+  #sub p.en { font: 500 max(14px, calc(var(--t) * 1.28)) / 1.4 var(--sans); }
+  #stage[data-subs='en'] #sub p.en { font-size: max(16px, calc(var(--t) * 1.55)); }
+  /* examine: a note, no speaker, a rule on the leading side */
+  #sub[data-style='examine'] .sub-box, #sub[data-style='item'] .sub-box {
+    justify-items: start;
+    text-align: start;
+    border-inline-start: 3px solid rgba(255, 255, 255, 0.85);
+    border-radius: 2px 6px 6px 2px;
+  }
+  #sub[data-style='examine'] p.ar, #sub[data-style='item'] p.ar { justify-self: stretch; text-align: right; font-weight: 400; }
+  #sub[data-style='examine'] p.en, #sub[data-style='item'] p.en { font-style: italic; font-family: var(--serif); font-weight: 400; }
+  /* radio: a dashed tag with a walkie icon; mono English */
+  #sub[data-style='radio'] .who { border-style: dashed; }
+  #sub[data-style='radio'] .who::before {
+    content: '';
+    width: 0.9em;
+    height: 0.9em;
+    background: #fff;
+    -webkit-mask: var(--walkie) center / contain no-repeat;
+    mask: var(--walkie) center / contain no-repeat;
+  }
+  #sub { --walkie: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 1h2v6h6a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V8a1 1 0 0 1 1-1z'/%3E%3C/svg%3E"); }
+  #sub[data-style='radio'] p.en { font-family: var(--mono); font-weight: 400; }
+  #sub[data-style='whisper'] p { opacity: 0.86; font-style: italic; }
+  #sub[data-style='shout'] p.ar { font-weight: 700; }
 
   #card {
     position: absolute;
@@ -97,9 +159,9 @@
     text-shadow: 0 0 18px #000;
   }
   #card.show { opacity: 1; }
-  #card p { margin: 0; display: grid; gap: 0.2em; }
-  #card .ar { font: max(18px, calc(var(--t) * 2.3)) / 1.5 var(--ruqaa); }
-  #card .en { font: max(12px, calc(var(--t) * 1.1)) / 1.4 var(--mono); letter-spacing: 0.12em; color: var(--dust); }
+  #card p { margin: 0; display: grid; gap: 0.35em; }
+  #card .ar { font: max(20px, calc(var(--t) * 2.5)) / 1.5 var(--ruqaa); }
+  #card .en { font: max(11px, calc(var(--t) * 0.95)) / 1.4 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--paper); opacity: 0.8; }
 
   /* ---------------------------------------------------- choices ------ */
   #choice {
@@ -107,125 +169,172 @@
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 2% 5% 3%;
+    z-index: 7;
+    padding: 3% 5% 3.4%;
     display: grid;
     justify-items: center;
-    gap: calc(var(--u) * 1);
-    background: linear-gradient(0deg, rgba(8, 7, 6, 0.9), rgba(8, 7, 6, 0.6) 70%, rgba(8, 7, 6, 0));
+    gap: calc(var(--u) * 1.1);
+    background: linear-gradient(0deg, rgba(8, 7, 6, 0.94), rgba(8, 7, 6, 0.7) 65%, rgba(8, 7, 6, 0));
     opacity: 0;
-    transform: translateY(8px);
-    transition: opacity 0.45s, transform 0.45s;
+    transform: translateY(10px);
+    transition: opacity 0.45s var(--ease), transform 0.45s var(--ease);
   }
   #choice.show { opacity: 1; transform: none; }
-  #choice[data-timed='on']::after {
+  #choice[data-timed='on']::before {
     content: '';
-    width: min(36%, 300px);
-    height: 2px;
-    background: linear-gradient(90deg, var(--blood) calc(var(--left, 1) * 100%), rgba(239, 232, 220, 0.15) 0);
+    width: min(40%, 320px);
+    height: 3px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--blood) calc(var(--left, 1) * 100%), rgba(245, 241, 234, 0.15) 0);
+    order: -1;
   }
-  .choice-prompt { margin: 0; display: grid; gap: 0.1em; text-align: center; }
-  .choice-prompt .ar { font-size: max(15px, calc(var(--t) * 1.5)); color: var(--dust); }
-  .choice-prompt .en { font-style: italic; color: var(--dust); }
-  .choice-opts { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--u) * 1.1); }
+  .choice-prompt { margin: 0; display: grid; gap: 0.15em; text-align: center; }
+  .choice-prompt .ar { font-size: max(15px, calc(var(--t) * 1.45)); color: var(--paper); }
+  .choice-prompt .en { font: italic max(12px, calc(var(--t) * 1.05)) / 1.3 var(--serif); color: var(--dust); }
+  .choice-opts { display: flex; flex-wrap: wrap; justify-content: center; gap: calc(var(--u) * 1); }
   .opt {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: auto 1fr;
     align-items: center;
     gap: 0.9em;
-    padding: 0.6em 1.3em;
-    font: inherit;
+    min-width: min(15em, 40vw);
+    padding: 0.7em 1.2em 0.75em 0.8em;
     color: var(--ink);
-    background: rgba(14, 13, 11, 0.8);
-    border: 1px solid rgba(155, 176, 104, 0.45);
+    background: rgba(18, 17, 14, 0.86);
+    border: 1px solid var(--line);
+    border-radius: 8px;
     cursor: pointer;
-    transition: background 0.2s, border-color 0.2s, opacity 0.4s;
+    transition: background 0.2s, border-color 0.2s, opacity 0.4s, transform 0.2s var(--ease);
+    animation: rise 0.5s var(--ease) both;
   }
-  .opt:hover, .opt:focus-visible { background: rgba(40, 46, 28, 0.9); border-color: var(--leaf); outline: none; }
-  .opt kbd { font: max(10px, calc(var(--t) * 0.85)) / 1 var(--mono); color: var(--leaf); }
-  .opt-text { display: grid; gap: 0.05em; text-align: start; }
-  .opt .ar { font-size: max(16px, calc(var(--t) * 1.6)); line-height: 1.4; }
-  .opt .en { font-size: max(12px, calc(var(--t) * 1.05)); color: #d9d1c3; }
-  .opt .note { font: max(10px, calc(var(--t) * 0.8)) / 1.3 var(--mono); color: var(--dust); }
-  .opt.picked { border-color: var(--leaf); background: rgba(60, 72, 36, 0.9); }
+  .opt:nth-child(2) { animation-delay: 0.07s; }
+  .opt:nth-child(3) { animation-delay: 0.14s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(8px); } }
+  .opt:hover, .opt:focus-visible { background: rgba(40, 46, 28, 0.94); border-color: var(--leaf); outline: none; transform: translateY(-2px); }
+  .opt kbd { font-size: max(12px, calc(var(--t) * 0.95)); min-width: 2em; min-height: 2em; border-radius: 50%; padding: 0; }
+  .opt-text { display: grid; gap: 0.1em; text-align: start; }
+  .opt .ar { font-size: max(16px, calc(var(--t) * 1.55)); line-height: 1.4; font-weight: 600; text-align: right; }
+  .opt .en { font-size: max(12px, calc(var(--t) * 1)); color: #ddd6c9; }
+  .opt .note { font: max(10px, calc(var(--t) * 0.78)) / 1.3 var(--mono); color: var(--dust); }
+  .opt.picked { border-color: var(--leaf); background: rgba(60, 72, 36, 0.94); }
   .opt.faded { opacity: 0.25; }
 
   /* ------------------------------------------------ prompts & hints -- */
   #prompt {
     position: absolute;
     left: 50%;
-    top: 20%;
+    top: 17%;
     transform: translateX(-50%);
     display: flex;
     align-items: center;
-    gap: 0.8em;
-    padding: 0.5em 1.1em;
-    background: var(--scrim);
-    border: 1px solid rgba(239, 232, 220, 0.2);
+    gap: 0.75em;
+    padding: 0.45em 1.1em 0.45em 0.5em;
+    background: var(--glass);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    border: 1px solid rgba(245, 241, 234, 0.22);
+    border-radius: 999px;
     pointer-events: none;
-    animation: breathe 2.4s ease-in-out infinite;
+    animation: pop 0.35s var(--ease) both, glow 2.4s ease-in-out 0.4s infinite;
+    z-index: 5;
   }
-  #prompt kbd { font: 500 max(11px, calc(var(--t) * 0.95)) / 1 var(--mono); color: var(--night); background: var(--ink); padding: 0.35em 0.55em; border-radius: 2px; }
-  #prompt .ar { font-size: max(15px, calc(var(--t) * 1.45)); }
-  #prompt .en { font-size: max(12px, calc(var(--t) * 1.05)); color: #d9d1c3; }
-  @keyframes breathe { 50% { border-color: rgba(155, 176, 104, 0.7); } }
+  #prompt kbd { font-size: max(12px, calc(var(--t) * 0.95)); min-height: 1.9em; border-radius: 999px; padding-inline: 0.7em; }
+  #prompt .ar { font-size: max(15px, calc(var(--t) * 1.4)); font-weight: 600; }
+  #prompt .en { font: 500 max(12px, calc(var(--t) * 1)) / 1 var(--sans); color: #e6e0d4; }
+  @keyframes pop { from { opacity: 0; transform: translate(-50%, 6px) scale(0.96); } }
+  @keyframes glow { 50% { border-color: rgba(174, 193, 120, 0.8); box-shadow: 0 0 0 4px rgba(174, 193, 120, 0.12); } }
 
   #hint {
     position: absolute;
-    transform: translate(-50%, -130%);
+    transform: translate(-50%, calc(-100% - 14px));
     display: flex;
     align-items: center;
     gap: 0.5em;
-    padding: 0.3em 0.6em;
-    background: var(--scrim);
-    border: 1px solid rgba(239, 232, 220, 0.18);
-    font: max(10px, calc(var(--t) * 0.85)) / 1.2 var(--mono);
+    padding: 0.3em 0.65em 0.3em 0.35em;
+    background: var(--glass);
+    border: 1px solid rgba(245, 241, 234, 0.2);
+    border-radius: 6px;
+    font: 500 max(10px, calc(var(--t) * 0.82)) / 1.2 var(--sans);
     white-space: nowrap;
     pointer-events: none;
+    animation: fadeIn 0.25s ease both;
+    z-index: 4;
   }
-  #hint kbd { font: inherit; color: var(--night); background: var(--ink); padding: 0.15em 0.4em; border-radius: 2px; }
+  #hint::after {
+    content: '';
+    position: absolute;
+    left: 50%;
+    top: 100%;
+    width: 8px;
+    height: 8px;
+    background: inherit;
+    border: inherit;
+    border-width: 0 1px 1px 0;
+    transform: translate(-50%, -4px) rotate(45deg);
+  }
+  #hint kbd { font-size: max(9px, calc(var(--t) * 0.72)); }
+  @keyframes fadeIn { from { opacity: 0; } }
 
   #objective {
     position: absolute;
-    left: 2.2%;
+    inset-inline-start: 2.2%;
     top: 5%;
-    display: grid;
-    gap: 0.1em;
-    padding-left: 0.8em;
-    border-left: 2px solid var(--leaf-deep);
+    display: flex;
+    align-items: center;
+    gap: 0.7em;
+    padding: 0.45em 0.8em 0.45em 0.6em;
+    border-radius: 6px;
+    background: rgba(12, 11, 10, 0.4);
     text-shadow: 0 1px 6px #000;
     pointer-events: none;
+    transition: background 0.6s, opacity 0.6s;
+    z-index: 3;
   }
-  #objective .ar { font-size: max(13px, calc(var(--t) * 1.15)); }
-  #objective .en { font: max(10px, calc(var(--t) * 0.8)) / 1.4 var(--mono); color: var(--dust); letter-spacing: 0.06em; }
+  .obj-mark { width: 9px; height: 9px; transform: rotate(45deg); border: 2px solid var(--leaf); flex: none; }
+  .obj-text { display: grid; gap: 0.05em; overflow: hidden; max-width: 40vw; transition: max-width 0.8s var(--ease), opacity 0.6s; }
+  #objective .ar { font-size: max(13px, calc(var(--t) * 1.1)); font-weight: 600; }
+  #objective .en { font: max(10px, calc(var(--t) * 0.78)) / 1.4 var(--sans); color: var(--dust); letter-spacing: 0.02em; white-space: nowrap; }
+  #objective:not(.fresh) { background: transparent; opacity: 0.7; }
+  #objective:not(.fresh) .obj-text { max-width: 0; opacity: 0; }
+  #objective.fresh .obj-mark { background: var(--leaf); }
 
   #tools {
     position: absolute;
-    left: 2.2%;
+    inset-inline-start: 2.2%;
     bottom: 5%;
     display: flex;
-    gap: 6px;
+    gap: 8px;
     pointer-events: none;
+    transition: opacity 0.5s;
+    z-index: 3;
   }
-  .tool {
+  #stage:has(#sub:not([hidden])) #tools { opacity: 0.35; }
+  .tool { display: flex; align-items: center; gap: 0.55em; opacity: 0.55; transition: opacity 0.3s; }
+  .tool.active { opacity: 1; }
+  .tool-badge {
+    position: relative;
     display: grid;
-    grid-template-columns: auto auto;
-    align-items: center;
-    gap: 0.5em;
-    padding: 0.35em 0.6em;
-    background: rgba(10, 9, 8, 0.5);
-    border: 1px solid rgba(239, 232, 220, 0.12);
-    opacity: 0.6;
+    place-items: center;
+    width: max(30px, calc(var(--u) * 2.6));
+    height: max(30px, calc(var(--u) * 2.6));
+    border-radius: 50%;
+    background: var(--glass);
+    border: 1px solid var(--line);
+    color: var(--dust);
   }
-  .tool.active { opacity: 1; border-color: rgba(155, 176, 104, 0.55); }
-  .tool-name { display: grid; }
-  .tool-name .ar { font-size: max(11px, calc(var(--t) * 0.9)); }
-  .tool-name .en { font: max(9px, calc(var(--t) * 0.68)) / 1.2 var(--mono); color: var(--dust); }
-  .tool-icon { width: 18px; height: 18px; background: var(--dust); mask: var(--icon) center / contain no-repeat; -webkit-mask: var(--icon) center / contain no-repeat; }
-  .tool-icon[data-tool='torch'] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 9h8l6-4v14l-6-4H6z'/%3E%3C/svg%3E"); }
-  .tool-icon[data-tool='mirror'] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 20 9 3l11 5-7 13z'/%3E%3C/svg%3E"); }
-  .tool-icon[data-tool='walkie'] { --icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M8 1h2v5h5v17H7V6h1z'/%3E%3C/svg%3E"); }
-  .tool.active .tool-icon { background: var(--leaf); }
-  .charge { grid-column: 1 / -1; height: 3px; background: linear-gradient(90deg, #e9c46a calc(var(--c) * 100%), rgba(239, 232, 220, 0.12) 0); }
-  .charge.on { box-shadow: 0 0 8px rgba(233, 196, 106, 0.7); }
+  .tool.active .tool-badge { border-color: rgba(174, 193, 120, 0.7); color: var(--ink); }
+  .tool-icon { width: 58%; height: 58%; }
+  .tool-icon .beam { opacity: 0; }
+  .tool.lit .tool-icon .beam { opacity: 1; color: #f2cf73; }
+  .tool.lit .tool-badge { box-shadow: 0 0 12px rgba(242, 207, 115, 0.45); }
+  .tool-ring { position: absolute; inset: -3px; width: calc(100% + 6px); height: calc(100% + 6px); transform: rotate(-90deg); }
+  .ring-bg { fill: none; stroke: rgba(245, 241, 234, 0.12); stroke-width: 2.4; }
+  .ring-fg { fill: none; stroke: #e9c46a; stroke-width: 2.4; stroke-linecap: round; transition: stroke-dasharray 0.3s; }
+  .tool-name { display: none; }
+  .tool.active .tool-name { display: grid; }
+  .tool-name .ar { font-size: max(11px, calc(var(--t) * 0.9)); font-weight: 600; text-shadow: 0 1px 4px #000; }
+  .tool-name .en { font: max(9px, calc(var(--t) * 0.7)) / 1.2 var(--sans); color: var(--dust); text-shadow: 0 1px 4px #000; }
+  .tool-key { font-size: max(9px, calc(var(--t) * 0.68)); }
 
   /* the mirror shard: the view flips and is cropped to a jagged piece */
   #stage.mirror #view { transform: scaleX(-1); }
@@ -238,73 +347,205 @@
     inset: 0;
     z-index: 20;
     display: grid;
-    align-content: center;
+    align-content: safe center;
     justify-items: start;
-    padding: 12px 7%;
+    padding: 16px 7%;
     overflow-y: auto;
-    background: linear-gradient(90deg, rgba(8, 7, 6, 0.9) 0%, rgba(8, 7, 6, 0.65) 45%, rgba(8, 7, 6, 0.15) 100%);
+    background:
+      linear-gradient(90deg, rgba(8, 7, 6, 0.94) 0%, rgba(8, 7, 6, 0.7) 42%, rgba(8, 7, 6, 0.1) 100%),
+      linear-gradient(0deg, rgba(8, 7, 6, 0.5), rgba(8, 7, 6, 0) 40%);
+    animation: fadeIn 0.35s ease both;
   }
-  .menu[data-mode='pause'] { background: rgba(8, 7, 6, 0.78); justify-items: center; }
-  .menu-panel { display: grid; gap: calc(var(--u) * 0.6); max-width: min(560px, 100%); padding: 4px; }
-  .menu-header { display: grid; gap: calc(var(--u) * 0.6); margin-bottom: calc(var(--u) * 1); }
-  .menu-header .kicker { margin: 0; display: flex; gap: 0.8em; align-items: baseline; }
-  .menu-header .kicker .ar { font-size: max(12px, calc(var(--u) * 1)); color: var(--leaf); }
-  .menu-header .kicker .en { font: max(10px, calc(var(--u) * 0.75)) / 1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--dust); }
-  .menu h1 { margin: 0; display: grid; gap: 0.1em; line-height: 1; }
-  .menu h1 .ar { font: 700 max(34px, calc(var(--u) * 3.9)) / 1.15 var(--ruqaa); color: var(--ink); }
-  .menu h1 .en { font: 400 max(18px, calc(var(--u) * 1.6)) / 1 var(--serif); letter-spacing: 0.04em; color: #d9d1c3; }
-  .menu .tagline { margin: 0; max-width: 48ch; font-style: italic; color: #cfc6b7; font-size: max(12px, calc(var(--u) * 0.95)); }
-  .menu-list { display: grid; gap: 2px; justify-items: stretch; min-width: min(280px, 100%); }
-  .menu-btn, .menu-back, .menu-link {
-    font: inherit;
+  .menu[dir='rtl'] { background: linear-gradient(270deg, rgba(8, 7, 6, 0.94) 0%, rgba(8, 7, 6, 0.7) 42%, rgba(8, 7, 6, 0.1) 100%), linear-gradient(0deg, rgba(8, 7, 6, 0.5), rgba(8, 7, 6, 0) 40%); }
+  .menu[dir='rtl'], .menu[dir='rtl'] :is(button, select, input, p, h2, h3, span) { font-family: var(--arabic); }
+  .menu[dir='rtl'] kbd, .menu[dir='rtl'] .menu-key, .menu[dir='rtl'] .menu-btn-n { font-family: var(--mono); }
+  .menu[data-mode='pause'], .menu:not([data-page='main']) {
+    background: rgba(8, 7, 6, 0.72);
+    backdrop-filter: blur(8px) saturate(0.7);
+    -webkit-backdrop-filter: blur(8px) saturate(0.7);
+    justify-items: center;
+  }
+  .menu-panel { display: grid; gap: calc(var(--u) * 0.7); width: min(620px, 100%); padding: 4px; animation: rise 0.45s var(--ease) both; }
+  .menu-panel.page-main { width: min(520px, 100%); }
+  .page-main .menu-list { width: min(360px, 100%); }
+  .menu-panel.page-settings { width: min(920px, 100%); }
+  .page-settings .menu-form { display: block; columns: 2 300px; column-gap: 22px; }
+  .page-settings .menu-form > * { break-inside: avoid; margin-bottom: 3px; }
+  .page-settings .menu-group { break-after: avoid; }
+  .page-settings .menu-row { padding-block: 0.38em; }
+  .page-settings .menu-row.type-range { grid-template-columns: minmax(0, 1fr) auto auto; }
+  .page-settings input[type='range'] { width: min(150px, 30vw); }
+  .menu-header { display: grid; gap: calc(var(--u) * 0.55); margin-bottom: calc(var(--u) * 1.2); }
+  .menu-header .kicker { margin: 0; display: flex; gap: 0.8em; align-items: center; font: 500 max(10px, calc(var(--u) * 0.75)) / 1 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--leaf); }
+  .menu[dir='rtl'] .menu-header .kicker { letter-spacing: 0; font: 600 max(12px, calc(var(--u) * 0.95)) / 1 var(--arabic); }
+  .kicker-rule { width: 2.4em; height: 1px; background: var(--leaf); }
+  .menu h1 { margin: 0; display: grid; gap: 0.15em; line-height: 1; }
+  .menu h1 .ar { font: 700 max(40px, calc(var(--u) * 4.6)) / 1.15 var(--ruqaa); color: var(--ink); text-shadow: 0 2px 24px rgba(0, 0, 0, 0.6); justify-self: start; }
+  .menu h1 .en { font: 400 max(17px, calc(var(--u) * 1.45)) / 1 var(--serif); letter-spacing: 0.32em; text-transform: uppercase; color: var(--paper); opacity: 0.85; }
+  .menu[dir='rtl'] h1 .en { justify-self: start; direction: ltr; }
+  .menu .tagline { margin: 0.4em 0 0; max-width: 44ch; font: italic max(13px, calc(var(--u) * 0.98)) / 1.5 var(--serif); color: #d7cfc1; }
+  .menu[dir='rtl'] .tagline { font-style: normal; font-size: max(14px, calc(var(--u) * 1.05)); }
+  .menu-list { display: grid; gap: 2px; justify-items: stretch; min-width: min(300px, 100%); }
+  .menu-btn {
+    position: relative;
+    display: grid;
+    grid-template-columns: 2.2em 1fr;
+    align-items: baseline;
+    gap: 0.4em;
+    padding: 0.5em 0.8em;
     color: var(--ink);
     background: none;
     border: 0;
-    border-left: 2px solid transparent;
+    border-radius: 6px;
     text-align: start;
-    padding: 0.32em 0.9em;
     cursor: pointer;
-    display: grid;
+    transition: background 0.2s, color 0.2s;
   }
-  .menu-btn-label { font-size: max(14px, calc(var(--u) * 1.15)); }
-  .menu-btn-sub { font: max(10px, calc(var(--u) * 0.72)) / 1.3 var(--mono); color: var(--dust); letter-spacing: 0.06em; }
-  .menu-btn:hover, .menu-btn:focus-visible { border-left-color: var(--leaf); background: rgba(155, 176, 104, 0.08); outline: none; }
-  .menu-back, .menu-link { font: max(11px, calc(var(--u) * 0.85)) / 1 var(--mono); color: var(--dust); padding: 0.8em 0.9em; }
-  .menu-back:hover, .menu-back:focus-visible, .menu-link:hover, .menu-link:focus-visible { color: var(--ink); outline: none; border-left-color: var(--leaf); }
-  .menu-title { margin: 0 0 0.3em; font: 600 max(20px, calc(var(--u) * 2)) / 1.1 var(--serif); }
-  .menu-sub { margin: 0; color: var(--dust); font-size: max(12px, calc(var(--u) * 0.9)); max-width: 52ch; }
-  .menu-form, .menu-keys { display: grid; gap: 4px; min-width: min(460px, 100%); }
+  .menu-btn-n { font: 500 max(10px, calc(var(--u) * 0.7)) / 1 var(--mono); color: var(--faint); transition: color 0.2s; }
+  .menu-btn-text { display: grid; gap: 0.15em; }
+  .menu-btn-label { position: relative; justify-self: start; font: 400 max(16px, calc(var(--u) * 1.3)) / 1.2 var(--serif); }
+  .menu[dir='rtl'] .menu-btn-label { font: 600 max(16px, calc(var(--u) * 1.3)) / 1.4 var(--arabic); }
+  .menu-btn-label::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    bottom: -3px;
+    height: 1px;
+    background: var(--leaf);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.35s var(--ease);
+  }
+  .menu[dir='rtl'] .menu-btn-label::after { transform-origin: right; }
+  .menu-btn-sub { font: max(10px, calc(var(--u) * 0.72)) / 1.3 var(--mono); color: var(--dust); letter-spacing: 0.04em; }
+  .menu-btn:hover, .menu-btn:focus-visible { background: rgba(174, 193, 120, 0.08); outline: none; }
+  .menu-btn:focus-visible { box-shadow: 0 0 0 2px rgba(174, 193, 120, 0.6); }
+  .menu-btn:hover .menu-btn-label::after, .menu-btn:focus-visible .menu-btn-label::after { transform: scaleX(1); }
+  .menu-btn:hover .menu-btn-n, .menu-btn:focus-visible .menu-btn-n { color: var(--leaf); }
+  .menu-back, .menu-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5em;
+    justify-self: start;
+    font: 500 max(11px, calc(var(--u) * 0.85)) / 1 var(--sans);
+    color: var(--dust);
+    background: none;
+    border: 1px solid transparent;
+    border-radius: 6px;
+    padding: 0.7em 0.9em;
+    cursor: pointer;
+  }
+  .menu-back-arrow::before { content: '←'; }
+  .menu[dir='rtl'] .menu-back-arrow::before { content: '→'; }
+  .menu-back:hover, .menu-back:focus-visible, .menu-link:hover, .menu-link:focus-visible { color: var(--ink); outline: none; border-color: var(--line); }
+  .menu-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; margin-top: 0.4em; }
+  .menu-title { margin: 0 0 0.2em; font: 600 max(22px, calc(var(--u) * 2)) / 1.1 var(--serif); }
+  .menu[dir='rtl'] .menu-title { font: 700 max(22px, calc(var(--u) * 2)) / 1.3 var(--arabic); }
+  .menu-sub { margin: 0; color: var(--dust); font-size: max(12px, calc(var(--u) * 0.88)); max-width: 56ch; }
+  .menu-cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.8fr); gap: calc(var(--u) * 3); align-items: start; }
+  .menu-col { display: grid; gap: 0.5em; }
+  .menu-aside { display: grid; gap: 0.15em; padding-inline-start: 1.4em; border-inline-start: 1px solid var(--line); margin-top: 3.2em; }
+  .aside-k { margin: 0.8em 0 0; font: 500 max(9px, calc(var(--u) * 0.66)) / 1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--leaf); }
+  .menu[dir='rtl'] .aside-k { font: 600 max(11px, calc(var(--u) * 0.8)) / 1.2 var(--arabic); letter-spacing: 0; }
+  .aside-k:first-child { margin-top: 0; }
+  .aside-v { margin: 0; color: var(--paper); font-size: max(13px, calc(var(--u) * 0.95)); }
+  .menu-form, .menu-keys { display: grid; gap: 3px; }
+  .menu-group { margin: 0.9em 0 0.2em; font: 500 max(9px, calc(var(--u) * 0.66)) / 1 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--leaf); }
+  .menu[dir='rtl'] .menu-group { font: 700 max(12px, calc(var(--u) * 0.85)) / 1.2 var(--arabic); letter-spacing: 0; }
+  .menu-group:first-child { margin-top: 0; }
   .menu-row, .menu-key-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) auto auto;
     align-items: center;
-    gap: 12px;
-    padding: 0.4em 0.9em;
-    background: rgba(239, 232, 220, 0.04);
-    font-size: max(13px, calc(var(--u) * 1));
-  }
-  .menu-key-row { grid-template-columns: minmax(0, 1fr) auto; }
-  .menu-row-label .ar { color: var(--dust); margin-inline-start: 0.5em; font-size: 0.9em; }
-  .menu-row-value { font: max(11px, calc(var(--u) * 0.8)) / 1 var(--mono); color: var(--dust); min-width: 3.5em; text-align: end; }
-  .menu input[type='range'] { accent-color: var(--leaf); width: min(200px, 40vw); }
-  .menu input[type='checkbox'] { accent-color: var(--leaf); width: 18px; height: 18px; }
-  .menu select { font: inherit; color: var(--ink); background: #1a1815; border: 1px solid rgba(239, 232, 220, 0.2); padding: 0.25em 0.4em; }
-  .menu-key-slots { display: flex; gap: 6px; }
-  .menu-key {
-    font: max(11px, calc(var(--u) * 0.85)) / 1 var(--mono);
-    min-width: 5.5em;
-    padding: 0.45em 0.6em;
-    color: var(--ink);
-    background: #1a1815;
-    border: 1px solid rgba(239, 232, 220, 0.2);
+    gap: 14px;
+    padding: 0.45em 0.9em;
+    background: rgba(245, 241, 234, 0.045);
+    border-radius: 6px;
+    font-size: max(13px, calc(var(--u) * 0.98));
     cursor: pointer;
   }
-  .menu-key.static { cursor: default; }
+  .menu-row:hover, .menu-row:focus-within { background: rgba(245, 241, 234, 0.08); }
+  .menu-row.type-select, .menu-row.type-toggle, .menu-key-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .menu-row-value { font: max(11px, calc(var(--u) * 0.78)) / 1 var(--mono); color: var(--dust); min-width: 3.4em; text-align: end; }
+  .menu input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    width: min(200px, 36vw);
+    height: 4px;
+    border-radius: 2px;
+    background: linear-gradient(90deg, var(--leaf) var(--fill, 50%), rgba(245, 241, 234, 0.16) 0);
+    outline: none;
+  }
+  .menu[dir='rtl'] input[type='range'] { background: linear-gradient(270deg, var(--leaf) var(--fill, 50%), rgba(245, 241, 234, 0.16) 0); }
+  .menu input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--ink); border: 3px solid var(--night); box-shadow: 0 0 0 1px var(--leaf); }
+  .menu input[type='range']::-moz-range-thumb { width: 12px; height: 12px; border-radius: 50%; background: var(--ink); border: 3px solid var(--night); box-shadow: 0 0 0 1px var(--leaf); }
+  .menu input[type='range']:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--leaf); }
+  .menu input[type='checkbox'] {
+    -webkit-appearance: none;
+    appearance: none;
+    position: relative;
+    width: 38px;
+    height: 22px;
+    margin: 0;
+    border-radius: 11px;
+    background: rgba(245, 241, 234, 0.16);
+    transition: background 0.2s;
+    cursor: pointer;
+  }
+  .menu input[type='checkbox']::before {
+    content: '';
+    position: absolute;
+    top: 3px;
+    inset-inline-start: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--ink);
+    transition: transform 0.2s var(--ease);
+  }
+  .menu input[type='checkbox']:checked { background: var(--leaf-deep); }
+  .menu input[type='checkbox']:checked::before { transform: translateX(16px); background: var(--leaf); }
+  .menu[dir='rtl'] input[type='checkbox']:checked::before { transform: translateX(-16px); }
+  .menu input[type='checkbox']:focus-visible, .menu select:focus-visible { outline: 2px solid var(--leaf); outline-offset: 2px; }
+  .menu select {
+    -webkit-appearance: none;
+    appearance: none;
+    font: inherit;
+    color: var(--ink);
+    background: #1b1916 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23aaa08e' stroke-width='1.6'/%3E%3C/svg%3E") no-repeat right 0.6em center / 0.7em;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0.3em 2em 0.3em 0.7em;
+    cursor: pointer;
+  }
+  .menu[dir='rtl'] select { background-position: left 0.6em center; padding: 0.3em 0.7em 0.3em 2em; }
+  .menu-key-slots { display: flex; gap: 6px; }
+  .menu-key {
+    font: max(11px, calc(var(--u) * 0.82)) / 1 var(--mono);
+    min-width: 5.5em;
+    padding: 0.5em 0.6em;
+    color: var(--ink);
+    background: #1b1916;
+    border: 1px solid var(--line);
+    border-bottom-width: 2px;
+    border-radius: 6px;
+    cursor: pointer;
+  }
   .menu-key:hover, .menu-key:focus-visible { border-color: var(--leaf); outline: none; }
-  .menu-key.listening { border-color: var(--blood); color: #f0b9ae; }
-  .menu-about { max-width: 58ch; color: #d9d1c3; font-size: max(13px, calc(var(--u) * 1)); }
-  .menu-about h3 { margin: 1em 0 0.2em; font: 500 max(11px, calc(var(--u) * 0.8)) / 1 var(--mono); letter-spacing: 0.14em; text-transform: uppercase; color: var(--leaf); }
-  .menu-about p { margin: 0.4em 0; }
+  .menu-key.listening { border-color: var(--blood); color: #f4c0b4; }
+  .menu-about { max-width: 58ch; color: #ddd6c9; font-size: max(13px, calc(var(--u) * 0.98)); }
+  .menu-about h3 { margin: 1em 0 0.2em; font: 500 max(10px, calc(var(--u) * 0.72)) / 1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--leaf); }
+  .menu[dir='rtl'] .menu-about h3 { font: 700 max(13px, calc(var(--u) * 0.9)) / 1.3 var(--arabic); letter-spacing: 0; }
+  .menu-about p { margin: 0.45em 0; }
+  .menu-log { max-height: min(56vh, 420px); overflow-y: auto; display: grid; gap: 10px; padding: 0.6em 0.4em 0.6em 0; outline: none; }
+  .log-row { display: grid; gap: 0.25em; justify-items: start; }
+  .log-who { display: inline-flex; gap: 0.5em; padding: 0.1em 0.55em; border: 1.5px solid rgba(255, 255, 255, 0.85); border-radius: 4px; font: 600 max(10px, calc(var(--u) * 0.7)) / 1.4 var(--sans); text-transform: uppercase; letter-spacing: 0.1em; }
+  .log-who .ar { text-transform: none; letter-spacing: 0; }
+  .log-row.style-radio .log-who { border-style: dashed; }
+  .log-lines { display: grid; gap: 0.1em; justify-self: stretch; }
+  .log-lines .ar { text-align: right; font-size: max(14px, calc(var(--u) * 1.05)); }
+  .log-lines .en { color: #ddd6c9; font-size: max(12px, calc(var(--u) * 0.88)); }
+  .log-row.style-examine .log-lines { border-inline-start: 2px solid var(--line); padding-inline-start: 0.7em; font-style: italic; }
 
   /* --------------------------------------------- note, end, touch --- */
   .sheet {
@@ -314,66 +555,91 @@
     display: grid;
     align-content: center;
     justify-items: center;
-    gap: calc(var(--u) * 1.2);
+    gap: calc(var(--u) * 1.1);
     padding: 0 12%;
     text-align: center;
-    background: rgba(8, 7, 6, 0.94);
+    background: rgba(8, 7, 6, 0.96);
+    animation: fadeIn 0.4s ease both;
   }
-  .sheet h2 { margin: 0; font: 600 max(20px, calc(var(--u) * 2.2)) / 1.2 var(--serif); }
-  .sheet p { margin: 0; max-width: 56ch; color: #d9d1c3; font-size: max(13px, calc(var(--u) * 1.05)); }
-  .sheet .ar { font-size: max(15px, calc(var(--u) * 1.3)); }
-  .sheet-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+  .sheet[dir='rtl'], .sheet[dir='rtl'] :is(p, h2, button, span) { font-family: var(--arabic); }
+  .sheet h2 { margin: 0; font: 600 max(22px, calc(var(--u) * 2.2)) / 1.2 var(--serif); }
+  .sheet[dir='rtl'] h2 { font-weight: 700; }
+  .sheet p { margin: 0; max-width: 54ch; color: #ddd6c9; font-size: max(13px, calc(var(--u) * 1.02)); }
+  .sheet .sheet-quiet { color: var(--dust); font-size: max(12px, calc(var(--u) * 0.88)); }
+  .sheet-btns { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 0.4em; }
   .sheet button {
-    font: max(13px, calc(var(--u) * 1.05)) / 1 var(--serif);
+    font: 500 max(13px, calc(var(--u) * 0.98)) / 1 var(--sans);
     color: var(--ink);
-    background: rgba(40, 46, 28, 0.7);
-    border: 1px solid var(--leaf-deep);
-    padding: 0.75em 1.6em;
+    background: none;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    padding: 0.8em 1.6em;
     cursor: pointer;
+    transition: background 0.2s, border-color 0.2s;
   }
-  .sheet button.quiet { background: none; border-color: rgba(239, 232, 220, 0.2); }
+  .sheet button.primary { background: var(--paper); color: var(--night); border-color: var(--paper); }
   .sheet button:hover, .sheet button:focus-visible { border-color: var(--leaf); outline: none; }
-  #end { opacity: 0; transition: opacity 1.6s; }
+  .sheet button.primary:hover, .sheet button.primary:focus-visible { background: #fff; box-shadow: 0 0 0 3px rgba(174, 193, 120, 0.5); }
+  #end { opacity: 0; transition: opacity 1.6s; background: rgba(8, 7, 6, 0.985); }
   #end.show { opacity: 1; }
-  #end { background: rgba(8, 7, 6, 0.985); }
-  #stage.ended #tools, #stage.ended #objective, #stage.ended #card { visibility: hidden; }
-  #end-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5em; max-width: 58ch; font-style: italic; color: #d9d1c3; font-size: max(13px, calc(var(--u) * 1.1)); }
-  #end-list li::before { content: '— '; color: var(--leaf); font-style: normal; }
-  .kicker-small { font: max(10px, calc(var(--u) * 0.75)) / 1 var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--dust); margin: 0; }
+  #end h2 { display: grid; gap: 0.1em; }
+  #end h2 .ar { font: 700 max(30px, calc(var(--u) * 3)) / 1.2 var(--ruqaa); }
+  .end-en { font: 400 max(12px, calc(var(--u) * 0.9)) / 1 var(--serif); letter-spacing: 0.3em; text-transform: uppercase; color: var(--dust); direction: ltr; }
+  .timeline { list-style: none; margin: 0.4em 0; padding: 0; display: grid; gap: 0; text-align: start; max-width: 58ch; width: 100%; }
+  .timeline li { position: relative; display: grid; grid-template-columns: 4.2em 1fr; gap: 1.1em; padding: 0.45em 0; }
+  .timeline li::before { content: ''; position: absolute; inset-inline-start: calc(4.2em + 0.5em); top: 0; bottom: 0; width: 1px; background: var(--line); }
+  .timeline li:first-child::before { top: 50%; }
+  .timeline li:last-child::before { bottom: 50%; }
+  .timeline li::after { content: ''; position: absolute; inset-inline-start: calc(4.2em + 0.5em - 4px); top: calc(50% - 4px); width: 9px; height: 9px; border-radius: 50%; background: var(--leaf); }
+  .timeline li.tl-start::after, .timeline li.tl-end::after { background: var(--night); border: 1px solid var(--dust); }
+  .timeline time { font: 500 max(11px, calc(var(--u) * 0.8)) / 1.6 var(--mono); color: var(--dust); text-align: end; }
+  .timeline span { font: italic max(13px, calc(var(--u) * 1.02)) / 1.45 var(--serif); color: #e4ddd0; }
+  .sheet[dir='rtl'] .timeline span { font-style: normal; font-family: var(--arabic); }
+  .timeline li.tl-start span, .timeline li.tl-end span { color: var(--dust); }
+  .kicker-small { font: 500 max(10px, calc(var(--u) * 0.72)) / 1 var(--mono) !important; letter-spacing: 0.22em; text-transform: uppercase; color: var(--leaf) !important; margin: 0; }
+  .sheet[dir='rtl'] .kicker-small { font: 700 max(12px, calc(var(--u) * 0.85)) / 1.2 var(--arabic) !important; letter-spacing: 0; }
 
   #touch { position: absolute; inset: 0; pointer-events: none; display: none; z-index: 10; }
   @media (pointer: coarse) { #stage.playing #touch { display: block; } }
   .tpad { position: absolute; bottom: 4%; display: flex; gap: 8px; pointer-events: auto; }
   .tpad.left { left: 3%; }
   .tpad.right { right: 3%; flex-wrap: wrap; justify-content: flex-end; max-width: 46%; }
-  .tpad button {
+  .tpad button, #t-menu {
     width: 52px;
     height: 52px;
     border-radius: 50%;
-    border: 1px solid rgba(239, 232, 220, 0.3);
-    background: rgba(10, 9, 8, 0.45);
+    border: 1px solid rgba(245, 241, 234, 0.28);
+    background: rgba(12, 11, 10, 0.5);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
     color: var(--ink);
-    font: 11px/1 var(--mono);
+    font: 500 12px/1 var(--mono);
     touch-action: none;
+    display: grid;
+    place-items: center;
   }
-  .tpad button.down { background: rgba(155, 176, 104, 0.35); }
-  #t-menu { position: absolute; top: 4%; right: 3%; pointer-events: auto; width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(239, 232, 220, 0.3); background: rgba(10, 9, 8, 0.45); color: var(--ink); font: 16px/1 var(--mono); }
+  .tpad button svg { width: 22px; height: 22px; }
+  .tpad button.down { background: rgba(174, 193, 120, 0.35); }
+  #t-menu { position: absolute; top: 4%; right: 3%; pointer-events: auto; width: 44px; height: 44px; font-size: 16px; }
+  #t-skip { position: absolute; top: calc(4% + 52px); right: 3%; pointer-events: auto; width: 44px; height: 44px; }
   @media (pointer: coarse) { #stage.playing #tools { bottom: auto; top: 16%; } }
 
   #nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 12%; text-align: center; color: var(--dust); font: 15px/1.5 var(--mono); }
 
   @media (max-aspect-ratio: 1/1) {
     body::before {
-      content: 'Turn your phone sideways for the full frame.';
+      content: attr(data-rotate);
       position: fixed;
       top: calc(16px + env(safe-area-inset-top, 0px));
       left: 16px;
       right: 16px;
       text-align: center;
-      font: 12px/1.4 var(--mono);
+      font: 12px/1.4 var(--sans);
       color: var(--dust);
     }
     #sub { width: calc(100% - 32px); }
+    .menu-cols { grid-template-columns: 1fr; }
+    .menu-aside { display: none; }
     /* the on-screen buttons sit below the frame, not over it */
     #touch { position: fixed; }
   }
@@ -383,7 +649,7 @@
   }
   @media (prefers-reduced-motion: reduce) {
     #card, #choice, #end, #view { transition: none; }
-    #prompt { animation: none; }
+    #prompt, .opt, .menu, .menu-panel, .sheet, #hint { animation: none; }
   }
 </style>
 </head>
@@ -405,41 +671,25 @@
 
   <div id="touch" aria-hidden="true">
     <div class="tpad left">
-      <button type="button" id="t-left">◀</button>
-      <button type="button" id="t-right">▶</button>
+      <button type="button" id="t-left"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" id="t-right"><svg viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
     </div>
     <div class="tpad right">
-      <button type="button" id="t-prone">Z</button>
-      <button type="button" id="t-crouch">C</button>
-      <button type="button" id="t-jump">▲</button>
-      <button type="button" id="t-use">E</button>
-      <button type="button" id="t-tool">Q</button>
-      <button type="button" id="t-light">F</button>
+      <button type="button" id="t-prone" aria-label="Prone"><svg viewBox="0 0 24 24"><path d="M3 17h18M5 13h9l3 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="18" cy="11" r="1.8" fill="currentColor"/></svg></button>
+      <button type="button" id="t-crouch" aria-label="Crouch"><svg viewBox="0 0 24 24"><path d="M12 7v6l-4 5M12 13l4 5M9 10h6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="4.5" r="1.8" fill="currentColor"/></svg></button>
+      <button type="button" id="t-jump" aria-label="Jump"><svg viewBox="0 0 24 24"><path d="M6 14l6-6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M5 19h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></button>
+      <button type="button" id="t-use" aria-label="Interact"><svg viewBox="0 0 24 24"><path d="M9 11V5a1.5 1.5 0 0 1 3 0v5m0-1a1.5 1.5 0 0 1 3 0v2m0-1a1.5 1.5 0 0 1 3 0v4a6 6 0 0 1-6 6h-1a5 5 0 0 1-4-2l-3-4a1.5 1.5 0 0 1 2.3-2L9 14" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" id="t-tool" aria-label="Next tool"><svg viewBox="0 0 24 24"><path d="M4 8h13l-3-3M20 16H7l3 3" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button type="button" id="t-light" aria-label="Use tool"><svg viewBox="0 0 24 24"><path d="M4 9.5h7l6-3.5v12l-6-3.5H4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg></button>
     </div>
     <button type="button" id="t-menu" aria-label="Menu">≡</button>
+    <button type="button" id="t-skip" aria-label="Skip line"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 6l7 6-7 6zM13 6l7 6-7 6z" fill="currentColor"/></svg></button>
   </div>
 
   <div id="menu"></div>
 
-  <section id="note" class="sheet" hidden aria-labelledby="note-h">
-    <p class="kicker-small">Content note</p>
-    <h2 id="note-h">Before you begin</h2>
-    <p class="ar" lang="ar" dir="rtl">هاي القصة عن الحصار بالغوطة: قصف، قنّاص، جوع، وموت صديق. العنف بينسمع وبيبان أثرو، بس ما بينشاف.</p>
-    <p>This story is about the siege of Ghouta: shelling, sniper fire, hunger, and the death of a friend. Violence is heard and its aftermath is seen, but it is never shown. Recommended for ages 16 and over.</p>
-    <p>Sound matters. Headphones are best.</p>
-    <div class="sheet-btns"><button type="button" id="note-go">Begin</button></div>
-  </section>
-
-  <section id="end" class="sheet" hidden aria-labelledby="end-h">
-    <p class="kicker-small">End of Act One · The Afternoon</p>
-    <h2 id="end-h"><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span></h2>
-    <ul id="end-list"></ul>
-    <p>Act Two, <em>The Evening</em>, is being written. The path you chose is saved for it.</p>
-    <div class="sheet-btns">
-      <button type="button" id="end-again">Play again, choose differently</button>
-      <button type="button" id="end-menu" class="quiet">Main menu</button>
-    </div>
-  </section>
+  <section id="note" class="sheet" hidden aria-labelledby="note-h"></section>
+  <section id="end" class="sheet" hidden aria-labelledby="end-h"></section>
 
   <div id="nogl" hidden>This story needs WebGL2, which this browser or device doesn’t provide. Try a recent Chrome, Edge, Firefox or Safari.</div>
 </div>
@@ -1067,6 +1317,7 @@ class Sound {
 
     this.buildBeds();
     this.applyVolumes();
+    this.score?.start();
     this.settings.onChange(() => this.applyVolumes());
     return Promise.resolve();
   }
@@ -1135,34 +1386,40 @@ class Sound {
     syl.connect(sg).connect(this.beds.crowd.g.gain);
     syl.start();
 
-    // A generator in a basement: 50 Hz and friends, chugging.
+    // A generator in a basement: a steady low hum through walls, sagging
+    // slowly under load. (No fast modulation: that reads as rotor blades.)
     const gen = ctx.createGain();
     gen.gain.value = 0;
     const gf = ctx.createBiquadFilter();
     gf.type = 'lowpass';
-    gf.frequency.value = 320;
-    gen.connect(gf).connect(this.amb);
-    for (const [f, type] of [[50, 'sawtooth'], [100, 'square'], [49.3, 'sawtooth']]) {
+    gf.frequency.value = 180;
+    gf.Q.value = 0.3;
+    const gv = ctx.createGain();
+    gv.gain.value = 1;
+    gv.connect(gf).connect(gen).connect(this.amb);
+    for (const [f, type, v] of [[50, 'triangle', 0.14], [100, 'sine', 0.06], [150, 'sine', 0.025]]) {
       const o = ctx.createOscillator();
       o.type = type;
       o.frequency.value = f;
       const og = ctx.createGain();
-      og.gain.value = 0.12;
-      o.connect(og).connect(gen);
+      og.gain.value = v;
+      o.connect(og).connect(gv);
       o.start();
     }
-    const chug = ctx.createOscillator();
-    chug.frequency.value = 7.5;
-    const cg = ctx.createGain();
-    cg.gain.value = 0.3;
-    chug.connect(cg).connect(gen.gain);
-    chug.start();
+    for (const [rate, depth] of [[0.23, 0.12], [0.071, 0.1]]) {
+      const sag = ctx.createOscillator();
+      sag.frequency.value = rate;
+      const sg2 = ctx.createGain();
+      sg2.gain.value = depth;
+      sag.connect(sg2).connect(gv.gain);
+      sag.start();
+    }
     this.beds.generator = { g: gen };
   }
 
   ambience(levels, time = 1.2) {
     if (!this.ctx) return;
-    const scale = { wind: 0.3, air: 0.35, traffic: 0.5, crowd: 0.12, generator: 0.25 };
+    const scale = { wind: 0.3, air: 0.35, traffic: 0.5, crowd: 0.12, generator: 0.12 };
     for (const k in levels) this.beds[k]?.g.gain.setTargetAtTime((levels[k] || 0) * scale[k], this.t, time / 3);
   }
 
@@ -1259,52 +1516,110 @@ class Sound {
     this.noise({ when: this.t + dur, dur: 0.1, freq: 2400, q: 0.8, vol: 0.1 });
   }
 
+  // A helicopter, high and slow: the low thud of the blades arrives before
+  // the machine. Only ever heard with a barrel bomb.
   helicopter(dur = 12) {
     if (!this.ctx) return;
+    this.heliCount = (this.heliCount || 0) + 1;
     const ctx = this.ctx;
     const w = this.t;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, w);
-    g.gain.exponentialRampToValueAtTime(0.9, w + dur * 0.45);
-    g.gain.exponentialRampToValueAtTime(0.5, w + dur * 0.6);
+    g.gain.exponentialRampToValueAtTime(0.85, w + dur * 0.45);
+    g.gain.exponentialRampToValueAtTime(0.45, w + dur * 0.62);
     g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
-    g.connect(this.fx);
-    // blade slap: noise gated at the blade rate
-    const src = this.noiseSrc(this.brownBuf);
-    const f = ctx.createBiquadFilter();
-    f.type = 'lowpass';
-    f.frequency.value = 260;
-    const vca = ctx.createGain();
-    vca.gain.value = 0;
-    const blade = ctx.createOscillator();
-    blade.type = 'square';
-    blade.frequency.setValueAtTime(10.5, w);
-    blade.frequency.linearRampToValueAtTime(11.5, w + dur);
-    const bg = ctx.createGain();
-    bg.gain.value = 0.6;
-    blade.connect(bg).connect(vca.gain);
-    src.connect(f).connect(vca).connect(g);
-    // turbine whine
+    // distance: the highs roll off as it comes and goes
+    const air = ctx.createBiquadFilter();
+    air.type = 'lowpass';
+    air.frequency.setValueAtTime(260, w);
+    air.frequency.exponentialRampToValueAtTime(900, w + dur * 0.5);
+    air.frequency.exponentialRampToValueAtTime(240, w + dur);
+    g.connect(air).connect(this.fx);
+    // blade thump: short brown-noise bursts at the blade-pass rate, with a
+    // Doppler drop as it passes over
+    const rate0 = 4.6;
+    let tt = w + 0.05;
+    let i = 0;
+    while (tt < w + dur) {
+      const k = (tt - w) / dur;
+      const rate = rate0 * (k < 0.5 ? 1.04 : 0.95);
+      const n = ctx.createBufferSource();
+      n.buffer = this.brownBuf;
+      const f = ctx.createBiquadFilter();
+      f.type = 'lowpass';
+      f.frequency.value = 170 + (i % 2) * 40;
+      const e = ctx.createGain();
+      e.gain.setValueAtTime(0.0001, tt);
+      e.gain.exponentialRampToValueAtTime(1, tt + 0.012);
+      e.gain.exponentialRampToValueAtTime(0.0001, tt + 0.14);
+      n.connect(f).connect(e).connect(g);
+      n.start(tt, Math.random() * 3);
+      n.stop(tt + 0.16);
+      tt += 1 / rate;
+      i++;
+    }
+    // a thin turbine whine, far off
     const tur = ctx.createOscillator();
     tur.type = 'sawtooth';
-    tur.frequency.value = 1450;
+    tur.frequency.setValueAtTime(1180, w);
+    tur.frequency.linearRampToValueAtTime(1240, w + dur * 0.5);
+    tur.frequency.linearRampToValueAtTime(1090, w + dur);
     const tf = ctx.createBiquadFilter();
     tf.type = 'bandpass';
-    tf.frequency.value = 1500;
-    tf.Q.value = 9;
+    tf.frequency.value = 1200;
+    tf.Q.value = 12;
     const tg = ctx.createGain();
-    tg.gain.value = 0.04;
+    tg.gain.value = 0.018;
     tur.connect(tf).connect(tg).connect(g);
-    blade.start(w);
     tur.start(w);
-    blade.stop(w + dur);
     tur.stop(w + dur);
+  }
+
+  // A jet: a tearing roar that crosses the sky faster than the eye.
+  jet(dur = 7) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const w = this.t;
+    const src = this.noiseSrc();
+    const f = ctx.createBiquadFilter();
+    f.type = 'bandpass';
+    f.Q.value = 0.7;
+    f.frequency.setValueAtTime(2600, w);
+    f.frequency.exponentialRampToValueAtTime(900, w + dur * 0.45);
+    f.frequency.exponentialRampToValueAtTime(320, w + dur);
+    const rumble = this.noiseSrc(this.brownBuf);
+    const rf = ctx.createBiquadFilter();
+    rf.type = 'lowpass';
+    rf.frequency.value = 140;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    g.gain.exponentialRampToValueAtTime(0.5, w + dur * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
+    src.connect(f).connect(g);
+    rumble.connect(rf).connect(g);
+    g.connect(this.fx);
     src.stop(w + dur);
+    rumble.stop(w + dur);
+  }
+
+  // A missile strike beyond the rooftops: sharper than a barrel, shorter tail.
+  strikeFar(delay = 0) {
+    const w = this.t + delay;
+    this.duck(0.9, 3);
+    this.noise({ when: w, dur: 0.12, freq: 1800, type: 'lowpass', vol: 0.25, q: 0.4 });
+    this.noise({ when: w + 0.02, dur: 2.4, freq: 120, type: 'lowpass', vol: 0.8, q: 0.5, buf: this.brownBuf, attack: 0.01 });
+    this.tone(55, 1.2, { when: w, vol: 0.4, to: 30 });
+  }
+
+  // Music steps back for blasts and speech: amount 0…1 of the music gain.
+  duck(amount = 0.6, time = 2.5) {
+    this.onDuck?.(amount, time);
   }
 
   // A barrel bomb somewhere else: the ground feels it before the ears do.
   barrelFar(delay = 0) {
     const w = this.t + delay;
+    this.duck(0.95, 5);
     this.noise({ when: w, dur: 3.5, freq: 90, type: 'lowpass', vol: 1.0, q: 0.5, attack: 0.03, buf: this.brownBuf });
     this.noise({ when: w + 0.08, dur: 2.5, freq: 400, type: 'lowpass', vol: 0.35, q: 0.4, attack: 0.1 });
     this.tone(48, 1.8, { when: w, vol: 0.5, to: 28 });
@@ -1316,6 +1631,7 @@ class Sound {
 
   mortarImpact(dist = 1) {
     const v = 1 / Math.max(dist, 0.6);
+    this.duck(0.8, 2.5);
     this.noise({ dur: 0.18, freq: 2600, type: 'highpass', vol: 0.45 * v, q: 0.4 });
     this.noise({ dur: 1.8, freq: 160, type: 'lowpass', vol: 0.9 * v, q: 0.5, buf: this.brownBuf, attack: 0.01 });
     this.tone(70, 0.6, { vol: 0.5 * v, to: 35 });
@@ -1332,16 +1648,16 @@ class Sound {
   }
 
   // The ney: breath, a wandering pitch and slow vibrato.
-  ney(freq, dur, vol = 0.22) {
+  ney(freq, dur, vol = 0.22, { when = this.t, dest = this.music } = {}) {
     if (!this.ctx) return;
     const ctx = this.ctx;
-    const w = this.t;
+    const w = when;
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, w);
     g.gain.linearRampToValueAtTime(vol, w + Math.min(2.5, dur * 0.3));
     g.gain.setValueAtTime(vol, w + dur * 0.7);
     g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
-    g.connect(this.music);
+    g.connect(dest);
     const o = ctx.createOscillator();
     o.frequency.value = freq;
     const vib = ctx.createOscillator();
@@ -1373,7 +1689,7 @@ class Sound {
   }
 
   // Karplus–Strong oud pluck, cached per pitch.
-  pluck(freq, when = this.t, vol = 0.35) {
+  pluck(freq, when = this.t, vol = 0.35, dest = this.music, bright = 1900) {
     if (!this.ctx) return;
     const ctx = this.ctx;
     this.plucks ||= new Map();
@@ -1394,8 +1710,8 @@ class Sound {
     g.gain.value = vol;
     const tone = ctx.createBiquadFilter();
     tone.type = 'lowpass';
-    tone.frequency.value = 1900;
-    src.connect(tone).connect(g).connect(this.music);
+    tone.frequency.value = bright;
+    src.connect(tone).connect(g).connect(dest);
     src.start(when);
   }
 
@@ -1453,7 +1769,263 @@ class Sound {
   }
 }
 
-return { Sound };
+return { BAYATI, Sound };
+})();
+
+// ---- src/engine/score.js
+const __src_engine_score = (() => {
+// A light generative score in maqam Bayati on D: a deep sub-bass that swells
+// slowly, a soft pad in open fifths, and now and then an oud or qanun phrase
+// or a breath of ney. The story sets a mood; the score eases into it.
+//
+// All of it runs through the Sound's music bus, so the Music volume setting
+// applies. It steps back under speech and blasts (duck / speak).
+
+const { BAYATI: N } = __src_engine_audio;
+// Bass roots (Hz): D1, A1, G1, Bb1, C2.
+const ROOTS = [36.71, 55.0, 49.0, 58.27, 65.41];
+// Pad voicings: open fifths and fourths over Bayati's degrees.
+const CHORDS = [
+  [N.D3 / 2, N.A3 / 2, N.D3],
+  [N.G3 / 2, N.D3, N.G3],
+  [N.Bb3 / 2, N.F3, N.Bb3],
+  [N.C4 / 2, N.G3, N.C4],
+  [N.D3 / 2, N.A3 / 2, N.F3],
+];
+// Melody notes for plucks, low to high, with the half-flat second.
+const SCALE = [N.D3, N.Eb3, N.F3, N.G3, N.A3, N.Bb3, N.C4, N.D4, N.Ed4, N.F4, N.G4];
+// Which chord goes with which root.
+const CHORD_FOR_ROOT = [0, 4, 1, 2, 3];
+
+const MOODS = {
+  off: { bass: 0, pad: 0, pluck: 0, ney: 0, pulse: 0, cutoff: 600, reg: 0 },
+  title: { bass: 0.5, pad: 0.3, pluck: 0.18, ney: 0.04, pulse: 0, cutoff: 900, reg: 0 },
+  walk: { bass: 0.55, pad: 0.34, pluck: 0.3, ney: 0.05, pulse: 0, cutoff: 1150, reg: 1 },
+  hour: { bass: 0.7, pad: 0.22, pluck: 0.13, ney: 0.07, pulse: 0, cutoff: 760, reg: 0 },
+  danger: { bass: 0.85, pad: 0, pluck: 0, ney: 0, pulse: 0.9, cutoff: 500, reg: 0 },
+  memory: { bass: 0.45, pad: 0.42, pluck: 0.7, ney: 0, pulse: 0, cutoff: 1500, reg: 2 },
+  silence: { bass: 0, pad: 0, pluck: 0, ney: 0, pulse: 0, cutoff: 500, reg: 0 },
+  after: { bass: 0.62, pad: 0.12, pluck: 0, ney: 0, pulse: 0, cutoff: 600, reg: 0 },
+};
+
+const BEAT = 0.75; // seconds
+
+class Score {
+  constructor(sound) {
+    this.sound = sound;
+    this.name = 'off';
+    this.m = { ...MOODS.off };
+    this.started = false;
+    this.log = []; // for testing: [time, mood]
+  }
+
+  start() {
+    const s = this.sound;
+    if (this.started || !s.ctx) return;
+    this.started = true;
+    const ctx = s.ctx;
+    const w = ctx.currentTime;
+
+    this.out = ctx.createGain();
+    this.out.gain.value = 1;
+    this.duckGain = ctx.createGain();
+    this.duckGain.gain.value = 1;
+    this.out.connect(this.duckGain).connect(s.music);
+    s.onDuck = (amount, time) => this.duck(amount, time);
+
+    // --- deep bass: a sine with its 2nd and 3rd harmonics, so small
+    // speakers still carry the note
+    this.bassGain = ctx.createGain();
+    this.bassGain.gain.value = 0;
+    const bf = ctx.createBiquadFilter();
+    bf.type = 'lowpass';
+    bf.frequency.value = 220;
+    this.bassGain.connect(bf).connect(this.out);
+    this.bassOsc = [];
+    for (const [mult, v] of [[1, 0.9], [2, 0.32], [3, 0.1]]) {
+      const o = ctx.createOscillator();
+      o.frequency.value = ROOTS[0] * mult;
+      const g = ctx.createGain();
+      g.gain.value = v;
+      o.connect(g).connect(this.bassGain);
+      o.start(w);
+      this.bassOsc.push([o, mult]);
+    }
+    // a slow breath in the bass
+    this.swell = ctx.createGain();
+    this.swell.gain.value = 1;
+    this.bassGain.disconnect();
+    this.bassGain.connect(this.swell).connect(bf);
+
+    // --- pad: three voices of detuned triangles through a drifting lowpass
+    this.padGain = ctx.createGain();
+    this.padGain.gain.value = 0;
+    this.padFilter = ctx.createBiquadFilter();
+    this.padFilter.type = 'lowpass';
+    this.padFilter.frequency.value = 900;
+    this.padFilter.Q.value = 0.6;
+    this.padGain.connect(this.padFilter).connect(this.out);
+    const drift = ctx.createOscillator();
+    drift.frequency.value = 0.05;
+    const dg = ctx.createGain();
+    dg.gain.value = 180;
+    drift.connect(dg).connect(this.padFilter.frequency);
+    drift.start(w);
+    this.voices = CHORDS[0].map((f) => {
+      const pair = [-4, 4].map((cents) => {
+        const o = ctx.createOscillator();
+        o.type = 'triangle';
+        o.frequency.value = f;
+        o.detune.value = cents;
+        o.start(w);
+        return o;
+      });
+      const g = ctx.createGain();
+      g.gain.value = 0.32;
+      for (const o of pair) o.connect(g);
+      g.connect(this.padGain);
+      return pair;
+    });
+
+    this.pulseGain = ctx.createGain();
+    this.pulseGain.gain.value = 1;
+    this.pulseGain.connect(this.out);
+
+    this.next = w + 0.2;
+    this.beat = 0;
+    this.rootI = 0;
+    this.timer = setInterval(() => this.schedule(), 100);
+    this.apply(3);
+  }
+
+  // Ease into a mood over `fade` seconds.
+  mood(name, fade = 4) {
+    if (!MOODS[name]) return;
+    this.name = name;
+    this.m = { ...MOODS[name] };
+    this.log.push([+(this.sound.t || 0).toFixed(2), name]);
+    this.apply(fade);
+  }
+
+  apply(fade) {
+    if (!this.started) return;
+    const t = this.sound.t;
+    const k = Math.max(0.05, fade / 3);
+    this.bassGain.gain.setTargetAtTime(this.m.bass * 0.45, t, k);
+    this.padGain.gain.setTargetAtTime(this.m.pad * 1.1, t, k);
+    this.padFilter.frequency.setTargetAtTime(this.m.cutoff, t, k);
+  }
+
+  // Cut to silence at once (the flashback ends), then ease into `then`.
+  cut(then = 'hour', after = 2.5) {
+    if (!this.started) return;
+    const t = this.sound.t;
+    for (const g of [this.bassGain.gain, this.padGain.gain]) {
+      g.cancelScheduledValues(t);
+      g.setValueAtTime(0, t);
+    }
+    this.m = { ...MOODS.silence };
+    this.name = 'silence';
+    clearTimeout(this.cutTimer);
+    this.cutTimer = setTimeout(() => this.mood(then, 6), after * 1000);
+  }
+
+  // Step back: amount 0…1 of the level, for `time` seconds.
+  duck(amount = 0.6, time = 2.5) {
+    if (!this.started) return;
+    const t = this.sound.t;
+    const g = this.duckGain.gain;
+    g.cancelScheduledValues(t);
+    g.setTargetAtTime(1 - amount, t, 0.05);
+    g.setTargetAtTime(1, t + time, time / 3);
+  }
+
+  // Under dialogue the score sits about 4 dB lower.
+  speak(dur) {
+    if (!this.started) return;
+    const t = this.sound.t;
+    const g = this.duckGain.gain;
+    if (g.value < 0.6) return; // a blast duck is stronger; leave it
+    g.cancelScheduledValues(t);
+    g.setTargetAtTime(0.62, t, 0.15);
+    g.setTargetAtTime(1, t + dur, 0.8);
+  }
+
+  schedule() {
+    const s = this.sound;
+    if (!s.ctx || s.ctx.state !== 'running') return;
+    const now = s.t;
+    if (this.next < now - 1) this.next = now + 0.05; // after a pause
+    while (this.next < now + 0.35) {
+      this.step(this.next, this.beat);
+      this.next += BEAT;
+      this.beat++;
+    }
+  }
+
+  step(w, beat) {
+    const s = this.sound;
+    const m = this.m;
+    const bar = Math.floor(beat / 4);
+    const inBar = beat % 4;
+
+    // harmony moves every 4 bars (12 s), sometimes staying put
+    if (inBar === 0 && bar % 4 === 0 && beat > 0 && Math.random() < 0.75) {
+      this.rootI = [0, 0, 1, 2, 3, 4, 0, 2][Math.floor(Math.random() * 8)];
+      const root = ROOTS[this.rootI];
+      for (const [o, mult] of this.bassOsc) o.frequency.setTargetAtTime(root * mult, w, 0.6);
+      const chord = CHORDS[CHORD_FOR_ROOT[this.rootI]];
+      this.voices.forEach((pair, i) => pair.forEach((o) => o.frequency.setTargetAtTime(chord[i], w, 1.4)));
+    }
+    // the bass breathes over 8 beats
+    if (inBar === 0 && bar % 2 === 0) {
+      const g = this.swell.gain;
+      g.setTargetAtTime(1, w, 1.2);
+      g.setTargetAtTime(0.55, w + BEAT * 4, 1.6);
+    }
+    // danger: a low pulse, like a held heartbeat
+    if (m.pulse > 0 && (inBar === 0 || inBar === 2)) {
+      const ctx = s.ctx;
+      const o = ctx.createOscillator();
+      o.frequency.setValueAtTime(52, w);
+      o.frequency.exponentialRampToValueAtTime(36, w + 0.35);
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, w);
+      g.gain.exponentialRampToValueAtTime(0.5 * m.pulse * (inBar === 0 ? 1 : 0.6), w + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, w + 0.5);
+      o.connect(g).connect(this.pulseGain);
+      o.start(w);
+      o.stop(w + 0.55);
+    }
+    // plucks: short phrases that start on the chord and step through the maqam
+    if (m.pluck > 0 && !this.phrase && Math.random() < m.pluck * 0.18) {
+      const len = 3 + Math.floor(Math.random() * 4);
+      let i = 2 + m.reg * 2 + Math.floor(Math.random() * 3);
+      const notes = [];
+      for (let n = 0; n < len; n++) {
+        notes.push(SCALE[Math.max(0, Math.min(SCALE.length - 1, i))]);
+        i += Math.random() < 0.6 ? -1 : 1;
+      }
+      notes.push(SCALE[m.reg >= 1 ? 7 : 0]); // resolve to D
+      this.phrase = { notes, i: 0 };
+    }
+    if (this.phrase) {
+      const { notes } = this.phrase;
+      const f = notes[this.phrase.i++];
+      const qanun = m.reg === 0 && Math.random() < 0.3;
+      s.pluck(qanun ? f * 2 : f, w, qanun ? 0.1 : 0.2, this.out, qanun ? 3200 : 1700);
+      if (Math.random() < 0.35) s.pluck(qanun ? f * 2 : f, w + BEAT / 2, 0.07, this.out, 1500);
+      if (this.phrase.i >= notes.length) this.phrase = null;
+    }
+    // a breath of ney, rarely
+    if (m.ney > 0 && inBar === 0 && Math.random() < m.ney) {
+      const f = [N.A3, N.D4, N.F4, N.G3][Math.floor(Math.random() * 4)];
+      s.ney(f, 6 + Math.random() * 4, 0.09, { when: w, dest: this.out });
+    }
+  }
+}
+
+return { MOODS, Score };
 })();
 
 // ---- src/engine/text.js
@@ -1477,6 +2049,7 @@ class Text {
     this.lineTimer = 0;
     this.lineId = 0;
     this.queue = [];
+    this.log = []; // every line said this session: { who, line, style }
     this.apply();
     settings.onChange(() => this.apply());
   }
@@ -1486,20 +2059,30 @@ class Text {
     stage.dataset.subs = this.settings.get('subtitles');
     stage.style.setProperty('--text-scale', this.settings.get('textSize'));
     stage.dataset.hints = this.settings.get('hints') ? 'on' : 'off';
+    stage.dataset.backing = this.settings.get('backing') || 'light';
   }
 
   // who: [arabic, english] | null; line: [arabic, english]; style: '' | 'examine' | 'radio' | 'thought'
   say(who, line, dur = 4, style = '') {
     const id = ++this.lineId;
+    this.lineStart = performance.now();
+    const last = this.log[this.log.length - 1];
+    if (!last || last.line[1] !== line[1]) {
+      this.log.push({ who, line, style });
+      if (this.log.length > 400) this.log.shift();
+    }
     this.sub.dataset.style = style;
     this.sub.innerHTML = '';
+    const box = document.createElement('div');
+    box.className = 'sub-box';
+    this.sub.appendChild(box);
     if (who) {
       const w = document.createElement('div');
       w.className = 'who';
-      w.innerHTML = `<span class="ar" lang="ar" dir="rtl"></span><span class="en"></span>`;
+      w.innerHTML = `<span class="ar" lang="ar" dir="rtl"></span><span class="sep" aria-hidden="true"></span><span class="en"></span>`;
       w.querySelector('.ar').textContent = who[0];
       w.querySelector('.en').textContent = who[1];
-      this.sub.appendChild(w);
+      box.appendChild(w);
     }
     const ar = document.createElement('p');
     ar.className = 'ar';
@@ -1509,7 +2092,7 @@ class Text {
     const en = document.createElement('p');
     en.className = 'en';
     en.textContent = line[1];
-    this.sub.append(ar, en);
+    box.append(ar, en);
     this.sub.hidden = false;
     this.lineUntil = performance.now() + dur * 1000;
     clearTimeout(this.lineTimer);
@@ -1602,6 +2185,7 @@ class Text {
     const h = this.hintEl;
     if (!label) {
       h.hidden = true;
+      h.dataset.label = '';
       return;
     }
     if (h.dataset.label !== label) {
@@ -1615,40 +2199,55 @@ class Text {
     h.hidden = false;
   }
 
+  // The current objective shows in full when it changes, then folds down to
+  // a small marker (the pause menu always shows it).
   objective(line) {
+    this.current = line;
+    clearTimeout(this.objTimer);
     if (!line) {
       this.objEl.hidden = true;
       return;
     }
-    this.objEl.innerHTML = `<span class="ar" lang="ar" dir="rtl"></span><span class="en"></span>`;
+    this.objEl.innerHTML = `<span class="obj-mark" aria-hidden="true"></span><span class="obj-text"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>`;
     this.objEl.querySelector('.ar').textContent = line[0];
     this.objEl.querySelector('.en').textContent = line[1];
     this.objEl.hidden = false;
+    this.objEl.classList.add('fresh');
+    this.objTimer = setTimeout(() => this.objEl.classList.remove('fresh'), 8000);
   }
 
-  // tools: [{ id, ar, en }], active id, torch charge 0…1, torch on
-  tools(list, active, charge, on) {
-    const key = JSON.stringify([list.map((t) => t.id), active, on, Math.round(charge * 20)]);
+  // tools: [{ id, ar, en }], active id, torch charge 0…1, torch on, use key
+  tools(list, active, charge, on, useKey = 'F') {
+    const key = JSON.stringify([list.map((t) => t.id), active, on, Math.round(charge * 40), useKey]);
     if (key === this.toolsKey) return;
     this.toolsKey = key;
     this.toolsEl.innerHTML = '';
     for (const t of list) {
       const d = document.createElement('div');
-      d.className = `tool${t.id === active ? ' active' : ''}`;
-      d.innerHTML = `<span class="tool-icon" data-tool="${t.id}"></span><span class="tool-name"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>`;
+      d.className = `tool${t.id === active ? ' active' : ''}${t.id === 'torch' && on ? ' lit' : ''}`;
+      const ring =
+        t.id === 'torch'
+          ? `<svg class="tool-ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="ring-bg"/><circle cx="20" cy="20" r="17" class="ring-fg" pathLength="100" stroke-dasharray="${(charge * 100).toFixed(1)} 100"/></svg>`
+          : '';
+      d.innerHTML = `<span class="tool-badge">${ring}<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[t.id] || ''}</svg></span><span class="tool-name"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>${t.id === active ? '<kbd class="tool-key"></kbd>' : ''}`;
       d.querySelector('.ar').textContent = t.ar;
       d.querySelector('.en').textContent = t.en;
-      if (t.id === 'torch') {
-        const bar = document.createElement('span');
-        bar.className = `charge${on ? ' on' : ''}`;
-        bar.style.setProperty('--c', charge.toFixed(2));
-        d.appendChild(bar);
-      }
+      if (t.id === active) d.querySelector('.tool-key').textContent = useKey;
       this.toolsEl.appendChild(d);
     }
     this.toolsEl.hidden = list.length === 0;
   }
 }
+
+// Line icons for the tools, drawn on a 24-unit grid.
+const ICONS = {
+  torch:
+    '<path d="M4 9.5h7l6-3.5v12l-6-3.5H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 14.5v3.5h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M19.5 9l2-1.5M19.5 12h2.5M19.5 15l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" class="beam"/>',
+  mirror:
+    '<path d="M6 21 9.5 3.5l9 4.5-5.5 13z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10.5 8.5l4 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>',
+  walkie:
+    '<path d="M9 2.5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="6.5" y="7.5" width="11" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 11.5h5M9.5 14h5M9.5 16.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+};
 
 return { Text };
 })();
@@ -1660,15 +2259,16 @@ const __src_engine_input = (() => {
 // are rebindable and persisted through settings.
 
 const ACTIONS = [
-  ['left', 'Move left', 'تحرّك يسار'],
-  ['right', 'Move right', 'تحرّك يمين'],
-  ['run', 'Run (hold)', 'ركض'],
-  ['jump', 'Jump / climb', 'اقفز / اطلع'],
-  ['crouch', 'Crouch (toggle)', 'انحني'],
+  ['left', 'Move left', 'روح عاليسار'],
+  ['right', 'Move right', 'روح عاليمين'],
+  ['run', 'Run (hold)', 'اركض'],
+  ['jump', 'Jump / climb', 'نطّ / اطلع'],
+  ['crouch', 'Crouch (toggle)', 'وطّي'],
   ['prone', 'Go prone (toggle)', 'انبطح'],
-  ['interact', 'Interact / examine', 'تفاعل / تفحّص'],
-  ['tool', 'Next tool', 'الأداة التالية'],
-  ['use', 'Use tool (hold to crank the torch)', 'استخدم الأداة'],
+  ['interact', 'Interact / examine', 'استعمل / اتفرّج'],
+  ['tool', 'Next tool', 'الغرض الجاي'],
+  ['use', 'Use tool (hold to crank the torch)', 'استعمل الغرض'],
+  ['skip', 'Skip line (hold)', 'فوّت الحكي (ضل ضاغط)'],
   ['menu', 'Menu', 'القائمة'],
 ];
 
@@ -1682,11 +2282,12 @@ const DEFAULT_KEYS = {
   interact: ['KeyE', 'Enter'],
   tool: ['KeyQ', 'Tab'],
   use: ['KeyF'],
+  skip: ['KeyX', 'Backspace'],
   menu: ['Escape', 'KeyP'],
 };
 
 // Standard gamepad mapping.
-const PAD = { jump: 0, prone: 1, interact: 2, tool: 3, use: 5, crouch: 4, menu: 9, run: 7 };
+const PAD = { jump: 0, prone: 1, interact: 2, tool: 3, use: 5, crouch: 4, menu: 9, run: 7, skip: 6 };
 
 function keyLabel(code) {
   if (!code) return '—';
@@ -1791,6 +2392,11 @@ class Input {
     }
   }
 
+  // Anything at all held or pressed this frame (for idle detection).
+  busy() {
+    return this.down.size > 0 || this.pressed.size > 0;
+  }
+
   held(a) {
     return this.down.has(a);
   }
@@ -1825,6 +2431,9 @@ const DEFAULTS = {
   shake: true,
   reduceFlashes: false,
   hints: true,
+  lang: 'en', // menu language: 'en' | 'ar'
+  backing: 'light', // subtitle backing: 'off' | 'light' | 'dark'
+  quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'
   keys: DEFAULT_KEYS,
 };
 
@@ -1873,17 +2482,20 @@ return { DEFAULTS, Settings };
 // ---- src/engine/menu.js
 const __src_engine_menu = (() => {
 // Game menus: a main menu, an Esc pause menu, and the pages they share
-// (settings, controls, about). Pure DOM, keyboard- and pad-navigable, styled
-// by the host page through the .menu* classes.
+// (settings, controls, about, and any custom pages such as the dialogue
+// log). Pure DOM, keyboard- and pad-navigable, styled by the host page
+// through the .menu* classes. Labels go through opts.t (the i18n table) and
+// are read again on every render, so switching language redraws in place.
 //
 // new Menu(root, {
-//   main: [{ id, label, sub, action, hidden() }],   main-menu buttons
-//   pause: [{ id, label, action }],                  pause-menu buttons
-//   settings: [{ key, label, type, ... }],           settings schema
-//   controls: { input, actions } | { list },         rebindable or static
-//   about: html string,
-//   header: html string shown above the main menu,
-//   onOpen, onClose                                   pause hooks
+//   t(key) → string, dir() → 'ltr' | 'rtl',
+//   header() → html shown above the main menu,
+//   main: [{ label() , sub(), action, hidden() }],
+//   pause: [{ label(), action }], pauseAside() → html,
+//   settings: [{ group } | { key, label, type, options: [[value, labelKey]] }],
+//   controls: { input, actions, label }, about() → html,
+//   pages: { name: (panel, menu) => void },
+//   onOpen, onClose
 // })
 
 const el = (tag, cls, html) => {
@@ -1892,11 +2504,13 @@ const el = (tag, cls, html) => {
   if (html !== undefined) e.innerHTML = html;
   return e;
 };
+const val = (v) => (typeof v === 'function' ? v() : v);
 
 class Menu {
   constructor(root, opts) {
     this.root = root;
     this.o = opts;
+    this.t = opts.t || ((k) => k);
     this.stack = [];
     this.mode = null; // 'main' | 'pause' | null
     root.classList.add('menu');
@@ -1955,24 +2569,37 @@ class Menu {
 
   render() {
     const page = this.stack[this.stack.length - 1];
+    const focusIdx = this.keepFocus ? [...this.root.querySelectorAll('button, input, select')].indexOf(document.activeElement) : -1;
     this.root.hidden = false;
     this.root.dataset.page = page;
     this.root.dataset.mode = this.mode;
+    this.root.dir = this.o.dir?.() || 'ltr';
+    this.root.lang = this.root.dir === 'rtl' ? 'ar' : 'en';
     this.root.innerHTML = '';
-    const panel = el('div', 'menu-panel');
+    const panel = el('div', `menu-panel page-${page}`);
     this.root.appendChild(panel);
     const build = { main: this.pageMain, pause: this.pagePause, settings: this.pageSettings, controls: this.pageControls, about: this.pageAbout }[page];
-    build.call(this, panel);
-    requestAnimationFrame(() => panel.querySelector('button, input, select')?.focus({ preventScroll: true }));
+    if (build) build.call(this, panel);
+    else this.o.pages?.[page]?.(panel, this);
+    requestAnimationFrame(() => {
+      const items = [...panel.querySelectorAll('button, input, select')];
+      (items[focusIdx] || items[0])?.focus({ preventScroll: true });
+      this.keepFocus = false;
+    });
   }
 
   list(panel, items) {
     const ul = el('div', 'menu-list');
+    let n = 0;
     for (const it of items) {
       if (it.hidden?.()) continue;
+      n++;
       const b = el('button', 'menu-btn');
       b.type = 'button';
-      b.innerHTML = `<span class="menu-btn-label">${it.label}</span>${it.sub ? `<span class="menu-btn-sub">${it.sub}</span>` : ''}`;
+      const sub = val(it.sub);
+      b.innerHTML = `<span class="menu-btn-n">${String(n).padStart(2, '0')}</span><span class="menu-btn-text"><span class="menu-btn-label"></span>${sub ? '<span class="menu-btn-sub"></span>' : ''}</span>`;
+      b.querySelector('.menu-btn-label').textContent = val(it.label);
+      if (sub) b.querySelector('.menu-btn-sub').textContent = sub;
       b.addEventListener('click', () => it.action(this));
       ul.appendChild(b);
     }
@@ -1984,37 +2611,46 @@ class Menu {
     if (sub) panel.appendChild(el('p', 'menu-sub', sub));
   }
 
-  backButton(panel, label = 'Back') {
-    const b = el('button', 'menu-back', `← ${label}`);
+  backButton(panel) {
+    const b = el('button', 'menu-back', `<span aria-hidden="true" class="menu-back-arrow"></span>${this.t('back')}`);
     b.type = 'button';
     b.addEventListener('click', () => this.back());
     panel.appendChild(b);
   }
 
   pageMain(panel) {
-    if (this.o.header) panel.appendChild(el('div', 'menu-header', this.o.header));
+    if (this.o.header) panel.appendChild(el('div', 'menu-header', val(this.o.header)));
     this.list(panel, this.o.main);
   }
 
   pagePause(panel) {
-    this.heading(panel, this.o.pauseTitle || 'Paused');
-    this.list(panel, this.o.pause);
+    const cols = el('div', 'menu-cols');
+    const left = el('div', 'menu-col');
+    this.heading(left, this.t('paused'));
+    this.list(left, this.o.pause);
+    cols.appendChild(left);
+    if (this.o.pauseAside) cols.appendChild(el('aside', 'menu-aside', val(this.o.pauseAside)));
+    panel.appendChild(cols);
   }
 
   pageAbout(panel) {
-    panel.appendChild(el('div', 'menu-about', this.o.about));
+    panel.appendChild(el('div', 'menu-about', val(this.o.about)));
     this.backButton(panel);
   }
 
   pageSettings(panel) {
-    this.heading(panel, 'Settings');
+    this.heading(panel, this.t('settings'));
     const s = this.o.settingsStore;
     const form = el('div', 'menu-form');
     for (const f of this.o.settings) {
-      const row = el('label', 'menu-row');
+      if (f.group) {
+        form.appendChild(el('h3', 'menu-group', this.t(f.group)));
+        continue;
+      }
+      const row = el('label', `menu-row type-${f.type}`);
       const id = `set-${f.key}`;
       row.htmlFor = id;
-      row.appendChild(el('span', 'menu-row-label', f.label));
+      row.appendChild(el('span', 'menu-row-label', this.t(f.label)));
       let input;
       if (f.type === 'range') {
         input = el('input');
@@ -2023,26 +2659,35 @@ class Menu {
         input.max = f.max ?? 1;
         input.step = f.step ?? 0.05;
         input.value = s.get(f.key);
+        input.style.setProperty('--fill', `${(s.get(f.key) / (f.max ?? 1)) * 100}%`);
         const out = el('output', 'menu-row-value', fmt(f, s.get(f.key)));
         input.addEventListener('input', () => {
           s.set(f.key, +input.value);
           out.textContent = fmt(f, +input.value);
+          input.style.setProperty('--fill', `${(+input.value / (f.max ?? 1)) * 100}%`);
         });
         row.appendChild(input);
         row.appendChild(out);
       } else if (f.type === 'select') {
         input = el('select');
         for (const [v, label] of f.options) {
-          const o = el('option', '', label);
+          const o = el('option', '', this.t(label));
           o.value = v;
           input.appendChild(o);
         }
         input.value = String(s.get(f.key));
-        input.addEventListener('change', () => s.set(f.key, isNaN(+input.value) ? input.value : +input.value));
+        input.addEventListener('change', () => {
+          s.set(f.key, isNaN(+input.value) ? input.value : +input.value);
+          if (f.redraw) {
+            this.keepFocus = true;
+            this.render();
+          }
+        });
         row.appendChild(input);
       } else {
         input = el('input');
         input.type = 'checkbox';
+        input.setAttribute('role', 'switch');
         input.checked = !!s.get(f.key);
         input.addEventListener('change', () => s.set(f.key, input.checked));
         row.appendChild(input);
@@ -2051,55 +2696,52 @@ class Menu {
       form.appendChild(row);
     }
     panel.appendChild(form);
-    const reset = el('button', 'menu-link', 'Restore defaults');
+    const foot = el('div', 'menu-foot');
+    const reset = el('button', 'menu-link', this.t('restore'));
     reset.type = 'button';
     reset.addEventListener('click', () => {
       const keys = s.get('keys');
+      const lang = s.get('lang');
       s.reset();
-      if (keys && !this.o.resetKeys) s.set('keys', keys);
+      s.set('keys', keys);
+      s.set('lang', lang);
       this.render();
     });
-    panel.appendChild(reset);
-    this.backButton(panel);
+    this.backButton(foot);
+    foot.appendChild(reset);
+    panel.appendChild(foot);
   }
 
   pageControls(panel) {
-    this.heading(panel, 'Controls', this.o.controls.input ? 'Select a key to change it, then press the new key.' : '');
     const c = this.o.controls;
+    this.heading(panel, this.t('controls'), this.t('rebindHelp'));
     const table = el('div', 'menu-keys');
-    if (c.input) {
-      const input = c.input;
-      const b = input.bindings();
-      for (const [a, label, ar] of c.actions) {
-        const row = el('div', 'menu-key-row');
-        row.appendChild(el('span', 'menu-row-label', `${label}${ar ? ` <span class="ar" lang="ar" dir="rtl">${ar}</span>` : ''}`));
-        const keys = el('span', 'menu-key-slots');
-        for (let slot = 0; slot < 2; slot++) {
-          const k = el('button', 'menu-key', c.label(b[a]?.[slot]));
-          k.type = 'button';
-          k.addEventListener('click', () => {
-            k.textContent = 'Press a key…';
-            k.classList.add('listening');
-            input.capture = (code) => {
-              if (code !== 'Escape') input.rebind(a, slot, code);
-              this.render();
-            };
-          });
-          keys.appendChild(k);
-        }
-        row.appendChild(keys);
-        table.appendChild(row);
+    const input = c.input;
+    const b = input.bindings();
+    const ar = this.root.dir === 'rtl';
+    for (const [a, en, arLabel] of c.actions) {
+      const row = el('div', 'menu-key-row');
+      row.appendChild(el('span', 'menu-row-label', ar ? arLabel : en));
+      const keys = el('span', 'menu-key-slots');
+      for (let slot = 0; slot < 2; slot++) {
+        const k = el('button', 'menu-key');
+        k.type = 'button';
+        k.textContent = c.label(b[a]?.[slot]);
+        k.addEventListener('click', () => {
+          k.textContent = this.t('pressKey');
+          k.classList.add('listening');
+          input.capture = (code) => {
+            if (code !== 'Escape') input.rebind(a, slot, code);
+            this.render();
+          };
+        });
+        keys.appendChild(k);
       }
-    } else {
-      for (const [keysLabel, what] of c.list) {
-        const row = el('div', 'menu-key-row');
-        row.appendChild(el('span', 'menu-row-label', what));
-        row.appendChild(el('span', 'menu-key static', keysLabel));
-        table.appendChild(row);
-      }
+      row.appendChild(keys);
+      table.appendChild(row);
     }
     panel.appendChild(table);
-    if (c.extra) panel.appendChild(el('p', 'menu-sub', c.extra));
+    panel.appendChild(el('p', 'menu-sub', this.t('controlsExtra')));
     this.backButton(panel);
   }
 
@@ -2129,6 +2771,167 @@ function fmt(f, v) {
 }
 
 return { Menu };
+})();
+
+// ---- src/engine/i18n.js
+const __src_engine_i18n = (() => {
+// Interface strings in English and Damascene Arabic. The dialogue has its
+// own two languages (subtitles setting); this is the menus, settings, sheets
+// and HUD labels (the menu language setting).
+
+const STR = {
+  en: {
+    kickerDate: 'Ghouta · August 2014',
+    title: 'Before I Knew',
+    tagline: 'An ordinary afternoon. A friend heads home another way. Less than an hour later, the world has already changed, and you don’t know it yet.',
+    continue: 'Continue',
+    newGame: 'New game',
+    newGameSub: 'Act One · The Afternoon',
+    settings: 'Settings',
+    controls: 'Controls',
+    about: 'About',
+    resume: 'Resume',
+    restart: 'Restart from checkpoint',
+    mainMenu: 'Main menu',
+    log: 'Dialogue log',
+    logEmpty: 'Nothing has been said yet.',
+    paused: 'Paused',
+    back: 'Back',
+    restore: 'Restore defaults',
+    rebindHelp: 'Select a key to change it, then press the new key.',
+    pressKey: 'Press a key…',
+    controlsExtra: 'Choices: click them, or press 1, 2 or 3. A gamepad works too. On a phone, use the on-screen buttons.',
+    now: 'Now',
+    objective: 'Objective',
+    carrying: 'Carrying',
+    nothing: 'Nothing yet',
+    checkpoint: 'Checkpoint',
+    // settings groups and rows
+    gSound: 'Sound',
+    gText: 'Text',
+    gDisplay: 'Display',
+    gPlay: 'Play',
+    master: 'Master volume',
+    music: 'Music',
+    effects: 'Sound effects',
+    lang: 'Menu language',
+    subtitles: 'Subtitles',
+    subsBoth: 'Arabic and English',
+    subsEn: 'English only',
+    subsAr: 'Arabic only',
+    textSize: 'Text size',
+    small: 'Small',
+    medium: 'Medium',
+    large: 'Large',
+    xlarge: 'Extra large',
+    backing: 'Subtitle backing',
+    off: 'Off',
+    light: 'Light',
+    dark: 'Dark',
+    quality: 'Graphics quality',
+    auto: 'Auto',
+    low: 'Low',
+    high: 'High',
+    shake: 'Camera shake',
+    reduceFlashes: 'Reduce flashes',
+    hints: 'Control hints',
+    // sheets
+    noteKicker: 'Content note',
+    noteTitle: 'Before you begin',
+    noteBody: 'This story is about the siege of Ghouta: shelling, sniper fire, hunger, and the death of a friend. Violence is heard and its aftermath is seen, but it is never shown. Recommended for ages 16 and over.',
+    noteSound: 'Sound matters. Headphones are best.',
+    begin: 'Begin',
+    endKicker: 'End of Act One · The Afternoon',
+    endNext: 'Act Two, The Evening, is being written. The path you chose is saved for it.',
+    again: 'Play again, choose differently',
+    checkpoints: { walk: 'The Walk', hour: 'The Hour', school: 'The School', news: 'The Corner' },
+    times: { walk: '3:05 pm', hour: '3:25 pm', school: '3:50 pm', news: '4:10 pm' },
+    rotate: 'Turn your phone sideways for the full frame.',
+  },
+  ar: {
+    kickerDate: 'الغوطة · آب ٢٠١٤',
+    title: 'قبل ما عرفت',
+    tagline: 'بعد ضهر عادي. صاحبك بيرجع عالبيت من طريق تاني. وبأقل من ساعة، الدنيا بتكون تغيّرت، وإنت لسّا ما بتعرف.',
+    continue: 'كمّل من وين وقفت',
+    newGame: 'لعبة جديدة',
+    newGameSub: 'الفصل الأول · بعد الضهر',
+    settings: 'الإعدادات',
+    controls: 'التحكّم',
+    about: 'عن القصة',
+    resume: 'كمّل اللعب',
+    restart: 'ارجع لآخر نقطة',
+    mainMenu: 'القائمة الرئيسية',
+    log: 'سجلّ الحكي',
+    logEmpty: 'لسّا ما حدا حكى شي.',
+    paused: 'موقّف',
+    back: 'رجوع',
+    restore: 'رجّع الإعدادات الأصلية',
+    rebindHelp: 'اختار زر لتغيّرو، وبعدين اكبس الزر الجديد.',
+    pressKey: 'اكبس زر…',
+    controlsExtra: 'الخيارات: اكبس عليها، أو اكبس ١ أو ٢ أو ٣. يد التحكّم بتشتغل كمان. عالموبايل، استعمل الأزرار عالشاشة.',
+    now: 'هلّق',
+    objective: 'المطلوب',
+    carrying: 'معك',
+    nothing: 'لسّا ولا شي',
+    checkpoint: 'النقطة',
+    gSound: 'الصوت',
+    gText: 'الكتابة',
+    gDisplay: 'الشاشة',
+    gPlay: 'اللعب',
+    master: 'الصوت العام',
+    music: 'الموسيقى',
+    effects: 'المؤثرات',
+    lang: 'لغة القوائم',
+    subtitles: 'الترجمة',
+    subsBoth: 'عربي وإنكليزي',
+    subsEn: 'إنكليزي بس',
+    subsAr: 'عربي بس',
+    textSize: 'حجم الخط',
+    small: 'صغير',
+    medium: 'وسط',
+    large: 'كبير',
+    xlarge: 'كبير كتير',
+    backing: 'خلفية الترجمة',
+    off: 'بلا',
+    light: 'خفيفة',
+    dark: 'غامقة',
+    quality: 'جودة الصورة',
+    auto: 'تلقائي',
+    low: 'واطية',
+    high: 'عالية',
+    shake: 'هزّة الكاميرا',
+    reduceFlashes: 'خفّف الوميض',
+    hints: 'تلميحات التحكّم',
+    noteKicker: 'تنبيه',
+    noteTitle: 'قبل ما تبلّش',
+    noteBody: 'هاي القصة عن الحصار بالغوطة: قصف، قنّاص، جوع، وموت صديق. العنف بينسمع وبيبان أثرو، بس ما بينشاف. مناسبة لعمر ١٦ وفوق.',
+    noteSound: 'الصوت مهم. الأحسن بسمّاعات.',
+    begin: 'بلّش',
+    endKicker: 'آخر الفصل الأول · بعد الضهر',
+    endNext: 'الفصل التاني، المسا، عم ينكتب. الطريق اللي اخترتو محفوظ إلو.',
+    again: 'العب مرة تانية، واختار غير شي',
+    checkpoints: { walk: 'المشوار', hour: 'الساعة', school: 'المدرسة', news: 'الزاوية' },
+    times: { walk: '٣:٠٥', hour: '٣:٢٥', school: '٣:٥٠', news: '٤:١٠' },
+    rotate: 'دوّر الموبايل عالعرض لتشوف الصورة كاملة.',
+  },
+};
+
+let settingsRef = null;
+
+function bindI18n(settings) {
+  settingsRef = settings;
+}
+
+function lang() {
+  return settingsRef?.get('lang') === 'ar' ? 'ar' : 'en';
+}
+
+function t(key) {
+  const l = lang();
+  return STR[l][key] ?? STR.en[key] ?? key;
+}
+
+return { bindI18n, lang, t };
 })();
 
 // ---- src/engine/save.js
@@ -2247,8 +3050,9 @@ class Level {
     let bd = Infinity;
     for (const t of this.things) {
       if (!t.enabled()) continue;
-      const d = Math.abs(t.x - x);
-      if (d < t.range && d < bd) {
+      // things marked urgent (a scripted action) win over plain examine points
+      const d = Math.abs(t.x - x) - (t.urgent ? 1e6 : 0);
+      if (Math.abs(t.x - x) < t.range && d < bd) {
         best = t;
         bd = d;
       }
@@ -2490,6 +3294,27 @@ class Person {
     this.pose = { ...POSES.stand };
     this.prop = null;
     this.dust = 0; // 0…1 grey dust after shelling
+    // Facing: 'side' (profile, the default), 'front' (towards us, out of a
+    // side street) or 'back' (away from us, into one). viewK eases 0…1 as
+    // the figure turns; the drawing flips through a narrow silhouette.
+    this.view = 'side';
+    this.viewFrom = 'side';
+    this.viewK = 1;
+    this.blink = 0; // > 0 while the eyes are shut
+  }
+
+  // Turn to face a new way; the rig animates the turn.
+  face(view) {
+    if (view === this.view) return;
+    this.viewFrom = this.viewK < 0.5 ? this.viewFrom : this.view;
+    this.view = view;
+    this.viewK = 0;
+  }
+
+  tick(dt) {
+    if (this.viewK < 1) this.viewK = Math.min(1, this.viewK + dt * 4);
+    if (this.blink > 0) this.blink -= dt;
+    else if (Math.random() < dt * 0.3) this.blink = 0.13;
   }
 
   setPose(p) {
@@ -2556,6 +3381,235 @@ class Person {
   }
 
   draw(ctx) {
+    // mid-turn: squeeze to a sliver, then open out into the new view
+    const k = this.viewK;
+    const shown = k < 0.5 ? this.viewFrom : this.view;
+    const squeeze = k < 1 ? Math.max(0.12, Math.abs(Math.cos(k * Math.PI))) : 1;
+    if (squeeze < 1) {
+      const [hx] = this.hip();
+      ctx.save();
+      ctx.translate(hx, 0);
+      ctx.scale(squeeze, 1);
+      ctx.translate(-hx, 0);
+    }
+    if (shown === 'side') this.drawSide(ctx);
+    else this.drawFrontBack(ctx, shown === 'front');
+    if (squeeze < 1) ctx.restore();
+  }
+
+  // Facing us or facing away. The same pose drives it: the side view's
+  // vertical extents of knees, feet, elbows and hands foreshorten naturally.
+  drawFrontBack(ctx, front) {
+    const j = this.solve();
+    const [hx, hy] = this.hip();
+    const o = this.o;
+    const p = this.pose;
+    const dusty = (c) => (this.dust > 0 ? mixHex(c, '#8a857c', this.dust * 0.55) : c);
+    const top = dusty(o.top);
+    const trousers = dusty(o.trousers);
+    const armCloth = o.sleeve === 'short' ? o.skin : top;
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.scale(this.scale, this.scale);
+    const wide = o.baggy ? 17 : 14;
+    const sy = j.shoulder[1];
+    const ny = j.neck[1];
+    // legs: side-view vertical extents, spread either side of the hips
+    // one stroke per limb, so no seams at the joints
+    const stroke = (pts, w, color) => {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = w;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.beginPath();
+      ctx.moveTo(...pts[0]);
+      for (const q of pts.slice(1)) ctx.lineTo(...q);
+      ctx.stroke();
+    };
+    const leg = (side, knee, foot, cloth, shoe) => {
+      const x0 = side * 7;
+      const kx = x0 + side * 1.5;
+      stroke([[x0, 0], [kx, Math.max(10, knee[1])], [x0, Math.max(knee[1] + 8, foot[1])]], 13, cloth);
+      ctx.beginPath();
+      ctx.ellipse(x0, Math.max(knee[1] + 8, foot[1]) + 2, 6.5, 4.2, 0, 0, Math.PI * 2);
+      ctx.fillStyle = shoe;
+      ctx.fill();
+    };
+    // the far leg (the one further back in the stride) first
+    const nFirst = j.footN[1] < j.footF[1];
+    const legs = [
+      [-1, j.kneeN, j.footN],
+      [1, j.kneeF, j.footF],
+    ];
+    if (!nFirst) legs.reverse();
+    for (const [side, kn, ft] of legs) leg(side, kn, ft, o.robe ? shade(top, 0.9) : trousers, o.shoes);
+    if (o.robe) {
+      const bottom = Math.max(j.footN[1], j.footF[1]) - 6;
+      ctx.beginPath();
+      ctx.moveTo(-wide, -2);
+      ctx.lineTo(wide, -2);
+      ctx.lineTo(wide + 5, bottom);
+      ctx.lineTo(-wide - 5, bottom);
+      ctx.closePath();
+      ctx.fillStyle = top;
+      ctx.fill();
+    }
+    // arms hang at the torso's sides; the swing reads as a lift of the hand
+    const arm = (side, e, h) => {
+      const sx = side * (wide + 2);
+      const ex = sx + side * 3.5;
+      const hxx = sx + side * 3;
+      const ey = Math.max(sy + 8, e[1]);
+      const hy3 = Math.max(sy + 14, h[1]);
+      stroke([[sx, sy + 3], [ex, ey]], 10, shade(top, 0.92));
+      stroke([[ex, ey], [hxx, hy3]], o.sleeve === 'short' ? 7.5 : 9, o.sleeve === 'short' ? o.skin : shade(top, 0.92));
+      ctx.beginPath();
+      ctx.arc(hxx, hy3 + 1, 4.4, 0, Math.PI * 2);
+      ctx.fillStyle = o.skin;
+      ctx.fill();
+    };
+    // torso: shoulders wider than the hips
+    ctx.beginPath();
+    ctx.moveTo(-wide + 1, 2);
+    ctx.lineTo(wide - 1, 2);
+    ctx.lineTo(wide + 2, sy + 4);
+    ctx.quadraticCurveTo(wide, ny + 1, 6, ny);
+    ctx.lineTo(-6, ny);
+    ctx.quadraticCurveTo(-wide, ny + 1, -wide - 2, sy + 4);
+    ctx.closePath();
+    ctx.fillStyle = top;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.16)';
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    if (front) {
+      // a button line and collar
+      ctx.moveTo(0, ny + 3);
+      ctx.lineTo(0, -2);
+      ctx.moveTo(-5, ny + 1);
+      ctx.lineTo(0, ny + 6);
+      ctx.lineTo(5, ny + 1);
+    } else {
+      // shoulder blades
+      ctx.moveTo(-wide + 4, sy + 10);
+      ctx.quadraticCurveTo(0, sy + 16, wide - 4, sy + 10);
+    }
+    ctx.stroke();
+    arm(-1, j.elbowN, j.handN);
+    arm(1, j.elbowF, j.handF);
+    if (o.satchel) {
+      ctx.strokeStyle = shade(o.satchel, 0.9);
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      ctx.moveTo(-wide + 3, ny + 2);
+      ctx.lineTo(wide - 2, -4);
+      ctx.stroke();
+      if (!front) {
+        ctx.fillStyle = o.satchel;
+        ctx.fillRect(wide - 12, -12, 16, 18);
+      }
+    }
+    // neck and head
+    const hr = L.head;
+    const hy2 = j.head[1];
+    limb(ctx, 0, ny + 2, 0, hy2 + hr * 0.6, 9, 8, o.skin);
+    ctx.save();
+    ctx.translate(0, hy2);
+    ctx.rotate(Math.sin(p.head) * 0.15);
+    const hair = dusty(o.hair);
+    if (o.headwear === 'hijab') {
+      ctx.beginPath();
+      ctx.ellipse(0, 1, hr * 1.12, hr * 1.28, 0, 0, Math.PI * 2);
+      ctx.moveTo(-hr * 1.1, 4);
+      ctx.quadraticCurveTo(-hr * 1.3, hr * 2.2, 0, hr * 2.3);
+      ctx.quadraticCurveTo(hr * 1.3, hr * 2.2, hr * 1.1, 4);
+      ctx.fillStyle = dusty(o.headColor);
+      ctx.fill();
+      if (front) {
+        ctx.beginPath();
+        ctx.ellipse(0, 1.5, hr * 0.66, hr * 0.84, 0, 0, Math.PI * 2);
+        ctx.fillStyle = o.skin;
+        ctx.fill();
+        this.drawFace(ctx, hr, o, true);
+      }
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, hr * 0.9, hr * 1.06, 0, 0, Math.PI * 2);
+      ctx.fillStyle = o.skin;
+      ctx.fill();
+      // ears
+      ctx.beginPath();
+      ctx.ellipse(-hr * 0.9, 1, 2.2, 3.4, 0, 0, Math.PI * 2);
+      ctx.ellipse(hr * 0.9, 1, 2.2, 3.4, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      if (front) {
+        // hairline across the top
+        ctx.ellipse(0, -hr * 0.45, hr * 0.92, hr * 0.62, 0, Math.PI, 0);
+      } else {
+        // the back of the head is all hair, down to the nape
+        ctx.ellipse(0, -1, hr * 0.94, hr * 1.02, 0, 0, Math.PI * 2);
+      }
+      ctx.fillStyle = hair;
+      ctx.fill();
+      if (!front && (o.ponytail || o.braid)) {
+        ctx.strokeStyle = hair;
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, hr * 0.6);
+        ctx.lineTo(0, o.braid ? hr * 2.3 : hr * 1.6);
+        ctx.stroke();
+      }
+      if (front) this.drawFace(ctx, hr, o, false);
+      if (o.headwear === 'kufi') {
+        ctx.beginPath();
+        ctx.ellipse(0, -hr * 0.55, hr * 0.92, hr * 0.5, 0, Math.PI, 0);
+        ctx.fillStyle = o.headColor;
+        ctx.fill();
+      }
+    }
+    ctx.restore();
+    if (this.prop) this.prop(ctx, [-(wide + 3), j.handN[1]], [wide + 3, j.handF[1]]);
+    ctx.restore();
+  }
+
+  // A face towards us: eyes, a brow, the beard. Kept as simple as the rest.
+  drawFace(ctx, hr, o, veiled) {
+    const bc = o.beardColor || shade(o.hair, 0.95);
+    if (!veiled && (o.beard === 'full' || o.beard === 'stubble')) {
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.86, 0);
+      ctx.quadraticCurveTo(-hr * 0.8, hr * (o.beard === 'full' ? 1.4 : 1.15), 0, hr * (o.beard === 'full' ? 1.5 : 1.2));
+      ctx.quadraticCurveTo(hr * 0.8, hr * (o.beard === 'full' ? 1.4 : 1.15), hr * 0.86, 0);
+      ctx.lineTo(hr * 0.5, hr * 0.42);
+      ctx.lineTo(-hr * 0.5, hr * 0.42);
+      ctx.closePath();
+      ctx.fillStyle = o.beard === 'full' ? bc : 'rgba(40,30,25,0.4)';
+      ctx.fill();
+    }
+    if (!veiled && (o.beard === 'moustache' || o.beard === 'full')) {
+      ctx.fillStyle = bc;
+      ctx.fillRect(-4.5, 4.5, 9, 2);
+    }
+    // brows and a mouth line
+    ctx.fillStyle = 'rgba(25,18,14,0.55)';
+    ctx.fillRect(-5.2, -3.6, 3.8, 1.1);
+    ctx.fillRect(1.4, -3.6, 3.8, 1.1);
+    ctx.fillRect(-2.2, hr * 0.5, 4.4, 1);
+    ctx.fillStyle = 'rgba(25,18,14,0.85)';
+    if (this.blink > 0) {
+      ctx.fillRect(-5, -0.5, 3.4, 1);
+      ctx.fillRect(1.6, -0.5, 3.4, 1);
+    } else {
+      ctx.beginPath();
+      ctx.arc(-3.3, -0.5, 1.4, 0, Math.PI * 2);
+      ctx.arc(3.3, -0.5, 1.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  drawSide(ctx) {
     const j = this.solve();
     const [hx, hy] = this.hip();
     const o = this.o;
@@ -2677,6 +3731,14 @@ class Person {
       ctx.ellipse(-3, -5, hr * 0.88, hr * 0.74, -0.3, 0, Math.PI * 2);
       ctx.fillStyle = dusty(o.hair);
       ctx.fill();
+      // the eye, blinking now and then
+      ctx.fillStyle = 'rgba(25,18,14,0.8)';
+      if (this.blink > 0) ctx.fillRect(4.2, -1.2, 3.2, 1);
+      else {
+        ctx.beginPath();
+        ctx.arc(5.6, -1, 1.3, 0, Math.PI * 2);
+        ctx.fill();
+      }
       if (o.ponytail || o.braid) {
         ctx.strokeStyle = o.hair;
         ctx.lineWidth = 4;
@@ -2801,6 +3863,16 @@ class Walker {
     this.lastStep = 0;
     this.time = 0;
     this.blocked = null; // why we couldn't move this frame: 'ceiling' | 'wall' | null
+    this.seed = Math.random() * 100; // so idle glances aren't in step
+  }
+
+  // 'side' | 'front' | 'back': see Person.face.
+  face(view) {
+    this.rig.face(view);
+  }
+
+  get view() {
+    return this.rig.view;
   }
 
   place(x, y = null) {
@@ -2983,8 +4055,16 @@ class Walker {
       if (this.carry) target = { ...target, ...POSES.carry, thighN: target.thighN, shinN: target.shinN, thighF: target.thighF, shinF: target.shinF, torso: -0.08 };
     } else {
       target = this.carry ? POSES.carry : POSES.stand;
-      // idle breathing
-      target = { ...target, torso: target.torso + 0.01 * Math.sin(this.time * 1.7) };
+      // idle life: breathing, and a glance around now and then
+      const tt = this.time + this.seed;
+      const glance = Math.max(0, Math.sin(tt * 0.23) - 0.6) * 0.5 * Math.sin(tt * 0.9);
+      target = {
+        ...target,
+        torso: target.torso + 0.012 * Math.sin(tt * 1.7),
+        head: target.head + glance - 0.05 * Math.max(0, Math.sin(tt * 0.11 + 2) - 0.8) * 5,
+        armN: target.armN + 0.02 * Math.sin(tt * 1.7),
+        armF: target.armF + 0.02 * Math.sin(tt * 1.7 + 0.4),
+      };
     }
 
     // footsteps
@@ -3006,6 +4086,7 @@ class Walker {
     } else this.overrideBlend = 0;
 
     const r = this.rig;
+    r.tick(dt);
     r.setPose(final);
     r.x = this.x;
     r.y = this.y;
@@ -3199,7 +4280,15 @@ class Game {
     this.player.onStep = (stance) => this.sound.step(this.surface?.(this.player.x) || 'grit', stance === 'crouch' ? 0.1 : 0.18);
     this.player.onLand = (k) => this.sound.land(0.15 + k * 0.3);
     this.npcs = [];
+    this.passers = [];
     this.locked = false;
+    // nothing from a previous run may leak into this one
+    this.gate = null;
+    this.autoWalk = null;
+    this.fade = 0;
+    this.stairKids = null;
+    this.flashActors = null;
+    this.cat = null;
     this.camOverride = null;
     this.cam = { x: 0, y: -250, view: 1500 };
     this.shake = 0;
@@ -3211,6 +4300,9 @@ class Game {
     this.text.hideChoice();
     this.text.clearLine();
     this.text.prompt(null);
+    this.text.hint(0, 0, '', null);
+    this.promptInfo = null;
+    this.skipId = 0;
     this.text.objective(null);
     act.build(this);
     this.snapCamera();
@@ -3247,18 +4339,29 @@ class Game {
     if (on) this.text.hint(0, 0, '', null);
   }
 
+  // Everything transient off the screen (menus, scene changes, the end).
+  clearHud() {
+    this.text.prompt(null);
+    this.text.hint(0, 0, '', null);
+    this.promptVisible = false;
+  }
+
   // Generators for scripts --------------------------------------------------
 
   *say(who, line, dur = null, style = '') {
     const d = dur ?? Math.max(2.4, 1.2 + line[1].length * 0.055);
-    this.text.say(who, line, d, style);
-    yield d;
+    const id = this.text.say(who, line, d, style);
+    this.sound.score?.speak(d);
+    const end = this.time + d;
+    // held Skip moves on once the line has been up a moment
+    yield () => this.time >= end || this.skipId === id;
   }
 
   // Show a line without waiting for it.
   line(who, line, dur = null, style = '') {
     const d = dur ?? Math.max(2.4, 1.2 + line[1].length * 0.055);
     this.text.say(who, line, d, style);
+    this.sound.score?.speak(d);
   }
 
   *choose(prompt, options, { timed = 0, def = 0 } = {}) {
@@ -3290,15 +4393,41 @@ class Game {
     yield () => !this.autoWalk;
   }
 
+  // A control prompt shows until it's obeyed or for 7 s, then steps aside.
+  // The script may still be waiting on it; if the player stands idle for 5 s
+  // it comes back.
   prompt(keysAction, ar, en) {
     if (!keysAction) {
       this.promptFor = null;
+      this.promptInfo = null;
       this.text.prompt(null);
       return;
     }
     this.promptFor = keysAction;
-    const keys = this.input.bindings()[keysAction] || [];
+    this.promptInfo = { action: keysAction, ar, en };
+    this.showPrompt();
+  }
+
+  showPrompt() {
+    const { action, ar, en } = this.promptInfo;
+    const keys = this.input.bindings()[action] || [];
     this.text.prompt(keys.map(keyLabel).slice(0, 2).join(' / '), ar, en);
+    this.promptAt = this.time;
+    this.promptVisible = true;
+    this.idleT = 0;
+  }
+
+  updatePrompt(dt) {
+    if (!this.promptInfo) return;
+    const input = this.input;
+    this.idleT = input.busy() ? 0 : (this.idleT || 0) + dt;
+    if (this.promptVisible) {
+      if (input.hit(this.promptFor) || this.time - this.promptAt > 7) {
+        this.text.prompt(null);
+        this.promptVisible = false;
+        this.idleT = 0;
+      }
+    } else if (this.idleT > 5 && !this.locked) this.showPrompt();
   }
 
   bump(amount) {
@@ -3351,7 +4480,7 @@ class Game {
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
       } else if (stance === 'stand' && p.stance !== 'stand') {
-        this.text.say(null, ['ما في مجال توقف هون.', 'No room to stand here.'], 1.6, 'examine');
+        this.text.say(null, ['ما في محل توقف هون.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
       p.update(dt, {});
@@ -3380,8 +4509,14 @@ class Game {
     this.cam.view = lerp(this.cam.view, target.view ?? 1300, k);
     this.shake = Math.max(0, this.shake - dt * 1.4);
 
-    // prompts clear once obeyed
-    if (this.promptFor && input.hit(this.promptFor)) this.promptDone = this.promptFor;
+    // prompts step aside once obeyed, or after a while
+    this.updatePrompt(dt);
+
+    // hold Skip to move through dialogue (never through a choice)
+    if (input.held('skip') && !this.text.choiceOpen && !this.text.sub.hidden && performance.now() - (this.text.lineStart || 0) > 350) {
+      this.skipId = this.text.lineId;
+      this.text.clearLine();
+    }
   }
 
   tools(dt) {
@@ -3416,12 +4551,12 @@ class Game {
       this.torch.charge = Math.max(0, this.torch.charge - dt * 0.03);
       if (this.torch.charge <= 0) this.torch.on = false;
     }
-    this.text.tools(list, this.active, this.torch.charge, this.torch.on);
+    this.text.tools(list, this.active, this.torch.charge, this.torch.on, keyLabel(this.input.bindings().use?.[0]));
   }
 
   interact() {
     const p = this.player;
-    const t = !this.locked && this.scene === 'street' ? this.level.nearest(p.x) : null;
+    const t = !this.locked && this.scene === 'street' && !this.text.choiceOpen ? this.level.nearest(p.x) : null;
     if (!t) {
       this.text.hint(0, 0, '', null);
       return;
@@ -3455,6 +4590,12 @@ class Game {
     R.cam.set({ x: this.cam.x, y: this.cam.y, view: this.cam.view, shake: this.shake });
     const look = this.act.look(this);
     const fade = Math.max(look.fade || 0, this.fade || 0);
+    // the HUD steps out of full blackouts (title cards over black)
+    const black = fade > 0.85;
+    if (black !== this.blackout) {
+      this.blackout = black;
+      document.getElementById('stage')?.classList.toggle('blackout', black);
+    }
     if (this.settings.get('reduceFlashes') && look.flash) look.flash = look.flash.map((v) => v * 0.25);
     R.frame((r) => this.act.draw(r, this), { ...look, time, fade });
   }
@@ -4574,6 +5715,37 @@ function drawStreet(R, g) {
   if (a.fil) T.plume(R, a.fil.x, 60, t, { depth: 0.3, age: (g.time - a.fil.t) / 9, height: 420, width: 110, alpha: 0.7 });
   T.skyline(R, { depth: 0.32, y: 40, color: '#8f8474', seed: 9, haze: ['#cfc4b2', 0.18], minarets: [1500] });
 
+  // a jet: a glint and a contrail, gone before you find it
+  if (a.jet) {
+    const k = (g.time - a.jet.t0) / a.jet.dur;
+    if (k > 0 && k < 1.6) {
+      R.layer(0.12);
+      R.paint((c) => {
+        const x = lerp(a.jet.x0, a.jet.x1, Math.min(k, 1));
+        const y = -760 + k * 40;
+        const fade = k > 1 ? 1 - (k - 1) / 0.6 : 1;
+        const grad = c.createLinearGradient(x - 700, y, x, y);
+        grad.addColorStop(0, 'rgba(236,236,232,0)');
+        grad.addColorStop(1, `rgba(236,236,232,${0.55 * fade})`);
+        c.strokeStyle = grad;
+        c.lineWidth = 3;
+        c.beginPath();
+        c.moveTo(x - 700, y + 18);
+        c.lineTo(x, y);
+        c.stroke();
+        if (k < 1) {
+          c.fillStyle = '#4a4c50';
+          c.beginPath();
+          c.moveTo(x + 14, y - 1);
+          c.lineTo(x - 10, y - 4);
+          c.lineTo(x - 12, y + 3);
+          c.closePath();
+          c.fill();
+        }
+      });
+      R.layer(1);
+    }
+  }
   // the helicopter crossing the far sky
   if (a.heli) {
     const k = (g.time - a.heli.t0) / a.heli.dur;
@@ -4754,9 +5926,18 @@ function drawStreet(R, g) {
 
   // --- the people ---
   const shear = shearFor(g);
+  // passers-by far down the side streets, behind everyone
+  for (const w of g.passers || []) {
+    if (w.depth > 0 && near(w.x - 100, w.x + 100)) R.cast((c) => w.draw(c));
+  }
   for (const w of g.npcs) {
     if (!w.visible || !near(w.x - 100, w.x + 100)) continue;
     if (w.depthK) continue; // walking away down a side street: drawn below
+    R.cast((c) => w.draw(c));
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
+  }
+  for (const w of g.passers || []) {
+    if (w.depth > 0 || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
     R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
   }
@@ -4994,7 +6175,7 @@ return { X, sunLook, shearFor, drawStreet, drawStairwell, stairLook, drawFlashba
 
 // ---- src/story/act1.js
 const __src_story_act1 = (() => {
-// Act 1: The Afternoon — الضهرية
+// Act 1: The Afternoon — بعد الضهر
 // Scripted from script/act1.md. All dialogue and examine text is the
 // script's own, in Damascene Arabic with its English.
 
@@ -5008,13 +6189,13 @@ const { writeSave } = __src_engine_save;
 const SAMI = ['سامي', 'Sami'];
 const KHALED = ['خالد', 'Khaled'];
 const OLD = ['الختيار', 'The old man'];
-const SPOT = ['الراصد', 'The spotter'];
+const SPOT = ['المرصد', 'The spotter'];
 const RADIO = ['لاسلكي', 'Walkie-talkie'];
 const LAYLA = ['ليلى', 'Layla'];
 const ABU = ['أبو يزن', 'Abu Yazan'];
-const WMAN = ['رجل اللاسلكي', 'Walkie-talkie man'];
+const WMAN = ['زلمة اللاسلكي', 'Walkie-talkie man'];
 
-const LOOK = ['تفحّص', 'Examine'];
+const LOOK = ['اتفرّج', 'Examine'];
 
 const P_FLINCH = { ...POSES.stand, torso: -0.08, head: -0.35, armN: 0.5, foreN: 1.6, armF: 0.4, foreF: 1.4 };
 const P_STRUGGLE = { ...POSES.stand, torso: 0.55, head: 0.1, armN: 0.2, foreN: 0.2, armF: 0.1, foreF: 0.1 };
@@ -5046,8 +6227,8 @@ const ACT1 = {
     // --- examine texts from the script ---
     L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
     L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, use: () => g.line(null, ['دكّان أبو ريّان. كانت تبيع كل شي — خبز وسكّر وسجاير. هلّق ما فيها غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything — bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
-    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش — صار المسؤول عنها لأنو هوي الوحيد يلي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen — he became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي — خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything — bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش — صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen — he became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
     L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
     L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
@@ -5055,15 +6236,15 @@ const ACT1 = {
       x: X.shard,
       y: -60,
       range: 60,
-      label: ['التقط', 'Pick up'],
+      label: ['شيل', 'Pick up'],
       enabled: () => !g.hasTool('mirror'),
       use: () => {
         g.giveTool('mirror');
         g.sound.click();
         g.runner.run(
           (function* () {
-            yield* g.say(null, ['شقفة مراية. بتشوف فيها حالك — أو بتشوف فيها شو وراء الحيطان.', 'A shard of mirror. You can see yourself in it — or you can see what’s around walls.'], 5, 'examine');
-            yield* g.say(null, ['شقفة مراية — بتنعكس فيها الطريق يلي ما بتشوفها.', 'Mirror shard — reflects the road you can’t see.'], 4, 'item');
+            yield* g.say(null, ['شقفة مراية. بتشوف فيها حالك — أو بتشوف فيها شو ورا الحيطان.', 'A shard of mirror. You can see yourself in it — or you can see what’s around walls.'], 5, 'examine');
+            yield* g.say(null, ['شقفة مراية — بتبيّن فيها الطريق اللي ما عم تشوفها.', 'Mirror shard — reflects the road you can’t see.'], 4, 'item');
           })(),
         );
       },
@@ -5081,6 +6262,7 @@ const ACT1 = {
 
     if (s.checkpoint !== 'walk') g.a.sunK = { hour: 0.2, school: 0.55, news: 0.8 }[s.checkpoint] || 0;
     if (s.checkpoint === 'hour') g.text.objective(['روح عالشرقي، عالأنابيب', 'Head east, to the pipes']);
+    g.sound.score?.mood(s.checkpoint === 'walk' ? 'walk' : 'hour', 3);
   },
 
   // ============================================================ Scene 1 ==
@@ -5144,7 +6326,7 @@ const ACT1 = {
   *walk(g) {
     const kh = g.khaled;
     g.sound.ambience({ wind: 0.4, air: 0.5, generator: 0.6, traffic: 0, crowd: 0 });
-    g.text.titleCard([['الضهرية', 'The Afternoon'], ['الساعة تلاتة وخمس دقايق', '3:05 PM · 14 August 2014']], 4.5);
+    g.text.titleCard([['بعد الضهر', 'The Afternoon'], ['الساعة تلاتة وخمس دقايق', '3:05 PM · 14 August 2014']], 4.5);
     g.text.objective(['امشي مع خالد', 'Walk with Khaled']);
     yield 5;
     g.prompt('right', 'امشي', 'Walk');
@@ -5155,7 +6337,7 @@ const ACT1 = {
     const curtain = g.runner.run(
       (function* () {
         yield () => g.player.x > X.curtain0 - 40;
-        g.prompt('crouch', 'انحني', 'Crouch down');
+        g.prompt('crouch', 'وطّي', 'Crouch down');
         yield () => g.player.stance !== 'stand' || g.player.x > X.sag1;
         g.prompt(null);
         // from here he walks on as far as the junction, and waits there
@@ -5197,14 +6379,14 @@ const ACT1 = {
 
     // Rami, who asked what "abroad" means.
     yield* talk(g, [
-      [KHALED, ['بتعرف رامي؟ ابن أبو علي؟ يلي ساكنين بآخر الشارع؟', 'You know Rami? Abu Ali’s son? The ones who live at the end of the street?']],
-      [SAMI, ['الصغير؟ يلي ما بيوقف حكي؟', 'The little one? Who never stops talking?']],
+      [KHALED, ['بتعرف رامي؟ ابن أبو علي؟ اللي ساكنين بآخر الشارع؟', 'You know Rami? Abu Ali’s son? The ones who live at the end of the street?']],
+      [SAMI, ['الصغير؟ اللي ما بيوقف حكي؟', 'The little one? Who never stops talking?']],
     ]);
     // the rubble: climb it
     const climbPrompt = g.runner.run(
       (function* () {
         yield () => g.player.x > X.wall0 - 90;
-        if (g.player.x < X.wall1) g.prompt('jump', 'اقفز / اطلع', 'Jump / Climb');
+        if (g.player.x < X.wall1) g.prompt('jump', 'نطّ / اطلع', 'Jump / Climb');
         yield () => g.player.x > X.wall0 + 20 || g.player.mantle;
         g.prompt(null);
       })(),
@@ -5238,14 +6420,14 @@ const ACT1 = {
     g.sound.ambience({ generator: 0.25, air: 0.4 });
     yield 0.6;
     yield* talk(g, [
-      [KHALED, ['يلا، أنا رايح من هون. بدي فوت عأم سعيد وعيلتو — بنتهن عيانة وما في حدا يشوفها.', 'Right, I’m heading off from here. I want to check on Um Said and her family — their daughter’s ill and there’s no one to see her.']],
+      [KHALED, ['يلا، أنا رايح من هون. بدي مرّ عند أم سعيد وعيلتا — بنتن مريضة وما في حدا يشوفها.', 'Right, I’m heading off from here. I want to check on Um Said and her family — their daughter’s ill and there’s no one to see her.']],
       [SAMI, ['من وين رايح؟ من شارع المدرسة؟', 'Which way are you going? Through School Street?']],
       [KHALED, ['إي، أسرع.', 'Yeah, it’s quicker.']],
     ]);
     yield 0.8; // he considers saying something
     yield* talk(g, [
       [SAMI, ['خلّي بالك ع حالك.', 'Take care of yourself.']],
-      [KHALED, ['دايماً. بشوفك بالليل إن شاء الله. عندي نكتة جديدة — مش رح تصدّقها.', 'Always. I’ll see you tonight, God willing. I’ve got a new joke — you won’t believe it.']],
+      [KHALED, ['دايماً. بشوفك بالليل إن شاء الله. عندي نكتة جديدة — مو رح تصدّقها.', 'Always. I’ll see you tonight, God willing. I’ve got a new joke — you won’t believe it.']],
       [SAMI, ['نكاتك ما بتنضحك.', 'Your jokes aren’t funny.']],
       [KHALED, ['هاي الأحلى من كلهن. الليلة بتسمعها.', 'This one’s the best yet. Tonight, you’ll hear it.']],
       [KHALED, ['يلا، يا هندسة.', 'See you, ya handasa.']],
@@ -5256,6 +6438,7 @@ const ACT1 = {
     // He walks to the mouth of the southern road, then away down it.
     yield* g.walkNpc(kh, X.junction - 10);
     g.a.khaledMode = 'depth';
+    kh.face('back');
     g.camOverride = { x: X.junction - 80, y: -230, view: 1050 };
     yield () => !kh.visible;
     g.a.occluder = null;
@@ -5268,6 +6451,7 @@ const ACT1 = {
     g.camOverride = null;
     g.lock(false);
     g.checkpoint('hour');
+    g.sound.score?.mood('hour', 8);
     g.text.objective(['روح عالشرقي، عالأنابيب', 'Head east, to the pipes']);
   },
 
@@ -5345,7 +6529,7 @@ const ACT1 = {
       g.runner.run(
         (function* () {
           yield 2;
-          yield* g.say(OLD, ['كنت بشيل زيتون من الضيعة، شوالين عكتافي، ولا بحس فيهن. هلّق غالون مي بيكسرني.', 'I used to carry olives from the village, sacks on my shoulders, and feel nothing. Now a jug of water breaks me.'], 6);
+          yield* g.say(OLD, ['كنت بشيل زيتون من الضيعة، شوالين عكتافي، وما كنت حسّ فيهن. هلّق غالون مي بيكسرني.', 'I used to carry olives from the village, sacks on my shoulders, and feel nothing. Now a jug of water breaks me.'], 6);
         })(),
       );
       yield* g.walkPlayer(X.door - 40);
@@ -5365,6 +6549,8 @@ const ACT1 = {
         [SAMI, ['سامي.', 'Sami.']],
         [OLD, ['الله يحمي أهلك يا سامي.', 'God protect your family, Sami.']],
       ]);
+      old.face('back');
+      yield 0.7;
       old.visible = false;
       g.a.doorOpen = 0;
       g.a.doorGlow = 0;
@@ -5390,7 +6576,7 @@ const ACT1 = {
       return;
     }
     g.active = 'mirror';
-    g.prompt('use', 'استخدم المراية', 'Use the mirror');
+    g.prompt('use', 'استعمل المراية', 'Use the mirror');
     yield () => g.a.mirrorChecked;
     g.prompt(null);
   },
@@ -5424,7 +6610,7 @@ const ACT1 = {
     sp.override = { ...POSES.stand, torso: 0.2, head: 0.5 };
     sp.f = -1;
     g.camOverride = { x: X.spotter - 60, y: -300, view: 1300 };
-    yield* g.say(SPOT, ['يا زلمة! وين رايح؟ البراميل عم تنزل ع الجنوبي.', 'Hey, man! Where are you headed? Barrels are falling on the southern quarter.'], null, 'shout');
+    yield* g.say(SPOT, ['يا زلمة! وين رايح؟ البراميل عم تنزل عالقبلي.', 'Hey, man! Where are you headed? Barrels are falling on the southern quarter.'], null, 'shout');
     yield GAP;
     p.override = POSES.lookUp;
     yield* g.say(SAMI, ['رايح عالشرقي. عالأنابيب.', 'Heading to the eastern quarter. To the pipes.']);
@@ -5453,7 +6639,7 @@ const ACT1 = {
     g.a.rope = 2;
     yield* g.say(null, ['لاسلكي — بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.', 'Walkie-talkie — hear the spotters’ warnings. Receive only.'], 4.5, 'item');
     yield GAP;
-    yield* g.say(SPOT, ['الموجة ٣. إذا سمعت "طيّارة" — انبطح. إذا سمعت "فيل" — الله يستر.', 'Channel 3. If you hear “helicopter” — get flat. If you hear “elephant” — God help us.'], 6);
+    yield* g.say(SPOT, ['الموجة ٣. إذا سمعت "مروحي" أو "حربي" — انبطح. إذا سمعت "فيل" — الله يستر.', 'Channel 3. If you hear “mirwahi” (helicopter) or “harbi” (jet) — get flat. If you hear “elephant” — God help us.'], 6);
     sp.override = POSES.binoculars;
     sp.f = -1;
     g.camOverride = null;
@@ -5462,9 +6648,10 @@ const ACT1 = {
 
   *helicopter(g) {
     const p = g.player;
+    g.sound.score?.mood('danger', 3);
     g.a.sunK = Math.max(g.a.sunK, 0.4);
     g.sound.radio(2.4);
-    yield* g.say(RADIO, ['...طيّارة... طيّارة فوق الشرقي... طيّارة...', '...helicopter... helicopter over the eastern quarter... helicopter...'], 3.5, 'radio');
+    yield* g.say(RADIO, ['...مروحي... مروحي فوق الشرقي... مروحي...', '...helicopter... helicopter over the eastern quarter... helicopter...'], 3.5, 'radio');
     g.sound.helicopter(12);
     g.a.heli = { t0: g.time + 1.5, dur: 10, x0: p.x * 0.35 + 900, x1: p.x * 0.35 - 900 };
     g.prompt('prone', 'انبطح!', 'Get down!');
@@ -5489,12 +6676,13 @@ const ACT1 = {
     g.a.plumeX = g.cam.x * 0.3 - 420;
     yield 3;
     g.sound.radio(2.2);
-    yield* g.say(RADIO, ['...نزل برميل... الحارة الجنوبية الغربية... نزل برميل...', '...barrel dropped... south-western quarter... barrel dropped...'], 4, 'radio');
+    yield* g.say(RADIO, ['...نزل برميل... عالحارة القبلية... نزل برميل...', '...barrel dropped... the southern quarter... barrel dropped...'], 4, 'radio');
     g.lock(false);
     g.prompt('jump', 'قوم', 'Get up');
     yield () => p.stance === 'stand';
     g.prompt(null);
     g.player.rig.dust = 0.15;
+    g.sound.score?.mood('hour', 10);
     writeSave(g.state);
   },
 
@@ -5521,7 +6709,7 @@ const ACT1 = {
       k.play = true;
       k.brain = (dt) => {
         if (k.hide) {
-          if (k.goTo(X.stairs, dt, { run: true })) k.visible = false;
+          if (k.goTo(X.stairs, dt, { run: true })) enterDoor(g, k);
           return;
         }
         if (k.play) {
@@ -5581,7 +6769,7 @@ const ACT1 = {
   *laylaTalk(g) {
     g.lock();
     g.player.f = -1;
-    yield* g.say(LAYLA, ['بتعرف كم كيلو حديد بدّو الواحد يجمّع تيشتري كيس برغل؟', 'Do you know how many kilos of scrap metal you need to collect for a bag of bulgur?'], 5);
+    yield* g.say(LAYLA, ['بتعرف قدّيش كيلو حديد لازم الواحد يلمّ لحتى يشتري كيس برغل؟', 'Do you know how many kilos of scrap metal you need to collect for a bag of bulgur?'], 5);
     yield GAP;
     yield* g.say(SAMI, ['كم؟', 'How many?']);
     yield GAP;
@@ -5593,6 +6781,7 @@ const ACT1 = {
     const p = g.player;
     const s = g.state;
     g.a.shelling = true;
+    g.sound.score?.mood('danger', 1.5);
     g.a.sunK = Math.max(g.a.sunK, 0.62);
     const impact = (x, dist) => {
       g.sound.mortarImpact(dist);
@@ -5640,7 +6829,7 @@ const ACT1 = {
     );
     const i = yield* g.choose(null, [
       { ar: 'احمي الولاد', en: 'Shield the children' },
-      { ar: 'احتمي', en: 'Take cover' },
+      { ar: 'تخبّى', en: 'Take cover' },
     ], { timed: 7, def: 1 });
     s.choices.push(`B${i + 1}`);
 
@@ -5651,7 +6840,7 @@ const ACT1 = {
       g.text.objective(['خود ليلى والصغير عالدرج', 'Get Layla and the boy to the stairs']);
       g.prompt('run', 'اركض', 'Run');
       const grabbed = { v: false };
-      g.level.add({ id: 'grab', x: (X.layla + g.boy.x) / 2, y: -110, range: 110, label: ['خدهن', 'Take them'], use: () => (grabbed.v = true) });
+      g.level.add({ id: 'grab', urgent: true, x: (X.layla + g.boy.x) / 2, y: -110, range: 110, label: ['خدهن', 'Take them'], use: () => (grabbed.v = true) });
       yield () => grabbed.v;
       g.level.remove('grab');
       g.prompt(null);
@@ -5690,10 +6879,10 @@ const ACT1 = {
       g.layla.override = null;
       g.boy.override = null;
       g.layla.brain = (dt) => {
-        if (g.layla.goTo(X.stairs, dt, { run: true })) g.layla.visible = false;
+        if (g.layla.goTo(X.stairs, dt, { run: true })) enterDoor(g, g.layla);
       };
       g.boy.brain = (dt) => {
-        if (g.boy.goTo(Math.min(g.layla.x - 30, X.stairs), dt, { run: true }) && !g.layla.visible) g.boy.visible = false;
+        if (g.boy.goTo(Math.min(g.layla.x - 30, X.stairs), dt, { run: true }) && !g.layla.visible) enterDoor(g, g.boy);
       };
       g.camOverride = { x: X.lowWall - 120, y: -200, view: 1300 };
       yield 2.2;
@@ -5723,6 +6912,7 @@ const ACT1 = {
     g.a.crater = true;
     g.a.shelling = false;
     g.a.shellingDone = true;
+    g.sound.score?.mood('hour', 12);
     g.player.rig.dust = 0.7;
     g.player.stance = g.player.stance === 'prone' ? 'prone' : 'stand';
     g.lock(false);
@@ -5820,7 +7010,7 @@ const ACT1 = {
       cat.blink = Math.sin(clamp(k) * Math.PI);
       return k >= 1;
     };
-    yield* g.say(null, ['بسّة. مش جوعانة أكتر من أي حدا هون. وعم تستنى نفس الشي: إنو يخلص.', 'A cat. No hungrier than anyone else here. Waiting for the same thing: for it to end.'], 6, 'examine');
+    yield* g.say(null, ['بسّة. مو جوعانة أكتر من أي حدا هون. وعم تستنى نفس الشي: إنو يخلص.', 'A cat. No hungrier than anyone else here. Waiting for the same thing: for it to end.'], 6, 'examine');
     yield 1.2;
     // it turns, drops off the wall, and is gone into the rubble without a sound
     cat.f = 1;
@@ -5868,7 +7058,7 @@ const ACT1 = {
     ss.rig.o = { ...ss.rig.o, beard: 'none', top: '#7a6f84' };
     g.flashActors = [ss, ks];
     g.sound.ambience({ traffic: 0.7, crowd: 0.25, wind: 0.1, air: 0, generator: 0 }, 1);
-    g.sound.oudPhrase();
+    g.sound.score?.mood('memory', 1.5);
     g.text.titleCard([['٢٠١٠', '2010']], 3);
     g.fade = 0;
     const horns = g.runner.run(
@@ -5886,9 +7076,9 @@ const ACT1 = {
     yield 1;
     ks.override = { ...POSES.sitGround, armN: 1.4, foreN: 2.6 };
     yield* talk(g, [
-      [KHALED, ['بتعرف شو بدي أساوي لمّا خلّص تدريب المعلمين؟', 'You know what I’m going to do when I finish teacher training?']],
+      [KHALED, ['بتعرف شو بدي أعمل لمّا خلّص تدريب المعلمين؟', 'You know what I’m going to do when I finish teacher training?']],
       [SAMI, ['شو؟', 'What?']],
-      [KHALED, ['بدي افتح مدرسة. مش مدرسة حكومية — مدرسة خاصة. ببيت. غرفة وحدة، كراسي وطبشور، وكتب كتير.', 'I’m going to open a school. Not a government school — a private one. In a house. One room, chairs, chalk, and lots of books.']],
+      [KHALED, ['بدي افتح مدرسة. مو مدرسة حكومية — مدرسة خاصة. ببيت. غرفة وحدة، كراسي وطبشور، وكتب كتير.', 'I’m going to open a school. Not a government school — a private one. In a house. One room, chairs, chalk, and lots of books.']],
       [SAMI, ['وبتعلّم فيها شعر.', 'And you’ll teach poetry.']],
       [KHALED, ['بعلّم فيها كل شي. قواعد وشعر وعلوم وكيف الواحد يفكّر لحالو.', 'I’ll teach everything. Grammar and poetry and science and how to think for yourself.']],
     ]);
@@ -5900,7 +7090,7 @@ const ACT1 = {
     ks.override = { ...POSES.sitGround, torso: 0.3, head: 0.2 };
     g.sound.ambience({ traffic: 0.35, crowd: 0.1 }, 0.8);
     yield 0.8;
-    yield* g.say(KHALED, ['هلّق لا. بس مش لازم يضل هيك.', 'Not now. But it doesn’t have to stay this way.'], 4.5, 'whisper');
+    yield* g.say(KHALED, ['هلّق لا. بس مو لازم يضل هيك.', 'Not now. But it doesn’t have to stay this way.'], 4.5, 'whisper');
     yield 1;
     ss.override = { ...POSES.sitGround, head: -0.45 }; // looks up at the arbour
     g.sound.birds();
@@ -5913,7 +7103,7 @@ const ACT1 = {
       return g.a.flashFade >= 1;
     };
     g.fade = 1;
-    g.sound.cutMusic();
+    g.sound.score?.cut('hour', 3);
     yield 0.4;
     g.scene = 'street';
     g.flashActors = null;
@@ -5958,22 +7148,60 @@ const ACT1 = {
     const abu = g.npc('abuyazan', X.abu, { f: -1 });
     abu.override = { ...POSES.stand, head: 0.05 };
     g.abu = abu;
+    // He isn't at the corner yet: he comes up out of the southern street,
+    // towards us, a little before Sami gets there.
+    abu.visible = false;
+    g.a.abuArrived = false;
+    L.at(X.newsStart - 350, () => g.runner.run(this.abuArrives(g)));
 
     L.at(X.newsStart, () => {
       g.sound.ambience({ crowd: 0.5, generator: 0, wind: 0.2, air: 0.3 }, 3);
       g.a.sunK = Math.max(g.a.sunK, 0.9);
     });
     L.at(X.kerb - 120, () => g.runner.run(this.news(g)));
+    // a jet, somewhere over the next town: the other word on channel 3
+    L.at(X.battery + 380, () => g.runner.run(this.jet(g)));
+  },
+
+  *jet(g) {
+    g.sound.radio(1.8);
+    yield* g.say(RADIO, ['...حربي بالجو... حربي...', '...jet in the air... jet...'], 3, 'radio');
+    g.sound.jet(7);
+    g.a.jet = { t0: g.time + 0.8, dur: 5, x0: g.cam.x * 0.12 - 900, x1: g.cam.x * 0.12 + 1100 };
+    yield 5.2;
+    g.sound.strikeFar();
+    g.bump(0.25);
+    g.a.fil = { x: g.cam.x * 0.3 + 520, t: g.time };
+    yield 2.5;
+    g.sound.radio(1.6);
+    yield* g.say(RADIO, ['...ضرب حربي... عالمرج... ضرب حربي...', '...airstrike... out by the farms... airstrike...'], 3.5, 'radio');
+  },
+
+  *abuArrives(g) {
+    const abu = g.abu;
+    abu.override = null;
+    abu.place(X.south);
+    abu.visible = true;
+    abu.rig.view = 'front';
+    abu.rig.viewK = 1;
+    yield* depthWalk(g, abu, X.south, 'out', 0.16);
+    abu.f = -1;
+    yield* g.walkNpc(abu, X.abu, { speedScale: 0.6 });
+    abu.f = -1;
+    abu.override = { ...POSES.stand, head: 0.05 };
+    g.a.abuArrived = true;
   },
 
   *news(g) {
     const p = g.player;
     const abu = g.abu;
     const s = g.state;
+    g.sound.score?.mood('silence', 4);
     g.lock();
     g.text.objective(null);
     // He lets Sami come to him: the walk toward is the last of not knowing.
     yield* g.walkPlayer(X.kerb + 30);
+    yield () => g.a.abuArrived !== false;
     p.f = 1;
     g.camOverride = { x: X.kerb + 90, y: -230, view: 1050 };
     yield 0.6;
@@ -6011,8 +7239,8 @@ const ACT1 = {
 
     const i = yield* g.choose(null, [
       { ar: 'بدي شوفو.', en: 'I need to see him.' },
-      { ar: 'مين ساوى هيك؟', en: 'Who did this?' },
-      { ar: '(صمت)', en: '(Silence)' },
+      { ar: 'مين عمل هيك؟', en: 'Who did this?' },
+      { ar: '(سكوت)', en: '(Silence)' },
     ]);
     s.choices.push(`C${i + 1}`);
     g.sound.ringing(0, 2);
@@ -6032,6 +7260,7 @@ const ACT1 = {
       yield () => !g.autoWalk;
       // Sami walks south. The group watches him go.
       g.a.samiDepth = 0.001;
+      g.player.face('back');
       yield () => g.a.samiDepth >= 1;
     } else if (i === 1) {
       s.grief_response = 'witness';
@@ -6039,13 +7268,13 @@ const ACT1 = {
       p.override = null;
       g.runner.run(g.walkPlayer(X.olive - 90));
       g.walkieMan.f = -1;
-      yield* g.say(SAMI, ['مين ساوى هيك. من وين إجت الطلقة.', 'Who did this. Where did the shot come from.']);
+      yield* g.say(SAMI, ['مين عمل هيك. من وين إجت الطلقة.', 'Who did this. Where did the shot come from.']);
       yield GAP;
-      yield* g.say(WMAN, ['القنّاص عالتلّة الغربية. ضمن المبنى يلي فيه العلم — بتعرفو. نفس القنّاص يلي من أسبوع.', 'The sniper on the western hill. In the building with the flag — you know it. Same sniper from last week.'], 6);
+      yield* g.say(WMAN, ['القنّاص عالتلّة الغربية. بالبناية اللي عليها العلم — بتعرفو. نفس القنّاص اللي من أسبوع.', 'The sniper on the western hill. In the building with the flag — you know it. Same sniper from last week.'], 6);
       yield GAP;
-      yield* g.say(SAMI, ['في حدا شافو وهوي واقع؟', 'Did anyone see him fall?']);
+      yield* g.say(SAMI, ['في حدا شافو وهوّي واقع؟', 'Did anyone see him fall?']);
       yield GAP;
-      yield* g.say(WMAN, ['أم سعيد — هيي يلي طلعت عليه. لحقوها الشباب بعدها. بس ما قدروا يجرّوه — الشارع مكشوف.', 'Um Said — she’s the one who went to him. Some of the men followed her. But they couldn’t move him — the street is exposed.'], 6.5);
+      yield* g.say(WMAN, ['أم سعيد — هيّي اللي طلعت عليه. لحقوها الشباب بعدها. بس ما قدروا يجرّوه — الشارع مكشوف.', 'Um Said — she’s the one who went to him. Some of the men followed her. But they couldn’t move him — the street is exposed.'], 6.5);
       yield GAP;
       yield* g.say(SAMI, ['يعني لسا هناك.', 'So he’s still there.']);
       // Silence from the group. That's the answer.
@@ -6085,6 +7314,7 @@ const ACT1 = {
     g.fade = 1;
     g.sound.ambience({ crowd: 0, wind: 0, air: 0, generator: 0, traffic: 0 }, 2);
     yield 1.6;
+    g.sound.score?.mood('after', 3);
     g.sound.ney(293.66, 12, 0.2);
     g.text.titleCard([
       ['الساعة أربعة وربع. ١٤ آب، ٢٠١٤.', 'Quarter past four. 14 August 2014.'],
@@ -6121,6 +7351,7 @@ const ACT1 = {
       }
     }
     if (a.curtainPrompt && g.player.x > X.sag1 + 40) a.curtainPrompt = false;
+    streetLife(g, dt);
   },
 
   useTool(g, id) {
@@ -6152,6 +7383,131 @@ const ACT1 = {
   },
 };
 
+// ------------------------------------------------------ depth and doors --
+
+// Walk into (k 0 → 1) or out of (k 1 → 0) a side street that runs away from
+// the camera at x = mouth: the figure faces away or towards us and shrinks
+// towards the vanishing point. Runs as a script step, after the NPC update.
+function* depthWalk(g, w, mouth, dir, rate = 0.1) {
+  const base = w.baseScale ?? w.rig.scale;
+  w.baseScale = base;
+  let k = dir === 'in' ? 0.001 : 1;
+  w.face(dir === 'in' ? 'back' : 'front');
+  w.x = mouth;
+  const step = () => {
+    const dt = g.lastDt || 1 / 60;
+    k = clamp(k + (dir === 'in' ? 1 : -1) * rate * dt);
+    w.pose(dt, 60);
+    placeInDepth(w, mouth, k, base);
+    w.stride += dt * 90 * (1 / (1 + 3.4 * k));
+    w.depthK = k > 0.001 ? k : 0;
+    return dir === 'in' ? k >= 1 : k <= 0;
+  };
+  yield step;
+  w.depthK = 0;
+  w.rig.scale = base;
+  w.face(dir === 'in' ? 'back' : 'side');
+  if (dir === 'in') w.visible = false;
+}
+
+function placeInDepth(w, mouth, k, base) {
+  const s = 1 / (1 + 3.4 * k);
+  w.rig.scale = base * s;
+  w.rig.x = lerp(mouth - 10, mouth + 6, k);
+  w.rig.y = lerp(0, -70, 1 - s);
+}
+
+// Someone reaching a doorway turns their back and goes in.
+function enterDoor(g, w) {
+  if (w.entering) return;
+  w.entering = true;
+  w.face('back');
+  setTimeoutGame(g, 0.45, () => (w.visible = false));
+}
+
+// ------------------------------------------------------------ street life --
+
+// Now and then, in the calm stretches, someone crosses the mouth of a side
+// street: out of it towards us, or along the street and into it.
+const MOUTHS = [3105, 5130, 10020];
+const PASSERS = [
+  { outfit: 'man', can: true },
+  { outfit: 'woman' },
+  { outfit: 'woman2' },
+  { outfit: 'fadi', scale: 0.86 },
+  { outfit: 'man' },
+  { outfit: 'boy', scale: 0.62 },
+  { outfit: 'abuyazan' },
+];
+
+function streetLife(g, dt) {
+  const a = g.a;
+  g.lastDt = dt;
+  g.passers ||= [];
+  const calm =
+    g.scene === 'street' &&
+    !g.locked &&
+    !a.shelling &&
+    !(a.heli && g.time < a.heli.t0 + a.heli.dur + 8) &&
+    !(a.jet && g.time < a.jet.t0 + 10) &&
+    !a.drainT0 &&
+    g.player.x < X.newsStart - 250;
+  a.nextPasser ??= g.time + 5;
+  if (calm && g.time > a.nextPasser && g.passers.length < 2) {
+    a.nextPasser = g.time + 9 + Math.random() * 9;
+    const mouth = MOUTHS.find((m) => Math.abs(m - g.cam.x) < 650 && Math.abs(m - g.player.x) > 120);
+    if (mouth) {
+      const kind = PASSERS[Math.floor(Math.random() * PASSERS.length)];
+      const w = new Walker(g.level, kind.outfit, kind.scale || 1);
+      if (kind.can) w.rig.prop = (c, hand) => jerryCan(c, hand[0], hand[1] + 44, 0.95);
+      const side = Math.random() < 0.5 ? -1 : 1;
+      w.passer = { mouth, dir: Math.random() < 0.5 ? 'out' : 'in', side, phase: 'start' };
+      if (w.passer.dir === 'in') {
+        w.place(mouth + side * 900);
+        w.f = -side;
+      } else {
+        w.place(mouth);
+        w.rig.view = 'front';
+      }
+      g.passers.push(w);
+    } else a.nextPasser = g.time + 3;
+  }
+  for (const w of g.passers) {
+    const ps = w.passer;
+    if (ps.phase === 'start') {
+      ps.phase = ps.dir === 'out' ? 'depth' : 'along';
+      if (ps.dir === 'out') ps.k = 1;
+    }
+    if (ps.phase === 'depth') {
+      w.update(dt, {});
+      w.pose(dt, 60);
+      ps.k = clamp(ps.k + (ps.dir === 'in' ? 1 : -1) * 0.1 * dt);
+      w.depth = ps.k;
+      placeInDepth(w, ps.mouth, ps.k, w.baseScale ?? (w.baseScale = w.rig.scale));
+      w.stride += dt * 90 * (1 / (1 + 3.4 * ps.k));
+      if (ps.dir === 'out' && ps.k <= 0) {
+        w.depth = 0;
+        w.rig.scale = w.baseScale;
+        w.face('side');
+        w.f = ps.side;
+        ps.phase = 'away';
+      } else if (ps.dir === 'in' && ps.k >= 1) ps.done = true;
+    } else if (ps.phase === 'along') {
+      if (w.goTo(ps.mouth, dt, { speedScale: 0.6 })) {
+        w.face('back');
+        ps.phase = 'depth';
+        ps.k = 0;
+        w.baseScale = w.rig.scale;
+      }
+    } else if (ps.phase === 'away') {
+      w.goTo(ps.mouth + ps.side * 1000, dt, { speedScale: 0.6 });
+      if (Math.abs(w.x - ps.mouth) > 950) ps.done = true;
+    }
+  }
+  g.passers = g.passers.filter((w) => !w.passer.done);
+  if (!calm && (a.shelling || a.drainT0)) g.passers.length = 0;
+}
+
 // A few single shots far to the south, irregular, all afternoon.
 function* ambientShots(g) {
   for (;;) {
@@ -6176,12 +7532,14 @@ return { ACT1 };
 const __src_main = (() => {
 const { Renderer } = __src_engine_renderer;
 const { Sound } = __src_engine_audio;
+const { Score } = __src_engine_score;
 const { Text } = __src_engine_text;
 const { Input, ACTIONS, keyLabel } = __src_engine_input;
 const { Settings } = __src_engine_settings;
 const { Menu } = __src_engine_menu;
+const { bindI18n, t, lang } = __src_engine_i18n;
 const { freshState, loadSave, writeSave, clearSave } = __src_engine_save;
-const { Game } = __src_game;
+const { Game, TOOLS } = __src_game;
 const { ACT1 } = __src_story_act1;
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
@@ -6195,14 +7553,21 @@ try {
 }
 
 const settings = new Settings();
+bindI18n(settings);
 const input = new Input(settings);
 const sound = new Sound(settings);
+sound.score = new Score(sound);
 const text = new Text(settings);
 const game = new Game({ R, sound, text, input, settings });
 
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+
 // ------------------------------------------------------------ sizing ----
 
-let quality = 1;
+// Graphics quality: a render-scale cap. Auto starts high and steps down if
+// the frame rate struggles.
+const QUALITY = { low: [0.55, 960], medium: [0.8, 1280], high: [1, 1600], auto: [1, 1500] };
+let autoScale = 1;
 function resize() {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -6212,13 +7577,29 @@ function resize() {
   stage.style.width = `${w}px`;
   stage.style.height = `${h}px`;
   stage.style.setProperty('--u', `${Math.max(w, h * 2.39) / 100}px`);
+  const q = settings.get('quality') || 'auto';
+  const [scale, cap] = QUALITY[q] || QUALITY.auto;
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const px = Math.round(Math.min(1500, Math.max(640, w * dpr)) * quality);
+  const px = Math.round(Math.min(cap, Math.max(560, w * dpr)) * scale * (q === 'auto' ? autoScale : 1));
   const py = Math.round(px / aspect);
   if (px !== R.W || py !== R.H) R.resize(px, py);
 }
 window.addEventListener('resize', resize);
 resize();
+
+function applyLanguage() {
+  document.body.dataset.rotate = t('rotate');
+  document.documentElement.lang = lang() === 'ar' ? 'ar' : 'en-GB';
+  stage.dataset.lang = lang();
+}
+applyLanguage();
+settings.onChange((k) => {
+  if (k === 'quality') {
+    autoScale = 1;
+    resize();
+  }
+  if (k === 'lang') applyLanguage();
+});
 
 // ---------------------------------------------------------- the title ---
 
@@ -6229,9 +7610,10 @@ function titleScene() {
   game.runner.clear();
   game.player.visible = false;
   for (const w of game.npcs) w.visible = false;
-  game.camOverride = { x: 900, y: -300, view: 1650 };
+  game.camOverride = (g) => ({ x: 900 + Math.sin(g.time * 0.05) * 160, y: -300, view: 1650 });
   game.snapCamera();
   game.lock();
+  game.clearHud();
   text.objective(null);
   text.hideCard();
   text.clearLine();
@@ -6239,24 +7621,38 @@ function titleScene() {
 }
 titleScene();
 
+// The end card: each choice as a moment in the afternoon.
 function summary(s) {
-  const out = [];
-  out.push(s.helped_old_man ? 'You carried the old man’s water to his daughter’s door.' : 'You walked past the old man and his water.');
-  out.push(s.children_helped ? 'When the mortars came, you ran for Layla and the boy.' : 'When the mortars came, you took cover. Layla got the boy to the stairs herself.');
-  out.push(
-    s.path === 'retrieval'
-      ? '“I need to see him.” You walked south, towards School Street.'
-      : s.path === 'witness'
-        ? '“Who did this?” You asked for facts, because facts can be carried.'
-        : 'You said nothing. You sat on the kerb, and Abu Yazan sat with you.',
-  );
-  return out;
+  const ar = lang() === 'ar';
+  const rows = [
+    [
+      ar ? '٣:٢٠' : '3:20',
+      s.helped_old_man
+        ? ['You carried the old man’s water to his daughter’s door.', 'شلت مي الختيار لباب بنتو.']
+        : ['You walked past the old man and his water.', 'مشيت وتركت الختيار ومايتو.'],
+    ],
+    [
+      ar ? '٣:٤٥' : '3:45',
+      s.children_helped
+        ? ['When the mortars came, you ran for Layla and the boy.', 'لمّا نزلت القذايف، ركضت لعند ليلى والصغير.']
+        : ['When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'لمّا نزلت القذايف، تخبّيت. ليلى وصّلت الصغير عالدرج لحالها.'],
+    ],
+    [
+      ar ? '٤:١٠' : '4:10',
+      s.path === 'retrieval'
+        ? ['“I need to see him.” You walked south, towards School Street.', '«بدي شوفو.» مشيت عالقبلي، لشارع المدرسة.']
+        : s.path === 'witness'
+          ? ['“Who did this?” You asked for facts, because facts can be carried.', '«مين عمل هيك؟» سألت عن الحقيقة، لأنو الحقيقة بتنحمل.']
+          : ['You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'ما قلت شي. قعدت عالرصيف، وقعد أبو يزن جنبك.'],
+    ],
+  ];
+  return rows.map(([time, [en, arText]]) => [time, ar ? arText : en]);
 }
 
 function startGame(state) {
   mode = 'play';
   menu.close();
-  stage.classList.remove('ended');
+  stage.classList.remove('ended', 'paused');
   $('end').hidden = true;
   stage.classList.add('playing');
   sound.start().then(() => {
@@ -6265,51 +7661,77 @@ function startGame(state) {
   });
 }
 
+// ----------------------------------------------------------- the sheets --
+
+function sheetDir(el) {
+  el.dir = lang() === 'ar' ? 'rtl' : 'ltr';
+}
+
 function newGame() {
-  $('note').hidden = false;
+  const note = $('note');
+  sheetDir(note);
+  note.innerHTML = `
+    <p class="kicker-small">${esc(t('noteKicker'))}</p>
+    <h2 id="note-h">${esc(t('noteTitle'))}</h2>
+    <p>${esc(t('noteBody'))}</p>
+    <p class="sheet-quiet">${esc(t('noteSound'))}</p>
+    <div class="sheet-btns"><button type="button" id="note-go" class="primary">${esc(t('begin'))}</button></div>`;
+  note.hidden = false;
+  $('note-go').addEventListener('click', () => {
+    note.hidden = true;
+    clearSave();
+    const s = freshState();
+    writeSave(s);
+    startGame(s);
+  });
   $('note-go').focus();
 }
-$('note-go').addEventListener('click', () => {
-  $('note').hidden = true;
-  clearSave();
-  const s = freshState();
-  writeSave(s);
-  startGame(s);
-});
 
 function showEnd(s) {
   mode = 'end';
   text.hideCard();
+  game.clearHud();
   stage.classList.add('ended');
-  const list = $('end-list');
-  list.innerHTML = '';
-  for (const line of summary(s)) {
-    const li = document.createElement('li');
-    li.textContent = line;
-    list.appendChild(li);
-  }
-  $('end').hidden = false;
-  requestAnimationFrame(() => $('end').classList.add('show'));
+  const end = $('end');
+  sheetDir(end);
+  end.innerHTML = `
+    <p class="kicker-small">${esc(t('endKicker'))}</p>
+    <h2 id="end-h"><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="end-en">Before I Knew</span></h2>
+    <ol class="timeline">
+      <li class="tl-start"><time>${lang() === 'ar' ? '٣:٠٥' : '3:05'}</time><span>${lang() === 'ar' ? 'خالد وسامي عم يمشوا بشارع الزيتون.' : 'Khaled and Sami walk down Zeitoun Street.'}</span></li>
+      ${summary(s)
+        .map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`)
+        .join('')}
+      <li class="tl-end"><time>${lang() === 'ar' ? '٤:١٥' : '4:15'}</time><span>${lang() === 'ar' ? 'بقيت الشمس ساعتين بالسما.' : 'Two hours of sun left in the sky.'}</span></li>
+    </ol>
+    <p class="sheet-quiet">${esc(t('endNext'))}</p>
+    <div class="sheet-btns">
+      <button type="button" id="end-again" class="primary">${esc(t('again'))}</button>
+      <button type="button" id="end-menu">${esc(t('mainMenu'))}</button>
+    </div>`;
+  end.hidden = false;
+  requestAnimationFrame(() => end.classList.add('show'));
+  $('end-again').addEventListener('click', () => {
+    end.hidden = true;
+    end.classList.remove('show');
+    newGame();
+  });
+  $('end-menu').addEventListener('click', () => toMainMenu());
   $('end-again').focus();
 }
-$('end-again').addEventListener('click', () => {
-  $('end').hidden = true;
-  $('end').classList.remove('show');
-  newGame();
-});
-$('end-menu').addEventListener('click', () => toMainMenu());
 
 function toMainMenu() {
   mode = 'title';
   $('end').hidden = true;
   $('end').classList.remove('show');
-  stage.classList.remove('playing', 'mirror', 'ended');
+  stage.classList.remove('playing', 'mirror', 'ended', 'paused');
   game.paused = false;
   sound.resume();
   sound.setMuffle?.(0);
   sound.ringing?.(0);
   sound.ambience?.({ wind: 0.3, air: 0.4, generator: 0, crowd: 0, traffic: 0 });
   titleScene();
+  sound.score.mood('title', 3);
   menu.showMain();
 }
 
@@ -6319,58 +7741,116 @@ const saved = () => {
   const s = loadSave();
   return s && !s.completed && s.checkpoint !== 'walk' ? s : null;
 };
-const CHECKPOINT_NAMES = { hour: 'The Hour', school: 'The School', news: 'The Corner' };
+
+function continueSub() {
+  const s = saved();
+  if (!s) return '';
+  return `${t('checkpoints')[s.checkpoint] || ''} · ${t('times')[s.checkpoint] || ''}`;
+}
+
+function pauseAside() {
+  const obj = text.current;
+  const tools = (game.state?.tools || []).map((id) => TOOLS[id]).filter(Boolean);
+  const ar = lang() === 'ar';
+  const cp = game.state?.checkpoint;
+  return `
+    <p class="aside-k">${esc(t('objective'))}</p>
+    <p class="aside-v">${obj ? `${esc(ar ? obj[0] : obj[1])}` : '—'}</p>
+    <p class="aside-k">${esc(t('carrying'))}</p>
+    <p class="aside-v">${tools.length ? tools.map((x) => esc(ar ? x.ar : x.en)).join(' · ') : esc(t('nothing'))}</p>
+    <p class="aside-k">${esc(t('checkpoint'))}</p>
+    <p class="aside-v">${cp ? `${esc(t('checkpoints')[cp] || cp)} · ${esc(t('times')[cp] || '')}` : '—'}</p>`;
+}
+
+function logPage(panel, m) {
+  const h = document.createElement('h2');
+  h.className = 'menu-title';
+  h.textContent = t('log');
+  panel.appendChild(h);
+  const box = document.createElement('div');
+  box.className = 'menu-log';
+  box.tabIndex = 0;
+  const subs = settings.get('subtitles');
+  if (!text.log.length) box.innerHTML = `<p class="menu-sub">${esc(t('logEmpty'))}</p>`;
+  for (const e of text.log) {
+    const row = document.createElement('div');
+    row.className = `log-row style-${e.style || 'plain'}`;
+    const who = e.who ? `<span class="log-who"><span class="ar" lang="ar" dir="rtl">${esc(e.who[0])}</span> <span class="en">${esc(e.who[1])}</span></span>` : '';
+    row.innerHTML = `${who}<span class="log-lines">${subs !== 'en' ? `<span class="ar" lang="ar" dir="rtl">${esc(e.line[0])}</span>` : ''}${subs !== 'ar' ? `<span class="en" dir="ltr">${esc(e.line[1])}</span>` : ''}</span>`;
+    box.appendChild(row);
+  }
+  panel.appendChild(box);
+  requestAnimationFrame(() => (box.scrollTop = box.scrollHeight));
+  m.backButton(panel);
+}
 
 const menu = new Menu($('menu'), {
-  header: `<p class="kicker"><span class="ar" lang="ar" dir="rtl">الغوطة، آب ٢٠١٤</span><span class="en">Ghouta · August 2014</span></p>
-    <h1><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="en">Before I Knew</span></h1>
-    <p class="tagline">An ordinary afternoon. A friend heads home another way. Less than an hour later, the world has already changed, and you don’t know it yet.</p>`,
+  t,
+  dir: () => (lang() === 'ar' ? 'rtl' : 'ltr'),
+  header: () => `<p class="kicker"><span class="kicker-rule" aria-hidden="true"></span><span>${esc(t('kickerDate'))}</span></p>
+    <h1><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="en" lang="en">Before I Knew</span></h1>
+    <p class="tagline">${esc(t('tagline'))}</p>`,
   main: [
-    { label: 'Continue', sub: '', hidden: () => !saved(), action: () => startGame(saved()) },
-    { label: 'New game', sub: 'Act One · The Afternoon', action: () => newGame() },
-    { label: 'Settings', action: (m) => m.push('settings') },
-    { label: 'Controls', action: (m) => m.push('controls') },
-    { label: 'About', action: (m) => m.push('about') },
+    { label: () => t('continue'), sub: continueSub, hidden: () => !saved(), action: () => startGame(saved()) },
+    { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
+    { label: () => t('settings'), action: (m) => m.push('settings') },
+    { label: () => t('controls'), action: (m) => m.push('controls') },
+    { label: () => t('about'), action: (m) => m.push('about') },
   ],
   pause: [
-    { label: 'Resume', action: (m) => m.close() },
-    { label: 'Settings', action: (m) => m.push('settings') },
-    { label: 'Controls', action: (m) => m.push('controls') },
+    { label: () => t('resume'), action: (m) => m.close() },
+    { label: () => t('log'), action: (m) => m.push('log') },
+    { label: () => t('settings'), action: (m) => m.push('settings') },
+    { label: () => t('controls'), action: (m) => m.push('controls') },
     {
-      label: 'Restart from checkpoint',
+      label: () => t('restart'),
       action: () => {
         const s = loadSave() || freshState();
         startGame({ ...s, completed: false });
       },
     },
-    { label: 'Main menu', action: () => toMainMenu() },
+    { label: () => t('mainMenu'), action: () => toMainMenu() },
   ],
+  pauseAside,
+  pages: { log: logPage },
   onOpen: () => {
     game.paused = true;
+    stage.classList.add('paused');
     sound.suspend();
   },
   onClose: () => {
     game.paused = false;
+    stage.classList.remove('paused');
     sound.resume();
   },
   settingsStore: settings,
   settings: [
-    { key: 'master', label: 'Master volume', type: 'range' },
-    { key: 'music', label: 'Music', type: 'range' },
-    { key: 'effects', label: 'Sound effects', type: 'range' },
-    { key: 'subtitles', label: 'Subtitles', type: 'select', options: [['both', 'Arabic and English'], ['en', 'English only'], ['ar', 'Arabic only · عربي']] },
-    { key: 'textSize', label: 'Text size', type: 'select', options: [[0.85, 'Small'], [1, 'Medium'], [1.2, 'Large'], [1.4, 'Extra large']] },
-    { key: 'shake', label: 'Camera shake', type: 'toggle' },
-    { key: 'reduceFlashes', label: 'Reduce flashes', type: 'toggle' },
-    { key: 'hints', label: 'Control hints', type: 'toggle' },
+    { group: 'gSound' },
+    { key: 'master', label: 'master', type: 'range' },
+    { key: 'music', label: 'music', type: 'range' },
+    { key: 'effects', label: 'effects', type: 'range' },
+    { group: 'gText' },
+    { key: 'lang', label: 'lang', type: 'select', options: [['en', 'English'], ['ar', 'عربي']], redraw: true },
+    { key: 'subtitles', label: 'subtitles', type: 'select', options: [['both', 'subsBoth'], ['en', 'subsEn'], ['ar', 'subsAr']] },
+    { key: 'textSize', label: 'textSize', type: 'select', options: [[0.85, 'small'], [1, 'medium'], [1.2, 'large'], [1.4, 'xlarge']] },
+    { key: 'backing', label: 'backing', type: 'select', options: [['off', 'off'], ['light', 'light'], ['dark', 'dark']] },
+    { group: 'gDisplay' },
+    { key: 'quality', label: 'quality', type: 'select', options: [['auto', 'auto'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']] },
+    { key: 'shake', label: 'shake', type: 'toggle' },
+    { key: 'reduceFlashes', label: 'reduceFlashes', type: 'toggle' },
+    { group: 'gPlay' },
+    { key: 'hints', label: 'hints', type: 'toggle' },
   ],
-  controls: {
-    input,
-    actions: ACTIONS,
-    label: keyLabel,
-    extra: 'Choices: click them, or press 1, 2 or 3. A gamepad works too. On a phone, use the on-screen buttons.',
-  },
-  about: `<h2 class="menu-title">About</h2>
+  controls: { input, actions: ACTIONS, label: keyLabel },
+  about: () =>
+    lang() === 'ar'
+      ? `<h2 class="menu-title">عن القصة</h2>
+    <p><strong>قبل ما عرفت</strong> قصة تفاعلية بتصير ببلدة محاصرة بالغوطة، جنب الشام، بآب ٢٠١٤. سامي عمرو ٢٧ سنة. بيمشي مع أعزّ صحابو، خالد، وبيفترقوا عالمفرق. وبأقل من ساعة، بيعرف إنو خالد استشهد.</p>
+    <p>هاد الفصل الأول: المشوار، والفراق، وساعة ما كنّا عم نعرف. خياراتك بتحدّد مين بيكون سامي لمّا يوصلو الخبر، ولوين بتروح الليلة.</p>
+    <h3>تنبيه</h3>
+    <p>الحياة تحت الحصار: قصف، قنّاص، جوع، موت صديق، وحزن. العنف بينسمع وبينفهم، بس ما بينشاف. مناسبة لعمر ١٦ وفوق.</p>
+    <p class="menu-sub">قصة متخيّلة مبنية على شهادات موثّقة عن حياة الحصار. كل شي فيها مرسوم ومركّب بالكود، بلا صور ولا تسجيلات.</p>`
+      : `<h2 class="menu-title">About</h2>
     <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Khaled, and they part at a junction. Less than an hour later, he learns that Khaled has been killed.</p>
     <p>This is Act One: the walk, the parting, and the hour of not knowing. Your choices shape who Sami is when the news reaches him, and which way the night goes.</p>
     <h3>Content note</h3>
@@ -6404,9 +7884,11 @@ const touchMap = [
   ['t-use', 'interact'],
   ['t-tool', 'tool'],
   ['t-light', 'use'],
+  ['t-skip', 'skip'],
 ];
 for (const [id, action] of touchMap) {
   const b = $(id);
+  if (!b) continue;
   const down = (e) => {
     e.preventDefault();
     input.touchDown(action);
@@ -6437,6 +7919,7 @@ function frame(now) {
   if (mode === 'title') {
     game.time += dt;
     game.effects.update(dt);
+    Object.assign(game.cam, game.cameraTarget());
     game.render(time);
   } else {
     // (testing can run several steps per frame and skip drawing)
@@ -6452,8 +7935,8 @@ function frame(now) {
     const fps = frames / fpsT;
     frames = 0;
     fpsT = 0;
-    if (fps < 34 && quality > 0.6) {
-      quality -= 0.2;
+    if (settings.get('quality') === 'auto' && fps < 34 && autoScale > 0.6) {
+      autoScale -= 0.2;
       resize();
     }
   }
@@ -6468,6 +7951,7 @@ window.game = {
   menu,
   input,
   settings,
+  text,
   start: (checkpoint = 'walk', extra = {}) => startGame({ ...freshState(), checkpoint, ...extra }),
   get mode() {
     return mode;

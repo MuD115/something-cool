@@ -17,6 +17,7 @@ export class Text {
     this.lineTimer = 0;
     this.lineId = 0;
     this.queue = [];
+    this.log = []; // every line said this session: { who, line, style }
     this.apply();
     settings.onChange(() => this.apply());
   }
@@ -26,20 +27,30 @@ export class Text {
     stage.dataset.subs = this.settings.get('subtitles');
     stage.style.setProperty('--text-scale', this.settings.get('textSize'));
     stage.dataset.hints = this.settings.get('hints') ? 'on' : 'off';
+    stage.dataset.backing = this.settings.get('backing') || 'light';
   }
 
   // who: [arabic, english] | null; line: [arabic, english]; style: '' | 'examine' | 'radio' | 'thought'
   say(who, line, dur = 4, style = '') {
     const id = ++this.lineId;
+    this.lineStart = performance.now();
+    const last = this.log[this.log.length - 1];
+    if (!last || last.line[1] !== line[1]) {
+      this.log.push({ who, line, style });
+      if (this.log.length > 400) this.log.shift();
+    }
     this.sub.dataset.style = style;
     this.sub.innerHTML = '';
+    const box = document.createElement('div');
+    box.className = 'sub-box';
+    this.sub.appendChild(box);
     if (who) {
       const w = document.createElement('div');
       w.className = 'who';
-      w.innerHTML = `<span class="ar" lang="ar" dir="rtl"></span><span class="en"></span>`;
+      w.innerHTML = `<span class="ar" lang="ar" dir="rtl"></span><span class="sep" aria-hidden="true"></span><span class="en"></span>`;
       w.querySelector('.ar').textContent = who[0];
       w.querySelector('.en').textContent = who[1];
-      this.sub.appendChild(w);
+      box.appendChild(w);
     }
     const ar = document.createElement('p');
     ar.className = 'ar';
@@ -49,7 +60,7 @@ export class Text {
     const en = document.createElement('p');
     en.className = 'en';
     en.textContent = line[1];
-    this.sub.append(ar, en);
+    box.append(ar, en);
     this.sub.hidden = false;
     this.lineUntil = performance.now() + dur * 1000;
     clearTimeout(this.lineTimer);
@@ -142,6 +153,7 @@ export class Text {
     const h = this.hintEl;
     if (!label) {
       h.hidden = true;
+      h.dataset.label = '';
       return;
     }
     if (h.dataset.label !== label) {
@@ -155,37 +167,52 @@ export class Text {
     h.hidden = false;
   }
 
+  // The current objective shows in full when it changes, then folds down to
+  // a small marker (the pause menu always shows it).
   objective(line) {
+    this.current = line;
+    clearTimeout(this.objTimer);
     if (!line) {
       this.objEl.hidden = true;
       return;
     }
-    this.objEl.innerHTML = `<span class="ar" lang="ar" dir="rtl"></span><span class="en"></span>`;
+    this.objEl.innerHTML = `<span class="obj-mark" aria-hidden="true"></span><span class="obj-text"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>`;
     this.objEl.querySelector('.ar').textContent = line[0];
     this.objEl.querySelector('.en').textContent = line[1];
     this.objEl.hidden = false;
+    this.objEl.classList.add('fresh');
+    this.objTimer = setTimeout(() => this.objEl.classList.remove('fresh'), 8000);
   }
 
-  // tools: [{ id, ar, en }], active id, torch charge 0…1, torch on
-  tools(list, active, charge, on) {
-    const key = JSON.stringify([list.map((t) => t.id), active, on, Math.round(charge * 20)]);
+  // tools: [{ id, ar, en }], active id, torch charge 0…1, torch on, use key
+  tools(list, active, charge, on, useKey = 'F') {
+    const key = JSON.stringify([list.map((t) => t.id), active, on, Math.round(charge * 40), useKey]);
     if (key === this.toolsKey) return;
     this.toolsKey = key;
     this.toolsEl.innerHTML = '';
     for (const t of list) {
       const d = document.createElement('div');
-      d.className = `tool${t.id === active ? ' active' : ''}`;
-      d.innerHTML = `<span class="tool-icon" data-tool="${t.id}"></span><span class="tool-name"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>`;
+      d.className = `tool${t.id === active ? ' active' : ''}${t.id === 'torch' && on ? ' lit' : ''}`;
+      const ring =
+        t.id === 'torch'
+          ? `<svg class="tool-ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="ring-bg"/><circle cx="20" cy="20" r="17" class="ring-fg" pathLength="100" stroke-dasharray="${(charge * 100).toFixed(1)} 100"/></svg>`
+          : '';
+      d.innerHTML = `<span class="tool-badge">${ring}<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[t.id] || ''}</svg></span><span class="tool-name"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>${t.id === active ? '<kbd class="tool-key"></kbd>' : ''}`;
       d.querySelector('.ar').textContent = t.ar;
       d.querySelector('.en').textContent = t.en;
-      if (t.id === 'torch') {
-        const bar = document.createElement('span');
-        bar.className = `charge${on ? ' on' : ''}`;
-        bar.style.setProperty('--c', charge.toFixed(2));
-        d.appendChild(bar);
-      }
+      if (t.id === active) d.querySelector('.tool-key').textContent = useKey;
       this.toolsEl.appendChild(d);
     }
     this.toolsEl.hidden = list.length === 0;
   }
 }
+
+// Line icons for the tools, drawn on a 24-unit grid.
+const ICONS = {
+  torch:
+    '<path d="M4 9.5h7l6-3.5v12l-6-3.5H4z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M7 14.5v3.5h3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M19.5 9l2-1.5M19.5 12h2.5M19.5 15l2 1.5" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" class="beam"/>',
+  mirror:
+    '<path d="M6 21 9.5 3.5l9 4.5-5.5 13z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10.5 8.5l4 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>',
+  walkie:
+    '<path d="M9 2.5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="6.5" y="7.5" width="11" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 11.5h5M9.5 14h5M9.5 16.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+};

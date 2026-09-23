@@ -35,7 +35,15 @@ export class Game {
     this.player.onStep = (stance) => this.sound.step(this.surface?.(this.player.x) || 'grit', stance === 'crouch' ? 0.1 : 0.18);
     this.player.onLand = (k) => this.sound.land(0.15 + k * 0.3);
     this.npcs = [];
+    this.passers = [];
     this.locked = false;
+    // nothing from a previous run may leak into this one
+    this.gate = null;
+    this.autoWalk = null;
+    this.fade = 0;
+    this.stairKids = null;
+    this.flashActors = null;
+    this.cat = null;
     this.camOverride = null;
     this.cam = { x: 0, y: -250, view: 1500 };
     this.shake = 0;
@@ -47,6 +55,9 @@ export class Game {
     this.text.hideChoice();
     this.text.clearLine();
     this.text.prompt(null);
+    this.text.hint(0, 0, '', null);
+    this.promptInfo = null;
+    this.skipId = 0;
     this.text.objective(null);
     act.build(this);
     this.snapCamera();
@@ -83,18 +94,29 @@ export class Game {
     if (on) this.text.hint(0, 0, '', null);
   }
 
+  // Everything transient off the screen (menus, scene changes, the end).
+  clearHud() {
+    this.text.prompt(null);
+    this.text.hint(0, 0, '', null);
+    this.promptVisible = false;
+  }
+
   // Generators for scripts --------------------------------------------------
 
   *say(who, line, dur = null, style = '') {
     const d = dur ?? Math.max(2.4, 1.2 + line[1].length * 0.055);
-    this.text.say(who, line, d, style);
-    yield d;
+    const id = this.text.say(who, line, d, style);
+    this.sound.score?.speak(d);
+    const end = this.time + d;
+    // held Skip moves on once the line has been up a moment
+    yield () => this.time >= end || this.skipId === id;
   }
 
   // Show a line without waiting for it.
   line(who, line, dur = null, style = '') {
     const d = dur ?? Math.max(2.4, 1.2 + line[1].length * 0.055);
     this.text.say(who, line, d, style);
+    this.sound.score?.speak(d);
   }
 
   *choose(prompt, options, { timed = 0, def = 0 } = {}) {
@@ -126,15 +148,41 @@ export class Game {
     yield () => !this.autoWalk;
   }
 
+  // A control prompt shows until it's obeyed or for 7 s, then steps aside.
+  // The script may still be waiting on it; if the player stands idle for 5 s
+  // it comes back.
   prompt(keysAction, ar, en) {
     if (!keysAction) {
       this.promptFor = null;
+      this.promptInfo = null;
       this.text.prompt(null);
       return;
     }
     this.promptFor = keysAction;
-    const keys = this.input.bindings()[keysAction] || [];
+    this.promptInfo = { action: keysAction, ar, en };
+    this.showPrompt();
+  }
+
+  showPrompt() {
+    const { action, ar, en } = this.promptInfo;
+    const keys = this.input.bindings()[action] || [];
     this.text.prompt(keys.map(keyLabel).slice(0, 2).join(' / '), ar, en);
+    this.promptAt = this.time;
+    this.promptVisible = true;
+    this.idleT = 0;
+  }
+
+  updatePrompt(dt) {
+    if (!this.promptInfo) return;
+    const input = this.input;
+    this.idleT = input.busy() ? 0 : (this.idleT || 0) + dt;
+    if (this.promptVisible) {
+      if (input.hit(this.promptFor) || this.time - this.promptAt > 7) {
+        this.text.prompt(null);
+        this.promptVisible = false;
+        this.idleT = 0;
+      }
+    } else if (this.idleT > 5 && !this.locked) this.showPrompt();
   }
 
   bump(amount) {
@@ -187,7 +235,7 @@ export class Game {
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
       } else if (stance === 'stand' && p.stance !== 'stand') {
-        this.text.say(null, ['ما في مجال توقف هون.', 'No room to stand here.'], 1.6, 'examine');
+        this.text.say(null, ['ما في محل توقف هون.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
       p.update(dt, {});
@@ -216,8 +264,14 @@ export class Game {
     this.cam.view = lerp(this.cam.view, target.view ?? 1300, k);
     this.shake = Math.max(0, this.shake - dt * 1.4);
 
-    // prompts clear once obeyed
-    if (this.promptFor && input.hit(this.promptFor)) this.promptDone = this.promptFor;
+    // prompts step aside once obeyed, or after a while
+    this.updatePrompt(dt);
+
+    // hold Skip to move through dialogue (never through a choice)
+    if (input.held('skip') && !this.text.choiceOpen && !this.text.sub.hidden && performance.now() - (this.text.lineStart || 0) > 350) {
+      this.skipId = this.text.lineId;
+      this.text.clearLine();
+    }
   }
 
   tools(dt) {
@@ -252,12 +306,12 @@ export class Game {
       this.torch.charge = Math.max(0, this.torch.charge - dt * 0.03);
       if (this.torch.charge <= 0) this.torch.on = false;
     }
-    this.text.tools(list, this.active, this.torch.charge, this.torch.on);
+    this.text.tools(list, this.active, this.torch.charge, this.torch.on, keyLabel(this.input.bindings().use?.[0]));
   }
 
   interact() {
     const p = this.player;
-    const t = !this.locked && this.scene === 'street' ? this.level.nearest(p.x) : null;
+    const t = !this.locked && this.scene === 'street' && !this.text.choiceOpen ? this.level.nearest(p.x) : null;
     if (!t) {
       this.text.hint(0, 0, '', null);
       return;
@@ -291,6 +345,12 @@ export class Game {
     R.cam.set({ x: this.cam.x, y: this.cam.y, view: this.cam.view, shake: this.shake });
     const look = this.act.look(this);
     const fade = Math.max(look.fade || 0, this.fade || 0);
+    // the HUD steps out of full blackouts (title cards over black)
+    const black = fade > 0.85;
+    if (black !== this.blackout) {
+      this.blackout = black;
+      document.getElementById('stage')?.classList.toggle('blackout', black);
+    }
     if (this.settings.get('reduceFlashes') && look.flash) look.flash = look.flash.map((v) => v * 0.25);
     R.frame((r) => this.act.draw(r, this), { ...look, time, fade });
   }

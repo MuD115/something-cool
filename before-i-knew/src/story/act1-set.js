@@ -191,6 +191,37 @@ export function drawStreet(R, g) {
   if (a.fil) T.plume(R, a.fil.x, 60, t, { depth: 0.3, age: (g.time - a.fil.t) / 9, height: 420, width: 110, alpha: 0.7 });
   T.skyline(R, { depth: 0.32, y: 40, color: '#8f8474', seed: 9, haze: ['#cfc4b2', 0.18], minarets: [1500] });
 
+  // a jet: a glint and a contrail, gone before you find it
+  if (a.jet) {
+    const k = (g.time - a.jet.t0) / a.jet.dur;
+    if (k > 0 && k < 1.6) {
+      R.layer(0.12);
+      R.paint((c) => {
+        const x = lerp(a.jet.x0, a.jet.x1, Math.min(k, 1));
+        const y = -760 + k * 40;
+        const fade = k > 1 ? 1 - (k - 1) / 0.6 : 1;
+        const grad = c.createLinearGradient(x - 700, y, x, y);
+        grad.addColorStop(0, 'rgba(236,236,232,0)');
+        grad.addColorStop(1, `rgba(236,236,232,${0.55 * fade})`);
+        c.strokeStyle = grad;
+        c.lineWidth = 3;
+        c.beginPath();
+        c.moveTo(x - 700, y + 18);
+        c.lineTo(x, y);
+        c.stroke();
+        if (k < 1) {
+          c.fillStyle = '#4a4c50';
+          c.beginPath();
+          c.moveTo(x + 14, y - 1);
+          c.lineTo(x - 10, y - 4);
+          c.lineTo(x - 12, y + 3);
+          c.closePath();
+          c.fill();
+        }
+      });
+      R.layer(1);
+    }
+  }
   // the helicopter crossing the far sky
   if (a.heli) {
     const k = (g.time - a.heli.t0) / a.heli.dur;
@@ -371,9 +402,18 @@ export function drawStreet(R, g) {
 
   // --- the people ---
   const shear = shearFor(g);
+  // passers-by far down the side streets, behind everyone
+  for (const w of g.passers || []) {
+    if (w.depth > 0 && near(w.x - 100, w.x + 100)) R.cast((c) => w.draw(c));
+  }
   for (const w of g.npcs) {
     if (!w.visible || !near(w.x - 100, w.x + 100)) continue;
     if (w.depthK) continue; // walking away down a side street: drawn below
+    R.cast((c) => w.draw(c));
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
+  }
+  for (const w of g.passers || []) {
+    if (w.depth > 0 || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
     R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
   }
