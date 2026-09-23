@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>Event Horizon</title>
-<meta name="description" content="A real-time, ray-traced Schwarzschild black hole with gravitational lensing, a relativistic accretion disc and jets, built with three.js." />
+<meta name="description" content="Watch and hear two black holes collide, ray-traced live in three.js: mutual lensing, visible and audible gravitational waves, and the black hole left behind." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@1,6..96,400;1,6..96,500&family=IBM+Plex+Mono:wght@400;500&display=swap" />
@@ -143,6 +143,7 @@
     font-variant-numeric: tabular-nums;
     text-shadow: 0 1px 10px rgba(0, 0, 0, 0.95);
     max-width: 100%;
+    min-width: min(15rem, 100%);
   }
   dl.telemetry dt {
     color: var(--ink-faint);
@@ -242,6 +243,130 @@
   }
   #btn-show:hover, #btn-show:focus-visible { opacity: 1; }
 
+
+  /* ---------- modes ---------- */
+  body[data-mode='explore'] .only-collision,
+  body[data-mode='collision'] .only-explore { display: none !important; }
+
+  #ui { grid-template-rows: auto 1fr auto auto; }
+
+  .tabs button { border-color: transparent; background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
+  .tabs button[aria-selected='true'] {
+    border-color: transparent;
+    border-bottom-color: var(--ember);
+    color: var(--ember);
+    border-radius: 0;
+  }
+  .tabs button[aria-selected='false'] { color: var(--ink-dim); }
+  .tabs button:hover { color: var(--ink); }
+
+  .row-label {
+    align-self: center;
+    color: var(--ink-faint);
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-size: 10px;
+    margin-right: 4px;
+  }
+
+  label.btn {
+    font: 500 11px/1 var(--mono);
+    letter-spacing: 0.06em;
+    color: var(--ink);
+    background: var(--scrim);
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    padding: 8px 10px;
+    cursor: pointer;
+    pointer-events: auto;
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    white-space: nowrap;
+    position: relative;
+  }
+  label.btn:hover { border-color: rgba(236, 230, 218, 0.4); }
+  label.btn:focus-within { outline: 1px solid var(--ember); outline-offset: 2px; }
+  label.btn[aria-pressed='true'] { border-color: var(--ember); color: var(--ember); background: rgba(40, 20, 4, 0.6); }
+  label.btn input { position: absolute; inset: 0; opacity: 0; width: 100%; cursor: pointer; font-size: 0; }
+  #ui label.btn { pointer-events: auto; }
+
+  #btn-explore-final { border-color: var(--ember); color: var(--ember); }
+
+  /* ---------- timeline ---------- */
+  #timeline {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: 14px;
+    align-items: end;
+    pointer-events: auto;
+  }
+  .tl-controls { display: flex; flex-direction: column; gap: 6px; }
+  .tl-controls button { justify-content: space-between; min-width: 112px; }
+  .tl-scope { display: grid; gap: 4px; min-width: 0; }
+  .tl-caption {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    color: var(--ink-faint);
+    font-size: 10.5px;
+    letter-spacing: 0.04em;
+    text-shadow: 0 1px 8px #000;
+  }
+  .tl-time { color: var(--ink-dim); font-variant-numeric: tabular-nums; }
+  #scope {
+    display: block;
+    width: 100%;
+    height: 64px;
+    background: linear-gradient(180deg, rgba(2, 2, 3, 0.35), rgba(2, 2, 3, 0.6));
+    border: 1px solid var(--line);
+    border-radius: 2px;
+    cursor: ew-resize;
+    touch-action: none;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+  #scope:focus-visible { outline: 1px solid var(--ember); outline-offset: 2px; }
+  .tl-sound {
+    margin: 0;
+    color: var(--ember);
+    font-size: 10.5px;
+    text-shadow: 0 1px 8px #000;
+  }
+  body.sound-on .tl-sound { visibility: hidden; }
+
+  /* ---------- toast & drop ---------- */
+  #toast {
+    position: fixed;
+    left: 50%;
+    top: calc(24px + env(safe-area-inset-top, 0px));
+    transform: translateX(-50%);
+    z-index: 25;
+    max-width: min(460px, calc(100% - 32px));
+    padding: 10px 14px;
+    background: rgba(8, 7, 6, 0.9);
+    border: 1px solid var(--ember-deep);
+    color: var(--ink);
+    text-align: center;
+  }
+  #drop-hint {
+    position: fixed;
+    inset: 12px;
+    z-index: 24;
+    display: grid;
+    place-items: center;
+    border: 1px dashed var(--ember);
+    background: rgba(2, 2, 3, 0.55);
+    color: var(--ember);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+  body.dropping #drop-hint { opacity: 1; }
+
   /* ---------- screenshot dialog ---------- */
   #shot {
     position: fixed;
@@ -281,6 +406,11 @@
     #presets::-webkit-scrollbar { display: none; }
     .hint, .t-extra { display: none; }
     #blurb { max-width: 30ch; }
+    #timeline { grid-template-columns: 1fr; gap: 8px; }
+    .tl-controls { flex-direction: row; }
+    .tl-controls button { min-width: 0; }
+    .tl-caption > span:first-child { display: none; }
+    .row.sky { flex-wrap: nowrap; }
     .lil-gui { --width: 250px; }
   }
 
@@ -297,7 +427,7 @@
   }
 </script>
 </head>
-<body>
+<body data-mode="explore">
 <canvas id="scene" aria-label="Real-time rendering of a black hole. Drag to orbit, scroll or pinch to change distance."></canvas>
 
 <div id="loader" role="status"><p>Integrating geodesics…</p></div>
@@ -305,7 +435,10 @@
 <div id="ui">
   <header>
     <div>
-      <p class="eyebrow">Schwarzschild metric · real-time geodesic ray tracing</p>
+      <p class="eyebrow">
+        <span class="only-collision">Binary black hole merger · real-time lensing, audible waves</span>
+        <span class="only-explore">Schwarzschild metric · real-time geodesic ray tracing</span>
+      </p>
       <h1>Event <em>Horizon</em></h1>
       <p id="blurb"></p>
     </div>
@@ -314,8 +447,23 @@
 
   <div></div>
 
+  <section id="timeline" class="only-collision" aria-label="Merger timeline">
+    <div class="tl-controls">
+      <button type="button" id="btn-play" aria-pressed="true" title="Play or pause (Space)"><span>Pause</span><kbd>Space</kbd></button>
+      <button type="button" id="btn-restart" title="Restart (R)">Restart <kbd>R</kbd></button>
+    </div>
+    <div class="tl-scope">
+      <div class="tl-caption">
+        <span>Gravitational-wave strain, as a detector on Earth would record it</span>
+        <span class="tl-time"><span id="m-time">0.0 s</span> · playback 33× slower than reality</span>
+      </div>
+      <canvas id="scope" tabindex="0" role="slider" aria-label="Merger timeline. Drag, or use the arrow keys, to scrub." aria-valuemin="0" aria-valuemax="48"></canvas>
+      <p class="tl-sound">Turn sound on to hear the chirp at the pitch LIGO heard it: 19 Hz rising to 260 Hz.</p>
+    </div>
+  </section>
+
   <footer>
-    <dl class="telemetry" aria-live="off">
+    <dl class="telemetry only-explore" aria-live="off">
       <dt>Distance</dt><dd id="t-r">–</dd>
       <dt class="t-extra">At M87* scale</dt><dd class="t-extra" id="t-au">–</dd>
       <dt>Your clock</dt><dd id="t-clock">–</dd>
@@ -325,18 +473,42 @@
       <dt class="t-extra">Render</dt><dd class="perf t-extra" id="t-perf">–</dd>
     </dl>
 
+    <dl class="telemetry only-collision" aria-live="off">
+      <dt>Masses</dt><dd id="m-mass">–</dd>
+      <dt>Separation</dt><dd id="m-sep">–</dd>
+      <dt>Wave pitch</dt><dd class="zone" id="m-freq">–</dd>
+      <dt class="t-extra">Orbital speed</dt><dd class="t-extra" id="m-speed">–</dd>
+      <dt>Real time left</dt><dd id="m-left">–</dd>
+    </dl>
+
     <div class="dock">
-      <div class="row" id="presets" aria-label="Scenes"></div>
+      <div class="row tabs" role="tablist" aria-label="Mode">
+        <button type="button" role="tab" data-mode="collision" aria-selected="false"><kbd>0</kbd>Collision</button>
+        <button type="button" role="tab" data-mode="explore" aria-selected="false">Explore one black hole</button>
+      </div>
+      <div class="row only-explore" id="presets" aria-label="Scenes"></div>
+      <div class="row only-collision">
+        <button type="button" id="btn-explore-final" hidden>Explore the new black hole →</button>
+      </div>
+      <div class="row sky" role="group" aria-label="Sky">
+        <span class="row-label">Sky</span>
+        <button type="button" data-sky="stars" aria-pressed="true">Stars</button>
+        <button type="button" data-sky="grid" aria-pressed="false">Grid</button>
+        <label class="btn" data-sky="image" aria-pressed="false">Your image…<input type="file" id="sky-file" accept="image/*" /></label>
+      </div>
       <div class="row">
-        <button type="button" id="btn-cine" title="Cinematic drift (C)">Drift <kbd>C</kbd></button>
+        <button type="button" id="btn-cine" title="Cinematic camera (C)">Drift <kbd>C</kbd></button>
         <button type="button" id="sound" aria-pressed="false" title="Sound (M)"><span>Sound off</span><kbd>M</kbd></button>
         <button type="button" id="btn-shot" title="Capture a still (P)">Capture <kbd>P</kbd></button>
         <button type="button" id="btn-hide" title="Hide interface (H)">Hide UI <kbd>H</kbd></button>
       </div>
-      <p class="hint">Drag to orbit · scroll to fall closer · F for fullscreen</p>
+      <p class="hint">Drag to orbit · scroll to move closer · drop an image anywhere to hang it behind the hole</p>
     </div>
   </footer>
 </div>
+
+<div id="toast" role="status" hidden></div>
+<div id="drop-hint" aria-hidden="true"><p>Drop your image to hang it behind the black hole</p></div>
 
 <button type="button" id="btn-show" hidden title="Show interface (H)">Show UI <kbd>H</kbd></button>
 

@@ -1,5 +1,7 @@
 // A procedural ambient drone. Pitch and brightness follow the camera's
 // proximity to the horizon, so diving in audibly "tightens" the sound.
+// During a merger a second voice plays the gravitational-wave chirp at the
+// frequency the waves would really have, as LIGO's detectors heard it.
 
 export class Drone {
   constructor() {
@@ -102,6 +104,47 @@ export class Drone {
     this.noiseGain.gain.value = 0.25;
     noise.connect(this.noiseFilter).connect(this.noiseGain).connect(this.master);
     noise.start();
+
+    this.droneBus = ctx.createGain();
+    this.droneBus.gain.value = 1;
+    // Re-route drone sources through a bus so the chirp can duck them.
+    this.filter.disconnect();
+    this.filter.connect(this.droneBus);
+    this.noiseGain.disconnect();
+    this.noiseGain.connect(this.droneBus);
+    this.droneBus.connect(this.master);
+    this.droneBus.connect(delay);
+
+    // Chirp voice: fundamental plus a soft second harmonic.
+    this.chirpGain = ctx.createGain();
+    this.chirpGain.gain.value = 0;
+    this.chirpGain.connect(this.master);
+    this.chirpGain.connect(delay);
+    this.chirpOscs = [
+      [1, 'sine', 0.9],
+      [2, 'sine', 0.35],
+      [3, 'triangle', 0.12],
+    ].map(([mult, type, g]) => {
+      const o = ctx.createOscillator();
+      o.type = type;
+      o.frequency.value = 40 * mult;
+      const gain = ctx.createGain();
+      gain.gain.value = g;
+      o.connect(gain).connect(this.chirpGain);
+      o.start();
+      return { o, mult };
+    });
+  }
+
+  // freq in Hz; level 0…1. Pass level 0 to silence the chirp.
+  chirp(freq, level) {
+    if (!this.ctx || !this.enabled) return;
+    const t = this.ctx.currentTime;
+    for (const { o, mult } of this.chirpOscs) {
+      o.frequency.setTargetAtTime(freq * mult, t, 0.015);
+    }
+    this.chirpGain.gain.setTargetAtTime(level * 0.5, t, 0.03);
+    this.droneBus.gain.setTargetAtTime(level > 0 ? 0.35 : 1, t, 0.5);
   }
 
   // r: camera distance in Schwarzschild radii.

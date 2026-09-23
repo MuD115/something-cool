@@ -8,6 +8,9 @@ import GUI from 'three/addons/libs/lil-gui.module.min.js';
 
 import { vertexShader, fragmentShader } from './shader.js';
 import { Drone } from './audio.js';
+import { MERGER, stateAt, readouts, amplitude, phaseName, PHASE_TEXT } from './merger.js';
+import { Scope } from './scope.js';
+import { makeGridTexture, loadImageTexture } from './sky.js';
 
 // ------------------------------------------------------------------ params ---
 
@@ -35,6 +38,9 @@ const params = {
   steps: 320,
   stepScale: 0.05,
   cinematic: true,
+  gwStrength: 1,
+  gwGlow: 0.5,
+  slowMotion: true,
 };
 
 // Camera placement: r in Schwarzschild radii, elev = angle above the disc.
@@ -106,6 +112,7 @@ const uniforms = {
   uTanHalfFov: { value: 1 },
   uAspect: { value: 1 },
   uPixelAngle: { value: 0.001 },
+  uViewShift: { value: 0 },
   uLensing: { value: 1 },
   uDoppler: { value: 0 },
   uRedshift: { value: 0 },
@@ -122,6 +129,29 @@ const uniforms = {
   uExposure: { value: 1 },
   uSteps: { value: 320 },
   uStepScale: { value: 0.05 },
+  uBH1: { value: new THREE.Vector3() },
+  uBH2: { value: new THREE.Vector3() },
+  uRs1: { value: 1 },
+  uRs2: { value: 0 },
+  uRsDisc: { value: 1 },
+  uRing: { value: 0 },
+  uRingPhase: { value: 0 },
+  uMini: { value: 0 },
+  uMiniOuter: { value: 0 },
+  uGW: { value: 0 },
+  uGWGlow: { value: 0 },
+  uSimT: { value: 0 },
+  uChirpT: { value: MERGER.T },
+  uOmega0: { value: MERGER.omega0 },
+  uTm: { value: MERGER.tm },
+  uPhiM: { value: MERGER.phiM },
+  uAmpM: { value: MERGER.ampM },
+  uRingOmega: { value: MERGER.ringOmega },
+  uRingDecay: { value: MERGER.ringDecay },
+  uWaveC: { value: MERGER.waveC },
+  uBackdrop: { value: null },
+  uBackdropOn: { value: 0 },
+  uBackdropAspect: { value: 1.6 },
 };
 
 const quadScene = new THREE.Scene();
@@ -173,6 +203,7 @@ function toggleSound() {
   const on = drone.toggle();
   soundBtn.setAttribute('aria-pressed', String(on));
   soundBtn.querySelector('span').textContent = on ? 'Sound on' : 'Sound off';
+  document.body.classList.toggle('sound-on', on);
 }
 soundBtn.addEventListener('click', toggleSound);
 
@@ -203,6 +234,7 @@ function markPreset() {
 
 function selectPreset(name, instant = false) {
   const preset = PRESETS[name];
+  setMode('explore');
   activePreset = name;
   markPreset();
   try {
@@ -234,6 +266,197 @@ function selectPreset(name, instant = false) {
 }
 
 const slug = (name) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+// ------------------------------------------------------------ collision ---
+
+// Two modes share one renderer: 'collision' plays the binary merger
+// timeline, 'explore' is the single black hole with its presets.
+let mode = 'explore';
+const merger = { t: 0, playing: false, scrubbing: false, phase: '' };
+const MERGER_LOOK = { lensing: 1, doppler: 0.6, redshift: 1, jets: 0, stars: 1, nebula: 1, exposure: 1 };
+
+const modeTabs = document.querySelectorAll('[data-mode]');
+const playBtn = document.getElementById('btn-play');
+const timeEl = document.getElementById('m-time');
+const exploreCta = document.getElementById('btn-explore-final');
+
+function setMode(next) {
+  if (mode === next) return;
+  mode = next;
+  document.body.dataset.mode = mode;
+  modeTabs.forEach((b) => b.setAttribute('aria-selected', String(b.dataset.mode === mode)));
+  if (mode === 'explore') {
+    drone.chirp(0, 0);
+    merger.playing = false;
+  }
+}
+
+function startCollision({ play = true, t = 0 } = {}) {
+  setMode('collision');
+  tween = null;
+  Object.assign(params, MERGER_LOOK);
+  merger.t = t;
+  merger.playing = play;
+  merger.phase = '';
+  params.cinematic = !reducedMotion;
+  try {
+    history.replaceState(null, '', '#collision');
+  } catch {
+    /* sandboxed frames may refuse */
+  }
+  guiRefresh();
+  updatePlayButton();
+}
+
+function updatePlayButton() {
+  const atEnd = merger.t >= MERGER.end - 0.01;
+  const label = merger.playing ? 'Pause' : atEnd ? 'Replay' : 'Play';
+  playBtn.querySelector('span').textContent = label;
+  playBtn.setAttribute('aria-pressed', String(merger.playing));
+  exploreCta.hidden = !(atEnd || merger.t > MERGER.tm + MERGER.discStart + MERGER.discDuration * 0.6);
+}
+
+function togglePlay() {
+  if (mode !== 'collision') return startCollision();
+  if (merger.t >= MERGER.end - 0.01) merger.t = 0;
+  merger.playing = !merger.playing;
+  updatePlayButton();
+}
+
+const scope = new Scope(document.getElementById('scope'), (t, active) => {
+  if (mode !== 'collision') startCollision({ play: false, t });
+  merger.t = t;
+  merger.scrubbing = active;
+  if (active) merger.playing = false;
+  updatePlayButton();
+});
+
+// Playback slows around the merger so its last, fastest orbits stay visible.
+function playbackRate(t) {
+  if (!params.slowMotion) return 1;
+  const d = Math.abs(t - (MERGER.tm - 0.3));
+  return 0.28 + 0.72 * THREE.MathUtils.smoothstep(d, 0.4, 3.2);
+}
+
+function updateCollision(dt) {
+  if (merger.playing) {
+    merger.t += dt * playbackRate(merger.t);
+    if (merger.t >= MERGER.end) {
+      merger.t = MERGER.end;
+      merger.playing = false;
+    }
+    updatePlayButton();
+  }
+  const t = merger.t;
+
+  const name = phaseName(t);
+  if (name !== merger.phase) {
+    merger.phase = name;
+    blurbEl.textContent = PHASE_TEXT[name];
+  }
+
+  // Scripted camera: close in on the pair, then pull back for the new disc.
+  if (params.cinematic) {
+    const k = THREE.MathUtils.smoothstep(t, MERGER.tm + 1, MERGER.tm + 10);
+    const target = new THREE.Spherical(
+      THREE.MathUtils.lerp(19.5, 21, k),
+      Math.PI / 2 - THREE.MathUtils.lerp(0.5, 0.11, k),
+      0,
+    );
+    const cur = new THREE.Spherical().setFromVector3(camera.position);
+    const e = 1 - Math.exp(-dt * 1.2);
+    cur.radius += (target.radius - cur.radius) * e;
+    cur.phi += (target.phi - cur.phi) * e;
+    cur.theta += dt * 0.03;
+    camera.position.setFromSpherical(cur);
+  }
+
+  // The chirp: real gravitational-wave pitch, loudness following the strain.
+  const audible = merger.playing || merger.scrubbing;
+  const level = audible ? Math.min(Math.pow(amplitude(t) / MERGER.ampM, 0.8), 1) : 0;
+  drone.chirp(readouts(t).fGw, level);
+
+  scope.draw(t);
+  timeEl.textContent = `${t.toFixed(1)} s`;
+}
+
+modeTabs.forEach((b) =>
+  b.addEventListener('click', () => {
+    if (b.dataset.mode === 'collision') startCollision();
+    else selectPreset(activePreset);
+  }),
+);
+playBtn.addEventListener('click', togglePlay);
+document.getElementById('btn-restart').addEventListener('click', () => startCollision());
+exploreCta.addEventListener('click', () => selectPreset('Interstellar'));
+
+// ------------------------------------------------------------------- sky ---
+
+const skyBtns = document.querySelectorAll('[data-sky]');
+const skyFile = document.getElementById('sky-file');
+const toast = document.getElementById('toast');
+let grid = null;
+let toastTimer = 0;
+
+function showToast(msg) {
+  toast.textContent = msg;
+  toast.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.hidden = true), 3800);
+}
+
+function setSky(kind, tex) {
+  if (kind === 'stars') {
+    uniforms.uBackdropOn.value = 0;
+  } else {
+    if (uniforms.uBackdrop.value && uniforms.uBackdrop.value !== grid?.texture && uniforms.uBackdrop.value !== tex?.texture) {
+      uniforms.uBackdrop.value.dispose();
+    }
+    const src = kind === 'grid' ? (grid ??= makeGridTexture()) : tex;
+    uniforms.uBackdrop.value = src.texture;
+    uniforms.uBackdropAspect.value = src.aspect;
+    uniforms.uBackdropOn.value = 1;
+  }
+  skyBtns.forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.sky === kind)));
+}
+
+async function useImage(file) {
+  try {
+    setSky('image', await loadImageTexture(file));
+    showToast('Your image now hangs behind the black hole. Move closer to bend it into a ring.');
+  } catch (err) {
+    showToast(err.message);
+  }
+}
+
+skyBtns.forEach((b) => {
+  if (b.dataset.sky !== 'image') b.addEventListener('click', () => setSky(b.dataset.sky));
+});
+skyFile.addEventListener('change', () => {
+  if (skyFile.files[0]) useImage(skyFile.files[0]);
+  skyFile.value = '';
+});
+window.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  document.body.classList.add('dropping');
+});
+window.addEventListener('dragleave', (e) => {
+  if (!e.relatedTarget) document.body.classList.remove('dropping');
+});
+window.addEventListener('drop', (e) => {
+  e.preventDefault();
+  document.body.classList.remove('dropping');
+  const file = e.dataTransfer?.files?.[0];
+  if (file) useImage(file);
+});
+// Redraw the grid once the webfonts have arrived.
+document.fonts?.ready.then(() => {
+  if (!grid) return;
+  const wasShowing = uniforms.uBackdrop.value === grid.texture;
+  grid.texture.dispose();
+  grid = makeGridTexture();
+  if (wasShowing) setSky('grid');
+});
 
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
@@ -276,6 +499,11 @@ fSky.add(params, 'jets', 0, 2, 0.01).name('Relativistic jets');
 fSky.add(params, 'stars', 0, 3, 0.01).name('Stars');
 fSky.add(params, 'nebula', 0, 3, 0.01).name('Nebula');
 
+const fGW = gui.addFolder('Collision');
+fGW.add(params, 'gwStrength', 0, 3, 0.01).name('Wave lensing (×10²⁰)');
+fGW.add(params, 'gwGlow', 0, 2, 0.01).name('Show wave crests');
+fGW.add(params, 'slowMotion').name('Slow-mo at merger');
+
 const fCam = gui.addFolder('Camera');
 fCam.add(params, 'cinematic').name('Cinematic drift');
 fCam.add(params, 'fov', 20, 100, 1).name('Field of view').onChange(applyFov);
@@ -294,7 +522,7 @@ fRender.add(params, 'bloomRadius', 0, 1, 0.01).name('Bloom radius');
 fRender.add(params, 'bloomThreshold', 0, 2, 0.01).name('Bloom threshold');
 fRender.close();
 
-[fPhys, fDisc, fSky, fCam].forEach((f) => f.close());
+[fPhys, fDisc, fSky, fGW, fCam].forEach((f) => f.close());
 
 const cineBtn = document.getElementById('btn-cine');
 function guiRefresh() {
@@ -332,8 +560,35 @@ function zoneFor(r) {
   return 'Deep space. Spacetime gently curved';
 }
 
+const mtel = {
+  sep: document.getElementById('m-sep'),
+  freq: document.getElementById('m-freq'),
+  speed: document.getElementById('m-speed'),
+  left: document.getElementById('m-left'),
+  mass: document.getElementById('m-mass'),
+};
+
+function updateCollisionTelemetry() {
+  const t = merger.t;
+  const r = readouts(t);
+  if (t < MERGER.tm) {
+    mtel.sep.textContent = `${nf.format(r.aKm)} km`;
+    mtel.freq.textContent = `${r.fGw.toFixed(0)} Hz`;
+    mtel.speed.textContent = `${r.v.toFixed(2)} c`;
+    mtel.left.textContent = r.realLeft > 0.01 ? `${r.realLeft.toFixed(2)} s` : `${(r.realLeft * 1000).toFixed(1)} ms`;
+    mtel.mass.textContent = '2 × 32.5 M☉';
+  } else {
+    mtel.sep.textContent = 'one horizon';
+    mtel.freq.textContent = t < MERGER.tm + 3 ? `${r.fGw.toFixed(0)} Hz, fading` : 'silent';
+    mtel.speed.textContent = '–';
+    mtel.left.textContent = 'merged';
+    mtel.mass.textContent = '61.8 M☉, 3.2 M☉ radiated';
+  }
+}
+
 let fps = 60;
 function updateTelemetry() {
+  if (mode === 'collision') updateCollisionTelemetry();
   const r = camera.position.length();
   const dil = 1 / Math.sqrt(Math.max(1 - 1 / r, 1e-6));
   tel.r.textContent = `${r.toFixed(2)} rₛ`;
@@ -394,6 +649,9 @@ window.addEventListener('keydown', (e) => {
   const k = e.key.toLowerCase();
   const names = Object.keys(PRESETS);
   if (/^[1-9]$/.test(k) && names[+k - 1]) selectPreset(names[+k - 1]);
+  else if (k === '0') startCollision();
+  else if (k === ' ') { e.preventDefault(); togglePlay(); }
+  else if (k === 'r') startCollision();
   else if (k === 'h') toggleUI();
   else if (k === 'c') { params.cinematic = !params.cinematic; guiRefresh(); }
   else if (k === 'm') toggleSound();
@@ -440,13 +698,48 @@ function syncUniforms() {
   u.uExposure.value = params.exposure;
   u.uSteps.value = Math.round(params.steps);
   u.uStepScale.value = params.stepScale;
+
+  // Lift the collision above the timeline; ease back when exploring.
+  const shiftTarget = mode === 'collision' && !ui.classList.contains('hidden') ? (camera.aspect < 1 ? -0.3 : -0.24) : 0;
+  u.uViewShift.value += (shiftTarget - u.uViewShift.value) * 0.05;
+
+  if (mode === 'collision') {
+    const st = stateAt(merger.t);
+    u.uBH1.value.fromArray(st.bh1);
+    u.uBH2.value.fromArray(st.bh2);
+    u.uRs1.value = st.rs1;
+    u.uRs2.value = st.rs2;
+    u.uRsDisc.value = st.merged ? MERGER.rsFinal : 1;
+    u.uRing.value = st.ring;
+    u.uRingPhase.value = st.ringPhase;
+    u.uMini.value = st.mini;
+    u.uMiniOuter.value = st.miniOuter;
+    u.uDiscInner.value = st.discInner;
+    u.uDiscOuter.value = st.discOuter;
+    u.uDiscTemp.value = 3900;
+    u.uDiscBrightness.value = 1.8 * st.discAmount;
+    u.uDiscOpacity.value = 0.95 * st.discAmount;
+    u.uDiscSpeed.value = 1;
+    u.uGW.value = params.gwStrength * 0.05;
+    u.uGWGlow.value = params.gwGlow;
+    u.uSimT.value = merger.t;
+  } else {
+    u.uBH1.value.set(0, 0, 0);
+    u.uRs1.value = 1;
+    u.uRs2.value = 0;
+    u.uRsDisc.value = 1;
+    u.uRing.value = 0;
+    u.uMini.value = 0;
+    u.uGW.value = 0;
+    u.uGWGlow.value = 0;
+  }
   bloom.strength = params.bloomStrength;
   bloom.radius = params.bloomRadius;
   bloom.threshold = params.bloomThreshold;
 }
 
 function updateCinematic(dt) {
-  if (!params.cinematic || tween) return;
+  if (!params.cinematic || tween || mode !== 'explore') return;
   cineTime += dt;
   const t = cineTime;
   const target = new THREE.Spherical(
@@ -499,6 +792,7 @@ function frame(now) {
 
   updateTween(dt);
   updateCinematic(dt);
+  if (mode === 'collision') updateCollision(dt);
   controls.update(dt);
   adaptQuality(dt);
 
@@ -520,12 +814,19 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
+// Open on the collision unless the link names a single-hole scene.
 const fromHash = Object.keys(PRESETS).find((n) => `#${slug(n)}` === location.hash);
-if (fromHash) selectPreset(fromHash, true);
-markPreset();
+document.body.dataset.mode = mode;
+if (fromHash) {
+  selectPreset(fromHash, true);
+  markPreset();
+} else {
+  camera.position.setFromSpherical(new THREE.Spherical(19.5, Math.PI / 2 - 0.5, 0.6));
+  startCollision();
+}
 guiRefresh();
 updateTelemetry();
 requestAnimationFrame(frame);
 
 // Handy for tinkering from the dev-tools console.
-window.eventHorizon = { params, selectPreset, camera };
+window.eventHorizon = { params, selectPreset, startCollision, merger, camera, setSky };
