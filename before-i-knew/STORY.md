@@ -14,9 +14,9 @@ In a besieged town in Ghouta, a man parts ways with his closest friend on an ord
 
 Twenty-seven. Was studying civil engineering at Damascus University when the revolution began; never finished. Stayed in Ghouta when the siege closed. Now he maintains what's left of the town's water infrastructure — patching pipes, rigging hand pumps, running hoses between buildings. Quiet, observant, prone to the dark humour that siege life breeds. He uses practical work to hold himself together; when there's nothing to fix, the cracks show. His parents left Ghouta before the full siege tightened. He doesn't know if they're alive. He carries guilt about staying and guilt about what staying costs, and resolves neither.
 
-**Inner life:** Sami thinks in textures — the weight of a wrench, the colour of rust on a valve, the specific silence after a barrel bomb lands. He avoids thinking about the future because the future requires hope, and hope feels reckless. Khaled is the person who makes him laugh. Without that, he doesn't know what holds.
+**Inner life:** Sami thinks in textures — the weight of a wrench, the colour of rust on a valve, the specific silence after a barrel bomb lands. He avoids thinking about the future because the future requires hope, and hope feels reckless. Ahmad is the person who makes him laugh. Without that, he doesn't know what holds.
 
-### خالد / Khaled — *the friend*
+### أحمد / Ahmad — *the friend*
 
 Twenty-eight. Arabic literature teacher. Even under siege, he kept teaching children in a basement room — grammar, poetry, a little maths when no one else would. Believed that keeping the ordinary rituals alive was itself a form of resistance. He kept a small journal, half lesson plans, half private writing. More openly warm than Sami, more willing to name what he felt. He called Sami "يا هندسة" (*ya handasa* — "hey, Engineering") as a joke that became a name.
 
@@ -24,11 +24,11 @@ Twenty-eight. Arabic literature teacher. Even under siege, he kept teaching chil
 
 ### أبو يزن / Abu Yazan — *the neighbour*
 
-Fifty-five. Owned a small grocery shop before the siege emptied it. Now he moves through the neighbourhood slowly, checking on people, carrying news. Lost his eldest son, Yazan, to a sniper in 2013. Speaks carefully, never wastes words. He delivers the news of Khaled's death to Sami — not because anyone asked him to, but because he understands that how a person hears this matters.
+Fifty-five. Owned a small grocery shop before the siege emptied it. Now he moves through the neighbourhood slowly, checking on people, carrying news. Lost his eldest son, Yazan, to a sniper in 2013. Speaks carefully, never wastes words. He delivers the news of Ahmad's death to Sami — not because anyone asked him to, but because he understands that how a person hears this matters.
 
 **Inner life:** Abu Yazan long ago stopped asking why. He operates on a simpler question: who needs what, right now? His grief for his son is a room he enters and leaves; he does not perform it.
 
-### أم خالد / Um Khaled — *Khaled's mother*
+### أم أحمد / Um Ahmad — *Ahmad's mother*
 
 Early fifties. A small, precise woman. Before the siege she was a seamstress. Now she patches everything — clothes, tarps, bandages. She appears in Act 2 or 3 depending on the player's path. Her grief is not dramatic; it is a withdrawal of light from her face. She does not cry in front of Sami. She asks him practical questions: Where was he? Was it quick? She needs these facts the way a surgeon needs a scalpel — to cut cleanly.
 
@@ -70,7 +70,7 @@ The player acquires tools throughout the game. Each has practical gameplay use a
 | **Walkie-talkie** | لاسلكي | Act 1, Scene 3 (given by a spotter) | Receives warnings from spotters watching for helicopters and incoming fire. Crackles to life with alerts. Player must listen and react. Cannot transmit — receive only. |
 | **Camera** | كاميرا | Act 2 (if witness path) or Act 3 | An old digital camera with a cracked screen. Used to document: aftermath of shelling, daily life, faces. Each photo is a choice — film costs nothing, but what you point it at defines what survives. Moral weight, not mechanical. |
 | **White cloth** | قماشة بيضا | Act 2/3 (before negotiation) | A torn bedsheet. Carried on a stick to signal truce when approaching the regime checkpoint. Gameplay: equip it to enter the no-man's-land safely (or as safely as anything is). Without it, the player cannot approach. |
-| **Lighter** | ولّاعة | Act 3 (found in Khaled's belongings or given by Abu Yazan) | Light. Warmth. Burning a note that shouldn't be found. In the night scenes, used where the flashlight would draw too much attention — a small flame is less visible than a beam. |
+| **Lighter** | ولّاعة | Act 3 (found in Ahmad's belongings or given by Abu Yazan) | Light. Warmth. Burning a note that shouldn't be found. In the night scenes, used where the flashlight would draw too much attention — a small flame is less visible than a beam. |
 
 ---
 
@@ -82,7 +82,7 @@ The player acquires tools throughout the game. Each has practical gameplay use a
                           ║    (15–20 min play)    ║
                           ╚═══════════╤═══════════╝
                                       │
-                          Scene 1: The Walk ─── with Khaled
+                          Scene 1: The Walk ─── with Ahmad
                                       │
                           Scene 2: The Parting
                                       │
@@ -95,7 +95,7 @@ The player acquires tools throughout the game. Each has practical gameplay use a
                               │     ┌────────────┘
                               └──┬──┘
                                  │
-                          Helicopter flyover ── walkie-talkie warns
+                          Jet flyover ── walkie-talkie warns
                           Player goes prone
                                  │
                           Shelling begins
@@ -123,7 +123,7 @@ The player acquires tools throughout the game. Each has practical gameplay use a
        [D1: White  [D2: Back  [E1:     [E2:  [F1: Accept [F2: Walk
         cloth +     route    Camera]  People's  help,      alone
         negotiate]  through          stories]  go to Um     into
-                    rubble]                    Khaled]    the night]
+                    rubble]                    Ahmad]    the night]
             │          │        │        │        │          │
           ╔═╧══════════╧════════╧════════╧════════╧══════════╧═╗
           ║              ACT 3: THE NIGHT                       ║
@@ -139,7 +139,7 @@ The player acquires tools throughout the game. Each has practical gameplay use a
           ║  ● Vision / dream sequence (all paths, varies)      ║
           ║  ● Cat encounter (all paths)                        ║
           ║  ● Flashback: life before the revolution            ║
-          ║  ● Um Khaled scene (grief/retrieval paths)          ║
+          ║  ● Um Ahmad scene (grief/retrieval paths)          ║
           ║  ● The rooftop — Damascus lit, Ghouta dark          ║
           ╚════════════════════════╤════════════════════════════╝
                                    │
@@ -166,20 +166,20 @@ The player acquires tools throughout the game. Each has practical gameplay use a
 **Duration:** 15–20 minutes of play.
 **Status:** Full production script (see `script/act1.md`).
 
-The act opens with Sami and Khaled walking together through the damaged eastern quarter. They talk — not about the war, but around it. Ice cream they miss. A student of Khaled's who asked what "abroad" means. The grape vine pushing through a collapsed wall. The walk introduces movement, the feel of the town, and the friendship.
+The act opens with Sami and Ahmad walking together through the damaged eastern quarter. They talk — not about the war, but around it. Ice cream they miss. A student of Ahmad's who asked what "abroad" means. The grape vine pushing through a collapsed wall. The walk introduces movement, the feel of the town, and the friendship.
 
-They reach a junction. Khaled is heading to check on a family in the southern quarter. They part casually — "see you tonight, God willing." Khaled rounds a corner. The player watches the empty street.
+They reach a junction. Ahmad is heading to check on a family in the southern quarter. They part casually — "see you tonight, God willing." Ahmad rounds a corner. The player watches the empty street.
 
 The middle of the act is the hour of unknowing. Sami walks alone through the town. He encounters:
 - An old man struggling with water jugs (Choice A: help or keep walking)
-- A walkie-talkie warning of a helicopter (gameplay: go prone, wait)
-- A barrel bomb falling on a distant block (environmental storytelling)
+- A walkie-talkie warning of a jet (gameplay: go prone, wait)
+- An airstrike on a distant block (environmental storytelling)
 - Mortar shelling beginning (Choice B: shield nearby children or take cover)
 - Children collecting scrap metal; Layla
 - The stray cat, watching from rubble
-- A flashback triggered by passing Khaled's school: the town before the siege
+- A flashback triggered by passing Ahmad's school: the town before the siege
 
-The act ends with Scene 4: The News. Sami reaches a group of people gathered at a corner. Abu Yazan approaches. His face tells Sami before his words do. Khaled was crossing a street in the southern quarter. A sniper. It was fast.
+The act ends with Scene 4: The News. Sami reaches a group of people gathered at a corner. Abu Yazan approaches. His face tells Sami before his words do. Ahmad was crossing a street in the southern quarter. A sniper. It was fast.
 
 Choice C — the main branching point:
 - **C1: "بدي شوفو" / "I need to see him"** → Sami moves toward the site. This opens the Retrieval path.
@@ -194,9 +194,9 @@ Choice C — the main branching point:
 
 #### Path A — Retrieval (from C1)
 
-Sami pushes toward the southern quarter. The streets are dangerous — the shelling hasn't stopped, and the sniper who killed Khaled is still active. Gameplay: crouching along walls, using the mirror shard to check corners, listening to the walkie-talkie for helicopter warnings.
+Sami pushes toward the southern quarter. The streets are dangerous — the shelling hasn't stopped, and the sniper who killed Ahmad is still active. Gameplay: crouching along walls, using the mirror shard to check corners, listening to the walkie-talkie for helicopter warnings.
 
-He reaches the area. Khaled's body lies in a no-man's-land street between two frontlines. It cannot be reached without crossing into view of the regime checkpoint.
+He reaches the area. Ahmad's body lies in a no-man's-land street between two frontlines. It cannot be reached without crossing into view of the regime checkpoint.
 
 **Choice D:**
 - **D1: Take the white cloth.** Sami finds a bedsheet, ties it to a metal rod. He will walk into the open and negotiate. → Leads to the negotiation with Officer Maher in Act 3.
@@ -204,18 +204,18 @@ He reaches the area. Khaled's body lies in a no-man's-land street between two fr
 
 #### Path B — Witness (from C2)
 
-Sami moves through the neighbourhood, finding people who saw what happened. He talks to witnesses, pieces together the last minutes of Khaled's life. An older woman gives him Khaled's camera — it was in his bag, thrown clear. Sami now has the camera.
+Sami moves through the neighbourhood, finding people who saw what happened. He talks to witnesses, pieces together the last minutes of Ahmad's life. An older woman gives him Ahmad's camera — it was in his bag, thrown clear. Sami now has the camera.
 
 **Choice E:**
-- **E1: Use the camera.** Begin documenting — not just Khaled's death but the siege itself. Photograph the aftermath, the people, the daily texture of survival. → The camera becomes a tool and a moral weight.
+- **E1: Use the camera.** Begin documenting — not just Ahmad's death but the siege itself. Photograph the aftermath, the people, the daily texture of survival. → The camera becomes a tool and a moral weight.
 - **E2: Focus on the people.** Put the camera away. Sit with people. Listen. Record nothing but carry everything. → A quieter path; the emphasis shifts to human connection.
 
 #### Path C — Grief (from C3)
 
-Sami cannot act. Abu Yazan sits with him. Time passes. A flashback takes over: Sami and Khaled at university, before the revolution. The memory of sitting in a lecture hall, passing notes, stepping outside into a Damascus street where the future was still abstract.
+Sami cannot act. Abu Yazan sits with him. Time passes. A flashback takes over: Sami and Ahmad at university, before the revolution. The memory of sitting in a lecture hall, passing notes, stepping outside into a Damascus street where the future was still abstract.
 
 **Choice F:**
-- **F1: Accept help.** When a neighbour offers to take him to Um Khaled, Sami goes. He owes her that. → Scene with Um Khaled; her questions force Sami out of paralysis.
+- **F1: Accept help.** When a neighbour offers to take him to Um Ahmad, Sami goes. He owes her that. → Scene with Um Ahmad; her questions force Sami out of paralysis.
 - **F2: Walk alone.** Sami gets up and walks. No destination. Into the falling dark. → A solitary path; more vision sequences, more interior.
 
 ### Act 3: The Night — *الليل*
@@ -230,7 +230,7 @@ The longest act. The night paths share certain scenes — the moonlight walk, th
 
 Sami approaches the regime checkpoint under the white cloth. Two soldiers watch him. He is brought to Officer Maher.
 
-The negotiation is a dialogue scene with limited but meaningful choices. Maher is cautious, not hostile. He calls Khaled a "مسلح" (armed fighter). Sami says he was a teacher. Maher is unimpressed — everyone claims that. But something shifts when Sami describes Khaled's students, their names, the poems he taught them. Maher has daughters.
+The negotiation is a dialogue scene with limited but meaningful choices. Maher is cautious, not hostile. He calls Ahmad a "مسلح" (armed fighter). Sami says he was a teacher. Maher is unimpressed — everyone claims that. But something shifts when Sami describes Ahmad's students, their names, the poems he taught them. Maher has daughters.
 
 **Negotiation approach (Choice G):**
 - **G1: Dignity.** Sami remains calm, appeals to Maher's humanity. The conversation turns real. Maher admits he's tired. Sami doesn't absolve him. Maher lets Sami retrieve the body at dawn, under cover. → Leads to Ending 2.
@@ -250,7 +250,7 @@ Regardless of path, there is a sequence of walking through the town at night. Th
 #### The Visions
 
 In the small hours, exhaustion and grief produce sequences that blur the real and unreal:
-- **The classroom vision:** Sami enters Khaled's basement classroom. It is full — every desk occupied. But the students are adults: people who have died during the siege. Khaled is at the board, writing. He turns, and his face is light, and he says: "You're late, ya handasa." Sami blinks, and the room is empty, dusty, chairs overturned.
+- **The classroom vision:** Sami enters Ahmad's basement classroom. It is full — every desk occupied. But the students are adults: people who have died during the siege. Ahmad is at the board, writing. He turns, and his face is light, and he says: "You're late, ya handasa." Sami blinks, and the room is empty, dusty, chairs overturned.
 - **The orchard vision:** Sami walks through the grape orchards outside town. They are full and heavy with fruit. No damage, no war. The sound of water in an irrigation channel. He reaches for a grape and his hand passes through it.
 - **The Damascus vision:** Sami is standing on a Damascus street — pre-war, alive, traffic and people and noise. He sees himself as a student, crossing the road. He tries to call out to his younger self. No sound comes.
 
@@ -260,7 +260,7 @@ These sequences use a distinct visual style (lighting shift, desaturated or hype
 
 Interspersed through the night:
 - **Before the revolution:** A family gathering, probably Eid. The table is full. Someone tells a joke. Then a knock at the door — everyone freezes. It's only a neighbour. The relief. The unspoken: *this is how we lived, always listening for the knock.*
-- **The first protest:** A crowd gathering after Friday prayers. Sami and Khaled among them. The chanting starts. Fear and exhilaration. Then the sound of gunshots — far, then closer. The crowd scatters. Sami and Khaled run. They hide behind a dumpster, breathing hard, looking at each other. Khaled is grinning. "ما رح يرجعوا يسكتونا" — *They're never going to silence us again.*
+- **The first protest:** A crowd gathering after Friday prayers. Sami and Ahmad among them. The chanting starts. Fear and exhilaration. Then the sound of gunshots — far, then closer. The crowd scatters. Sami and Ahmad run. They hide behind a dumpster, breathing hard, looking at each other. Ahmad is grinning. "ما رح يرجعوا يسكتونا" — *They're never going to silence us again.*
 - **The mukhabarat memory:** A childhood memory. Sami's father telling him, very quietly, never to repeat what is said at home. The portrait of Assad on the school wall. A classmate who disappeared. The teacher who said nothing. The knowledge that the walls listen.
 
 #### The Rooftop
@@ -287,7 +287,7 @@ A final choice is offered in some paths, consolidating the player's arc. Then th
 
 **Conditions:** Witness path (C2) + camera used extensively (E1) + documented throughout the night.
 
-Dawn. Sami is on the rooftop, camera in hand. He has footage of everything — the crater, the children, the empty classroom, the grape vine, the moonlit streets. He reviews the last photo: it's of Khaled's shoes, still on the street where he fell, placed neatly together by someone who cared.
+Dawn. Sami is on the rooftop, camera in hand. He has footage of everything — the crater, the children, the empty classroom, the grape vine, the moonlit streets. He reviews the last photo: it's of Ahmad's shoes, still on the street where he fell, placed neatly together by someone who cared.
 
 Sami knows what the footage means. Not justice — not yet, maybe not ever. But a record. Proof that this happened, that these people were real, that the siege was not silence.
 
@@ -303,9 +303,9 @@ He packs the camera into a cloth bag. He's heard there are people who can get th
 
 **Conditions:** Retrieval path (C1) + negotiation successful (D1, dignity or pragmatic approach) + body retrieved.
 
-Dawn. The retrieval happened in the grey hour before sunrise — Sami crossing the no-man's-land under Maher's wary gaze, a stretcher improvised from a door, two neighbours helping. Now Khaled is wrapped in a white sheet in the small cemetery between the grape arbours on the eastern edge of town.
+Dawn. The retrieval happened in the grey hour before sunrise — Sami crossing the no-man's-land under Maher's wary gaze, a stretcher improvised from a door, two neighbours helping. Now Ahmad is wrapped in a white sheet in the small cemetery between the grape arbours on the eastern edge of town.
 
-Um Khaled is there. Abu Yazan. A handful of others. There is no imam — he was killed months ago — so Abu Yazan recites what he remembers. Sami reads a passage from Khaled's journal: a poem Khaled had copied out, by Mahmoud Darwish, with Khaled's note in the margin: "لطلابي" — *for my students*.
+Um Ahmad is there. Abu Yazan. A handful of others. There is no imam — he was killed months ago — so Abu Yazan recites what he remembers. Sami reads a passage from Ahmad's journal: a poem Ahmad had copied out, by Mahmoud Darwish, with Ahmad's note in the margin: "لطلابي" — *for my students*.
 
 A bird sings in the arbour overhead. The grapes are not yet ripe. They will ripen, and no one will pick them, and they will fall.
 
@@ -333,21 +333,21 @@ He steps into the dark.
 
 ### Ending 4: الباقي / The One Who Remains
 
-**Conditions:** High compassion (helped old man, shielded children) + grief path with acceptance (F1) or witness path focusing on people (E2) + visited Um Khaled.
+**Conditions:** High compassion (helped old man, shielded children) + grief path with acceptance (F1) or witness path focusing on people (E2) + visited Um Ahmad.
 
-Dawn. Sami is in Khaled's basement classroom. He arrived here without deciding to — his night walk ended at this door, and he went in. The room is as Khaled left it: a blackboard with yesterday's lesson still on it (a conjugation table), a stack of exercise books, a jar of chalk. The chairs are small, child-sized.
+Dawn. Sami is in Ahmad's basement classroom. He arrived here without deciding to — his night walk ended at this door, and he went in. The room is as Ahmad left it: a blackboard with yesterday's lesson still on it (a conjugation table), a stack of exercise books, a jar of chalk. The chairs are small, child-sized.
 
-He hears footsteps upstairs. Then on the stairs. A child appears in the doorway — one of Khaled's students, a boy of eight or nine, holding a school bag made from a rice sack. He looks at Sami.
+He hears footsteps upstairs. Then on the stairs. A child appears in the doorway — one of Ahmad's students, a boy of eight or nine, holding a school bag made from a rice sack. He looks at Sami.
 
 **The boy:**
-> أستاز خالد وينو؟
-> *Where is teacher Khaled?*
+> أستاز أحمد وينو؟
+> *Where is teacher Ahmad?*
 
 Sami looks at the blackboard. At the chalk. At the boy.
 
 He picks up a piece of chalk. He writes the date on the board: ١٤ آب ٢٠١٤.
 
-**Final image:** Sami at the blackboard, chalk in hand, turning toward the boy. Khaled's journal is open on the desk. Through the small basement window, the morning light falls in a rectangle on the floor.
+**Final image:** Sami at the blackboard, chalk in hand, turning toward the boy. Ahmad's journal is open on the desk. Through the small basement window, the morning light falls in a rectangle on the floor.
 
 **Final text:**
 > الحياة مش بس إنك تضل عايش. الحياة إنك تضل إنسان.
@@ -385,9 +385,9 @@ Sami doesn't move. He will, eventually. But not yet.
 | `documented` | bool | Set true if camera is used in multiple scenes | Required for Ending 1. |
 | `children_helped` | bool | Set by Choice B1 | Contributes to compassion; affects Layla's dialogue. |
 | `body_retrieved` | bool | Set by successful negotiation or dangerous route completion | Required for Ending 2. |
-| `um_khaled_visited` | bool | Set if player visits Um Khaled in Act 2 or 3 | Affects ending scenes; opens dialogue in Ending 2. |
+| `um_khaled_visited` | bool | Set if player visits Um Ahmad in Act 2 or 3 | Affects ending scenes; opens dialogue in Ending 2. |
 | `officer_connection` | bool | Set if dignity path in negotiation; Maher opens up | Affects Maher's final gesture; enables dawn retrieval. |
-| `khaled_journal` | bool | Set if player finds and keeps Khaled's journal | Appears in endings; provides the poem for Ending 2. |
+| `khaled_journal` | bool | Set if player finds and keeps Ahmad's journal | Appears in endings; provides the poem for Ending 2. |
 | `isolation` | int (0–3) | +1 for: refusing help (A2), taking cover alone (B2), walking alone (F2), avoiding people through the night | High isolation + low compassion → Ending 5 or 3. |
 
 **Ending selection logic (simplified):**
@@ -436,7 +436,7 @@ These can be woven into Acts 2–4 depending on path and pacing:
 
 11. **The record player** — In a damaged apartment, an old record player with a cracked record. Sami can try to play it. It produces a warped, ghostly version of a Fairuz song. The sound fills the empty room.
 
-12. **The sniper's view** — A moment where Sami, climbing through a building, finds himself at a high window overlooking the no-man's-land. He can see the regime checkpoint. He can see the street where Khaled fell. For a moment, he sees what the sniper saw. The vertigo of that perspective.
+12. **The sniper's view** — A moment where Sami, climbing through a building, finds himself at a high window overlooking the no-man's-land. He can see the regime checkpoint. He can see the street where Ahmad fell. For a moment, he sees what the sniper saw. The vertigo of that perspective.
 
 ---
 

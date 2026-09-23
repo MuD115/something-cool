@@ -16,9 +16,10 @@ export const DEFAULTS = {
   reduceFlashes: false,
   hints: true,
   lang: 'en', // menu language: 'en' | 'ar'
-  backing: 'light', // subtitle backing: 'off' | 'light' | 'dark'
+  backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
   quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'
   keys: DEFAULT_KEYS,
+  version: 2,
 };
 
 export class Settings {
@@ -32,6 +33,11 @@ export class Settings {
       if (raw) Object.assign(this.values, JSON.parse(raw));
     } catch {
       /* storage unavailable: defaults it is */
+    }
+    // older saves: subtitles now default to no backing
+    if ((this.values.version || 1) < 2) {
+      this.values.backing = 'off';
+      this.values.version = 2;
     }
     // new actions added after a save still get their default keys
     if (defaults.keys) this.values.keys = { ...defaults.keys, ...this.values.keys };

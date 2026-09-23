@@ -7,7 +7,7 @@
 <meta name="description" content="Before I Knew · قبل ما عرفت. An interactive story set in besieged Ghouta, August 2014: an ordinary afternoon, a friend who goes home another way, and the hour before the news." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 <style>
   :root {
     color-scheme: dark;
@@ -23,8 +23,8 @@
     --glass: rgba(12, 11, 10, 0.62);
     --serif: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
     --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --arabic: 'Noto Naskh Arabic', 'Geeza Pro', 'Arial', serif;
-    --ruqaa: 'Aref Ruqaa', 'Noto Naskh Arabic', serif;
+    --arabic: 'IBM Plex Sans Arabic', 'Segoe UI', 'Geeza Pro', 'Arial', sans-serif;
+    --ruqaa: 'Aref Ruqaa', 'IBM Plex Sans Arabic', serif;
     --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
     --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   }
@@ -96,7 +96,10 @@
     border-radius: 6px;
     text-align: center;
     color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 12px rgba(0, 0, 0, 0.75);
+    /* no box by default: a firm dark outline keeps white text legible on pale walls */
+    text-shadow: 0 0 1px #000, 0 0 2px #000, 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.8);
+    -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.55);
+    paint-order: stroke fill;
   }
   #stage[data-backing='light'] .sub-box { background: rgba(0, 0, 0, 0.34); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
   #stage[data-backing='dark'] .sub-box { background: rgba(0, 0, 0, 0.74); text-shadow: none; }
@@ -116,7 +119,7 @@
   #sub .who .sep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.5); }
   #stage[data-subs='en'] #sub .who .sep, #stage[data-subs='ar'] #sub .who .sep { display: none; }
   #sub p { margin: 0; text-wrap: balance; color: #fff; }
-  #sub p.ar { font-size: max(17px, calc(var(--t) * 1.8)); line-height: 1.55; font-weight: 600; }
+  #sub p.ar { font-size: max(17px, calc(var(--t) * 1.75)); line-height: 1.6; font-weight: 500; }
   #sub p.en { font: 500 max(14px, calc(var(--t) * 1.28)) / 1.4 var(--sans); }
   #stage[data-subs='en'] #sub p.en { font-size: max(16px, calc(var(--t) * 1.55)); }
   /* examine: a note, no speaker, a rule on the leading side */
@@ -160,8 +163,9 @@
   }
   #card.show { opacity: 1; }
   #card p { margin: 0; display: grid; gap: 0.35em; }
-  #card .ar { font: max(20px, calc(var(--t) * 2.5)) / 1.5 var(--ruqaa); }
-  #card .en { font: max(11px, calc(var(--t) * 0.95)) / 1.4 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--paper); opacity: 0.8; }
+  #card .ar { font: 700 max(34px, calc(var(--t) * 4.6)) / 1.35 var(--ruqaa); }
+  #card .en { font: max(12px, calc(var(--t) * 1.15)) / 1.4 var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--paper); opacity: 0.85; }
+  #card p + p .ar { font-size: max(24px, calc(var(--t) * 3)); }
 
   /* ---------------------------------------------------- choices ------ */
   #choice {

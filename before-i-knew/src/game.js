@@ -9,9 +9,9 @@ import { clamp, lerp } from './engine/util.js';
 import { writeSave } from './engine/save.js';
 
 export const TOOLS = {
-  torch: { id: 'torch', ar: 'كشّاف يدوي', en: 'Hand-crank torch' },
-  mirror: { id: 'mirror', ar: 'شقفة مراية', en: 'Mirror shard' },
-  walkie: { id: 'walkie', ar: 'لاسلكي', en: 'Walkie-talkie' },
+  torch: { id: 'torch', ar: 'مصباح يدوي', en: 'Hand-crank torch' },
+  mirror: { id: 'mirror', ar: 'شظية مرآة', en: 'Mirror shard' },
+  walkie: { id: 'walkie', ar: 'جهاز لاسلكي', en: 'Walkie-talkie' },
 };
 
 export class Game {
@@ -235,7 +235,7 @@ export class Game {
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
       } else if (stance === 'stand' && p.stance !== 'stand') {
-        this.text.say(null, ['ما في محل توقف هون.', 'No room to stand here.'], 1.6, 'examine');
+        this.text.say(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
       p.update(dt, {});

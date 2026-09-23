@@ -7,7 +7,7 @@
 <meta name="description" content="Before I Knew · قبل ما عرفت. An interactive story set in besieged Ghouta, August 2014: an ordinary afternoon, a friend who goes home another way, and the hour before the news." />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=Noto+Naskh+Arabic:wght@400;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Aref+Ruqaa:wght@400;700&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" />
 <style>
   :root {
     color-scheme: dark;
@@ -23,8 +23,8 @@
     --glass: rgba(12, 11, 10, 0.62);
     --serif: 'Source Serif 4', 'Iowan Old Style', Georgia, serif;
     --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-    --arabic: 'Noto Naskh Arabic', 'Geeza Pro', 'Arial', serif;
-    --ruqaa: 'Aref Ruqaa', 'Noto Naskh Arabic', serif;
+    --arabic: 'IBM Plex Sans Arabic', 'Segoe UI', 'Geeza Pro', 'Arial', sans-serif;
+    --ruqaa: 'Aref Ruqaa', 'IBM Plex Sans Arabic', serif;
     --mono: 'IBM Plex Mono', ui-monospace, Menlo, Consolas, monospace;
     --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
   }
@@ -96,7 +96,10 @@
     border-radius: 6px;
     text-align: center;
     color: #fff;
-    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.95), 0 0 12px rgba(0, 0, 0, 0.75);
+    /* no box by default: a firm dark outline keeps white text legible on pale walls */
+    text-shadow: 0 0 1px #000, 0 0 2px #000, 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 10px rgba(0, 0, 0, 0.8);
+    -webkit-text-stroke: 0.6px rgba(0, 0, 0, 0.55);
+    paint-order: stroke fill;
   }
   #stage[data-backing='light'] .sub-box { background: rgba(0, 0, 0, 0.34); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px); }
   #stage[data-backing='dark'] .sub-box { background: rgba(0, 0, 0, 0.74); text-shadow: none; }
@@ -116,7 +119,7 @@
   #sub .who .sep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.5); }
   #stage[data-subs='en'] #sub .who .sep, #stage[data-subs='ar'] #sub .who .sep { display: none; }
   #sub p { margin: 0; text-wrap: balance; color: #fff; }
-  #sub p.ar { font-size: max(17px, calc(var(--t) * 1.8)); line-height: 1.55; font-weight: 600; }
+  #sub p.ar { font-size: max(17px, calc(var(--t) * 1.75)); line-height: 1.6; font-weight: 500; }
   #sub p.en { font: 500 max(14px, calc(var(--t) * 1.28)) / 1.4 var(--sans); }
   #stage[data-subs='en'] #sub p.en { font-size: max(16px, calc(var(--t) * 1.55)); }
   /* examine: a note, no speaker, a rule on the leading side */
@@ -160,8 +163,9 @@
   }
   #card.show { opacity: 1; }
   #card p { margin: 0; display: grid; gap: 0.35em; }
-  #card .ar { font: max(20px, calc(var(--t) * 2.5)) / 1.5 var(--ruqaa); }
-  #card .en { font: max(11px, calc(var(--t) * 0.95)) / 1.4 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--paper); opacity: 0.8; }
+  #card .ar { font: 700 max(34px, calc(var(--t) * 4.6)) / 1.35 var(--ruqaa); }
+  #card .en { font: max(12px, calc(var(--t) * 1.15)) / 1.4 var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: var(--paper); opacity: 0.85; }
+  #card p + p .ar { font-size: max(24px, calc(var(--t) * 3)); }
 
   /* ---------------------------------------------------- choices ------ */
   #choice {
@@ -1355,15 +1359,21 @@ class Sound {
 
   buildBeds() {
     const ctx = this.ctx;
+    // source → filter → mod (anything that wobbles, around 1) → level g.
+    // Modulators only ever touch `mod`, never the level, so a bed at level 0
+    // is truly silent. (A modulator wired into the level gain adds to it and
+    // leaks: that was the pulsing "helicopter" under everything.)
     const bed = (src, type, freq, q) => {
       const f = ctx.createBiquadFilter();
       f.type = type;
       f.frequency.value = freq;
       f.Q.value = q;
+      const mod = ctx.createGain();
+      mod.gain.value = 1;
       const g = ctx.createGain();
       g.gain.value = 0;
-      src.connect(f).connect(g).connect(this.amb);
-      return { g, f };
+      src.connect(f).connect(mod).connect(g).connect(this.amb);
+      return { g, f, mod };
     };
     this.beds = {
       wind: bed(this.noiseSrc(), 'bandpass', 500, 0.5),
@@ -1383,7 +1393,7 @@ class Sound {
     syl.frequency.value = 3.3;
     const sg = ctx.createGain();
     sg.gain.value = 0.4;
-    syl.connect(sg).connect(this.beds.crowd.g.gain);
+    syl.connect(sg).connect(this.beds.crowd.mod.gain);
     syl.start();
 
     // A generator in a basement: a steady low hum through walls, sagging
@@ -1516,90 +1526,75 @@ class Sound {
     this.noise({ when: this.t + dur, dur: 0.1, freq: 2400, q: 0.8, vol: 0.1 });
   }
 
-  // A helicopter, high and slow: the low thud of the blades arrives before
-  // the machine. Only ever heard with a barrel bomb.
-  helicopter(dur = 12) {
+  // A fighter jet passing low: a thin whine arrives first, then the tearing
+  // roar with a Doppler drop as it goes over, a rumble that lingers, and the
+  // air itself thumping as it passes. Pans across the stereo field.
+  jetPass(dur = 9, over = 0.42) {
     if (!this.ctx) return;
-    this.heliCount = (this.heliCount || 0) + 1;
     const ctx = this.ctx;
     const w = this.t;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, w);
-    g.gain.exponentialRampToValueAtTime(0.85, w + dur * 0.45);
-    g.gain.exponentialRampToValueAtTime(0.45, w + dur * 0.62);
-    g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
-    // distance: the highs roll off as it comes and goes
-    const air = ctx.createBiquadFilter();
-    air.type = 'lowpass';
-    air.frequency.setValueAtTime(260, w);
-    air.frequency.exponentialRampToValueAtTime(900, w + dur * 0.5);
-    air.frequency.exponentialRampToValueAtTime(240, w + dur);
-    g.connect(air).connect(this.fx);
-    // blade thump: short brown-noise bursts at the blade-pass rate, with a
-    // Doppler drop as it passes over
-    const rate0 = 4.6;
-    let tt = w + 0.05;
-    let i = 0;
-    while (tt < w + dur) {
-      const k = (tt - w) / dur;
-      const rate = rate0 * (k < 0.5 ? 1.04 : 0.95);
-      const n = ctx.createBufferSource();
-      n.buffer = this.brownBuf;
-      const f = ctx.createBiquadFilter();
-      f.type = 'lowpass';
-      f.frequency.value = 170 + (i % 2) * 40;
-      const e = ctx.createGain();
-      e.gain.setValueAtTime(0.0001, tt);
-      e.gain.exponentialRampToValueAtTime(1, tt + 0.012);
-      e.gain.exponentialRampToValueAtTime(0.0001, tt + 0.14);
-      n.connect(f).connect(e).connect(g);
-      n.start(tt, Math.random() * 3);
-      n.stop(tt + 0.16);
-      tt += 1 / rate;
-      i++;
+    const tO = w + dur * over; // overhead
+    const out = ctx.createGain();
+    out.gain.value = 1;
+    let dest = this.fx;
+    if (ctx.createStereoPanner) {
+      const pan = ctx.createStereoPanner();
+      pan.pan.setValueAtTime(-0.9, w);
+      pan.pan.linearRampToValueAtTime(0, tO);
+      pan.pan.linearRampToValueAtTime(0.9, w + dur);
+      pan.connect(this.fx);
+      dest = pan;
     }
-    // a thin turbine whine, far off
-    const tur = ctx.createOscillator();
-    tur.type = 'sawtooth';
-    tur.frequency.setValueAtTime(1180, w);
-    tur.frequency.linearRampToValueAtTime(1240, w + dur * 0.5);
-    tur.frequency.linearRampToValueAtTime(1090, w + dur);
-    const tf = ctx.createBiquadFilter();
-    tf.type = 'bandpass';
-    tf.frequency.value = 1200;
-    tf.Q.value = 12;
-    const tg = ctx.createGain();
-    tg.gain.value = 0.018;
-    tur.connect(tf).connect(tg).connect(g);
-    tur.start(w);
-    tur.stop(w + dur);
-  }
-
-  // A jet: a tearing roar that crosses the sky faster than the eye.
-  jet(dur = 7) {
-    if (!this.ctx) return;
-    const ctx = this.ctx;
-    const w = this.t;
-    const src = this.noiseSrc();
-    const f = ctx.createBiquadFilter();
-    f.type = 'bandpass';
-    f.Q.value = 0.7;
-    f.frequency.setValueAtTime(2600, w);
-    f.frequency.exponentialRampToValueAtTime(900, w + dur * 0.45);
-    f.frequency.exponentialRampToValueAtTime(320, w + dur);
-    const rumble = this.noiseSrc(this.brownBuf);
+    out.connect(dest);
+    this.duck(0.9, dur);
+    // turbine whine: loud on approach, gone when it has passed
+    const whine = ctx.createOscillator();
+    whine.type = 'sawtooth';
+    whine.frequency.setValueAtTime(2300, w);
+    whine.frequency.exponentialRampToValueAtTime(2700, tO - 0.2);
+    whine.frequency.exponentialRampToValueAtTime(900, tO + 0.8);
+    const wf = ctx.createBiquadFilter();
+    wf.type = 'bandpass';
+    wf.Q.value = 14;
+    wf.frequency.setValueAtTime(2300, w);
+    wf.frequency.exponentialRampToValueAtTime(2700, tO - 0.2);
+    wf.frequency.exponentialRampToValueAtTime(900, tO + 0.8);
+    const wg = ctx.createGain();
+    wg.gain.setValueAtTime(0.0001, w);
+    wg.gain.exponentialRampToValueAtTime(0.05, tO - 0.3);
+    wg.gain.exponentialRampToValueAtTime(0.0001, tO + 1.4);
+    whine.connect(wf).connect(wg).connect(out);
+    whine.start(w);
+    whine.stop(w + dur);
+    // the roar: broadband noise swept down through the pass
+    const roar = this.noiseSrc();
     const rf = ctx.createBiquadFilter();
-    rf.type = 'lowpass';
-    rf.frequency.value = 140;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, w);
-    g.gain.exponentialRampToValueAtTime(0.5, w + dur * 0.4);
-    g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
-    src.connect(f).connect(g);
-    rumble.connect(rf).connect(g);
-    g.connect(this.fx);
-    src.stop(w + dur);
-    rumble.stop(w + dur);
+    rf.type = 'bandpass';
+    rf.Q.value = 0.6;
+    rf.frequency.setValueAtTime(2600, w);
+    rf.frequency.exponentialRampToValueAtTime(1500, tO);
+    rf.frequency.exponentialRampToValueAtTime(380, w + dur);
+    const rg = ctx.createGain();
+    rg.gain.setValueAtTime(0.0001, w);
+    rg.gain.exponentialRampToValueAtTime(0.12, tO - 1.2);
+    rg.gain.exponentialRampToValueAtTime(0.75, tO + 0.15);
+    rg.gain.exponentialRampToValueAtTime(0.25, tO + 2.2);
+    rg.gain.exponentialRampToValueAtTime(0.0001, w + dur);
+    roar.connect(rf).connect(rg).connect(out);
+    roar.stop(w + dur);
+    // the rumble that stays behind it
+    const rum = this.noiseSrc(this.brownBuf);
+    const uf = ctx.createBiquadFilter();
+    uf.type = 'lowpass';
+    uf.frequency.value = 140;
+    const ug = ctx.createGain();
+    ug.gain.setValueAtTime(0.0001, w);
+    ug.gain.exponentialRampToValueAtTime(0.9, tO + 0.4);
+    ug.gain.exponentialRampToValueAtTime(0.0001, w + dur);
+    rum.connect(uf).connect(ug).connect(out);
+    rum.stop(w + dur);
+    // the thump of air as it goes over
+    this.tone(48, 1.4, { when: tO, vol: 0.45, to: 30, attack: 0.05 });
   }
 
   // A missile strike beyond the rooftops: sharper than a barrel, shorter tail.
@@ -1608,7 +1603,9 @@ class Sound {
     this.duck(0.9, 3);
     this.noise({ when: w, dur: 0.12, freq: 1800, type: 'lowpass', vol: 0.25, q: 0.4 });
     this.noise({ when: w + 0.02, dur: 2.4, freq: 120, type: 'lowpass', vol: 0.8, q: 0.5, buf: this.brownBuf, attack: 0.01 });
-    this.tone(55, 1.2, { when: w, vol: 0.4, to: 30 });
+    this.tone(55, 1.2, { when: w, vol: 0.45, to: 30 });
+    this.noise({ when: w + 0.4, dur: 4, freq: 90, type: 'lowpass', vol: 0.6, q: 0.5, buf: this.brownBuf, attack: 0.3 });
+    for (let i = 0; i < 8; i++) this.noise({ when: w + 0.6 + Math.random() * 2, dur: 0.05, freq: 1500 + Math.random() * 1500, q: 2, vol: 0.03 });
   }
 
   // Music steps back for blasts and speech: amount 0…1 of the music gain.
@@ -2259,16 +2256,16 @@ const __src_engine_input = (() => {
 // are rebindable and persisted through settings.
 
 const ACTIONS = [
-  ['left', 'Move left', 'روح عاليسار'],
-  ['right', 'Move right', 'روح عاليمين'],
-  ['run', 'Run (hold)', 'اركض'],
-  ['jump', 'Jump / climb', 'نطّ / اطلع'],
-  ['crouch', 'Crouch (toggle)', 'وطّي'],
+  ['left', 'Move left', 'تحرّك يساراً'],
+  ['right', 'Move right', 'تحرّك يميناً'],
+  ['run', 'Run (hold)', 'اركض (مع الضغط المستمر)'],
+  ['jump', 'Jump / climb', 'اقفز / تسلّق'],
+  ['crouch', 'Crouch (toggle)', 'انحنِ'],
   ['prone', 'Go prone (toggle)', 'انبطح'],
-  ['interact', 'Interact / examine', 'استعمل / اتفرّج'],
-  ['tool', 'Next tool', 'الغرض الجاي'],
-  ['use', 'Use tool (hold to crank the torch)', 'استعمل الغرض'],
-  ['skip', 'Skip line (hold)', 'فوّت الحكي (ضل ضاغط)'],
+  ['interact', 'Interact / examine', 'تفاعل / تفحّص'],
+  ['tool', 'Next tool', 'الأداة التالية'],
+  ['use', 'Use tool (hold to crank the torch)', 'استخدم الأداة (اضغط مطوّلاً لشحن المصباح)'],
+  ['skip', 'Skip line (hold)', 'تخطَّ الحوار (مع الضغط المستمر)'],
   ['menu', 'Menu', 'القائمة'],
 ];
 
@@ -2290,7 +2287,7 @@ const DEFAULT_KEYS = {
 const PAD = { jump: 0, prone: 1, interact: 2, tool: 3, use: 5, crouch: 4, menu: 9, run: 7, skip: 6 };
 
 function keyLabel(code) {
-  if (!code) return '—';
+  if (!code) return '·';
   return code
     .replace(/^Key/, '')
     .replace(/^Digit/, '')
@@ -2432,9 +2429,10 @@ const DEFAULTS = {
   reduceFlashes: false,
   hints: true,
   lang: 'en', // menu language: 'en' | 'ar'
-  backing: 'light', // subtitle backing: 'off' | 'light' | 'dark'
+  backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
   quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'
   keys: DEFAULT_KEYS,
+  version: 2,
 };
 
 class Settings {
@@ -2448,6 +2446,11 @@ class Settings {
       if (raw) Object.assign(this.values, JSON.parse(raw));
     } catch {
       /* storage unavailable: defaults it is */
+    }
+    // older saves: subtitles now default to no backing
+    if ((this.values.version || 1) < 2) {
+      this.values.backing = 'off';
+      this.values.version = 2;
     }
     // new actions added after a save still get their default keys
     if (defaults.keys) this.values.keys = { ...defaults.keys, ...this.values.keys };
@@ -2851,68 +2854,68 @@ const STR = {
   ar: {
     kickerDate: 'الغوطة · آب ٢٠١٤',
     title: 'قبل ما عرفت',
-    tagline: 'بعد ضهر عادي. صاحبك بيرجع عالبيت من طريق تاني. وبأقل من ساعة، الدنيا بتكون تغيّرت، وإنت لسّا ما بتعرف.',
-    continue: 'كمّل من وين وقفت',
+    tagline: 'عصرٌ عاديّ. صديقٌ يسلك طريقاً آخر إلى بيته. وبعد أقلّ من ساعة، يكون العالم قد تغيّر، وأنت لا تعلم بعد.',
+    continue: 'متابعة',
     newGame: 'لعبة جديدة',
-    newGameSub: 'الفصل الأول · بعد الضهر',
+    newGameSub: 'الفصل الأول · بعد الظهر',
     settings: 'الإعدادات',
-    controls: 'التحكّم',
+    controls: 'عناصر التحكم',
     about: 'عن القصة',
-    resume: 'كمّل اللعب',
-    restart: 'ارجع لآخر نقطة',
+    resume: 'استئناف',
+    restart: 'العودة إلى آخر نقطة حفظ',
     mainMenu: 'القائمة الرئيسية',
-    log: 'سجلّ الحكي',
-    logEmpty: 'لسّا ما حدا حكى شي.',
-    paused: 'موقّف',
+    log: 'سجل الحوار',
+    logEmpty: 'لم يُقَل شيء بعد.',
+    paused: 'متوقّف مؤقتاً',
     back: 'رجوع',
-    restore: 'رجّع الإعدادات الأصلية',
-    rebindHelp: 'اختار زر لتغيّرو، وبعدين اكبس الزر الجديد.',
-    pressKey: 'اكبس زر…',
-    controlsExtra: 'الخيارات: اكبس عليها، أو اكبس ١ أو ٢ أو ٣. يد التحكّم بتشتغل كمان. عالموبايل، استعمل الأزرار عالشاشة.',
-    now: 'هلّق',
-    objective: 'المطلوب',
-    carrying: 'معك',
-    nothing: 'لسّا ولا شي',
-    checkpoint: 'النقطة',
+    restore: 'استعادة الإعدادات الافتراضية',
+    rebindHelp: 'اختر زراً لتغييره، ثم اضغط الزر الجديد.',
+    pressKey: 'اضغط زراً…',
+    controlsExtra: 'الخيارات: انقر عليها، أو اضغط ١ أو ٢ أو ٣. تعمل يد التحكم أيضاً. على الهاتف، استخدم الأزرار الظاهرة على الشاشة.',
+    now: 'الآن',
+    objective: 'المهمة',
+    carrying: 'بحوزتك',
+    nothing: 'لا شيء بعد',
+    checkpoint: 'نقطة الحفظ',
     gSound: 'الصوت',
-    gText: 'الكتابة',
-    gDisplay: 'الشاشة',
+    gText: 'النصوص',
+    gDisplay: 'العرض',
     gPlay: 'اللعب',
-    master: 'الصوت العام',
+    master: 'مستوى الصوت العام',
     music: 'الموسيقى',
-    effects: 'المؤثرات',
+    effects: 'المؤثرات الصوتية',
     lang: 'لغة القوائم',
     subtitles: 'الترجمة',
-    subsBoth: 'عربي وإنكليزي',
-    subsEn: 'إنكليزي بس',
-    subsAr: 'عربي بس',
-    textSize: 'حجم الخط',
+    subsBoth: 'العربية والإنكليزية',
+    subsEn: 'الإنكليزية فقط',
+    subsAr: 'العربية فقط',
+    textSize: 'حجم النص',
     small: 'صغير',
-    medium: 'وسط',
+    medium: 'متوسط',
     large: 'كبير',
-    xlarge: 'كبير كتير',
+    xlarge: 'كبير جداً',
     backing: 'خلفية الترجمة',
-    off: 'بلا',
-    light: 'خفيفة',
-    dark: 'غامقة',
-    quality: 'جودة الصورة',
+    off: 'بلا خلفية',
+    light: 'فاتحة',
+    dark: 'داكنة',
+    quality: 'جودة الرسوم',
     auto: 'تلقائي',
-    low: 'واطية',
+    low: 'منخفضة',
     high: 'عالية',
-    shake: 'هزّة الكاميرا',
-    reduceFlashes: 'خفّف الوميض',
-    hints: 'تلميحات التحكّم',
-    noteKicker: 'تنبيه',
-    noteTitle: 'قبل ما تبلّش',
-    noteBody: 'هاي القصة عن الحصار بالغوطة: قصف، قنّاص، جوع، وموت صديق. العنف بينسمع وبيبان أثرو، بس ما بينشاف. مناسبة لعمر ١٦ وفوق.',
-    noteSound: 'الصوت مهم. الأحسن بسمّاعات.',
-    begin: 'بلّش',
-    endKicker: 'آخر الفصل الأول · بعد الضهر',
-    endNext: 'الفصل التاني، المسا، عم ينكتب. الطريق اللي اخترتو محفوظ إلو.',
-    again: 'العب مرة تانية، واختار غير شي',
+    shake: 'اهتزاز الكاميرا',
+    reduceFlashes: 'تخفيف الومضات',
+    hints: 'تلميحات التحكم',
+    noteKicker: 'تنبيه حول المحتوى',
+    noteTitle: 'قبل أن تبدأ',
+    noteBody: 'تدور هذه القصة حول حصار الغوطة: القصف، والقنص، والجوع، وموت صديق. يُسمَع العنف وتُرى آثاره، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.',
+    noteSound: 'للصوت أهمية كبيرة. يُفضَّل استخدام سمّاعات الرأس.',
+    begin: 'ابدأ',
+    endKicker: 'نهاية الفصل الأول · بعد الظهر',
+    endNext: 'الفصل الثاني، المساء، قيد الكتابة. الطريق الذي اخترته محفوظ له.',
+    again: 'العب مجدداً واختر خياراً آخر',
     checkpoints: { walk: 'المشوار', hour: 'الساعة', school: 'المدرسة', news: 'الزاوية' },
     times: { walk: '٣:٠٥', hour: '٣:٢٥', school: '٣:٥٠', news: '٤:١٠' },
-    rotate: 'دوّر الموبايل عالعرض لتشوف الصورة كاملة.',
+    rotate: 'أدِر هاتفك أفقياً لرؤية الصورة كاملة.',
   },
 };
 
@@ -3195,41 +3198,69 @@ return { smoothPath, fillSmooth, limb, shade };
 
 // ---- src/rigs/person.js
 const __src_rigs_person = (() => {
-// A side-on human rig. Angles are absolute, in radians: limbs hang at 0 and
-// swing positive toward the way the figure faces; the torso leans positive
-// forward. Drawn in a local frame with the hip at the origin.
+// A human rig, seen side-on (and, when it turns, from the front or back).
+// Angles are absolute, in radians: limbs hang at 0 and swing positive toward
+// the way the figure faces; the torso leans positive forward. Drawn in a
+// local frame with the hip at the origin.
 
 const { clamp, lerp } = __src_engine_util;
 const { limb, shade } = __src_rigs_shapes;
-const L = { thigh: 46, shin: 45, torso: 60, neck: 7, head: 11.5, upper: 31, fore: 29 };
+// Segment lengths. Adults stand about 170 units tall.
+const L = { thigh: 41, shin: 40, torso: 54, neck: 6, head: 10.4, upper: 28, fore: 26 };
 
 // Outfits. Fields:
-//   top, sleeve ('long' | 'short'), trousers, shoes, skin, hair, beard
-//   ('none' | 'stubble' | 'full' | 'moustache'), headwear ('hijab' | 'kufi'),
-//   robe (long garment to the ankles), satchel, braid, ponytail.
+//   top, sleeve ('long' | 'short'), rolled (sleeves rolled to the elbow),
+//   pattern ('check' | 'stripe', with patternColor), trousers, skin
+//   hair colour, hairStyle ('short' | 'curly' | 'sidepart' | 'receding' |
+//     'buzz' | 'bald' | 'ponytail' | 'braid')
+//   beard ('none' | 'stubble' | 'short' | 'full' | 'long' | 'goatee' |
+//     'chinstrap' | 'moustache' | 'thickMoustache'), beardColor
+//   headwear ('hijab' | 'kufi' | 'cap' | 'beanie' | 'keffiyeh'), headColor
+//   layer: { kind: 'vest' | 'sweater' | 'jacket' | 'coat', color }
+//   robe (a jalabiya to the ankles), keffiyeh ('shoulders'), scarf colour
+//   belt colour (pouch: true), satchel colour, glasses, watch
+//   shoes colour, footwear ('shoe' | 'boot' | 'sandal'), baggy
 const OUTFITS = {
-  sami: { top: '#5f6b73', sleeve: 'long', trousers: '#2e2f33', shoes: '#1d1b19', skin: '#b58565', hair: '#221c18', beard: 'stubble' },
-  khaled: { top: '#c9bca2', sleeve: 'long', trousers: '#3e3a35', shoes: '#2a211a', skin: '#b98a6a', hair: '#2b211a', beard: 'full', satchel: '#5a3f26' },
-  oldman: { top: '#8d8578', robe: true, trousers: '#8d8578', shoes: '#2a241e', skin: '#9c7457', hair: '#d8d2c8', beard: 'full', beardColor: '#dcd6cc', headwear: 'kufi', headColor: '#e8e2d6' },
-  abuyazan: { top: '#4b4e4a', sleeve: 'long', trousers: '#34332f', shoes: '#1e1c1a', skin: '#a7795a', hair: '#9a948c', beard: 'moustache', beardColor: '#8e877e' },
-  spotter: { top: '#3f4a3a', sleeve: 'short', trousers: '#2d2f31', shoes: '#1d1b19', skin: '#b78867', hair: '#1f1a16', beard: 'stubble' },
-  fadi: { top: '#7a3b2c', sleeve: 'short', trousers: '#3a3f4a', shoes: '#222', skin: '#bf9070', hair: '#2a1f18', beard: 'none' },
-  woman: { top: '#2f2b33', robe: true, trousers: '#2f2b33', shoes: '#1a1818', skin: '#c29374', hair: '#1a1616', beard: 'none', headwear: 'hijab', headColor: '#6a5f70' },
-  woman2: { top: '#4a3a2e', robe: true, trousers: '#4a3a2e', shoes: '#1a1818', skin: '#bb8d6e', hair: '#1a1616', beard: 'none', headwear: 'hijab', headColor: '#2e2a28' },
-  man: { top: '#6b5a48', sleeve: 'long', trousers: '#33312e', shoes: '#1e1c1a', skin: '#ae7f5f', hair: '#2a231d', beard: 'full' },
-  layla: { top: '#9a9b8c', sleeve: 'long', trousers: '#4a3b3a', shoes: '#2a2019', skin: '#c4957a', hair: '#1e1612', beard: 'none', ponytail: true, baggy: true },
-  boy: { top: '#6e5a3c', sleeve: 'short', trousers: '#3a3a3e', shoes: '#2a2019', skin: '#c09073', hair: '#2a1f18', beard: 'none' },
-  kid2: { top: '#3c5a6e', sleeve: 'short', trousers: '#4a3f33', shoes: '#2a2019', skin: '#b98a6a', hair: '#1e1612', beard: 'none' },
-  kid3: { top: '#7a6a2a', sleeve: 'short', trousers: '#3a3a3e', shoes: '#2a2019', skin: '#c7997c', hair: '#3a2a1c', beard: 'none', braid: true },
+  sami: { top: '#5f6b73', sleeve: 'long', rolled: true, trousers: '#2e2f33', shoes: '#2a221b', footwear: 'boot', skin: '#b58565', hair: '#221c18', hairStyle: 'short', beard: 'stubble', belt: '#3a2c20', pouch: true, watch: true },
+  khaled: { top: '#d8cfbd', sleeve: 'long', trousers: '#3e3a35', shoes: '#2a211a', skin: '#b98a6a', hair: '#2b211a', hairStyle: 'sidepart', beard: 'short', layer: { kind: 'vest', color: '#6b5a44' }, glasses: true, satchel: '#5a3f26' },
+  oldman: { top: '#8d8578', robe: true, trousers: '#8d8578', shoes: '#6a5a48', footwear: 'sandal', skin: '#9c7457', hair: '#d8d2c8', hairStyle: 'bald', beard: 'long', beardColor: '#dcd6cc', headwear: 'kufi', headColor: '#e8e2d6', keffiyeh: 'shoulders' },
+  abuyazan: { top: '#7d7a70', sleeve: 'long', trousers: '#34332f', shoes: '#1e1c1a', skin: '#a7795a', hair: '#8f8a82', hairStyle: 'receding', beard: 'thickMoustache', beardColor: '#8e877e', layer: { kind: 'jacket', color: '#3f403c' }, headwear: 'cap', headColor: '#4a4640' },
+  spotter: { top: '#4b5245', sleeve: 'long', rolled: true, trousers: '#2d2f31', shoes: '#1d1b19', footwear: 'boot', skin: '#b78867', hair: '#1f1a16', hairStyle: 'buzz', beard: 'goatee', layer: { kind: 'vest', color: '#5b5a3e' }, headwear: 'beanie', headColor: '#2c2c2e' },
+  fadi: { top: '#7a3b2c', sleeve: 'short', pattern: 'stripe', patternColor: '#c9b89a', trousers: '#3a3f4a', shoes: '#222', footwear: 'sandal', skin: '#bf9070', hair: '#2a1f18', hairStyle: 'curly', beard: 'none' },
+  woman: { top: '#2f2b33', robe: true, trousers: '#2f2b33', shoes: '#1a1818', skin: '#c29374', hair: '#1a1616', beard: 'none', headwear: 'hijab', headColor: '#6a5f70', layer: { kind: 'coat', color: '#3a3540' } },
+  woman2: { top: '#4a3a2e', robe: true, trousers: '#4a3a2e', shoes: '#1a1818', skin: '#bb8d6e', hair: '#1a1616', beard: 'none', headwear: 'hijab', headColor: '#2e2a28', layer: { kind: 'coat', color: '#5a4636' } },
+  man: { top: '#6b5a48', sleeve: 'long', pattern: 'check', patternColor: '#8a735a', trousers: '#33312e', shoes: '#1e1c1a', skin: '#ae7f5f', hair: '#2a231d', hairStyle: 'short', beard: 'chinstrap' },
+  man2: { top: '#9a9486', sleeve: 'long', trousers: '#3b3a36', shoes: '#1e1c1a', skin: '#a57656', hair: '#2a231d', hairStyle: 'receding', beard: 'full', layer: { kind: 'sweater', color: '#57504a' } },
+  man3: { top: '#b7ad98', robe: true, trousers: '#b7ad98', shoes: '#5a4a3a', footwear: 'sandal', skin: '#a07252', hair: '#1f1a16', hairStyle: 'short', beard: 'full', headwear: 'keffiyeh', headColor: '#e4ddd0' },
+  layla: { top: '#9a9b8c', sleeve: 'long', trousers: '#4a3b3a', shoes: '#2a2019', skin: '#c4957a', hair: '#1e1612', hairStyle: 'ponytail', beard: 'none', baggy: true, scarf: '#8a4a3a' },
+  boy: { top: '#6e5a3c', sleeve: 'short', trousers: '#3a3a3e', shoes: '#2a2019', footwear: 'sandal', skin: '#c09073', hair: '#2a1f18', hairStyle: 'curly', beard: 'none' },
+  kid2: { top: '#3c5a6e', sleeve: 'short', pattern: 'stripe', patternColor: '#b8c0c4', trousers: '#4a3f33', shoes: '#2a2019', skin: '#b98a6a', hair: '#1e1612', hairStyle: 'short', beard: 'none' },
+  kid3: { top: '#7a6a2a', sleeve: 'short', trousers: '#3a3a3e', shoes: '#2a2019', skin: '#c7997c', hair: '#3a2a1c', hairStyle: 'braid', beard: 'none' },
 };
 
+// Poses. `seat` (optional) holds the hip at that height above the ground,
+// for sitting on something.
 const POSES = {
-  stand: { torso: 0.02, head: 0, thighN: 0.06, shinN: 0.02, thighF: -0.07, shinF: -0.07, armN: 0.06, foreN: 0.12, armF: -0.06, foreF: -0.02 },
-  crouch: { torso: 0.5, head: -0.38, thighN: 1.3, shinN: -0.45, thighF: 1.1, shinF: -0.6, armN: 0.7, foreN: 1.2, armF: 0.5, foreF: 1.0 },
+  stand: { torso: 0.02, head: 0, thighN: 0.05, shinN: 0.02, thighF: -0.06, shinF: -0.06, armN: 0.05, foreN: 0.16, armF: -0.05, foreF: 0.06 },
+  // a low crouch: knees forward, feet flat, back fairly straight, eyes ahead
+  // ducking low: bent at the waist and knees, hips over the feet, eyes ahead
+  crouch: { torso: 0.88, head: -0.62, thighN: 0.92, shinN: -0.32, thighF: 0.58, shinF: -0.56, armN: 0.55, foreN: 0.95, armF: 0.4, foreF: 0.8 },
   prone: { torso: 1.52, head: -0.95, thighN: -1.48, shinN: -1.56, thighF: -1.5, shinF: -1.58, armN: 1.05, foreN: 1.95, armF: 0.95, foreF: 1.85 },
   kneel: { torso: 0.12, head: 0.25, thighN: 1.45, shinN: 0.05, thighF: 0.15, shinF: -1.55, armN: 0.5, foreN: 1.1, armF: 0.35, foreF: 0.9 },
   kerb: { torso: 0.32, head: 0.55, thighN: 1.5, shinN: 0.12, thighF: 1.42, shinF: 0.05, armN: 0.95, foreN: 1.75, armF: 0.85, foreF: 1.65 },
   sitGround: { torso: -0.05, head: 0.05, thighN: 1.55, shinN: 2.7, thighF: 1.45, shinF: 2.6, armN: 0.5, foreN: 1.4, armF: 0.4, foreF: 1.3 },
+  // on a chair, crate or stool: thighs level, shins down
+  sitChair: { seat: 40, torso: -0.04, head: 0.05, thighN: 1.5, shinN: 0.12, thighF: 1.45, shinF: 0.02, armN: 0.35, foreN: 1.25, armF: 0.3, foreF: 1.15 },
+  // on a ledge, legs dangling
+  sitLedge: { seat: 0, torso: 0.06, head: 0.15, thighN: 1.45, shinN: 0.25, thighF: 1.4, shinF: -0.05, armN: 0.2, foreN: 0.35, armF: 0.15, foreF: 0.3 },
+  squat: { torso: 0.45, head: -0.1, thighN: 2.2, shinN: -0.55, thighF: 2.05, shinF: -0.7, armN: 1.05, foreN: 1.6, armF: 0.9, foreF: 1.45 },
+  leanWall: { torso: -0.1, head: 0.08, thighN: 0.28, shinN: -0.05, thighF: -0.04, shinF: -0.04, armN: -0.35, foreN: 0.2, armF: -0.4, foreF: 0.1 },
+  // forearms across the chest: in profile they're foreshortened (foreNs)
+  armsCrossed: { torso: 0.0, head: 0.08, thighN: 0.05, shinN: 0.02, thighF: -0.07, shinF: -0.07, armN: 0.12, foreN: 2.1, foreNs: 0.45, armF: 0.1, foreF: 2.0, foreFs: 0.45 },
+  handsOnHips: { torso: 0.0, head: 0.05, thighN: 0.08, shinN: 0.02, thighF: -0.1, shinF: -0.08, armN: -0.55, foreN: 0.55, armF: -0.5, foreF: 0.6 },
+  radioToEar: { torso: 0.03, head: 0.1, thighN: 0.05, shinN: 0.02, thighF: -0.07, shinF: -0.07, armN: 0.75, foreN: 2.95, armF: 0.05, foreF: 0.15 },
+  // leaning out over a windowsill, forearms on the sill
+  peekWindow: { seat: 40, torso: 0.7, head: -0.35, thighN: 1.5, shinN: 0.1, thighF: 1.45, shinF: 0.0, armN: 1.2, foreN: 1.62, armF: 1.1, foreF: 1.55 },
   jump: { torso: 0.15, head: -0.1, thighN: 1.0, shinN: 0.1, thighF: 0.4, shinF: -0.4, armN: 1.6, foreN: 2.0, armF: 1.2, foreF: 1.6 },
   reachUp: { torso: 0.08, head: -0.35, thighN: 0.1, shinN: 0.05, thighF: -0.1, shinF: -0.1, armN: 2.8, foreN: 3.0, armF: 2.6, foreF: 2.9 },
   hands: { torso: 0.06, head: 0.1, thighN: 0.05, shinN: 0.02, thighF: -0.07, shinF: -0.07, armN: 0.5, foreN: 1.25, armF: 0.45, foreF: 1.2 },
@@ -3245,47 +3276,93 @@ const POSES = {
   sort: { torso: 0.9, head: -0.1, thighN: 1.4, shinN: -0.5, thighF: 1.2, shinF: -0.6, armN: 1.3, foreN: 1.3, armF: 0.9, foreF: 1.0 },
 };
 
-// A walking cycle at phase p (radians).
+// A walking (or running) cycle at phase p (radians, one stride per π).
+// Contact, loading, passing and push-off: the stance leg stays long, the
+// swing knee folds as it comes through, arms counter-swing with soft elbows.
 function walkPose(p, stride = 1, run = 0) {
+  const A = (0.44 + run * 0.3) * stride; // hip swing
   const leg = (q) => {
-    const th = (0.42 + run * 0.25) * stride * Math.sin(q);
-    const bend = (0.75 + run * 0.6) * stride * Math.max(0, Math.sin(q - 1.2)) + 0.05;
+    const th = A * Math.sin(q);
+    // knee: folds most as the leg swings through, a little on loading
+    const swing = Math.max(0, Math.cos(q + 0.25));
+    const load = Math.max(0, Math.sin(q - 1.35)) * 0.14;
+    const bend = 0.05 + (0.95 + run * 0.85) * stride * swing * swing + load * stride;
     return [th, th - bend];
   };
   const [tn, sn] = leg(p);
   const [tf, sf] = leg(p + Math.PI);
-  const sw = (0.32 + run * 0.4) * stride;
+  const sw = (0.36 + run * 0.4) * stride;
+  const armN = -sw * Math.sin(p);
+  const armF = sw * Math.sin(p);
+  const elbow = 0.2 + run * 1.25;
   return {
-    torso: 0.06 + run * 0.2,
-    head: 0.02 - run * 0.15,
+    torso: 0.06 + run * 0.2 + 0.015 * Math.cos(2 * p),
+    head: -0.03 - run * 0.12 - 0.012 * Math.cos(2 * p),
     thighN: tn,
     shinN: sn,
     thighF: tf,
     shinF: sf,
-    armN: -sw * Math.sin(p),
-    foreN: -sw * Math.sin(p) + 0.3 + run * 1.2,
-    armF: sw * Math.sin(p),
-    foreF: sw * Math.sin(p) + 0.3 + run * 1.2,
+    armN,
+    foreN: armN + elbow + 0.3 * Math.max(0, armN) * (1 + run),
+    armF,
+    foreF: armF + elbow + 0.3 * Math.max(0, armF) * (1 + run),
   };
 }
 
+// Crouched, moving: short shuffling steps, body steady, hands loose.
 function crouchWalkPose(p) {
   const c = POSES.crouch;
   const s = Math.sin(p);
-  return { ...c, thighN: c.thighN + 0.35 * s, shinN: c.shinN - 0.2 * Math.max(0, -s), thighF: c.thighF - 0.35 * s, shinF: c.shinF - 0.2 * Math.max(0, s), armN: c.armN - 0.25 * s, armF: c.armF + 0.25 * s };
+  const lift = (x) => Math.max(0, x) * 0.28;
+  const mid = (c.thighN + c.thighF) / 2;
+  return {
+    ...c,
+    torso: c.torso + 0.03 * Math.cos(2 * p),
+    thighN: mid + 0.3 * s + lift(Math.cos(p)) * 0.5,
+    shinN: mid - 0.45 + 0.3 * s - lift(Math.cos(p)) * 1.4,
+    thighF: mid - 0.3 * s + lift(-Math.cos(p)) * 0.5,
+    shinF: mid - 0.45 - 0.3 * s - lift(-Math.cos(p)) * 1.4,
+    armN: c.armN - 0.2 * s,
+    armF: c.armF + 0.2 * s,
+  };
 }
 
+// Elbow-and-knee crawl: opposite arm and leg reach together.
 function crawlPose(p) {
   const c = POSES.prone;
   const s = Math.sin(p);
-  return { ...c, thighN: c.thighN + 0.3 * s, shinN: c.shinN + 0.45 * Math.max(0, s), thighF: c.thighF - 0.3 * s, shinF: c.shinF + 0.45 * Math.max(0, -s), armN: c.armN + 0.3 * s, foreN: c.foreN + 0.2 * s, armF: c.armF - 0.3 * s, foreF: c.foreF - 0.2 * s };
+  const reachN = Math.max(0, s);
+  const reachF = Math.max(0, -s);
+  return {
+    ...c,
+    thighN: c.thighN + 0.35 * reachF,
+    shinN: c.shinN + 0.55 * reachF,
+    thighF: c.thighF + 0.35 * reachN,
+    shinF: c.shinF + 0.55 * reachN,
+    armN: c.armN + 0.3 * reachN - 0.1,
+    foreN: c.foreN + 0.2 * reachN,
+    armF: c.armF + 0.3 * reachF - 0.1,
+    foreF: c.foreF + 0.2 * reachF,
+  };
 }
 
 const down = (a) => [Math.sin(a), Math.cos(a)];
 
+// A limb segment as a round-capped stroke: convex at both ends, so joints
+// never show a notch where two segments meet.
+function seg(ctx, x0, y0, x1, y1, w, color) {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = w;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(x0, y0);
+  ctx.lineTo(x1, y1);
+  ctx.stroke();
+}
+
 class Person {
   constructor(outfit = 'sami', scale = 1) {
-    this.o = OUTFITS[outfit];
+    this.o = OUTFITS[outfit] || OUTFITS.man;
     this.scale = scale;
     this.x = 0;
     this.y = 0; // ground level (when grounded) or hip position (when not)
@@ -3300,6 +3377,7 @@ class Person {
     this.view = 'side';
     this.viewFrom = 'side';
     this.viewK = 1;
+    this.flipK = 1; // a quick pivot when turning round in profile
     this.blink = 0; // > 0 while the eyes are shut
   }
 
@@ -3311,8 +3389,14 @@ class Person {
     this.viewK = 0;
   }
 
+  // Turning round (left ↔ right) in profile.
+  pivot() {
+    this.flipK = 0;
+  }
+
   tick(dt) {
     if (this.viewK < 1) this.viewK = Math.min(1, this.viewK + dt * 4);
+    if (this.flipK < 1) this.flipK = Math.min(1, this.flipK + dt * 7);
     if (this.blink > 0) this.blink -= dt;
     else if (Math.random() < dt * 0.3) this.blink = 0.13;
   }
@@ -3343,8 +3427,10 @@ class Person {
     j.elbowF = [j.shoulder[0] + aF[0] * L.upper, j.shoulder[1] + aF[1] * L.upper];
     const fN = down(p.foreN);
     const fF = down(p.foreF);
-    j.handN = [j.elbowN[0] + fN[0] * L.fore, j.elbowN[1] + fN[1] * L.fore];
-    j.handF = [j.elbowF[0] + fF[0] * L.fore, j.elbowF[1] + fF[1] * L.fore];
+    const lN = L.fore * (p.foreNs ?? 1);
+    const lF = L.fore * (p.foreFs ?? 1);
+    j.handN = [j.elbowN[0] + fN[0] * lN, j.elbowN[1] + fN[1] * lN];
+    j.handF = [j.elbowF[0] + fF[0] * lF, j.elbowF[1] + fF[1] * lF];
     this.local = j;
     return j;
   }
@@ -3352,13 +3438,14 @@ class Person {
   // Height of the hip above the ground for the current pose.
   hipHeight() {
     const j = this.local || this.solve();
+    if (this.pose.seat != null) return this.pose.seat;
     // Lowest of feet, knees and the torso itself, so poses blend smoothly
     // from standing to kneeling to lying flat.
-    return Math.max(j.footN[1], j.footF[1], j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 5;
+    return Math.max(j.footN[1], j.footF[1], j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
   }
 
   hip() {
-    const j = this.local || this.solve();
+    this.local || this.solve();
     if (!this.grounded) return [this.x, this.y];
     return [this.x, this.y - this.hipHeight() * this.scale];
   }
@@ -3384,7 +3471,8 @@ class Person {
     // mid-turn: squeeze to a sliver, then open out into the new view
     const k = this.viewK;
     const shown = k < 0.5 ? this.viewFrom : this.view;
-    const squeeze = k < 1 ? Math.max(0.12, Math.abs(Math.cos(k * Math.PI))) : 1;
+    let squeeze = k < 1 ? Math.max(0.12, Math.abs(Math.cos(k * Math.PI))) : 1;
+    if (this.flipK < 1) squeeze *= Math.max(0.25, Math.abs(Math.cos(this.flipK * Math.PI)));
     if (squeeze < 1) {
       const [hx] = this.hip();
       ctx.save();
@@ -3397,6 +3485,554 @@ class Person {
     if (squeeze < 1) ctx.restore();
   }
 
+  colours() {
+    const o = this.o;
+    const dusty = (c) => (this.dust > 0 && c ? mixHex(c, '#8a857c', this.dust * 0.55) : c);
+    return {
+      dusty,
+      top: dusty(o.top),
+      trousers: dusty(o.trousers),
+      layer: o.layer ? dusty(o.layer.color) : null,
+      hair: dusty(o.hair),
+      beard: dusty(o.beardColor || o.hair),
+      head: dusty(o.headColor || '#444444'),
+    };
+  }
+
+  // ------------------------------------------------------------ profile --
+
+  drawSide(ctx) {
+    const j = this.solve();
+    const [hx, hy] = this.hip();
+    const o = this.o;
+    const p = this.pose;
+    const C = this.colours();
+    ctx.save();
+    ctx.translate(hx, hy);
+    ctx.scale(this.f * this.scale, this.scale);
+
+    const far = (c) => shade(c, 0.66);
+    const sleeveCol = C.layer && o.layer.kind !== 'vest' ? C.layer : C.top;
+    const longCoat = o.layer?.kind === 'coat';
+
+    if (o.satchel) {
+      // bag hangs behind the hip on the far side
+      ctx.fillStyle = shade(o.satchel, 0.8);
+      roundRect(ctx, -21, -8, 18, 21, 3);
+      ctx.fill();
+    }
+    this.arm(ctx, j.shoulder, j.elbowF, j.handF, far(sleeveCol), o.skin, far(o.skin), false);
+    this.leg(ctx, j.kneeF, j.footF, p.shinF, far(C.trousers), far(o.shoes), far(o.skin), true);
+
+    if (o.robe || longCoat) {
+      // a jalabiya or long coat: a skirt from the hip that follows the legs
+      const kn = j.kneeN;
+      const kf = j.kneeF;
+      const fn = j.footN;
+      const ff = j.footF;
+      const bottom = Math.max(fn[1], ff[1]) - (o.robe ? 7 : 16);
+      ctx.beginPath();
+      ctx.moveTo(-12, -4);
+      ctx.lineTo(12, -4);
+      ctx.lineTo(Math.max(kn[0], kf[0]) + 10, Math.max(kn[1], kf[1]));
+      ctx.lineTo(Math.max(fn[0], ff[0]) + 6, bottom);
+      ctx.lineTo(Math.min(fn[0], ff[0]) - 8, bottom + 2);
+      ctx.lineTo(Math.min(kn[0], kf[0]) - 12, Math.max(kn[1], kf[1]));
+      ctx.closePath();
+      ctx.fillStyle = longCoat ? C.layer : C.top;
+      ctx.fill();
+      // a fold or two
+      ctx.strokeStyle = 'rgba(0,0,0,0.12)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(2, 4);
+      ctx.lineTo((kn[0] + fn[0]) / 2, bottom - 6);
+      ctx.stroke();
+    }
+    this.leg(ctx, j.kneeN, j.footN, p.shinN, o.robe ? C.top : C.trousers, o.shoes, o.skin, false);
+
+    // torso
+    const up = [Math.sin(p.torso), -Math.cos(p.torso)];
+    const side = [Math.cos(p.torso), Math.sin(p.torso)];
+    const at = (d, s) => [up[0] * d + side[0] * s, up[1] * d + side[1] * s];
+    const w = o.baggy ? 14 : 11.5;
+    const torsoPath = () => {
+      ctx.beginPath();
+      const pts = [at(o.baggy ? -10 : -4, -w), at(o.baggy ? -10 : -2, w), at(L.torso - 15, w + 1.5), at(L.torso - 3, 9), at(L.torso, -3), at(L.torso - 6, -11), at(18, -w - 0.5)];
+      ctx.moveTo(...pts[0]);
+      for (const q of pts.slice(1)) ctx.lineTo(...q);
+      ctx.closePath();
+    };
+    torsoPath();
+    ctx.fillStyle = C.top;
+    ctx.fill();
+    ctx.save();
+    torsoPath();
+    ctx.clip();
+    if (o.pattern) this.pattern(ctx, o, -30, -L.torso - 10, 60, L.torso + 14, p.torso);
+    // form: the back of the body in shadow
+    const g = ctx.createLinearGradient(...at(20, -w), ...at(20, w));
+    g.addColorStop(0, 'rgba(0,0,0,0.22)');
+    g.addColorStop(0.55, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(255,255,255,0.05)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-40, -80, 80, 100);
+    // layers over the shirt
+    if (o.layer) this.layerSide(ctx, o, C, at, w);
+    ctx.restore();
+    // collar line and placket
+    ctx.strokeStyle = 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 1.3;
+    ctx.beginPath();
+    ctx.moveTo(...at(L.torso - 3, 8));
+    ctx.lineTo(...at(4, 9.5));
+    ctx.stroke();
+    if (o.belt) {
+      ctx.strokeStyle = o.belt;
+      ctx.lineWidth = 3.4;
+      ctx.beginPath();
+      ctx.moveTo(...at(3, -w - 0.5));
+      ctx.lineTo(...at(4, w + 0.5));
+      ctx.stroke();
+      ctx.fillStyle = '#9a8c6a';
+      const b = at(4, w - 1);
+      ctx.fillRect(b[0] - 1.5, b[1] - 2, 3, 4);
+      if (o.pouch) {
+        ctx.fillStyle = shade(o.belt, 1.15);
+        const q = at(0, -w + 1);
+        roundRect(ctx, q[0] - 5, q[1], 9, 10, 2);
+        ctx.fill();
+      }
+    }
+    if (o.satchel) {
+      ctx.strokeStyle = shade(o.satchel, 0.9);
+      ctx.lineWidth = 2.6;
+      ctx.beginPath();
+      ctx.moveTo(...at(L.torso - 4, -9));
+      ctx.lineTo(...at(6, 11));
+      ctx.stroke();
+    }
+
+    // head and neck
+    const ha = p.torso + p.head;
+    const [hdx, hdy] = j.head;
+    limb(ctx, j.neck[0], j.neck[1] + 3, hdx - Math.sin(ha) * 4, hdy + Math.cos(ha) * 5, 8, 7.5, shade(o.skin, 0.93));
+    if (o.keffiyeh === 'shoulders' || o.scarf) this.scarfSide(ctx, o, at);
+    ctx.save();
+    ctx.translate(hdx, hdy);
+    ctx.rotate(ha);
+    this.headSide(ctx, o, C);
+    ctx.restore();
+
+    this.arm(ctx, j.shoulder, j.elbowN, j.handN, sleeveCol, o.skin, o.skin, true);
+    if (this.prop) this.prop(ctx, j.handN, j.handF);
+    ctx.restore();
+  }
+
+  // A vest, sweater, jacket or coat over the shirt, clipped to the torso.
+  layerSide(ctx, o, C, at, w) {
+    const k = o.layer.kind;
+    ctx.fillStyle = C.layer;
+    if (k === 'vest') {
+      // open at the front, cut away at the arm
+      ctx.beginPath();
+      const pts = [at(-6, -w - 2), at(-6, w - 2), at(L.torso - 22, w - 1), at(L.torso - 10, 3), at(L.torso - 4, -4), at(L.torso - 10, -12), at(14, -w - 2)];
+      ctx.moveTo(...pts[0]);
+      for (const q of pts.slice(1)) ctx.lineTo(...q);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(0,0,0,0.25)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(...at(L.torso - 22, w - 1));
+      ctx.lineTo(...at(-5, w - 2));
+      ctx.stroke();
+    } else if (k === 'sweater') {
+      ctx.fillRect(-40, -80, 80, 100);
+      ctx.fillStyle = 'rgba(0,0,0,0.14)';
+      const hem = at(0, 0);
+      ctx.fillRect(hem[0] - 30, hem[1] - 4, 60, 4);
+    } else {
+      // jacket or coat: covers the body, a strip of shirt at the open front
+      ctx.fillRect(-40, -80, 80, 100);
+      ctx.fillStyle = C.top;
+      ctx.beginPath();
+      const a0 = at(L.torso - 4, 6);
+      const a1 = at(L.torso - 14, w + 2);
+      const a2 = at(-6, w + 2);
+      const a3 = at(-6, w - 3);
+      ctx.moveTo(...a0);
+      ctx.lineTo(...a1);
+      ctx.lineTo(...a2);
+      ctx.lineTo(...a3);
+      ctx.closePath();
+      ctx.fill();
+      // lapel
+      ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+      ctx.lineWidth = 1.2;
+      ctx.beginPath();
+      ctx.moveTo(...at(L.torso - 3, 3));
+      ctx.lineTo(...at(L.torso - 18, w - 3));
+      ctx.lineTo(...at(-6, w - 3));
+      ctx.stroke();
+    }
+  }
+
+  // Stripes or a check, drawn in torso space (clipped by the caller).
+  pattern(ctx, o, x0, y0, w, h, lean) {
+    ctx.save();
+    ctx.rotate(lean);
+    ctx.strokeStyle = o.patternColor || 'rgba(255,255,255,0.3)';
+    ctx.globalAlpha = 0.45;
+    ctx.lineWidth = o.pattern === 'stripe' ? 2.2 : 1;
+    ctx.beginPath();
+    for (let y = y0; y < y0 + h; y += o.pattern === 'stripe' ? 6 : 5) {
+      ctx.moveTo(x0, y);
+      ctx.lineTo(x0 + w, y);
+    }
+    if (o.pattern === 'check') {
+      for (let x = x0; x < x0 + w; x += 5) {
+        ctx.moveTo(x, y0);
+        ctx.lineTo(x, y0 + h);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // A keffiyeh over the shoulders, or a scarf: soft cloth round the neck,
+  // one end down the back, one hanging in front, with a fringe.
+  scarfSide(ctx, o, at) {
+    const kef = o.keffiyeh === 'shoulders';
+    const col = kef ? '#e6e0d3' : o.scarf;
+    ctx.fillStyle = col;
+    // round the neck
+    ctx.beginPath();
+    ctx.moveTo(...at(L.torso + 1, -7));
+    ctx.quadraticCurveTo(...at(L.torso + 4, 2), ...at(L.torso, 9));
+    ctx.lineTo(...at(L.torso - 7, 8));
+    ctx.quadraticCurveTo(...at(L.torso - 3, 0), ...at(L.torso - 6, -8));
+    ctx.closePath();
+    ctx.fill();
+    // the end down the back
+    ctx.beginPath();
+    ctx.moveTo(...at(L.torso - 1, -8));
+    ctx.quadraticCurveTo(...at(L.torso - 14, -14), ...at(L.torso - 30, -12));
+    ctx.lineTo(...at(L.torso - 30, -6));
+    ctx.quadraticCurveTo(...at(L.torso - 14, -7), ...at(L.torso - 6, -2));
+    ctx.closePath();
+    ctx.fill();
+    // the end hanging in front
+    ctx.beginPath();
+    ctx.moveTo(...at(L.torso - 4, 7));
+    ctx.lineTo(...at(L.torso - 24, 10));
+    ctx.lineTo(...at(L.torso - 24, 5));
+    ctx.lineTo(...at(L.torso - 6, 2));
+    ctx.closePath();
+    ctx.fill();
+    ctx.strokeStyle = kef ? 'rgba(120,30,30,0.45)' : 'rgba(0,0,0,0.2)';
+    ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    for (const [d, s0, s1] of [[L.torso - 30, -12, -6], [L.torso - 24, 5, 10]]) {
+      for (let i = 0; i < 4; i++) {
+        const q = at(d - 1, s0 + ((s1 - s0) * i) / 3);
+        ctx.moveTo(...q);
+        ctx.lineTo(q[0], q[1] + 3); // fringe
+      }
+    }
+    if (kef) {
+      ctx.moveTo(...at(L.torso - 10, -11));
+      ctx.lineTo(...at(L.torso - 22, -11));
+      ctx.moveTo(...at(L.torso - 12, 8));
+      ctx.lineTo(...at(L.torso - 20, 8));
+    }
+    ctx.stroke();
+  }
+
+  // The head in profile, facing +x, centred on the skull.
+  headSide(ctx, o, C) {
+    const hr = L.head;
+    const skin = o.skin;
+    if (o.headwear === 'hijab') {
+      ctx.beginPath();
+      ctx.ellipse(-2, -1, hr * 1.12, hr * 1.25, 0, 0, Math.PI * 2);
+      ctx.fillStyle = C.head;
+      ctx.fill();
+      // drape to the shoulders
+      ctx.beginPath();
+      ctx.moveTo(-12, 0);
+      ctx.quadraticCurveTo(-16, 18, -6, 26);
+      ctx.lineTo(8, 22);
+      ctx.lineTo(5, 8);
+      ctx.fill();
+      // the face in its opening
+      this.faceSide(ctx, hr, skin, true);
+      this.eyeSide(ctx, hr, o, C);
+      return;
+    }
+    // skull, then the face and jaw
+    ctx.beginPath();
+    ctx.ellipse(-hr * 0.08, -hr * 0.08, hr * 0.96, hr * 1.0, 0, 0, Math.PI * 2);
+    ctx.fillStyle = skin;
+    ctx.fill();
+    this.faceSide(ctx, hr, skin, false);
+    // ear
+    ctx.beginPath();
+    ctx.ellipse(-hr * 0.22, hr * 0.12, 2.2, 3.4, 0.15, 0, Math.PI * 2);
+    ctx.fillStyle = shade(skin, 0.86);
+    ctx.fill();
+    this.hairSide(ctx, o, C, hr);
+    this.beardSide(ctx, o, C, hr);
+    this.eyeSide(ctx, hr, o, C);
+    this.hatSide(ctx, o, C, hr);
+    if (o.glasses) {
+      ctx.strokeStyle = 'rgba(20,18,16,0.85)';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.ellipse(hr * 0.62, -hr * 0.1, 2.6, 2.2, 0, 0, Math.PI * 2);
+      ctx.moveTo(hr * 0.36, -hr * 0.14);
+      ctx.lineTo(-hr * 0.15, -hr * 0.05);
+      ctx.stroke();
+    }
+  }
+
+  // Brow, nose, lips and chin in profile.
+  faceSide(ctx, hr, skin, veiled) {
+    ctx.beginPath();
+    ctx.moveTo(hr * 0.15, -hr * 0.92);
+    ctx.quadraticCurveTo(hr * 0.78, -hr * 0.78, hr * 0.84, -hr * 0.3); // forehead
+    ctx.lineTo(hr * 0.8, -hr * 0.12); // brow ridge
+    ctx.lineTo(hr * 1.12, hr * 0.3); // nose tip
+    ctx.lineTo(hr * 0.86, hr * 0.42); // under the nose
+    ctx.lineTo(hr * 0.92, hr * 0.56); // upper lip
+    ctx.lineTo(hr * 0.82, hr * 0.64); // mouth
+    ctx.lineTo(hr * 0.88, hr * 0.76); // lower lip
+    ctx.quadraticCurveTo(hr * 0.84, hr * 1.02, hr * 0.5, hr * 1.06); // chin
+    ctx.quadraticCurveTo(hr * 0.02, hr * 1.02, -hr * 0.34, hr * 0.62); // jaw
+    ctx.lineTo(-hr * 0.2, 0);
+    ctx.closePath();
+    ctx.fillStyle = skin;
+    ctx.fill();
+    // nostril and mouth line
+    ctx.fillStyle = shade(skin, 0.7);
+    ctx.fillRect(hr * 0.86, hr * 0.33, 1.2, 0.9);
+    ctx.fillStyle = shade(skin, 0.62);
+    ctx.fillRect(hr * 0.66, hr * 0.63, hr * 0.2, 0.8);
+    if (veiled) return;
+  }
+
+  eyeSide(ctx, hr, o, C) {
+    // brow and eye (blinking now and then)
+    ctx.strokeStyle = shade(o.hairStyle === 'bald' || !o.hair ? '#6a5a4a' : o.hair.startsWith('#') ? o.hair : '#2a2018', 0.9);
+    ctx.lineWidth = 0.9;
+    ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(hr * 0.4, -hr * 0.33);
+    ctx.quadraticCurveTo(hr * 0.62, -hr * 0.4, hr * 0.8, -hr * 0.3);
+    ctx.stroke();
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = 'rgba(22,16,12,0.85)';
+    if (this.blink > 0) ctx.fillRect(hr * 0.48, -hr * 0.14, 3, 0.9);
+    else {
+      ctx.beginPath();
+      ctx.ellipse(hr * 0.6, -hr * 0.12, 1.25, 1.05, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  hairSide(ctx, o, C, hr) {
+    const s = o.hairStyle || 'short';
+    ctx.fillStyle = C.hair;
+    if (s === 'bald') {
+      // a horseshoe of hair round the back and above the ear
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.35, -hr * 0.25);
+      ctx.quadraticCurveTo(-hr * 0.95, -hr * 0.55, -hr * 1.02, 0);
+      ctx.quadraticCurveTo(-hr * 0.98, hr * 0.5, -hr * 0.68, hr * 0.62);
+      ctx.lineTo(-hr * 0.42, hr * 0.3);
+      ctx.quadraticCurveTo(-hr * 0.55, 0, -hr * 0.35, -hr * 0.25);
+      ctx.fill();
+      return;
+    }
+    const front = s === 'receding' ? hr * 0.05 : s === 'sidepart' ? hr * 0.62 : hr * 0.5;
+    const topY = s === 'buzz' ? -hr * 1.05 : s === 'curly' ? -hr * 1.22 : s === 'sidepart' ? -hr * 1.18 : -hr * 1.13;
+    if (s === 'buzz') ctx.globalAlpha = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(front, -hr * (s === 'receding' ? 0.95 : 0.72));
+    ctx.quadraticCurveTo(hr * 0.35, topY, -hr * 0.2, topY + hr * 0.02);
+    ctx.quadraticCurveTo(-hr * 0.95, topY + hr * 0.1, -hr * 1.06, -hr * 0.1);
+    ctx.quadraticCurveTo(-hr * 1.02, hr * 0.42, -hr * 0.72, hr * 0.6); // nape
+    ctx.lineTo(-hr * 0.46, hr * 0.28); // behind the ear
+    ctx.quadraticCurveTo(-hr * 0.5, -hr * 0.2, -hr * 0.1, -hr * 0.18);
+    if (s !== 'receding') {
+      ctx.lineTo(hr * 0.02, hr * 0.26); // sideburn
+      ctx.lineTo(hr * 0.14, hr * 0.22);
+      ctx.lineTo(hr * 0.16, -hr * 0.4); // temple
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.globalAlpha = 1;
+    if (s === 'curly') {
+      for (let i = 0; i < 7; i++) {
+        const a = Math.PI * (1.05 + i * 0.14);
+        ctx.beginPath();
+        ctx.arc(-hr * 0.2 + Math.cos(a) * hr * 0.95, -hr * 0.2 + Math.sin(a) * hr * 0.98, 2.6, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+    if (s === 'sidepart') {
+      // a little lift at the front, and a lighter parting line
+      ctx.strokeStyle = shade(o.hair, 1.4);
+      ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(hr * 0.3, -hr * 1.05);
+      ctx.quadraticCurveTo(-hr * 0.2, -hr * 1.0, -hr * 0.7, -hr * 0.78);
+      ctx.stroke();
+    }
+    if (s === 'ponytail' || s === 'braid') {
+      ctx.strokeStyle = C.hair;
+      ctx.lineCap = 'round';
+      ctx.lineWidth = s === 'braid' ? 3.2 : 4.2;
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.95, -hr * 0.25);
+      ctx.quadraticCurveTo(-hr * 1.7, hr * 0.5, -hr * 1.35, s === 'braid' ? hr * 2.2 : hr * 1.3);
+      ctx.stroke();
+      ctx.fillStyle = '#8a3a3a';
+      ctx.fillRect(-hr * 1.1, -hr * 0.22, 2.5, 2.5); // the hair tie
+    }
+  }
+
+  beardSide(ctx, o, C, hr) {
+    const b = o.beard || 'none';
+    if (b === 'none') return;
+    const col = C.beard;
+    const jaw = (bottom, chinX = 0.84) => {
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.08, hr * 0.2); // from the sideburn
+      ctx.lineTo(hr * 0.5, hr * 0.44); // cheek
+      ctx.lineTo(hr * 0.66, hr * 0.44);
+      ctx.lineTo(hr * 0.94, hr * 0.5); // round the mouth
+      ctx.lineTo(hr * 0.9, hr * 0.62);
+      ctx.lineTo(hr * 0.72, hr * 0.66);
+      ctx.lineTo(hr * 0.9, hr * 0.74);
+      ctx.quadraticCurveTo(hr * chinX + 0.1 * hr, hr * bottom, hr * 0.42, hr * (bottom + 0.06));
+      ctx.quadraticCurveTo(-hr * 0.05, hr * (bottom - 0.08), -hr * 0.36, hr * 0.62);
+      ctx.closePath();
+    };
+    if (b === 'stubble') {
+      jaw(1.06);
+      ctx.fillStyle = 'rgba(38,28,22,0.32)';
+      ctx.fill();
+      return;
+    }
+    ctx.fillStyle = col;
+    if (b === 'short' || b === 'full') {
+      jaw(b === 'full' ? 1.32 : 1.14);
+      ctx.fill();
+    } else if (b === 'long') {
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.08, hr * 0.2);
+      ctx.lineTo(hr * 0.94, hr * 0.5);
+      ctx.lineTo(hr * 0.92, hr * 0.62);
+      ctx.lineTo(hr * 0.72, hr * 0.66);
+      ctx.lineTo(hr * 0.95, hr * 0.8);
+      ctx.quadraticCurveTo(hr * 0.9, hr * 1.5, hr * 0.5, hr * 1.95);
+      ctx.quadraticCurveTo(hr * 0.1, hr * 1.4, -hr * 0.36, hr * 0.62);
+      ctx.closePath();
+      ctx.fill();
+    } else if (b === 'goatee') {
+      ctx.beginPath();
+      ctx.moveTo(hr * 0.66, hr * 0.44);
+      ctx.lineTo(hr * 0.94, hr * 0.5);
+      ctx.lineTo(hr * 0.9, hr * 0.6);
+      ctx.lineTo(hr * 0.74, hr * 0.64);
+      ctx.lineTo(hr * 0.9, hr * 0.74);
+      ctx.quadraticCurveTo(hr * 0.92, hr * 1.2, hr * 0.55, hr * 1.18);
+      ctx.lineTo(hr * 0.56, hr * 0.7);
+      ctx.closePath();
+      ctx.fill();
+    } else if (b === 'chinstrap') {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.4;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.1, hr * 0.22);
+      ctx.quadraticCurveTo(-hr * 0.05, hr * 0.95, hr * 0.5, hr * 1.1);
+      ctx.quadraticCurveTo(hr * 0.84, hr * 1.02, hr * 0.86, hr * 0.8);
+      ctx.stroke();
+    }
+    if (b === 'moustache' || b === 'thickMoustache' || b === 'full' || b === 'short' || b === 'long' || b === 'goatee') {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      const thick = b === 'thickMoustache' ? 1.6 : 1;
+      ctx.moveTo(hr * 0.6, hr * 0.44);
+      ctx.lineTo(hr * 0.95, hr * 0.46);
+      ctx.lineTo(hr * 0.95, hr * (0.5 + 0.1 * thick));
+      ctx.lineTo(hr * 0.68, hr * (0.52 + 0.14 * thick));
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  hatSide(ctx, o, C, hr) {
+    const h = o.headwear;
+    if (!h) return;
+    ctx.fillStyle = C.head;
+    if (h === 'kufi') {
+      ctx.beginPath();
+      ctx.ellipse(-hr * 0.15, -hr * 0.62, hr * 0.94, hr * 0.5, -0.1, Math.PI, 0);
+      ctx.fill();
+    } else if (h === 'cap') {
+      // flat cap: a soft crown pulled forward, a short brim
+      ctx.beginPath();
+      ctx.moveTo(-hr * 1.02, -hr * 0.3);
+      ctx.quadraticCurveTo(-hr * 0.9, -hr * 1.2, hr * 0.2, -hr * 1.08);
+      ctx.quadraticCurveTo(hr * 0.9, -hr * 0.95, hr * 1.12, -hr * 0.56);
+      ctx.lineTo(hr * 0.72, -hr * 0.52);
+      ctx.lineTo(-hr * 1.0, -hr * 0.18);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.fillRect(hr * 0.55, -hr * 0.6, hr * 0.55, 1.2);
+    } else if (h === 'beanie') {
+      ctx.beginPath();
+      ctx.moveTo(-hr * 1.04, -hr * 0.2);
+      ctx.quadraticCurveTo(-hr * 1.0, -hr * 1.22, hr * 0.1, -hr * 1.18);
+      ctx.quadraticCurveTo(hr * 0.86, -hr * 1.05, hr * 0.84, -hr * 0.42);
+      ctx.lineTo(-hr * 1.04, -hr * 0.2);
+      ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.08)';
+      ctx.fillRect(-hr * 1.04, -hr * 0.55, hr * 1.9, 3); // the fold
+    } else if (h === 'keffiyeh') {
+      ctx.beginPath();
+      ctx.moveTo(hr * 0.7, -hr * 0.6);
+      ctx.quadraticCurveTo(hr * 0.2, -hr * 1.35, -hr * 1.0, -hr * 0.9);
+      ctx.quadraticCurveTo(-hr * 1.5, hr * 0.4, -hr * 1.2, hr * 2.0);
+      ctx.lineTo(-hr * 0.3, hr * 1.6);
+      ctx.lineTo(-hr * 0.1, hr * 0.2);
+      ctx.lineTo(hr * 0.4, -hr * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      // the band (agal) and a hint of the pattern
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(hr * 0.5, -hr * 0.72);
+      ctx.quadraticCurveTo(-hr * 0.2, -hr * 1.02, -hr * 0.95, -hr * 0.62);
+      ctx.stroke();
+      ctx.strokeStyle = 'rgba(150,40,40,0.35)';
+      ctx.lineWidth = 0.8;
+      ctx.beginPath();
+      for (let i = 0; i < 4; i++) {
+        ctx.moveTo(-hr * (0.4 + i * 0.25), -hr * 0.6);
+        ctx.lineTo(-hr * (0.6 + i * 0.25), hr * 1.4);
+      }
+      ctx.stroke();
+    }
+  }
+
+  // ----------------------------------------------------- front and back --
+
   // Facing us or facing away. The same pose drives it: the side view's
   // vertical extents of knees, feet, elbows and hands foreshorten naturally.
   drawFrontBack(ctx, front) {
@@ -3404,18 +4040,14 @@ class Person {
     const [hx, hy] = this.hip();
     const o = this.o;
     const p = this.pose;
-    const dusty = (c) => (this.dust > 0 ? mixHex(c, '#8a857c', this.dust * 0.55) : c);
-    const top = dusty(o.top);
-    const trousers = dusty(o.trousers);
-    const armCloth = o.sleeve === 'short' ? o.skin : top;
+    const C = this.colours();
+    const sleeveCol = C.layer && o.layer.kind !== 'vest' ? C.layer : C.top;
     ctx.save();
     ctx.translate(hx, hy);
     ctx.scale(this.scale, this.scale);
-    const wide = o.baggy ? 17 : 14;
+    const wide = o.baggy ? 15 : 12.5;
     const sy = j.shoulder[1];
     const ny = j.neck[1];
-    // legs: side-view vertical extents, spread either side of the hips
-    // one stroke per limb, so no seams at the joints
     const stroke = (pts, w, color) => {
       ctx.strokeStyle = color;
       ctx.lineWidth = w;
@@ -3426,395 +4058,517 @@ class Person {
       for (const q of pts.slice(1)) ctx.lineTo(...q);
       ctx.stroke();
     };
-    const leg = (side, knee, foot, cloth, shoe) => {
-      const x0 = side * 7;
-      const kx = x0 + side * 1.5;
-      stroke([[x0, 0], [kx, Math.max(10, knee[1])], [x0, Math.max(knee[1] + 8, foot[1])]], 13, cloth);
-      ctx.beginPath();
-      ctx.ellipse(x0, Math.max(knee[1] + 8, foot[1]) + 2, 6.5, 4.2, 0, 0, Math.PI * 2);
-      ctx.fillStyle = shoe;
-      ctx.fill();
+    const leg = (side, knee, foot, cloth) => {
+      const x0 = side * 6.5;
+      const kx = x0 + side * 1.2;
+      const fy = Math.max(knee[1] + 8, foot[1]);
+      stroke([[x0, 0], [kx, Math.max(9, knee[1])], [x0, fy]], 12, cloth);
+      if (o.footwear === 'sandal') {
+        ctx.fillStyle = o.skin;
+        ctx.beginPath();
+        ctx.ellipse(x0, fy + 2, 5, 3.6, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = o.shoes;
+        ctx.fillRect(x0 - 5, fy + 4, 10, 1.8);
+      } else {
+        ctx.fillStyle = o.shoes;
+        ctx.beginPath();
+        ctx.ellipse(x0, fy + 2, 6, 4, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     };
-    // the far leg (the one further back in the stride) first
     const nFirst = j.footN[1] < j.footF[1];
     const legs = [
       [-1, j.kneeN, j.footN],
       [1, j.kneeF, j.footF],
     ];
     if (!nFirst) legs.reverse();
-    for (const [side, kn, ft] of legs) leg(side, kn, ft, o.robe ? shade(top, 0.9) : trousers, o.shoes);
-    if (o.robe) {
-      const bottom = Math.max(j.footN[1], j.footF[1]) - 6;
+    for (const [side, kn, ft] of legs) leg(side, kn, ft, o.robe ? shade(o.top, 0.9) : C.trousers);
+    if (o.robe || o.layer?.kind === 'coat') {
+      const bottom = Math.max(j.footN[1], j.footF[1]) - (o.robe ? 6 : 16);
       ctx.beginPath();
       ctx.moveTo(-wide, -2);
       ctx.lineTo(wide, -2);
-      ctx.lineTo(wide + 5, bottom);
-      ctx.lineTo(-wide - 5, bottom);
+      ctx.lineTo(wide + 4, bottom);
+      ctx.lineTo(-wide - 4, bottom);
       ctx.closePath();
-      ctx.fillStyle = top;
+      ctx.fillStyle = o.layer?.kind === 'coat' ? C.layer : C.top;
       ctx.fill();
     }
-    // arms hang at the torso's sides; the swing reads as a lift of the hand
     const arm = (side, e, h) => {
       const sx = side * (wide + 2);
-      const ex = sx + side * 3.5;
-      const hxx = sx + side * 3;
+      const ex = sx + side * 3;
+      const hxx = sx + side * 2.5;
       const ey = Math.max(sy + 8, e[1]);
       const hy3 = Math.max(sy + 14, h[1]);
-      stroke([[sx, sy + 3], [ex, ey]], 10, shade(top, 0.92));
-      stroke([[ex, ey], [hxx, hy3]], o.sleeve === 'short' ? 7.5 : 9, o.sleeve === 'short' ? o.skin : shade(top, 0.92));
+      stroke([[sx, sy + 3], [ex, ey]], 9, shade(sleeveCol, 0.92));
+      const bare = o.sleeve === 'short' || o.rolled;
+      stroke([[ex, ey], [hxx, hy3]], bare ? 7 : 8.5, bare ? o.skin : shade(sleeveCol, 0.92));
       ctx.beginPath();
-      ctx.arc(hxx, hy3 + 1, 4.4, 0, Math.PI * 2);
+      ctx.ellipse(hxx, hy3 + 2, 3.8, 4.8, 0, 0, Math.PI * 2);
       ctx.fillStyle = o.skin;
       ctx.fill();
     };
     // torso: shoulders wider than the hips
-    ctx.beginPath();
-    ctx.moveTo(-wide + 1, 2);
-    ctx.lineTo(wide - 1, 2);
-    ctx.lineTo(wide + 2, sy + 4);
-    ctx.quadraticCurveTo(wide, ny + 1, 6, ny);
-    ctx.lineTo(-6, ny);
-    ctx.quadraticCurveTo(-wide, ny + 1, -wide - 2, sy + 4);
-    ctx.closePath();
-    ctx.fillStyle = top;
+    const torso = () => {
+      ctx.beginPath();
+      ctx.moveTo(-wide + 1, 2);
+      ctx.lineTo(wide - 1, 2);
+      ctx.lineTo(wide + 2, sy + 4);
+      ctx.quadraticCurveTo(wide, ny + 1, 6, ny);
+      ctx.lineTo(-6, ny);
+      ctx.quadraticCurveTo(-wide, ny + 1, -wide - 2, sy + 4);
+      ctx.closePath();
+    };
+    torso();
+    ctx.fillStyle = C.top;
     ctx.fill();
+    ctx.save();
+    torso();
+    ctx.clip();
+    if (o.pattern) this.pattern(ctx, o, -30, ny - 4, 60, -ny + 10, 0);
+    if (o.layer) {
+      ctx.fillStyle = C.layer;
+      if (o.layer.kind === 'sweater') ctx.fillRect(-30, ny - 4, 60, -ny + 10);
+      else if (front) {
+        // open at the front: two panels either side of the shirt
+        ctx.fillRect(-30, ny - 4, 30 - (o.layer.kind === 'vest' ? 4 : 5), -ny + 10);
+        ctx.fillRect(o.layer.kind === 'vest' ? 4 : 5, ny - 4, 30, -ny + 10);
+      } else ctx.fillRect(-30, ny - 4, 60, -ny + 10);
+    }
+    const g = ctx.createLinearGradient(-wide, 0, wide, 0);
+    g.addColorStop(0, 'rgba(0,0,0,0.16)');
+    g.addColorStop(0.5, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.16)');
+    ctx.fillStyle = g;
+    ctx.fillRect(-30, ny - 4, 60, -ny + 10);
+    ctx.restore();
     ctx.strokeStyle = 'rgba(0,0,0,0.16)';
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 1.3;
     ctx.beginPath();
     if (front) {
-      // a button line and collar
       ctx.moveTo(0, ny + 3);
       ctx.lineTo(0, -2);
       ctx.moveTo(-5, ny + 1);
       ctx.lineTo(0, ny + 6);
       ctx.lineTo(5, ny + 1);
     } else {
-      // shoulder blades
       ctx.moveTo(-wide + 4, sy + 10);
-      ctx.quadraticCurveTo(0, sy + 16, wide - 4, sy + 10);
+      ctx.quadraticCurveTo(0, sy + 15, wide - 4, sy + 10);
     }
     ctx.stroke();
+    if (o.belt) {
+      ctx.fillStyle = o.belt;
+      ctx.fillRect(-wide, -3, wide * 2, 3.4);
+      if (front) {
+        ctx.fillStyle = '#9a8c6a';
+        ctx.fillRect(-2, -3.5, 4, 4.4);
+      }
+    }
     arm(-1, j.elbowN, j.handN);
     arm(1, j.elbowF, j.handF);
     if (o.satchel) {
       ctx.strokeStyle = shade(o.satchel, 0.9);
-      ctx.lineWidth = 3;
+      ctx.lineWidth = 2.6;
       ctx.beginPath();
       ctx.moveTo(-wide + 3, ny + 2);
       ctx.lineTo(wide - 2, -4);
       ctx.stroke();
       if (!front) {
         ctx.fillStyle = o.satchel;
-        ctx.fillRect(wide - 12, -12, 16, 18);
+        roundRect(ctx, wide - 11, -12, 15, 17, 3);
+        ctx.fill();
+      }
+    }
+    if (o.keffiyeh === 'shoulders' || o.scarf) {
+      const kef = o.keffiyeh === 'shoulders';
+      ctx.fillStyle = kef ? '#e6e0d3' : o.scarf;
+      // round the neck, and the two ends hanging down the chest (or back)
+      ctx.beginPath();
+      ctx.moveTo(-9, ny + 1);
+      ctx.quadraticCurveTo(0, ny - 3, 9, ny + 1);
+      ctx.lineTo(8, ny + 6);
+      ctx.quadraticCurveTo(0, ny + 3, -8, ny + 6);
+      ctx.closePath();
+      ctx.fill();
+      for (const sx of front ? [-7, 7] : [0]) {
+        ctx.beginPath();
+        ctx.moveTo(sx - 3, ny + 4);
+        ctx.lineTo(sx + 3, ny + 4);
+        ctx.lineTo(sx + 3.5, ny + 26);
+        ctx.lineTo(sx - 3.5, ny + 26);
+        ctx.closePath();
+        ctx.fill();
+        ctx.strokeStyle = kef ? 'rgba(120,30,30,0.45)' : 'rgba(0,0,0,0.2)';
+        ctx.lineWidth = 0.8;
+        ctx.beginPath();
+        for (let i = 0; i < 4; i++) {
+          ctx.moveTo(sx - 3 + i * 2, ny + 26);
+          ctx.lineTo(sx - 3 + i * 2, ny + 29);
+        }
+        if (kef) {
+          ctx.moveTo(sx - 3, ny + 12);
+          ctx.lineTo(sx + 3, ny + 12);
+          ctx.moveTo(sx - 3, ny + 19);
+          ctx.lineTo(sx + 3, ny + 19);
+        }
+        ctx.stroke();
       }
     }
     // neck and head
     const hr = L.head;
     const hy2 = j.head[1];
-    limb(ctx, 0, ny + 2, 0, hy2 + hr * 0.6, 9, 8, o.skin);
+    limb(ctx, 0, ny + 2, 0, hy2 + hr * 0.6, 8, 7.5, shade(o.skin, 0.93));
     ctx.save();
     ctx.translate(0, hy2);
     ctx.rotate(Math.sin(p.head) * 0.15);
-    const hair = dusty(o.hair);
+    this.headFrontBack(ctx, o, C, hr, front);
+    ctx.restore();
+    if (this.prop) this.prop(ctx, [-(wide + 3), j.handN[1]], [wide + 3, j.handF[1]]);
+    ctx.restore();
+  }
+
+  headFrontBack(ctx, o, C, hr, front) {
+    const skin = o.skin;
     if (o.headwear === 'hijab') {
       ctx.beginPath();
       ctx.ellipse(0, 1, hr * 1.12, hr * 1.28, 0, 0, Math.PI * 2);
       ctx.moveTo(-hr * 1.1, 4);
       ctx.quadraticCurveTo(-hr * 1.3, hr * 2.2, 0, hr * 2.3);
       ctx.quadraticCurveTo(hr * 1.3, hr * 2.2, hr * 1.1, 4);
-      ctx.fillStyle = dusty(o.headColor);
+      ctx.fillStyle = C.head;
       ctx.fill();
       if (front) {
         ctx.beginPath();
-        ctx.ellipse(0, 1.5, hr * 0.66, hr * 0.84, 0, 0, Math.PI * 2);
-        ctx.fillStyle = o.skin;
+        ctx.ellipse(0, 1.5, hr * 0.66, hr * 0.86, 0, 0, Math.PI * 2);
+        ctx.fillStyle = skin;
         ctx.fill();
-        this.drawFace(ctx, hr, o, true);
+        this.drawFace(ctx, hr, o, C, true);
       }
-    } else {
-      ctx.beginPath();
-      ctx.ellipse(0, 0, hr * 0.9, hr * 1.06, 0, 0, Math.PI * 2);
-      ctx.fillStyle = o.skin;
-      ctx.fill();
-      // ears
-      ctx.beginPath();
-      ctx.ellipse(-hr * 0.9, 1, 2.2, 3.4, 0, 0, Math.PI * 2);
-      ctx.ellipse(hr * 0.9, 1, 2.2, 3.4, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      if (front) {
-        // hairline across the top
-        ctx.ellipse(0, -hr * 0.45, hr * 0.92, hr * 0.62, 0, Math.PI, 0);
-      } else {
-        // the back of the head is all hair, down to the nape
-        ctx.ellipse(0, -1, hr * 0.94, hr * 1.02, 0, 0, Math.PI * 2);
-      }
-      ctx.fillStyle = hair;
-      ctx.fill();
-      if (!front && (o.ponytail || o.braid)) {
-        ctx.strokeStyle = hair;
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(0, hr * 0.6);
-        ctx.lineTo(0, o.braid ? hr * 2.3 : hr * 1.6);
-        ctx.stroke();
-      }
-      if (front) this.drawFace(ctx, hr, o, false);
-      if (o.headwear === 'kufi') {
-        ctx.beginPath();
-        ctx.ellipse(0, -hr * 0.55, hr * 0.92, hr * 0.5, 0, Math.PI, 0);
-        ctx.fillStyle = o.headColor;
-        ctx.fill();
-      }
+      return;
     }
-    ctx.restore();
-    if (this.prop) this.prop(ctx, [-(wide + 3), j.handN[1]], [wide + 3, j.handF[1]]);
-    ctx.restore();
-  }
-
-  // A face towards us: eyes, a brow, the beard. Kept as simple as the rest.
-  drawFace(ctx, hr, o, veiled) {
-    const bc = o.beardColor || shade(o.hair, 0.95);
-    if (!veiled && (o.beard === 'full' || o.beard === 'stubble')) {
-      ctx.beginPath();
-      ctx.moveTo(-hr * 0.86, 0);
-      ctx.quadraticCurveTo(-hr * 0.8, hr * (o.beard === 'full' ? 1.4 : 1.15), 0, hr * (o.beard === 'full' ? 1.5 : 1.2));
-      ctx.quadraticCurveTo(hr * 0.8, hr * (o.beard === 'full' ? 1.4 : 1.15), hr * 0.86, 0);
-      ctx.lineTo(hr * 0.5, hr * 0.42);
-      ctx.lineTo(-hr * 0.5, hr * 0.42);
-      ctx.closePath();
-      ctx.fillStyle = o.beard === 'full' ? bc : 'rgba(40,30,25,0.4)';
-      ctx.fill();
-    }
-    if (!veiled && (o.beard === 'moustache' || o.beard === 'full')) {
-      ctx.fillStyle = bc;
-      ctx.fillRect(-4.5, 4.5, 9, 2);
-    }
-    // brows and a mouth line
-    ctx.fillStyle = 'rgba(25,18,14,0.55)';
-    ctx.fillRect(-5.2, -3.6, 3.8, 1.1);
-    ctx.fillRect(1.4, -3.6, 3.8, 1.1);
-    ctx.fillRect(-2.2, hr * 0.5, 4.4, 1);
-    ctx.fillStyle = 'rgba(25,18,14,0.85)';
-    if (this.blink > 0) {
-      ctx.fillRect(-5, -0.5, 3.4, 1);
-      ctx.fillRect(1.6, -0.5, 3.4, 1);
-    } else {
-      ctx.beginPath();
-      ctx.arc(-3.3, -0.5, 1.4, 0, Math.PI * 2);
-      ctx.arc(3.3, -0.5, 1.4, 0, Math.PI * 2);
-      ctx.fill();
-    }
-  }
-
-  drawSide(ctx) {
-    const j = this.solve();
-    const [hx, hy] = this.hip();
-    const o = this.o;
-    const p = this.pose;
-    const dusty = (c) => (this.dust > 0 ? mixHex(c, '#8a857c', this.dust * 0.55) : c);
-    const top = dusty(o.top);
-    const trousers = dusty(o.trousers);
-    ctx.save();
-    ctx.translate(hx, hy);
-    ctx.scale(this.f * this.scale, this.scale);
-
-    const far = (c) => shade(c, 0.62);
-    const armCloth = o.sleeve === 'short' ? o.skin : top;
-
-    if (o.satchel) {
-      // bag hangs behind the hip on the far side
-      ctx.fillStyle = shade(o.satchel, 0.8);
-      ctx.fillRect(-20, -6, 18, 22);
-    }
-    this.arm(ctx, j.shoulder, j.elbowF, j.handF, far(top), far(armCloth), far(o.skin), o.sleeve === 'short');
-    this.leg(ctx, j.kneeF, j.footF, p.shinF, far(trousers), far(o.shoes));
-
-    if (o.robe) {
-      // a jalabiya or long coat: a skirt from the hip that follows the legs
-      const kn = j.kneeN;
-      const kf = j.kneeF;
-      const fn = j.footN;
-      const ff = j.footF;
-      ctx.beginPath();
-      ctx.moveTo(-13, -4);
-      ctx.lineTo(13, -4);
-      ctx.lineTo(Math.max(kn[0], kf[0]) + 10, Math.max(kn[1], kf[1]));
-      ctx.lineTo(Math.max(fn[0], ff[0]) + 6, Math.max(fn[1], ff[1]) - 6);
-      ctx.lineTo(Math.min(fn[0], ff[0]) - 8, Math.max(fn[1], ff[1]) - 4);
-      ctx.lineTo(Math.min(kn[0], kf[0]) - 12, Math.max(kn[1], kf[1]));
-      ctx.closePath();
-      ctx.fillStyle = top;
-      ctx.fill();
-    }
-    this.leg(ctx, j.kneeN, j.footN, p.shinN, o.robe ? top : trousers, o.shoes);
-
-    // torso
-    const up = [Math.sin(p.torso), -Math.cos(p.torso)];
-    const side = [Math.cos(p.torso), Math.sin(p.torso)];
-    const at = (d, s) => [up[0] * d + side[0] * s, up[1] * d + side[1] * s];
-    const w = o.baggy ? 16 : 13;
+    // head with a jaw that narrows to the chin
     ctx.beginPath();
-    const pts = [at(o.baggy ? -12 : -4, -w), at(o.baggy ? -12 : -2, w), at(L.torso - 16, w + 1), at(L.torso - 2, 10), at(L.torso, -3), at(L.torso - 6, -12), at(20, -w - 1)];
-    ctx.moveTo(...pts[0]);
-    for (const q of pts.slice(1)) ctx.lineTo(...q);
-    ctx.closePath();
-    ctx.fillStyle = top;
+    ctx.moveTo(-hr * 0.9, -hr * 0.2);
+    ctx.quadraticCurveTo(-hr * 0.95, -hr * 1.05, 0, -hr * 1.05);
+    ctx.quadraticCurveTo(hr * 0.95, -hr * 1.05, hr * 0.9, -hr * 0.2);
+    ctx.quadraticCurveTo(hr * 0.86, hr * 0.7, hr * 0.35, hr * 1.02);
+    ctx.quadraticCurveTo(0, hr * 1.12, -hr * 0.35, hr * 1.02);
+    ctx.quadraticCurveTo(-hr * 0.86, hr * 0.7, -hr * 0.9, -hr * 0.2);
+    ctx.fillStyle = skin;
     ctx.fill();
-    // collar shadow and a button line give the shirt some form
-    ctx.strokeStyle = 'rgba(0,0,0,0.18)';
-    ctx.lineWidth = 1.5;
+    // ears
+    ctx.fillStyle = shade(skin, 0.9);
     ctx.beginPath();
-    ctx.moveTo(...at(L.torso - 3, 9));
-    ctx.lineTo(...at(4, 10));
-    ctx.stroke();
-
-    if (o.satchel) {
-      ctx.strokeStyle = shade(o.satchel, 0.9);
-      ctx.lineWidth = 3;
+    ctx.ellipse(-hr * 0.92, hr * 0.05, 2, 3.2, 0, 0, Math.PI * 2);
+    ctx.ellipse(hr * 0.92, hr * 0.05, 2, 3.2, 0, 0, Math.PI * 2);
+    ctx.fill();
+    const s = o.hairStyle || 'short';
+    ctx.fillStyle = C.hair;
+    if (!front) {
+      // the back of the head
+      if (s === 'bald') {
+        ctx.beginPath();
+        ctx.ellipse(0, hr * 0.25, hr * 0.92, hr * 0.5, 0, 0, Math.PI);
+        ctx.fill();
+      } else {
+        if (s === 'buzz') ctx.globalAlpha = 0.7;
+        ctx.beginPath();
+        ctx.moveTo(-hr * 0.92, hr * 0.35);
+        ctx.quadraticCurveTo(-hr * 1.02, -hr * 1.15, 0, -hr * (s === 'curly' ? 1.22 : 1.12));
+        ctx.quadraticCurveTo(hr * 1.02, -hr * 1.15, hr * 0.92, hr * 0.35);
+        ctx.quadraticCurveTo(0, hr * 0.72, -hr * 0.92, hr * 0.35);
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        if (s === 'ponytail' || s === 'braid') {
+          ctx.strokeStyle = C.hair;
+          ctx.lineWidth = s === 'braid' ? 3.2 : 4.2;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(0, hr * 0.4);
+          ctx.lineTo(0, s === 'braid' ? hr * 2.3 : hr * 1.5);
+          ctx.stroke();
+        }
+      }
+    } else if (s !== 'bald') {
+      // hairline across the brow
+      if (s === 'buzz') ctx.globalAlpha = 0.7;
+      const line = s === 'receding' ? -hr * 0.62 : -hr * 0.42;
       ctx.beginPath();
-      ctx.moveTo(...at(L.torso - 4, -10));
-      ctx.lineTo(...at(6, 12));
+      ctx.moveTo(-hr * 0.94, hr * 0.1);
+      ctx.quadraticCurveTo(-hr * 1.02, -hr * 1.18, 0, -hr * (s === 'curly' ? 1.24 : 1.14));
+      ctx.quadraticCurveTo(hr * 1.02, -hr * 1.18, hr * 0.94, hr * 0.1);
+      ctx.lineTo(hr * 0.8, hr * 0.05);
+      ctx.quadraticCurveTo(hr * 0.72, line, s === 'sidepart' ? hr * 0.3 : 0, line - (s === 'receding' ? hr * 0.15 : 0));
+      ctx.quadraticCurveTo(-hr * 0.72, line, -hr * 0.8, hr * 0.05);
+      ctx.closePath();
+      ctx.fill();
+      ctx.globalAlpha = 1;
+    } else {
+      // bald: hair only above the ears
+      ctx.fillRect(-hr * 0.95, -hr * 0.25, hr * 0.2, hr * 0.4);
+      ctx.fillRect(hr * 0.75, -hr * 0.25, hr * 0.2, hr * 0.4);
+    }
+    if (front) this.drawFace(ctx, hr, o, C, false);
+    this.hatFrontBack(ctx, o, C, hr, front);
+  }
+
+  hatFrontBack(ctx, o, C, hr, front) {
+    const h = o.headwear;
+    if (!h) return;
+    ctx.fillStyle = C.head;
+    if (h === 'kufi') {
+      ctx.beginPath();
+      ctx.ellipse(0, -hr * 0.55, hr * 0.94, hr * 0.52, 0, Math.PI, 0);
+      ctx.fill();
+    } else if (h === 'cap' || h === 'beanie') {
+      ctx.beginPath();
+      ctx.ellipse(0, -hr * 0.45, hr * 1.02, hr * (h === 'cap' ? 0.62 : 0.74), 0, Math.PI, 0);
+      ctx.fill();
+      if (h === 'cap' && front) {
+        ctx.fillStyle = shade(o.headColor || '#444444', 0.8);
+        ctx.fillRect(-hr * 0.9, -hr * 0.5, hr * 1.8, 2);
+      }
+    } else if (h === 'keffiyeh') {
+      ctx.beginPath();
+      ctx.moveTo(-hr * 1.05, hr * 1.6);
+      ctx.quadraticCurveTo(-hr * 1.25, -hr * 1.3, 0, -hr * 1.25);
+      ctx.quadraticCurveTo(hr * 1.25, -hr * 1.3, hr * 1.05, hr * 1.6);
+      if (front) {
+        ctx.lineTo(hr * 0.8, hr * 0.2);
+        ctx.quadraticCurveTo(hr * 0.8, -hr * 0.75, 0, -hr * 0.78);
+        ctx.quadraticCurveTo(-hr * 0.8, -hr * 0.75, -hr * 0.8, hr * 0.2);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#1a1a1a';
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.ellipse(0, -hr * 0.75, hr * 0.98, hr * 0.28, 0, 0, Math.PI * 2);
       ctx.stroke();
     }
-
-    // head
-    const ha = p.torso + p.head;
-    const [hdx, hdy] = j.head;
-    limb(ctx, j.neck[0], j.neck[1] + 2, hdx - Math.sin(ha) * 6, hdy + Math.cos(ha) * 6, 9, 8, o.skin);
-    ctx.save();
-    ctx.translate(hdx, hdy);
-    ctx.rotate(ha);
-    const hr = L.head;
-    if (o.headwear === 'hijab') {
-      ctx.beginPath();
-      ctx.ellipse(-2, -1, hr * 1.1, hr * 1.25, 0, 0, Math.PI * 2);
-      ctx.fillStyle = dusty(o.headColor);
-      ctx.fill();
-      // drape to the shoulders
-      ctx.beginPath();
-      ctx.moveTo(-12, 0);
-      ctx.quadraticCurveTo(-16, 18, -6, 26);
-      ctx.lineTo(8, 22);
-      ctx.lineTo(4, 8);
-      ctx.fill();
-      // face opening
-      ctx.beginPath();
-      ctx.ellipse(4, 1, hr * 0.62, hr * 0.85, 0, 0, Math.PI * 2);
-      ctx.fillStyle = o.skin;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(9, -2);
-      ctx.lineTo(13.5, 3);
-      ctx.lineTo(9, 4.5);
-      ctx.fill();
-    } else {
-      ctx.beginPath();
-      ctx.ellipse(0, 0, hr * 0.92, hr * 1.08, 0, 0, Math.PI * 2);
-      ctx.fillStyle = o.skin;
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(9, -3);
-      ctx.lineTo(14.5, 3);
-      ctx.lineTo(9.5, 5);
-      ctx.closePath();
-      ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(-6, 8);
-      ctx.quadraticCurveTo(4, 15, 10, 8);
-      ctx.lineTo(4, 4);
-      ctx.fill();
-      // hair
-      ctx.beginPath();
-      ctx.ellipse(-3, -5, hr * 0.88, hr * 0.74, -0.3, 0, Math.PI * 2);
-      ctx.fillStyle = dusty(o.hair);
-      ctx.fill();
-      // the eye, blinking now and then
-      ctx.fillStyle = 'rgba(25,18,14,0.8)';
-      if (this.blink > 0) ctx.fillRect(4.2, -1.2, 3.2, 1);
-      else {
-        ctx.beginPath();
-        ctx.arc(5.6, -1, 1.3, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      if (o.ponytail || o.braid) {
-        ctx.strokeStyle = o.hair;
-        ctx.lineWidth = 4;
-        ctx.lineCap = 'round';
-        ctx.beginPath();
-        ctx.moveTo(-10, -2);
-        ctx.quadraticCurveTo(-18, 6, -14, o.braid ? 22 : 12);
-        ctx.stroke();
-      }
-      const bc = o.beardColor || shade(o.hair, 0.95);
-      if (o.beard === 'full' || o.beard === 'stubble') {
-        ctx.beginPath();
-        ctx.moveTo(-5, 4);
-        ctx.quadraticCurveTo(4, o.beard === 'full' ? 17 : 13, 11, 6);
-        ctx.lineTo(9, 10);
-        ctx.quadraticCurveTo(2, 16, -4, 9);
-        ctx.fillStyle = o.beard === 'full' ? bc : 'rgba(40,30,25,0.45)';
-        ctx.fill();
-      }
-      if (o.beard === 'moustache' || o.beard === 'full') {
-        ctx.fillStyle = bc;
-        ctx.fillRect(7, 5, 6, 2.2);
-      }
-      if (o.headwear === 'kufi') {
-        ctx.beginPath();
-        ctx.ellipse(-2, -7, hr * 0.9, hr * 0.55, -0.15, Math.PI, 0);
-        ctx.fillStyle = o.headColor;
-        ctx.fill();
-      }
-    }
-    ctx.restore();
-
-    this.arm(ctx, j.shoulder, j.elbowN, j.handN, top, armCloth, o.skin, o.sleeve === 'short');
-    if (this.prop) this.prop(ctx, j.handN, j.handF);
-    ctx.restore();
   }
 
-  leg(ctx, knee, foot, shinA, cloth, shoe) {
-    limb(ctx, 0, 0, knee[0], knee[1], 16, 13, cloth);
-    limb(ctx, knee[0], knee[1], foot[0], foot[1], 13, 11, cloth);
+  // A face towards us: brows, eyes, nose, mouth, and the beard.
+  drawFace(ctx, hr, o, C, veiled) {
+    const b = veiled ? 'none' : o.beard || 'none';
+    const col = C.beard;
+    if (b === 'stubble') {
+      ctx.fillStyle = 'rgba(38,28,22,0.3)';
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.85, hr * 0.05);
+      ctx.quadraticCurveTo(-hr * 0.8, hr * 0.95, 0, hr * 1.1);
+      ctx.quadraticCurveTo(hr * 0.8, hr * 0.95, hr * 0.85, hr * 0.05);
+      ctx.lineTo(hr * 0.45, hr * 0.4);
+      ctx.lineTo(-hr * 0.45, hr * 0.4);
+      ctx.closePath();
+      ctx.fill();
+    } else if (b === 'short' || b === 'full' || b === 'long') {
+      const bottom = b === 'long' ? 1.9 : b === 'full' ? 1.35 : 1.18;
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.88, 0);
+      ctx.quadraticCurveTo(-hr * 0.85, hr * (bottom - 0.2), 0, hr * bottom);
+      ctx.quadraticCurveTo(hr * 0.85, hr * (bottom - 0.2), hr * 0.88, 0);
+      ctx.lineTo(hr * 0.5, hr * 0.4);
+      ctx.quadraticCurveTo(0, hr * 0.32, -hr * 0.5, hr * 0.4);
+      ctx.closePath();
+      ctx.fill();
+    } else if (b === 'goatee') {
+      ctx.fillStyle = col;
+      ctx.beginPath();
+      ctx.ellipse(0, hr * 0.85, hr * 0.28, hr * 0.3, 0, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (b === 'chinstrap') {
+      ctx.strokeStyle = col;
+      ctx.lineWidth = 2.2;
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.86, 0);
+      ctx.quadraticCurveTo(-hr * 0.8, hr * 1.02, 0, hr * 1.08);
+      ctx.quadraticCurveTo(hr * 0.8, hr * 1.02, hr * 0.86, 0);
+      ctx.stroke();
+    }
+    if (['moustache', 'thickMoustache', 'full', 'short', 'long', 'goatee'].includes(b)) {
+      ctx.fillStyle = col;
+      const t = b === 'thickMoustache' ? 3.2 : 2.1;
+      ctx.beginPath();
+      ctx.moveTo(-hr * 0.42, hr * 0.5 + t * 0.4);
+      ctx.quadraticCurveTo(0, hr * 0.36, hr * 0.42, hr * 0.5 + t * 0.4);
+      ctx.lineTo(hr * 0.3, hr * 0.5 + t);
+      ctx.quadraticCurveTo(0, hr * 0.44 + t, -hr * 0.3, hr * 0.5 + t);
+      ctx.closePath();
+      ctx.fill();
+    }
+    // nose and mouth
+    ctx.fillStyle = shade(o.skin, 0.78);
+    ctx.fillRect(-0.6, -hr * 0.05, 1.2, hr * 0.3);
+    ctx.fillRect(-1.8, hr * 0.26, 3.6, 1);
+    ctx.fillStyle = shade(o.skin, 0.6);
+    ctx.fillRect(-hr * 0.2, hr * 0.64, hr * 0.4, 0.9);
+    // brows and eyes
+    ctx.fillStyle = 'rgba(30,22,16,0.45)';
+    ctx.fillRect(-hr * 0.55, -hr * 0.36, hr * 0.34, 0.8);
+    ctx.fillRect(hr * 0.21, -hr * 0.36, hr * 0.34, 0.8);
+    ctx.fillStyle = 'rgba(22,16,12,0.88)';
+    if (this.blink > 0) {
+      ctx.fillRect(-hr * 0.5, -hr * 0.14, hr * 0.3, 0.9);
+      ctx.fillRect(hr * 0.2, -hr * 0.14, hr * 0.3, 0.9);
+    } else {
+      ctx.beginPath();
+      ctx.ellipse(-hr * 0.34, -hr * 0.12, 1.3, 1.1, 0, 0, Math.PI * 2);
+      ctx.ellipse(hr * 0.34, -hr * 0.12, 1.3, 1.1, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    if (o.glasses) {
+      ctx.strokeStyle = 'rgba(20,18,16,0.85)';
+      ctx.lineWidth = 0.9;
+      ctx.beginPath();
+      ctx.ellipse(-hr * 0.34, -hr * 0.12, 2.8, 2.3, 0, 0, Math.PI * 2);
+      ctx.moveTo(hr * 0.34 + 2.8, -hr * 0.12);
+      ctx.ellipse(hr * 0.34, -hr * 0.12, 2.8, 2.3, 0, 0, Math.PI * 2);
+      ctx.moveTo(-hr * 0.34 + 2.8, -hr * 0.12);
+      ctx.lineTo(hr * 0.34 - 2.8, -hr * 0.12);
+      ctx.stroke();
+    }
+  }
+
+  // ------------------------------------------------------------- limbs --
+
+  leg(ctx, knee, foot, shinA, cloth, shoe, skin, far) {
+    const o = this.o;
+    seg(ctx, 0, 0, knee[0], knee[1], 13.5, cloth);
+    seg(ctx, knee[0], knee[1], foot[0], foot[1], 11, cloth);
+    // a crease behind a bent knee
+    const bend = Math.abs(Math.atan2(knee[0], knee[1]) - Math.atan2(foot[0] - knee[0], foot[1] - knee[1]));
+    if (bend > 0.35) {
+      ctx.strokeStyle = 'rgba(0,0,0,0.18)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(knee[0] - 3, knee[1] - 3);
+      ctx.lineTo(knee[0] - 5, knee[1] + 3);
+      ctx.stroke();
+    }
     ctx.save();
     ctx.translate(foot[0], foot[1]);
     ctx.rotate(-shinA * 0.8);
-    ctx.beginPath();
-    ctx.moveTo(-5, -4);
-    ctx.lineTo(13, -3);
-    ctx.quadraticCurveTo(17, 2, 13, 5);
-    ctx.lineTo(-6, 5);
-    ctx.closePath();
-    ctx.fillStyle = shoe;
-    ctx.fill();
+    const fw = o.footwear || 'shoe';
+    if (fw === 'sandal') {
+      ctx.fillStyle = skin;
+      ctx.beginPath();
+      ctx.moveTo(-4, -3);
+      ctx.lineTo(11, -1);
+      ctx.quadraticCurveTo(14, 2, 11, 4);
+      ctx.lineTo(-5, 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = shoe;
+      ctx.fillRect(-6, 4, 19, 2); // sole
+      ctx.fillRect(3, -1, 2, 5); // strap
+    } else {
+      if (fw === 'boot') {
+        ctx.fillStyle = shoe;
+        ctx.fillRect(-5, -11, 10, 10); // the shaft up the ankle
+      }
+      ctx.fillStyle = shoe;
+      ctx.beginPath();
+      ctx.moveTo(-5, -4);
+      ctx.lineTo(8, -3);
+      ctx.quadraticCurveTo(14, -1.5, 14.5, 2.5); // toe
+      ctx.lineTo(14, 4.5);
+      ctx.lineTo(-6, 4.5);
+      ctx.lineTo(-6, -1);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.3)';
+      ctx.fillRect(-6, 3.4, 20, 1.3); // sole and heel line
+      ctx.fillRect(-6, 1.5, 5, 2);
+    }
     ctx.restore();
   }
 
-  arm(ctx, s, e, h, cloth, foreCloth, skin, shortSleeve) {
-    limb(ctx, s[0], s[1], e[0], e[1], 11, 10, cloth);
-    limb(ctx, e[0], e[1], h[0], h[1], shortSleeve ? 8 : 10, shortSleeve ? 7 : 8, foreCloth);
+  arm(ctx, s, e, h, cloth, skin, skinShade, near) {
+    const o = this.o;
+    const short = o.sleeve === 'short';
+    if (short) {
+      // sleeve ends above the elbow
+      seg(ctx, e[0], e[1], h[0], h[1], 6.6, skinShade);
+      seg(ctx, lerp(s[0], e[0], 0.5), lerp(s[1], e[1], 0.5), e[0], e[1], 7, skinShade);
+      seg(ctx, s[0], s[1], lerp(s[0], e[0], 0.55), lerp(s[1], e[1], 0.55), 10, cloth);
+    } else if (o.rolled) {
+      seg(ctx, s[0], s[1], e[0], e[1], 9.8, cloth);
+      seg(ctx, e[0], e[1], h[0], h[1], 7, skinShade);
+      ctx.fillStyle = cloth; // the rolled cuff
+      ctx.beginPath();
+      ctx.arc(e[0], e[1], 5.4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      seg(ctx, s[0], s[1], e[0], e[1], 9.8, cloth);
+      seg(ctx, e[0], e[1], h[0], h[1], 8.4, cloth);
+      // a fold at the elbow
+      ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(e[0] - 2, e[1] - 2);
+      ctx.lineTo(e[0] + 2, e[1] + 1);
+      ctx.stroke();
+    }
+    if (near && o.watch) {
+      const wx = lerp(e[0], h[0], 0.82);
+      const wy = lerp(e[1], h[1], 0.82);
+      ctx.fillStyle = '#2a2622';
+      ctx.beginPath();
+      ctx.arc(wx, wy, 3.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // hand: a palm along the forearm, and a thumb
+    const ang = Math.atan2(h[1] - e[1], h[0] - e[0]);
+    ctx.save();
+    ctx.translate(h[0], h[1]);
+    ctx.rotate(ang);
+    ctx.fillStyle = skinShade;
     ctx.beginPath();
-    ctx.arc(h[0], h[1], 4.6, 0, Math.PI * 2);
-    ctx.fillStyle = skin;
+    ctx.ellipse(3, 0, 5.2, 3.6, 0, 0, Math.PI * 2);
     ctx.fill();
+    ctx.beginPath();
+    ctx.ellipse(1.5, 3, 2.6, 1.5, 0.6, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   }
 }
 
+const DEFAULTS = { foreNs: 1, foreFs: 1 };
+
 function blendPose(a, b, t) {
   const out = {};
-  for (const k in a) out[k] = lerp(a[k], b[k] ?? a[k], t);
+  for (const k of new Set([...Object.keys(a), ...Object.keys(b)])) {
+    if (k === 'seat') continue;
+    const va = a[k] ?? DEFAULTS[k] ?? b[k];
+    const vb = b[k] ?? DEFAULTS[k] ?? a[k];
+    out[k] = lerp(va, vb, t);
+  }
+  // a seat can't be half there: it arrives with the pose
+  const seat = t > 0.5 ? b.seat : a.seat;
+  if (seat != null) out.seat = seat;
   return out;
 }
 
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+// Mix two colours, returning hex so it can be shaded again.
 function mixHex(a, b, t) {
   const pa = parseInt(a.slice(1), 16);
   const pb = parseInt(b.slice(1), 16);
   const ch = (n, s) => (n >> s) & 255;
   const m = (s) => Math.round(lerp(ch(pa, s), ch(pb, s), clamp(t)));
-  return `rgb(${m(16)},${m(8)},${m(0)})`;
+  return `#${((m(16) << 16) | (m(8) << 8) | m(0)).toString(16).padStart(6, '0')}`;
 }
 
 return { OUTFITS, POSES, walkPose, crouchWalkPose, crawlPose, Person, blendPose };
@@ -3829,8 +4583,8 @@ const __src_world_walker = (() => {
 
 const { Person, POSES, walkPose, crouchWalkPose, crawlPose, blendPose } = __src_rigs_person;
 const { clamp, lerp, smooth } = __src_engine_util;
-const HEIGHT = { stand: 188, crouch: 138, prone: 52 };
-const SPEED = { stand: 175, run: 330, crouch: 92, prone: 44, carry: 105 };
+const HEIGHT = { stand: 170, crouch: 122, prone: 48 };
+const SPEED = { stand: 162, run: 310, crouch: 84, prone: 42, carry: 98 };
 const GRAVITY = 2600;
 const JUMP_V = 640;
 const STEP = 22;
@@ -3950,9 +4704,14 @@ class Walker {
     if (this.carry && this.stance === 'stand') speed = SPEED.carry;
     const move = intent.move || 0;
     const target = move * speed;
-    const acc = this.onGround ? 1800 : 700;
+    // ease in and out of a walk rather than snapping to speed
+    const acc = this.onGround ? (Math.abs(target) > Math.abs(this.vx) ? 900 : 1300) : 600;
     this.vx += clamp(target - this.vx, -acc * dt, acc * dt);
-    if (move !== 0) this.f = move > 0 ? 1 : -1;
+    if (move !== 0) {
+      const f = move > 0 ? 1 : -1;
+      if (f !== this.f) this.rig.pivot(); // a quick turn, not a flip
+      this.f = f;
+    }
 
     if (intent.jump && this.onGround && this.stance === 'stand' && !this.carry) {
       if (!this.tryMantle()) {
@@ -4034,7 +4793,7 @@ class Walker {
 
   pose(dt, speed, run = false) {
     let target;
-    const phase = (this.stride / 88) * Math.PI;
+    const phase = (this.stride / (this.stance === 'stand' ? 74 : 52)) * Math.PI;
     if (this.mantle) {
       const k = clamp(this.mantle.t);
       target =
@@ -4050,8 +4809,8 @@ class Walker {
     } else if (this.stance === 'crouch') {
       target = speed > 4 ? crouchWalkPose(phase) : POSES.crouch;
     } else if (speed > 4) {
-      const runK = clamp((speed - 190) / 120);
-      target = walkPose(phase, clamp(speed / 170, 0.4, 1.2), runK);
+      const runK = clamp((speed - 180) / 110);
+      target = walkPose(phase, clamp(speed / 160, 0.35, 1.2), runK);
       if (this.carry) target = { ...target, ...POSES.carry, thighN: target.thighN, shinN: target.shinN, thighF: target.thighF, shinF: target.shinF, torso: -0.08 };
     } else {
       target = this.carry ? POSES.carry : POSES.stand;
@@ -4069,7 +4828,7 @@ class Walker {
 
     // footsteps
     if (this.onGround && speed > 4 && this.stance !== 'prone') {
-      const n = Math.floor(this.stride / 88);
+      const n = Math.floor(this.stride / (this.stance === 'stand' ? 74 : 52));
       if (n !== this.lastStep) {
         this.lastStep = n;
         this.onStep?.(this.stance);
@@ -4254,9 +5013,9 @@ const { keyLabel } = __src_engine_input;
 const { clamp, lerp } = __src_engine_util;
 const { writeSave } = __src_engine_save;
 const TOOLS = {
-  torch: { id: 'torch', ar: 'كشّاف يدوي', en: 'Hand-crank torch' },
-  mirror: { id: 'mirror', ar: 'شقفة مراية', en: 'Mirror shard' },
-  walkie: { id: 'walkie', ar: 'لاسلكي', en: 'Walkie-talkie' },
+  torch: { id: 'torch', ar: 'مصباح يدوي', en: 'Hand-crank torch' },
+  mirror: { id: 'mirror', ar: 'شظية مرآة', en: 'Mirror shard' },
+  walkie: { id: 'walkie', ar: 'جهاز لاسلكي', en: 'Walkie-talkie' },
 };
 
 class Game {
@@ -4480,7 +5239,7 @@ class Game {
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
       } else if (stance === 'stand' && p.stance !== 'stand') {
-        this.text.say(null, ['ما في محل توقف هون.', 'No room to stand here.'], 1.6, 'examine');
+        this.text.say(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
       p.update(dt, {});
@@ -4768,7 +5527,7 @@ const CONCRETE = ['#a99d89', '#9f9480', '#948874', '#ada390', '#91857a', '#a2977
 
 // ------------------------------------------------------------ sky & far --
 
-function sky(R, stops) {
+function sky(R, stops, { sun = [0.78, 0.16], warmth = 0 } = {}) {
   R.sky((c) => {
     c.save();
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -4776,6 +5535,22 @@ function sky(R, stops) {
     for (const [p, col] of stops) g.addColorStop(p, col);
     c.fillStyle = g;
     c.fillRect(0, 0, R.W, R.H);
+    // the sun's glare, warmer as the afternoon goes
+    const sx = sun[0] * R.W;
+    const sy = sun[1] * R.H;
+    const glow = c.createRadialGradient(sx, sy, 0, sx, sy, R.W * 0.55);
+    glow.addColorStop(0, `rgba(255,${238 - warmth * 40},${205 - warmth * 70},${0.35 + warmth * 0.1})`);
+    glow.addColorStop(0.35, `rgba(255,${226 - warmth * 40},${190 - warmth * 70},0.1)`);
+    glow.addColorStop(1, 'rgba(255,220,180,0)');
+    c.fillStyle = glow;
+    c.fillRect(0, 0, R.W, R.H);
+    // high thin haze streaks
+    c.fillStyle = 'rgba(255,250,240,0.06)';
+    for (let i = 0; i < 5; i++) {
+      c.beginPath();
+      c.ellipse(R.W * (0.15 + i * 0.19), R.H * (0.12 + (i % 3) * 0.07), R.W * 0.16, R.H * 0.012, -0.04, 0, Math.PI * 2);
+      c.fill();
+    }
     c.restore();
   });
 }
@@ -4899,6 +5674,48 @@ function plume(R, x, y, t, { depth = 0.3, age = 1, color = [120, 105, 90], heigh
 // spec: { x, w, floors, fh, color, seed, torn: 0…1 (corner torn away),
 //         holes: [[fx, fy, r]], balcony: [floor, side], laundry, dishes,
 //         shutters, graffiti: [text, fx, fy, size, color], sign }
+// Render texture for a façade: patched repairs, blotches and hairline
+// cracks. Drawn once per building into its own canvas, then reused.
+const WEATHER = new Map();
+function weathering(w, H, seed) {
+  const key = `${w}x${H}:${seed}`;
+  let cv = WEATHER.get(key);
+  if (cv) return cv;
+  cv = document.createElement('canvas');
+  cv.width = Math.ceil(w);
+  cv.height = Math.ceil(H);
+  const c = cv.getContext('2d');
+  const r = rng(seed * 31 + 7);
+    for (let i = 0; i < Math.round(w / 45); i++) {
+      c.fillStyle = r() < 0.5 ? 'rgba(255,248,235,0.07)' : 'rgba(70,58,44,0.07)';
+      c.fillRect(r() * w, r() * H, 20 + r() * 70, 14 + r() * 50);
+    }
+    // blotchy render texture
+    for (let i = 0; i < Math.round((w * H) / 900); i++) {
+      c.fillStyle = `rgba(${r() < 0.5 ? '255,250,240' : '60,48,36'},${0.03 + r() * 0.04})`;
+      c.beginPath();
+      c.arc(r() * w, r() * H, 2 + r() * 7, 0, Math.PI * 2);
+      c.fill();
+    }
+    // hairline cracks
+    c.strokeStyle = 'rgba(50,40,32,0.28)';
+    c.lineWidth = 0.9;
+    for (let i = 0; i < Math.max(2, Math.round(w / 140)); i++) {
+      let cx0 = r() * w;
+      let cy0 = r() * H;
+      c.beginPath();
+      c.moveTo(cx0, cy0);
+      for (let k = 0; k < 5; k++) {
+        cx0 += (r() - 0.5) * 22;
+        cy0 += 8 + r() * 16;
+        c.lineTo(cx0, cy0);
+      }
+      c.stroke();
+    }
+  WEATHER.set(key, cv);
+  return cv;
+}
+
 function block(R, spec, t = 0) {
   const { x, w, floors, fh = 140, color = CONCRETE[0], seed = 1 } = spec;
   const H = floors * fh;
@@ -4940,9 +5757,11 @@ function block(R, spec, t = 0) {
     c.fill();
     c.clip();
 
-    // weathering and floor slabs
+    // weathering: sun-bleached and dirty render, patched repairs, cracks
     c.fillStyle = 'rgba(60,50,40,0.08)';
     for (let i = 0; i < 12; i++) c.fillRect(x + r() * w, top, 2 + r() * 10, H);
+    // (the fine texture is drawn once per building and reused every frame)
+    c.drawImage(weathering(w, H, seed), x, top);
     for (let f = 0; f <= floors; f++) {
       c.fillStyle = 'rgba(40,32,26,0.22)';
       c.fillRect(x, -f * fh - 6, w, 8);
@@ -4970,8 +5789,46 @@ function block(R, spec, t = 0) {
         } else {
           c.fillStyle = kind < 0.55 ? '#211b17' : '#2b241f';
           c.fillRect(wx, wy, ww, wh);
+          // a pale frame and a stone sill
+          c.strokeStyle = 'rgba(235,225,205,0.28)';
+          c.lineWidth = 2;
+          c.strokeRect(wx - 1, wy - 1, ww + 2, wh + 2);
           c.fillStyle = 'rgba(0,0,0,0.25)';
           c.fillRect(wx - 3, wy + wh, ww + 6, 4); // sill shadow
+          c.fillStyle = 'rgba(230,220,200,0.35)';
+          c.fillRect(wx - 5, wy + wh - 1, ww + 10, 3);
+          // rain has run down from the sill for years
+          const st = c.createLinearGradient(0, wy + wh, 0, wy + wh + 50);
+          st.addColorStop(0, 'rgba(60,50,40,0.16)');
+          st.addColorStop(1, 'rgba(60,50,40,0)');
+          c.fillStyle = st;
+          c.fillRect(wx + ww * 0.15, wy + wh + 2, ww * 0.7, 50);
+          const extra = r();
+          if (kind <= 0.55 && extra < 0.3) {
+            // a curtain still hanging, drawn half across
+            c.fillStyle = ['#7a5a48', '#5a6a6e', '#8a7a5a', '#6a4a5a'][Math.floor(r() * 4)];
+            c.globalAlpha = 0.8;
+            c.fillRect(wx + 2, wy + 2, ww * (0.3 + r() * 0.3), wh - 4);
+            c.globalAlpha = 1;
+          } else if (kind <= 0.55 && extra < 0.5) {
+            // the last of the glass, catching the sky
+            c.fillStyle = 'rgba(160,180,200,0.18)';
+            c.beginPath();
+            c.moveTo(wx, wy);
+            c.lineTo(wx + ww * 0.6, wy);
+            c.lineTo(wx, wy + wh * 0.7);
+            c.fill();
+          } else if (f === 0 && extra < 0.75) {
+            // ground-floor grille
+            c.strokeStyle = 'rgba(30,26,22,0.8)';
+            c.lineWidth = 1.5;
+            c.beginPath();
+            for (let gx = wx + 6; gx < wx + ww; gx += 8) {
+              c.moveTo(gx, wy);
+              c.lineTo(gx, wy + wh);
+            }
+            c.stroke();
+          }
           if (kind > 0.7) {
             // closed shutter, some slats missing
             c.fillStyle = spec.shutter || '#7a6a55';
@@ -5042,12 +5899,19 @@ function block(R, spec, t = 0) {
       c.fillStyle = 'rgba(30,24,20,0.0)';
     }
 
+    // the base of the wall: grime, splash, and the dark where it meets the street
+    const ao = c.createLinearGradient(0, -60, 0, 0);
+    ao.addColorStop(0, 'rgba(30,24,18,0)');
+    ao.addColorStop(1, 'rgba(30,24,18,0.38)');
+    c.fillStyle = ao;
+    c.fillRect(x, -60, w, 60);
+
     // graffiti
     for (const [text, gx, gy, size, gc, rot] of spec.graffiti || []) {
       c.save();
       c.translate(x + gx * w, gy);
       c.rotate(rot || -0.03);
-      c.font = `${size}px "Aref Ruqaa", "Noto Naskh Arabic", serif`;
+      c.font = `${size}px "Aref Ruqaa", "IBM Plex Sans Arabic", serif`;
       c.fillStyle = gc || 'rgba(40,40,44,0.8)';
       c.textAlign = 'center';
       c.direction = 'rtl';
@@ -5095,6 +5959,20 @@ function block(R, spec, t = 0) {
         c.moveTo(i, -34);
         c.lineTo(i, 0);
         c.stroke();
+      }
+      if (!spec.laundry || spec.plants) {
+        // someone still waters these
+        for (let i = 0; i < 3; i++) {
+          const px = 10 + i * (w * 0.3 - 20) / 2;
+          c.fillStyle = '#8a5a3a';
+          c.fillRect(px, -10, 10, 10);
+          c.fillStyle = ['#5e7a3a', '#6e8a44', '#4e6a32'][i];
+          c.beginPath();
+          c.arc(px + 5, -13, 7, 0, Math.PI * 2);
+          c.arc(px + 1, -17, 4, 0, Math.PI * 2);
+          c.arc(px + 9, -18, 4, 0, Math.PI * 2);
+          c.fill();
+        }
       }
       if (spec.laundry) {
         c.strokeStyle = '#2a2420';
@@ -5151,19 +6029,155 @@ function shade(hex, k) {
 
 // The street itself: asphalt, a pavement kerb, dust.
 function street(R, x0, x1, { color = '#6e6559', pave = '#8a8072' } = {}) {
+  const seen = (x) => Math.abs(x - R.cam.x) < 1500;
   R.paint((c) => {
+    // the pavement: worn slabs with dark joints
     c.fillStyle = pave;
     c.fillRect(x0, -4, x1 - x0, 8);
-    c.fillStyle = color;
-    c.fillRect(x0, 4, x1 - x0, 500);
     const r = rng(8);
-    c.fillStyle = 'rgba(40,32,26,0.18)';
-    for (let x = x0; x < x1; x += 40) {
-      if (r() < 0.35) c.fillRect(x, 10 + r() * 30, 20 + r() * 60, 2);
+    c.fillStyle = 'rgba(40,32,26,0.35)';
+    for (let x = x0; x < x1; x += 46 + r() * 20) if (seen(x)) c.fillRect(x, -4, 1.5, 8); // (a cheap stream: fine to run it all)
+    // the kerb stone, lit on top
+    c.fillStyle = '#9d9383';
+    c.fillRect(x0, 3, x1 - x0, 5);
+    c.fillStyle = 'rgba(255,250,235,0.18)';
+    c.fillRect(x0, 3, x1 - x0, 1.2);
+    // asphalt
+    c.fillStyle = color;
+    c.fillRect(x0, 8, x1 - x0, 500);
+    const road = c.createLinearGradient(0, 8, 0, 120);
+    road.addColorStop(0, 'rgba(0,0,0,0.18)');
+    road.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = road;
+    c.fillRect(x0, 8, x1 - x0, 112);
+    // patches of newer tarmac, and cracks (each strip seeded by its own x,
+    // so what's drawn doesn't depend on what's on screen)
+    for (let x = x0; x < x1; x += 60) {
+      if (!seen(x)) continue;
+      const q = rng(Math.floor(x) * 13 + 5);
+      if (q() < 0.12) {
+        c.fillStyle = 'rgba(30,28,26,0.22)';
+        c.fillRect(x, 16 + q() * 50, 50 + q() * 120, 12 + q() * 20);
+      }
+      if (q() < 0.3) {
+        c.strokeStyle = 'rgba(30,24,20,0.35)';
+        c.lineWidth = 1;
+        c.beginPath();
+        let cx = x;
+        let cy = 14 + q() * 60;
+        c.moveTo(cx, cy);
+        for (let k = 0; k < 4; k++) {
+          cx += 10 + q() * 20;
+          cy += (q() - 0.5) * 10;
+          c.lineTo(cx, cy);
+        }
+        c.stroke();
+      }
+      // grit, stones and litter along the kerb
+      for (let gx = x; gx < x + 60; gx += 11) {
+        if (q() < 0.4) {
+          c.fillStyle = `rgba(${150 + q() * 40},${140 + q() * 30},${120 + q() * 30},0.7)`;
+          c.fillRect(gx, 8 + q() * 10, 2 + q() * 3, 2);
+        }
+        if (q() < 0.02) {
+          c.fillStyle = q() < 0.5 ? 'rgba(220,215,200,0.6)' : 'rgba(80,110,140,0.5)';
+          c.fillRect(gx, 10 + q() * 30, 6 + q() * 6, 3); // a scrap of paper or plastic
+        }
+      }
     }
-    // grit and small stones along the kerb
-    c.fillStyle = 'rgba(160,150,130,0.6)';
-    for (let x = x0; x < x1; x += 12) if (r() < 0.4) c.fillRect(x, 1 + r() * 4, 3, 2);
+  });
+}
+
+// Cables sagging across the street between the blocks, and some broken ones
+// hanging. Cast, so they throw thin shadows.
+function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000 } = {}) {
+  R.cast((c) => {
+    const r = rng(seed);
+    c.strokeStyle = 'rgba(28,24,22,0.85)';
+    c.lineWidth = 1.4;
+    for (let x = from; x < to; x += 260 + r() * 260) {
+      const span = 180 + r() * 260;
+      const y0 = y + (r() - 0.5) * 80;
+      const y1 = y0 + (r() - 0.5) * 60;
+      const hang = r();
+      const drop = r();
+      if (x + span < camX - 1600 || x > camX + 1600) continue;
+      c.beginPath();
+      c.moveTo(x, y0);
+      c.quadraticCurveTo(x + span / 2, Math.max(y0, y1) + 30 + hang * 40, x + span, y1);
+      c.stroke();
+      if (drop < 0.3) {
+        // snapped, hanging down
+        c.beginPath();
+        c.moveTo(x + span * 0.7, y1 + 10);
+        c.quadraticCurveTo(x + span * 0.72, y1 + 60, x + span * 0.66, y1 + 100 + drop * 200);
+        c.stroke();
+      }
+    }
+  });
+}
+
+// Silhouettes very close to the camera, sweeping past faster than the street:
+// a lamp post, twisted rebar, a rubble edge, a hanging wire.
+function foreground(R, camX, { from = -1000, to = 15000 } = {}) {
+  R.layer(1.32);
+  R.paint((c) => {
+    const r = rng(77);
+    for (let x = from; x < to; x += 900 + r() * 700) {
+      const kind = r();
+      const k1 = r();
+      const k2 = r();
+      if (Math.abs(x - camX * 1.32) > 1700) continue;
+      c.fillStyle = 'rgba(20,16,13,0.92)';
+      c.strokeStyle = 'rgba(20,16,13,0.92)';
+      if (kind < 0.3) {
+        // nothing here: keep the foreground sparse
+      } else if (kind < 0.6) {
+        // a rubble edge with rebar
+        c.beginPath();
+        c.moveTo(x - 40, 60);
+        c.lineTo(x, 10);
+        c.lineTo(x + 60, 20);
+        c.lineTo(x + 90, -10);
+        c.lineTo(x + 150, 25);
+        c.lineTo(x + 190, 60);
+        c.closePath();
+        c.fill();
+        c.lineWidth = 2.5;
+        for (let i = 0; i < 4; i++) {
+          c.beginPath();
+          c.moveTo(x + 40 + i * 22, 10);
+          c.quadraticCurveTo(x + 50 + i * 20, -40, x + 30 + i * 30 + k1 * 30, -70 - k2 * 40 - i * 6);
+          c.stroke();
+        }
+      } else if (kind < 0.8) {
+        // a wire hanging into frame from above
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(x, -900);
+        c.quadraticCurveTo(x + 30, -560, x + 10, -460 - k1 * 60);
+        c.stroke();
+      }
+    }
+  });
+  R.layer(1);
+}
+
+// Dust motes turning slowly in the sunlight.
+function motes(R, camX, t, strength = 1) {
+  if (strength <= 0) return;
+  R.glow((c) => {
+    const r = rng(5);
+    for (let i = 0; i < 70; i++) {
+      const bx = r() * 2600 - 1300;
+      const by = -40 - r() * 520;
+      const sp = 6 + r() * 10;
+      const x = camX + ((((bx + t * sp) % 2600) + 2600) % 2600) - 1300 + Math.sin(t * 0.7 + i) * 12;
+      const y = by + Math.sin(t * 0.5 + i * 1.7) * 18;
+      const a = (0.07 + r() * 0.12) * strength * (0.6 + 0.4 * Math.sin(t * 1.3 + i));
+      c.fillStyle = `rgba(255,236,200,${a})`;
+      c.fillRect(x, y, 2, 2);
+    }
   });
 }
 
@@ -5501,24 +6515,130 @@ function lowWall(R, x, w, h = 70, color = '#a3967f') {
 }
 
 // A Mi-8 seen side-on in the far sky, rotor a blur.
-function helicopter(c, x, y, s, t) {
+// A fighter jet in side profile, facing right: pointed nose, bubble canopy,
+// swept delta wing, twin fins, and the shimmer of the exhaust.
+function jet(c, x, y, s, t) {
   c.save();
   c.translate(x, y);
   c.scale(s, s);
-  c.fillStyle = '#1c1c20';
+  // exhaust heat haze
+  const hz = c.createLinearGradient(-150, 0, -58, 0);
+  hz.addColorStop(0, 'rgba(255,220,180,0)');
+  hz.addColorStop(1, 'rgba(255,200,150,0.22)');
+  c.fillStyle = hz;
   c.beginPath();
-  smoothPath(c, [[-60, 0], [-20, -14], [40, -14], [62, -4], [60, 8], [20, 14], [-40, 10]], true);
+  c.ellipse(-100, 1, 48, 5 + Math.sin(t * 40) * 0.8, 0, 0, Math.PI * 2);
   c.fill();
-  c.fillRect(-120, -6, 70, 6); // tail boom
-  c.fillRect(-126, -20, 8, 20);
-  c.fillRect(-4, -20, 8, 8);
-  c.globalAlpha = 0.35;
-  c.fillRect(-90, -24 + Math.sin(t * 60) * 1, 180, 3); // rotor blur
-  c.globalAlpha = 1;
+  // far wing (darker, behind)
+  c.fillStyle = '#23252a';
+  c.beginPath();
+  c.moveTo(-6, -2);
+  c.lineTo(-40, -12);
+  c.lineTo(-52, -12);
+  c.lineTo(-30, -2);
+  c.closePath();
+  c.fill();
+  // fuselage
+  c.fillStyle = '#2d3036';
+  c.beginPath();
+  c.moveTo(78, 1);
+  c.quadraticCurveTo(58, -5, 30, -6);
+  c.lineTo(-50, -5);
+  c.lineTo(-62, -3);
+  c.lineTo(-62, 4);
+  c.lineTo(-48, 6);
+  c.lineTo(30, 6);
+  c.quadraticCurveTo(58, 5, 78, 1);
+  c.closePath();
+  c.fill();
+  // intake
+  c.fillStyle = '#1d1f23';
+  c.fillRect(8, 1, 20, 5);
+  // canopy
+  c.fillStyle = '#5b6470';
+  c.beginPath();
+  c.moveTo(46, -5);
+  c.quadraticCurveTo(36, -13, 20, -9);
+  c.lineTo(18, -5);
+  c.closePath();
+  c.fill();
+  // near wing, swept back
+  c.fillStyle = '#383b42';
+  c.beginPath();
+  c.moveTo(14, 3);
+  c.lineTo(-34, 16);
+  c.lineTo(-48, 16);
+  c.lineTo(-40, 3);
+  c.closePath();
+  c.fill();
+  // twin fins
+  c.fillStyle = '#2a2d33';
+  c.beginPath();
+  c.moveTo(-40, -5);
+  c.lineTo(-58, -26);
+  c.lineTo(-66, -26);
+  c.lineTo(-60, -4);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#212328';
+  c.beginPath();
+  c.moveTo(-44, -5);
+  c.lineTo(-54, -20);
+  c.lineTo(-60, -20);
+  c.lineTo(-58, -4);
+  c.closePath();
+  c.fill();
+  // tailplane
+  c.fillStyle = '#34373e';
+  c.beginPath();
+  c.moveTo(-46, 3);
+  c.lineTo(-64, 10);
+  c.lineTo(-68, 10);
+  c.lineTo(-62, 2);
+  c.closePath();
+  c.fill();
+  // nozzle glow
+  c.fillStyle = 'rgba(255,170,90,0.5)';
+  c.beginPath();
+  c.ellipse(-63, 0.5, 2, 3.4, 0, 0, Math.PI * 2);
+  c.fill();
   c.restore();
 }
 
-return { CONCRETE, sky, skyline, minaret, plume, block, shade, street, rubble, sniperCurtain, shop, vine, school, roomDoor, jerryCan, scrapPiles, crater, deadOlive, lowWall, helicopter };
+// The same jet seen from below, as a shadow on the ground: a swept delta
+// with its fins and tailplane. Moving right.
+function jetShadowShape(c, x, y, s) {
+  c.save();
+  c.translate(x, y);
+  c.scale(s, s);
+  c.beginPath();
+  c.moveTo(80, 0);
+  c.quadraticCurveTo(60, -7, 26, -8);
+  c.lineTo(-10, -12);
+  c.lineTo(-40, -70); // wing tip
+  c.lineTo(-56, -70);
+  c.lineTo(-44, -12);
+  c.lineTo(-56, -10);
+  c.lineTo(-72, -32); // tailplane
+  c.lineTo(-82, -32);
+  c.lineTo(-76, -8);
+  c.lineTo(-78, 0);
+  c.lineTo(-76, 8);
+  c.lineTo(-82, 32);
+  c.lineTo(-72, 32);
+  c.lineTo(-56, 10);
+  c.lineTo(-44, 12);
+  c.lineTo(-56, 70);
+  c.lineTo(-40, 70);
+  c.lineTo(-10, 12);
+  c.lineTo(26, 8);
+  c.quadraticCurveTo(60, 7, 80, 0);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
+
+return { CONCRETE, sky, skyline, minaret, plume, block, shade, street, cables, foreground, motes, rubble, sniperCurtain, shop, vine, school, roomDoor, jerryCan, scrapPiles, crater, deadOlive, lowWall, jet, jetShadowShape };
 })();
 
 // ---- src/story/act1-set.js
@@ -5700,13 +6820,16 @@ function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false }
 
 // --------------------------------------------------------------- scenes --
 
+// the spotter's window (world units)
+const SPOT_WIN = { x0: X.spotter - 40, x1: X.spotter + 85, top: -470, sill: -372, floor: -330 };
+
 function drawStreet(R, g) {
   const t = g.time;
   const a = g.a;
   const cx = R.cam.x;
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
 
-  T.sky(R, skyStops(a.sunK));
+  T.sky(R, skyStops(a.sunK), { warmth: clamp(a.sunK || 0) });
   T.skyline(R, { depth: 0.15, y: 30, color: '#a39a90', seed: 4, haze: ['#d8d0c4', 0.35], minarets: [600, 2100] });
   // smoke from elsewhere in Ghouta, always somewhere
   T.plume(R, 900, 60, t, { depth: 0.18, age: 1, height: 380, width: 60, alpha: 0.45, color: [90, 86, 84] });
@@ -5715,43 +6838,28 @@ function drawStreet(R, g) {
   if (a.fil) T.plume(R, a.fil.x, 60, t, { depth: 0.3, age: (g.time - a.fil.t) / 9, height: 420, width: 110, alpha: 0.7 });
   T.skyline(R, { depth: 0.32, y: 40, color: '#8f8474', seed: 9, haze: ['#cfc4b2', 0.18], minarets: [1500] });
 
-  // a jet: a glint and a contrail, gone before you find it
-  if (a.jet) {
-    const k = (g.time - a.jet.t0) / a.jet.dur;
-    if (k > 0 && k < 1.6) {
-      R.layer(0.12);
-      R.paint((c) => {
-        const x = lerp(a.jet.x0, a.jet.x1, Math.min(k, 1));
-        const y = -760 + k * 40;
-        const fade = k > 1 ? 1 - (k - 1) / 0.6 : 1;
-        const grad = c.createLinearGradient(x - 700, y, x, y);
-        grad.addColorStop(0, 'rgba(236,236,232,0)');
-        grad.addColorStop(1, `rgba(236,236,232,${0.55 * fade})`);
-        c.strokeStyle = grad;
-        c.lineWidth = 3;
-        c.beginPath();
-        c.moveTo(x - 700, y + 18);
-        c.lineTo(x, y);
-        c.stroke();
-        if (k < 1) {
-          c.fillStyle = '#4a4c50';
-          c.beginPath();
-          c.moveTo(x + 14, y - 1);
-          c.lineTo(x - 10, y - 4);
-          c.lineTo(x - 12, y + 3);
-          c.closePath();
-          c.fill();
-        }
-      });
-      R.layer(1);
-    }
-  }
-  // the helicopter crossing the far sky
-  if (a.heli) {
-    const k = (g.time - a.heli.t0) / a.heli.dur;
-    if (k > 0 && k < 1) {
+  // the jet: low, fast, gone before you find it. A thin vapour trail and a
+  // shimmer of hot exhaust behind it.
+  if (a.jetFly) {
+    const k = (g.time - a.jetFly.t0) / a.jetFly.dur;
+    if (k > -0.05 && k < 2.2) {
       R.layer(0.35);
-      R.paint((c) => T.helicopter(c, lerp(a.heli.x0, a.heli.x1, k), -520 + Math.sin(k * 3) * 10, 1.1, t));
+      R.paint((c) => {
+        const x = lerp(a.jetFly.x0, a.jetFly.x1, Math.min(Math.max(k, 0), 1.2));
+        const y = -330 + k * 24;
+        const fade = k > 1 ? Math.max(0, 1 - (k - 1) / 1.2) : 1;
+        const tail = 900;
+        const grad = c.createLinearGradient(x - tail, y, x - 60, y);
+        grad.addColorStop(0, 'rgba(238,238,234,0)');
+        grad.addColorStop(1, `rgba(238,238,234,${0.4 * fade})`);
+        c.strokeStyle = grad;
+        c.lineWidth = 2.5;
+        c.beginPath();
+        c.moveTo(x - tail, y + 10);
+        c.lineTo(x - 60, y + 2);
+        c.stroke();
+        if (k < 1.2) T.jet(c, x, y, 1.5, t);
+      });
       R.layer(1);
     }
   }
@@ -5789,6 +6897,7 @@ function drawStreet(R, g) {
   if (near(9880, 10160)) sideStreet(R, 9880, 10160, { t });
 
   T.street(R, -500, 10800);
+  T.cables(R, cx);
 
   // --- props behind the actors ---
   if (near(X.vine - 100, X.vine + 100)) T.vine(R, X.vine, t);
@@ -5832,19 +6941,22 @@ function drawStreet(R, g) {
       });
     }
   }
-  // spotter's post and the rope
+  // spotter's post: the dark room behind his window, and the rope
   if (near(X.spotter - 300, X.spotter + 300)) {
-    R.cast((c) => {
-      c.fillStyle = '#b3a793';
-      c.fillRect(X.spotter - 150, -426, 300, 14); // exposed third-floor slab
+    R.paint((c) => {
+      const g2 = c.createLinearGradient(0, SPOT_WIN.top, 0, SPOT_WIN.sill);
+      g2.addColorStop(0, '#1d1a17');
+      g2.addColorStop(1, '#2b2621');
+      c.fillStyle = g2;
+      c.fillRect(SPOT_WIN.x0, SPOT_WIN.top, SPOT_WIN.x1 - SPOT_WIN.x0, SPOT_WIN.sill - SPOT_WIN.top + 4);
     });
     if (a.rope !== undefined && a.rope < 1.2) {
-      const ry = lerp(-410, -150, clamp(a.rope));
+      const ry = lerp(SPOT_WIN.sill, -150, clamp(a.rope));
       R.cast((c) => {
         c.strokeStyle = '#3a3026';
         c.lineWidth = 1.5;
         c.beginPath();
-        c.moveTo(X.spotter - 10, -420);
+        c.moveTo(X.spotter - 10, SPOT_WIN.sill);
         c.lineTo(X.spotter - 10 + Math.sin(t * 2) * 3, ry);
         c.stroke();
         if (!g.hasTool('walkie')) {
@@ -5921,11 +7033,34 @@ function drawStreet(R, g) {
   }
   if (near(X.kerb - 100, X.olive + 200)) {
     T.lowWall(R, X.kerb - 20, 110, 62, '#a79a84');
+    // the walkie-talkie man's upturned crate
+    R.cast((c) => {
+      c.fillStyle = '#6a5238';
+      c.fillRect(X.olive - 30, -30, 40, 30);
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      for (let i = 0; i < 3; i++) c.fillRect(X.olive - 30, -26 + i * 9, 40, 2);
+    });
     T.deadOlive(R, X.olive);
   }
 
   // --- the people ---
   const shear = shearFor(g);
+  // contact shadows: everyone stands on the ground, not above it
+  R.paint((c) => {
+    for (const w of [...g.npcs, ...(g.passers || []), g.player]) {
+      if (!w.visible || w.depthK || w.depth > 0 || !near(w.x - 60, w.x + 60)) continue;
+      const s2 = w.rig.scale || 1;
+      const lift = Math.max(0, w.rig.pose?.seat ? 0 : 0);
+      const gy = w.onGround === false ? w.y + 0 : w.y;
+      const grd = c.createRadialGradient(w.x, gy + 2 + lift, 0, w.x, gy + 2, 26 * s2);
+      grd.addColorStop(0, 'rgba(20,14,10,0.32)');
+      grd.addColorStop(1, 'rgba(20,14,10,0)');
+      c.fillStyle = grd;
+      c.beginPath();
+      c.ellipse(w.x, gy + 2, 26 * s2, 5 * s2, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+  });
   // passers-by far down the side streets, behind everyone
   for (const w of g.passers || []) {
     if (w.depth > 0 && near(w.x - 100, w.x + 100)) R.cast((c) => w.draw(c));
@@ -5953,6 +7088,36 @@ function drawStreet(R, g) {
   for (const w of g.npcs) {
     if (!w.visible || !w.depthK) continue;
     R.cast((c) => w.draw(c));
+  }
+  // the wall around the spotter's window, over him: only his upper body shows
+  if (near(X.spotter - 300, X.spotter + 300)) {
+    R.cast((c) => {
+      const W = SPOT_WIN;
+      c.fillStyle = '#b5a892';
+      c.beginPath();
+      c.rect(W.x0 - 110, W.top - 70, W.x1 - W.x0 + 220, W.floor - W.top + 82);
+      c.rect(W.x1, W.top, W.x0 - W.x1, W.sill - W.top); // the opening (reverse winding)
+      c.fill('evenodd');
+      // plaster stains and a crack
+      c.fillStyle = 'rgba(80,66,50,0.14)';
+      c.fillRect(W.x0 - 90, W.sill + 6, 60, 40);
+      c.strokeStyle = 'rgba(60,50,40,0.35)';
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(W.x1 + 30, W.top - 60);
+      c.lineTo(W.x1 + 44, W.top - 20);
+      c.lineTo(W.x1 + 38, W.top + 30);
+      c.stroke();
+      // the sill and the slab edge
+      c.fillStyle = '#cfc3ab';
+      c.fillRect(W.x0 - 8, W.sill, W.x1 - W.x0 + 16, 7);
+      c.fillStyle = '#8f846f';
+      c.fillRect(W.x0 - 110, W.floor + 6, W.x1 - W.x0 + 220, 8);
+      // the frame, what's left of it
+      c.strokeStyle = '#5a4a38';
+      c.lineWidth = 3;
+      c.strokeRect(W.x0, W.top, W.x1 - W.x0, W.sill - W.top);
+    });
   }
   // a building corner the walker passes behind
   if (a.occluder) {
@@ -5984,17 +7149,31 @@ function drawStreet(R, g) {
   R.layer(1);
 
   g.effects.draw(R);
-  // helicopter's shadow sweeping the street
-  if (a.heliShadow) {
-    const k = (g.time - a.heliShadow) / 1.3;
-    if (k > 0 && k < 1) R.shadow((c) => {
-      c.fillStyle = 'rgba(0,0,0,0.9)';
-      c.beginPath();
-      c.ellipse(lerp(cx + 900, cx - 900, k), 0, 420, 900, 0, 0, Math.PI * 2);
-      c.fill();
-    }, cx, 0, 0, 0.14);
+  // the jet's shadow: a swept-wing shape, smeared by its speed, across the
+  // street and up the walls in half a second
+  if (a.jetShadow) {
+    const k = (g.time - a.jetShadow) / 0.55;
+    if (k > 0 && k < 1)
+      R.shadow(
+        (c) => {
+          const x = lerp(cx - 1500, cx + 1500, k);
+          c.fillStyle = 'rgba(0,0,0,0.85)';
+          for (let i = 0; i < 5; i++) {
+            c.globalAlpha = i === 0 ? 1 : 0.16; // motion smear
+            T.jetShadowShape(c, x - i * 80, -230, 2.4);
+          }
+          c.globalAlpha = 1;
+        },
+        cx,
+        -230,
+        0,
+        0.62, // cast across the street and up the walls at a low angle
+      );
   }
   g.effects.drawFog(R);
+  // dust turning in the sun, and silhouettes close to the lens
+  T.motes(R, cx, t, a.shelling ? 0.4 : 1);
+  T.foreground(R, cx);
 }
 
 // ---------------------------------------------------------- the stairwell --
@@ -6175,7 +7354,7 @@ return { X, sunLook, shearFor, drawStreet, drawStairwell, stairLook, drawFlashba
 
 // ---- src/story/act1.js
 const __src_story_act1 = (() => {
-// Act 1: The Afternoon — بعد الضهر
+// Act 1: The Afternoon (بعد الضهر)
 // Scripted from script/act1.md. All dialogue and examine text is the
 // script's own, in Damascene Arabic with its English.
 
@@ -6187,7 +7366,7 @@ const { X, drawStreet, sunLook, drawStairwell, stairLook, drawFlashback, flashLo
 const { Walker } = __src_world_walker;
 const { writeSave } = __src_engine_save;
 const SAMI = ['سامي', 'Sami'];
-const KHALED = ['خالد', 'Khaled'];
+const AHMAD = ['أحمد', 'Ahmad'];
 const OLD = ['الختيار', 'The old man'];
 const SPOT = ['المرصد', 'The spotter'];
 const RADIO = ['لاسلكي', 'Walkie-talkie'];
@@ -6195,11 +7374,12 @@ const LAYLA = ['ليلى', 'Layla'];
 const ABU = ['أبو يزن', 'Abu Yazan'];
 const WMAN = ['زلمة اللاسلكي', 'Walkie-talkie man'];
 
-const LOOK = ['اتفرّج', 'Examine'];
+const LOOK = ['تفحّص', 'Examine'];
 
 const P_FLINCH = { ...POSES.stand, torso: -0.08, head: -0.35, armN: 0.5, foreN: 1.6, armF: 0.4, foreF: 1.4 };
 const P_STRUGGLE = { ...POSES.stand, torso: 0.55, head: 0.1, armN: 0.2, foreN: 0.2, armF: 0.1, foreF: 0.1 };
 const P_TURNED = { ...POSES.stand, head: 0.1 };
+const SPOT_SIT = { ...POSES.sitChair, head: 0.05, armN: 0.75, foreN: 2.95 };
 
 // Pause between lines so the dialogue breathes.
 const GAP = 0.45;
@@ -6227,8 +7407,8 @@ const ACT1 = {
     // --- examine texts from the script ---
     L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
     L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي — خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything — bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
-    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش — صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen — he became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
     L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
     L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
@@ -6236,15 +7416,15 @@ const ACT1 = {
       x: X.shard,
       y: -60,
       range: 60,
-      label: ['شيل', 'Pick up'],
+      label: ['التقط', 'Pick up'],
       enabled: () => !g.hasTool('mirror'),
       use: () => {
         g.giveTool('mirror');
         g.sound.click();
         g.runner.run(
           (function* () {
-            yield* g.say(null, ['شقفة مراية. بتشوف فيها حالك — أو بتشوف فيها شو ورا الحيطان.', 'A shard of mirror. You can see yourself in it — or you can see what’s around walls.'], 5, 'examine');
-            yield* g.say(null, ['شقفة مراية — بتبيّن فيها الطريق اللي ما عم تشوفها.', 'Mirror shard — reflects the road you can’t see.'], 4, 'item');
+            yield* g.say(null, ['شقفة مراية. بتشوف فيها حالك، أو بتشوف فيها شو ورا الحيطان.', 'A shard of mirror. You can see yourself in it, or you can see what’s around walls.'], 5, 'examine');
+            yield* g.say(null, ['شقفة مراية. بتبيّن فيها الطريق اللي ما عم تشوفها.', 'Mirror shard. It shows the road you can’t see.'], 4, 'item');
           })(),
         );
       },
@@ -6261,7 +7441,7 @@ const ACT1 = {
     this.buildNews(g);
 
     if (s.checkpoint !== 'walk') g.a.sunK = { hour: 0.2, school: 0.55, news: 0.8 }[s.checkpoint] || 0;
-    if (s.checkpoint === 'hour') g.text.objective(['روح عالشرقي، عالأنابيب', 'Head east, to the pipes']);
+    if (s.checkpoint === 'hour') g.text.objective(['اتجه شرقاً نحو الأنابيب', 'Head east, to the pipes']);
     g.sound.score?.mood(s.checkpoint === 'walk' ? 'walk' : 'hour', 3);
   },
 
@@ -6272,16 +7452,25 @@ const ACT1 = {
     const kh = g.npc('khaled', X.start + 80, { f: 1 });
     g.khaled = kh;
     g.a.khaledMode = 'follow';
-    // Khaled sets the pace: half a step ahead, loose and unhurried.
+    // Ahmad sets the pace: half a step ahead, loose and unhurried.
     kh.brain = (dt) => {
       const p = g.player;
       if (g.a.khaledMode === 'follow') {
         const target = Math.max(kh.x, p.x + 70);
-        if (g.a.holdKhaled && kh.x >= g.a.holdKhaled) kh.update(dt, { stance: kh.stance });
-        else if (target - kh.x > 8) kh.goTo(Math.min(target, g.a.holdKhaled ?? Infinity), dt, { speedScale: 0.55 });
+        if (g.a.holdAhmad && kh.x >= g.a.holdAhmad) kh.update(dt, { stance: kh.stance });
+        else if (target - kh.x > 8) kh.goTo(Math.min(target, g.a.holdAhmad ?? Infinity), dt, { speedScale: 0.55 });
         else kh.update(dt, {});
-        if (p.x < kh.x - 260) kh.f = -1;
-        else if (kh.onGround && !kh.mantle && Math.abs(target - kh.x) <= 8) kh.f = 1;
+        // Waiting (held at the curtain or the junction, or just stopped
+        // because Sami has): after a moment he turns round to face him.
+        const held = g.a.holdAhmad && kh.x >= g.a.holdAhmad - 2;
+        const waiting = held || target - kh.x <= 8;
+        kh.waitT = waiting ? (kh.waitT || 0) + dt : 0;
+        let want = 1;
+        if (kh.waitT > 0.6 && p.x < kh.x - 40) want = -1;
+        if (want !== kh.f && kh.onGround && !kh.mantle) {
+          kh.f = want;
+          kh.rig.pivot();
+        }
       } else if (kh.goal !== null && kh.goal !== undefined) {
         if (kh.goTo(kh.goal, dt, kh.goalOpts || {})) kh.goal = null;
       } else if (g.a.khaledMode === 'depth') {
@@ -6327,24 +7516,24 @@ const ACT1 = {
     const kh = g.khaled;
     g.sound.ambience({ wind: 0.4, air: 0.5, generator: 0.6, traffic: 0, crowd: 0 });
     g.text.titleCard([['بعد الضهر', 'The Afternoon'], ['الساعة تلاتة وخمس دقايق', '3:05 PM · 14 August 2014']], 4.5);
-    g.text.objective(['امشي مع خالد', 'Walk with Khaled']);
+    g.text.objective(['امشِ مع أحمد', 'Walk with Ahmad']);
     yield 5;
-    g.prompt('right', 'امشي', 'Walk');
+    g.prompt('right', 'امشِ', 'Walk');
     yield () => g.player.x > X.start + 120;
     g.prompt(null);
     // The sniper curtain runs by position, alongside the talk: crouch under the sag.
-    g.a.holdKhaled = X.sag0 + 40;
+    g.a.holdAhmad = X.sag0 + 40;
     const curtain = g.runner.run(
       (function* () {
         yield () => g.player.x > X.curtain0 - 40;
-        g.prompt('crouch', 'وطّي', 'Crouch down');
+        g.prompt('crouch', 'انحنِ', 'Crouch down');
         yield () => g.player.stance !== 'stand' || g.player.x > X.sag1;
         g.prompt(null);
         // from here he walks on as far as the junction, and waits there
-        g.a.holdKhaled = X.junction - 60;
+        g.a.holdAhmad = X.junction - 60;
         g.a.curtainCleared = true;
         yield () => g.player.x > X.sag1 + 10;
-        if (g.player.stance !== 'stand') g.prompt('crouch', 'قوم', 'Stand up');
+        if (g.player.stance !== 'stand') g.prompt('crouch', 'قِف', 'Stand up');
         yield () => g.player.stance === 'stand';
         g.prompt(null);
       })(),
@@ -6352,51 +7541,51 @@ const ACT1 = {
     g.runner.run(ambientShots(g));
 
     yield* talk(g, [
-      [KHALED, ['عارف شو أكتر شي بشتاقلو؟', 'You know what I miss most?']],
+      [AHMAD, ['عارف شو أكتر شي بشتاقلو؟', 'You know what I miss most?']],
       [SAMI, ['الكهربا.', 'Electricity.']],
-      [KHALED, ['لا يا زلمة. البوظة. بوظة بكداش.', 'No, man. Ice cream. Bakdash ice cream.']],
+      [AHMAD, ['لا يا زلمة. البوظة. بوظة بكداش.', 'No, man. Ice cream. Bakdash ice cream.']],
       [SAMI, ['من كل شي عم يصير، البوظة؟', 'Out of everything that’s happening, ice cream?']],
-      [KHALED, ['إي والله. هديك البوظة العربية بالفستق الحلبي. بتذكّر كنّا نروح أنا وياك عالحميدية ونوقف بالطابور ربع ساعة؟', 'I swear. That Arabic ice cream with Aleppo pistachios. Remember we used to go to the Hamidiyya and queue for fifteen minutes?']],
+      [AHMAD, ['إي والله. هديك البوظة العربية بالفستق الحلبي. بتذكّر كنّا نروح أنا وياك عالحميدية ونوقف بالطابور ربع ساعة؟', 'I swear. That Arabic ice cream with Aleppo pistachios. Remember we used to go to the Hamidiyya and queue for fifteen minutes?']],
       [SAMI, ['نص ساعة.', 'Half an hour.']],
-      [KHALED, ['بتستاهل كل دقيقة.', 'Worth every minute.']],
+      [AHMAD, ['بتستاهل كل دقيقة.', 'Worth every minute.']],
     ]);
     yield () => g.player.x > X.pigeon + 60;
     yield 1;
     yield* talk(g, [
       [SAMI, ['كيف الولاد اليوم؟', 'How were the kids today?']],
-      [KHALED, ['منيحين. عم يتعلّمو ماضي وحاضر ومستقبل.', 'Good. They’re learning past, present and future.']],
+      [AHMAD, ['منيحين. عم يتعلّمو ماضي وحاضر ومستقبل.', 'Good. They’re learning past, present and future.']],
       [SAMI, ['بالقواعد تقصد.', 'You mean in grammar.']],
-      [KHALED, ['هيك قلت.', 'That’s what I said.']],
+      [AHMAD, ['هيك قلت.', 'That’s what I said.']],
     ]);
 
     yield () => curtain.done || g.a.curtainCleared;
     yield () => kh.x > X.sag0 + 20;
     yield* talk(g, [
-      [KHALED, ['يا ريت كانت بوظة بكداش بتحمي من القنّاص.', 'If only Bakdash ice cream could protect you from snipers.']],
+      [AHMAD, ['يا ريت كانت بوظة بكداش بتحمي من القنّاص.', 'If only Bakdash ice cream could protect you from snipers.']],
       [SAMI, ['لو هيك كانت أغلى من الدهب.', 'If it could, it’d be worth more than gold.']],
     ]);
     yield () => curtain.done;
 
     // Rami, who asked what "abroad" means.
     yield* talk(g, [
-      [KHALED, ['بتعرف رامي؟ ابن أبو علي؟ اللي ساكنين بآخر الشارع؟', 'You know Rami? Abu Ali’s son? The ones who live at the end of the street?']],
+      [AHMAD, ['بتعرف رامي؟ ابن أبو علي؟ اللي ساكنين بآخر الشارع؟', 'You know Rami? Abu Ali’s son? The ones who live at the end of the street?']],
       [SAMI, ['الصغير؟ اللي ما بيوقف حكي؟', 'The little one? Who never stops talking?']],
     ]);
     // the rubble: climb it
     const climbPrompt = g.runner.run(
       (function* () {
         yield () => g.player.x > X.wall0 - 90;
-        if (g.player.x < X.wall1) g.prompt('jump', 'نطّ / اطلع', 'Jump / Climb');
+        if (g.player.x < X.wall1) g.prompt('jump', 'اقفز / تسلّق', 'Jump / Climb');
         yield () => g.player.x > X.wall0 + 20 || g.player.mantle;
         g.prompt(null);
       })(),
     );
     yield* talk(g, [
-      [KHALED, ['هاد. سألني اليوم: أستاز، شو يعني "برّا"؟', 'That’s him. He asked me today: “Teacher, what does ‘abroad’ mean?”']],
+      [AHMAD, ['هاد. سألني اليوم: أستاز، شو يعني "برّا"؟', 'That’s him. He asked me today: “Teacher, what does ‘abroad’ mean?”']],
     ]);
     yield 1.2;
     yield* talk(g, [
-      [KHALED, ['يعني ما بيعرف. ما طلع من هون بحياتو. ما شاف شي غير هالحارة. "برّا" بالنسبالو كلمة مثل "تنّين" — شي بيسمع فيه بس ما شافو.', 'He doesn’t know. He’s never been outside this neighbourhood in his life. He’s never seen anything else. “Abroad” is like “dragon” to him — something he’s heard of but never seen.']],
+      [AHMAD, ['يعني ما بيعرف. ما طلع من هون بحياتو. ما شاف شي غير هالحارة. "برّا" بالنسبالو كلمة مثل "تنّين": شي بيسمع فيه بس ما شافو.', 'He doesn’t know. He’s never been outside this neighbourhood in his life. He’s never seen anything else. “Abroad” is like “dragon” to him: something he’s heard of but never seen.']],
     ]);
     yield () => climbPrompt.done;
 
@@ -6420,17 +7609,17 @@ const ACT1 = {
     g.sound.ambience({ generator: 0.25, air: 0.4 });
     yield 0.6;
     yield* talk(g, [
-      [KHALED, ['يلا، أنا رايح من هون. بدي مرّ عند أم سعيد وعيلتا — بنتن مريضة وما في حدا يشوفها.', 'Right, I’m heading off from here. I want to check on Um Said and her family — their daughter’s ill and there’s no one to see her.']],
+      [AHMAD, ['يلا، أنا رايح من هون. بدي مرّ عند أم سعيد وعيلتا، بنتن مريضة وما في حدا يشوفها.', 'Right, I’m heading off from here. I want to check on Um Said and her family. Their daughter’s ill and there’s no one to see her.']],
       [SAMI, ['من وين رايح؟ من شارع المدرسة؟', 'Which way are you going? Through School Street?']],
-      [KHALED, ['إي، أسرع.', 'Yeah, it’s quicker.']],
+      [AHMAD, ['إي، أسرع.', 'Yeah, it’s quicker.']],
     ]);
     yield 0.8; // he considers saying something
     yield* talk(g, [
       [SAMI, ['خلّي بالك ع حالك.', 'Take care of yourself.']],
-      [KHALED, ['دايماً. بشوفك بالليل إن شاء الله. عندي نكتة جديدة — مو رح تصدّقها.', 'Always. I’ll see you tonight, God willing. I’ve got a new joke — you won’t believe it.']],
+      [AHMAD, ['دايماً. بشوفك بالليل إن شاء الله. عندي نكتة جديدة، مو رح تصدّقها.', 'Always. I’ll see you tonight, God willing. I’ve got a new joke. You won’t believe it.']],
       [SAMI, ['نكاتك ما بتنضحك.', 'Your jokes aren’t funny.']],
-      [KHALED, ['هاي الأحلى من كلهن. الليلة بتسمعها.', 'This one’s the best yet. Tonight, you’ll hear it.']],
-      [KHALED, ['يلا، يا هندسة.', 'See you, ya handasa.']],
+      [AHMAD, ['هاي الأحلى من كلهن. الليلة بتسمعها.', 'This one’s the best yet. Tonight, you’ll hear it.']],
+      [AHMAD, ['يلا، يا هندسة.', 'See you, ya handasa.']],
     ]);
     kh.override = POSES.wave;
     yield 1.1;
@@ -6452,7 +7641,7 @@ const ACT1 = {
     g.lock(false);
     g.checkpoint('hour');
     g.sound.score?.mood('hour', 8);
-    g.text.objective(['روح عالشرقي، عالأنابيب', 'Head east, to the pipes']);
+    g.text.objective(['اتجه شرقاً نحو الأنابيب', 'Head east, to the pipes']);
   },
 
   // ============================================================ Scene 3 ==
@@ -6482,14 +7671,14 @@ const ACT1 = {
       return move;
     };
 
-    // the spotter's post, on an exposed third-floor slab
-    L.solid(X.spotter - 150, X.spotter + 150, -412, -398, { noClimb: true });
-    const sp = g.npc('spotter', X.spotter + 30, { y: -412, f: -1 });
-    sp.override = POSES.binoculars;
+    // the spotter's post: a stool at a second-floor window, radio to his ear
+    L.solid(X.spotter - 30, X.spotter + 90, -330, -318, { noClimb: true });
+    const sp = g.npc('spotter', X.spotter + 30, { y: -330, f: -1 });
+    sp.override = SPOT_SIT;
     g.spotter = sp;
     L.at(X.spotter - 220, () => g.runner.run(this.spotterScene(g)));
 
-    L.at(X.heli, () => g.runner.run(this.helicopter(g)));
+    L.at(X.heli, () => g.runner.run(this.jetStrike(g)));
     L.at(X.oldMan + 500, () => (g.a.sunK = Math.max(g.a.sunK, 0.3)));
   },
 
@@ -6501,8 +7690,8 @@ const ACT1 = {
     p.f = 1;
     yield* g.say(null, ['غالونين مي. عشرين ليتر الواحد. من البير لهون مسافة ربع ساعة. بالحر هاد، ساعة.', 'Two water jugs. Twenty litres each. From the well to here, a fifteen-minute walk. In this heat, an hour.'], 5.5, 'examine');
     const i = yield* g.choose(null, [
-      { ar: 'ساعدو', en: 'Help him' },
-      { ar: 'ضل ماشي', en: 'Keep walking' },
+      { ar: 'ساعِده', en: 'Help him' },
+      { ar: 'تابع طريقك', en: 'Keep walking' },
     ]);
     g.state.choices.push(`A${i + 1}`);
     if (i === 0) {
@@ -6576,7 +7765,7 @@ const ACT1 = {
       return;
     }
     g.active = 'mirror';
-    g.prompt('use', 'استعمل المراية', 'Use the mirror');
+    g.prompt('use', 'استخدم المرآة', 'Use the mirror');
     yield () => g.a.mirrorChecked;
     g.prompt(null);
   },
@@ -6607,10 +7796,10 @@ const ACT1 = {
     g.lock();
     yield* g.walkPlayer(X.spotter - 140);
     p.f = 1;
-    sp.override = { ...POSES.stand, torso: 0.2, head: 0.5 };
+    sp.override = POSES.peekWindow; // he leans out over the sill to call down
     sp.f = -1;
     g.camOverride = { x: X.spotter - 60, y: -300, view: 1300 };
-    yield* g.say(SPOT, ['يا زلمة! وين رايح؟ البراميل عم تنزل عالقبلي.', 'Hey, man! Where are you headed? Barrels are falling on the southern quarter.'], null, 'shout');
+    yield* g.say(SPOT, ['يا زلمة! وين رايح؟ الطيران عم يضرب عالقبلي.', 'Hey, man! Where are you headed? The planes are hitting the southern quarter.'], null, 'shout');
     yield GAP;
     p.override = POSES.lookUp;
     yield* g.say(SAMI, ['رايح عالشرقي. عالأنابيب.', 'Heading to the eastern quarter. To the pipes.']);
@@ -6627,9 +7816,9 @@ const ACT1 = {
     yield* g.walkPlayer(X.spotter - 24);
     p.f = 1;
     g.lock(false);
-    g.prompt('interact', 'خود اللاسلكي', 'Take the walkie-talkie');
+    g.prompt('interact', 'خذ جهاز اللاسلكي', 'Take the walkie-talkie');
     const taken = { v: false };
-    g.level.add({ id: 'walkie', x: X.spotter - 10, y: -170, range: 60, label: ['خود', 'Take'], use: () => (taken.v = true) });
+    g.level.add({ id: 'walkie', x: X.spotter - 10, y: -170, range: 60, label: ['خذ', 'Take'], use: () => (taken.v = true) });
     yield () => taken.v;
     g.level.remove('walkie');
     g.prompt(null);
@@ -6637,26 +7826,33 @@ const ACT1 = {
     g.giveTool('walkie');
     g.sound.squelch();
     g.a.rope = 2;
-    yield* g.say(null, ['لاسلكي — بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.', 'Walkie-talkie — hear the spotters’ warnings. Receive only.'], 4.5, 'item');
+    yield* g.say(null, ['لاسلكي. بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.', 'Walkie-talkie. You hear the spotters’ warnings. Receive only.'], 4.5, 'item');
     yield GAP;
-    yield* g.say(SPOT, ['الموجة ٣. إذا سمعت "مروحي" أو "حربي" — انبطح. إذا سمعت "فيل" — الله يستر.', 'Channel 3. If you hear “mirwahi” (helicopter) or “harbi” (jet) — get flat. If you hear “elephant” — God help us.'], 6);
-    sp.override = POSES.binoculars;
+    yield* g.say(SPOT, ['الموجة ٣. إذا سمعت "مروحي" أو "حربي"، انبطح. إذا سمعت "فيل"، الله يستر.', 'Channel 3. If you hear “mirwahi” (helicopter) or “harbi” (jet), get flat. If you hear “elephant”, God help us.'], 6);
+    sp.override = SPOT_SIT;
     sp.f = -1;
     g.camOverride = null;
     g.lock(false);
   },
 
-  *helicopter(g) {
+  // A jet, low and fast. The whine comes first; there are a few seconds to
+  // get flat before it tears overhead, and then it hits another quarter.
+  *jetStrike(g) {
     const p = g.player;
+    g.a.heliWarn = g.time;
     g.sound.score?.mood('danger', 3);
     g.a.sunK = Math.max(g.a.sunK, 0.4);
     g.sound.radio(2.4);
-    yield* g.say(RADIO, ['...مروحي... مروحي فوق الشرقي... مروحي...', '...helicopter... helicopter over the eastern quarter... helicopter...'], 3.5, 'radio');
-    g.sound.helicopter(12);
-    g.a.heli = { t0: g.time + 1.5, dur: 10, x0: p.x * 0.35 + 900, x1: p.x * 0.35 - 900 };
+    yield* g.say(RADIO, ['...حربي... حربي فوق الشرقي... حربي...', '...jet... jet over the eastern quarter... jet...'], 3.5, 'radio');
+    const dur = 10;
+    const over = 0.5;
+    g.sound.jetPass(dur, over);
+    const tOver = g.time + dur * over;
+    // it crosses the sky in little more than a second, low and left to right
+    g.a.jetFly = { t0: tOver - 0.7, dur: 1.4, x0: p.x * 0.35 - 1300, x1: p.x * 0.35 + 1300 };
     g.prompt('prone', 'انبطح!', 'Get down!');
     const t0 = g.time;
-    yield () => p.stance === 'prone' || g.time - t0 > 6;
+    yield () => p.stance === 'prone' || g.time - t0 > 4.3;
     g.prompt(null);
     g.lock();
     if (p.stance !== 'prone') {
@@ -6664,21 +7860,21 @@ const ACT1 = {
     }
     // The helplessness is the lesson: lie there and listen.
     g.camOverride = { x: p.x + 40, y: -200, view: 1250 };
-    yield 3.4;
-    g.a.heliShadow = g.time;
-    g.bump(0.15);
-    yield 4.5;
+    yield () => g.time >= tOver - 0.2;
+    g.a.jetShadow = g.time;
+    g.bump(0.35);
+    yield 2;
     g.camOverride = null;
-    // A barrel, dropped on another quarter.
-    g.sound.barrelFar();
-    g.bump(0.45);
+    // The strike, on another quarter.
+    g.sound.strikeFar();
+    g.bump(0.5);
     g.a.plumeAt = g.time;
     g.a.plumeX = g.cam.x * 0.3 - 420;
     yield 3;
     g.sound.radio(2.2);
-    yield* g.say(RADIO, ['...نزل برميل... عالحارة القبلية... نزل برميل...', '...barrel dropped... the southern quarter... barrel dropped...'], 4, 'radio');
+    yield* g.say(RADIO, ['...ضربة حربي... عالحارة القبلية... ضربة حربي...', '...airstrike... the southern quarter... airstrike...'], 4, 'radio');
     g.lock(false);
-    g.prompt('jump', 'قوم', 'Get up');
+    g.prompt('jump', 'قِف', 'Get up');
     yield () => p.stance === 'stand';
     g.prompt(null);
     g.player.rig.dust = 0.15;
@@ -6729,7 +7925,7 @@ const ACT1 = {
       x: X.layla,
       y: -130,
       range: 80,
-      label: ['احكي مع ليلى', 'Talk to Layla'],
+      label: ['تحدّث إلى ليلى', 'Talk to Layla'],
       enabled: () => !g.a.laylaTalked && !g.a.shelling,
       use: () => {
         g.a.laylaTalked = true;
@@ -6749,7 +7945,7 @@ const ACT1 = {
       x: X.catWall,
       y: -200,
       range: 110,
-      label: ['البسّة', 'The cat'],
+      label: ['القطة', 'The cat'],
       enabled: () => !cat.hidden && !g.a.catDone,
       use: () => g.runner.run(this.catScene(g)),
     });
@@ -6828,8 +8024,8 @@ const ACT1 = {
       })(),
     );
     const i = yield* g.choose(null, [
-      { ar: 'احمي الولاد', en: 'Shield the children' },
-      { ar: 'تخبّى', en: 'Take cover' },
+      { ar: 'احمِ الأطفال', en: 'Shield the children' },
+      { ar: 'احتمِ', en: 'Take cover' },
     ], { timed: 7, def: 1 });
     s.choices.push(`B${i + 1}`);
 
@@ -6837,10 +8033,10 @@ const ACT1 = {
       s.compassion += 1;
       s.children_helped = true;
       g.lock(false);
-      g.text.objective(['خود ليلى والصغير عالدرج', 'Get Layla and the boy to the stairs']);
+      g.text.objective(['خذ ليلى والطفل إلى الدرج', 'Get Layla and the boy to the stairs']);
       g.prompt('run', 'اركض', 'Run');
       const grabbed = { v: false };
-      g.level.add({ id: 'grab', urgent: true, x: (X.layla + g.boy.x) / 2, y: -110, range: 110, label: ['خدهن', 'Take them'], use: () => (grabbed.v = true) });
+      g.level.add({ id: 'grab', urgent: true, x: (X.layla + g.boy.x) / 2, y: -110, range: 110, label: ['خذهما', 'Take them'], use: () => (grabbed.v = true) });
       yield () => grabbed.v;
       g.level.remove('grab');
       g.prompt(null);
@@ -6863,7 +8059,7 @@ const ACT1 = {
           impact(X.stairs - 380, 0.8);
         })(),
       );
-      g.text.objective(['عالدرج', 'To the stairs']);
+      g.text.objective(['إلى الدرج', 'To the stairs']);
       yield () => g.player.x >= X.stairs - 20;
       g.text.objective(null);
       g.lock();
@@ -6917,7 +8113,7 @@ const ACT1 = {
     g.player.stance = g.player.stance === 'prone' ? 'prone' : 'stand';
     g.lock(false);
     if (g.player.stance !== 'stand') {
-      g.prompt('jump', 'قوم', 'Get up');
+      g.prompt('jump', 'قِف', 'Get up');
       yield () => g.player.stance === 'stand';
       g.prompt(null);
     }
@@ -6962,7 +8158,7 @@ const ACT1 = {
     g.fade = 0;
     // the torch comes to hand; wait for the player to light it (or a few seconds)
     g.active = 'torch';
-    if (!g.torch.on) g.prompt('use', 'شغّل الكشّاف', 'Torch');
+    if (!g.torch.on) g.prompt('use', 'أشعل المصباح', 'Torch');
     const t0 = g.time;
     g.runner.run(
       (function* () {
@@ -7076,21 +8272,21 @@ const ACT1 = {
     yield 1;
     ks.override = { ...POSES.sitGround, armN: 1.4, foreN: 2.6 };
     yield* talk(g, [
-      [KHALED, ['بتعرف شو بدي أعمل لمّا خلّص تدريب المعلمين؟', 'You know what I’m going to do when I finish teacher training?']],
+      [AHMAD, ['بتعرف شو بدي أعمل لمّا خلّص تدريب المعلمين؟', 'You know what I’m going to do when I finish teacher training?']],
       [SAMI, ['شو؟', 'What?']],
-      [KHALED, ['بدي افتح مدرسة. مو مدرسة حكومية — مدرسة خاصة. ببيت. غرفة وحدة، كراسي وطبشور، وكتب كتير.', 'I’m going to open a school. Not a government school — a private one. In a house. One room, chairs, chalk, and lots of books.']],
+      [AHMAD, ['بدي افتح مدرسة. مو مدرسة حكومية، مدرسة خاصة. ببيت. غرفة وحدة، كراسي وطبشور، وكتب كتير.', 'I’m going to open a school. Not a government school. A private one. In a house. One room, chairs, chalk, and lots of books.']],
       [SAMI, ['وبتعلّم فيها شعر.', 'And you’ll teach poetry.']],
-      [KHALED, ['بعلّم فيها كل شي. قواعد وشعر وعلوم وكيف الواحد يفكّر لحالو.', 'I’ll teach everything. Grammar and poetry and science and how to think for yourself.']],
+      [AHMAD, ['بعلّم فيها كل شي. قواعد وشعر وعلوم وكيف الواحد يفكّر لحالو.', 'I’ll teach everything. Grammar and poetry and science and how to think for yourself.']],
     ]);
     ks.override = { ...POSES.sitGround };
     yield 1.2;
     yield* g.say(SAMI, ['كيف الواحد يفكّر لحالو. بهالبلد.', 'How to think for yourself. In this country.']);
     yield GAP;
-    // He lowers his voice — instinctively, the way everyone does.
+    // He lowers his voice instinctively, the way everyone does.
     ks.override = { ...POSES.sitGround, torso: 0.3, head: 0.2 };
     g.sound.ambience({ traffic: 0.35, crowd: 0.1 }, 0.8);
     yield 0.8;
-    yield* g.say(KHALED, ['هلّق لا. بس مو لازم يضل هيك.', 'Not now. But it doesn’t have to stay this way.'], 4.5, 'whisper');
+    yield* g.say(AHMAD, ['هلّق لا. بس مو لازم يضل هيك.', 'Not now. But it doesn’t have to stay this way.'], 4.5, 'whisper');
     yield 1;
     ss.override = { ...POSES.sitGround, head: -0.45 }; // looks up at the arbour
     g.sound.birds();
@@ -7115,7 +8311,6 @@ const ACT1 = {
     g.snapCamera();
     g.fade = 0;
     g.sound.pigeons(); // the bird is a pigeon, and it flies away
-    g.effects.trickle(X.classroom - 20, -130, 1.5);
     yield 2.2;
     g.camOverride = null;
     g.sound.radio(1.2);
@@ -7130,15 +8325,18 @@ const ACT1 = {
     const L = g.level;
     const people = [
       g.npc('woman', X.kerb + 140, { f: -1 }),
-      g.npc('man', X.olive + 60, { f: -1 }),
+      g.npc('man2', X.olive + 60, { f: -1 }),
       g.npc('woman2', X.olive + 130, { f: -1 }),
       g.npc('man', X.olive - 10, { f: 1 }),
+      g.npc('man3', X.olive + 190, { f: -1 }),
     ];
     // a woman sits on the kerb, her face in her hands
     people[0].override = { ...POSES.kerb, head: 0.8, armN: 1.3, foreN: 2.7, armF: 1.2, foreF: 2.6 };
-    people[1].override = { ...POSES.stand, head: 0.2 };
+    people[1].override = { ...POSES.armsCrossed, head: 0.25 };
     people[2].override = { ...POSES.hands, head: 0.1 };
-    people[3].override = { ...POSES.stand, head: 0.1, armN: 1.3, foreN: 2.5 }; // on the walkie-talkie
+    // the man on the walkie-talkie sits on an upturned crate, radio to his ear
+    people[3].override = { ...POSES.sitChair, seat: 34, head: 0.1, armN: 0.75, foreN: 2.95 };
+    people[4].override = { ...POSES.handsOnHips, head: 0.3 };
     people[3].rig.prop = (c, hand) => {
       c.fillStyle = '#1c1c1e';
       c.fillRect(hand[0] - 4, hand[1] - 20, 8, 22);
@@ -7159,22 +8357,6 @@ const ACT1 = {
       g.a.sunK = Math.max(g.a.sunK, 0.9);
     });
     L.at(X.kerb - 120, () => g.runner.run(this.news(g)));
-    // a jet, somewhere over the next town: the other word on channel 3
-    L.at(X.battery + 380, () => g.runner.run(this.jet(g)));
-  },
-
-  *jet(g) {
-    g.sound.radio(1.8);
-    yield* g.say(RADIO, ['...حربي بالجو... حربي...', '...jet in the air... jet...'], 3, 'radio');
-    g.sound.jet(7);
-    g.a.jet = { t0: g.time + 0.8, dur: 5, x0: g.cam.x * 0.12 - 900, x1: g.cam.x * 0.12 + 1100 };
-    yield 5.2;
-    g.sound.strikeFar();
-    g.bump(0.25);
-    g.a.fil = { x: g.cam.x * 0.3 + 520, t: g.time };
-    yield 2.5;
-    g.sound.radio(1.6);
-    yield* g.say(RADIO, ['...ضرب حربي... عالمرج... ضرب حربي...', '...airstrike... out by the farms... airstrike...'], 3.5, 'radio');
   },
 
   *abuArrives(g) {
@@ -7215,7 +8397,7 @@ const ACT1 = {
     yield GAP;
     abu.override = { ...POSES.stand, armN: 1.25, foreN: 1.45 }; // a hand on his shoulder
     yield 0.8;
-    yield* g.say(ABU, ['خالد... الله يرحمو يا ابني.', 'Khaled... God have mercy on him, my son.'], 4.5);
+    yield* g.say(ABU, ['أحمد... الله يرحمو يا ابني.', 'Ahmad... God have mercy on him, my son.'], 4.5);
     // Silence. The information enters but hasn't landed.
     g.a.drainT0 = g.time;
     g.sound.ambience({ crowd: 0.15, wind: 0.1, air: 0.1 }, 3);
@@ -7251,12 +8433,12 @@ const ACT1 = {
       p.override = null;
       yield* g.say(SAMI, ['بدي شوفو. وينو هلّق؟', 'I need to see him. Where is he now?']);
       yield GAP;
-      yield* g.say(ABU, ['سامي — ما فيك تروح. الشارع مكشوف. القنّاص لسا هناك.', 'Sami — you can’t go. The street is exposed. The sniper is still there.']);
+      yield* g.say(ABU, ['سامي، ما فيك تروح. الشارع مكشوف. القنّاص لسا هناك.', 'Sami, you can’t go. The street is exposed. The sniper is still there.']);
       yield GAP;
       g.runner.run(g.walkPlayer(X.south - 20));
       yield* g.say(SAMI, ['وينو.', 'Where is he.'], 2.4);
       g.camOverride = { x: X.south - 120, y: -230, view: 1150 };
-      yield* g.say(ABU, ['شارع المدرسة، قبل المفرق. سامي — سامي! ما فيك تروح هلّق!', 'School Street, before the junction. Sami — Sami! You can’t go there now!'], 4, 'shout');
+      yield* g.say(ABU, ['شارع المدرسة، قبل المفرق. سامي... سامي! ما فيك تروح هلّق!', 'School Street, before the junction. Sami... Sami! You can’t go there now!'], 4, 'shout');
       yield () => !g.autoWalk;
       // Sami walks south. The group watches him go.
       g.a.samiDepth = 0.001;
@@ -7270,11 +8452,11 @@ const ACT1 = {
       g.walkieMan.f = -1;
       yield* g.say(SAMI, ['مين عمل هيك. من وين إجت الطلقة.', 'Who did this. Where did the shot come from.']);
       yield GAP;
-      yield* g.say(WMAN, ['القنّاص عالتلّة الغربية. بالبناية اللي عليها العلم — بتعرفو. نفس القنّاص اللي من أسبوع.', 'The sniper on the western hill. In the building with the flag — you know it. Same sniper from last week.'], 6);
+      yield* g.say(WMAN, ['القنّاص عالتلّة الغربية. بالبناية اللي عليها العلم، بتعرفو. نفس القنّاص اللي من أسبوع.', 'The sniper on the western hill. In the building with the flag. You know it. Same sniper from last week.'], 6);
       yield GAP;
       yield* g.say(SAMI, ['في حدا شافو وهوّي واقع؟', 'Did anyone see him fall?']);
       yield GAP;
-      yield* g.say(WMAN, ['أم سعيد — هيّي اللي طلعت عليه. لحقوها الشباب بعدها. بس ما قدروا يجرّوه — الشارع مكشوف.', 'Um Said — she’s the one who went to him. Some of the men followed her. But they couldn’t move him — the street is exposed.'], 6.5);
+      yield* g.say(WMAN, ['أم سعيد، هيّي اللي طلعت عليه. لحقوها الشباب بعدها. بس ما قدروا يجرّوه، الشارع مكشوف.', 'Um Said. She’s the one who went to him. Some of the men followed her. But they couldn’t move him. The street is exposed.'], 6.5);
       yield GAP;
       yield* g.say(SAMI, ['يعني لسا هناك.', 'So he’s still there.']);
       // Silence from the group. That's the answer.
@@ -7435,7 +8617,8 @@ const PASSERS = [
   { outfit: 'woman' },
   { outfit: 'woman2' },
   { outfit: 'fadi', scale: 0.86 },
-  { outfit: 'man' },
+  { outfit: 'man2' },
+  { outfit: 'man3' },
   { outfit: 'boy', scale: 0.62 },
   { outfit: 'abuyazan' },
 ];
@@ -7448,8 +8631,8 @@ function streetLife(g, dt) {
     g.scene === 'street' &&
     !g.locked &&
     !a.shelling &&
-    !(a.heli && g.time < a.heli.t0 + a.heli.dur + 8) &&
-    !(a.jet && g.time < a.jet.t0 + 10) &&
+    !(a.jetFly && g.time < a.jetFly.t0 + 14) &&
+    !(a.heliWarn && g.time < a.heliWarn + 12) &&
     !a.drainT0 &&
     g.player.x < X.newsStart - 250;
   a.nextPasser ??= g.time + 5;
@@ -7628,22 +8811,22 @@ function summary(s) {
     [
       ar ? '٣:٢٠' : '3:20',
       s.helped_old_man
-        ? ['You carried the old man’s water to his daughter’s door.', 'شلت مي الختيار لباب بنتو.']
-        : ['You walked past the old man and his water.', 'مشيت وتركت الختيار ومايتو.'],
+        ? ['You carried the old man’s water to his daughter’s door.', 'حملتَ ماء الرجل العجوز إلى باب ابنته.']
+        : ['You walked past the old man and his water.', 'مضيتَ وتركتَ الرجل العجوز وماءه.'],
     ],
     [
       ar ? '٣:٤٥' : '3:45',
       s.children_helped
-        ? ['When the mortars came, you ran for Layla and the boy.', 'لمّا نزلت القذايف، ركضت لعند ليلى والصغير.']
-        : ['When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'لمّا نزلت القذايف، تخبّيت. ليلى وصّلت الصغير عالدرج لحالها.'],
+        ? ['When the mortars came, you ran for Layla and the boy.', 'حين سقطت القذائف، ركضتَ نحو ليلى والطفل.']
+        : ['When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'حين سقطت القذائف، احتميتَ. أوصلت ليلى الطفل إلى الدرج وحدها.'],
     ],
     [
       ar ? '٤:١٠' : '4:10',
       s.path === 'retrieval'
-        ? ['“I need to see him.” You walked south, towards School Street.', '«بدي شوفو.» مشيت عالقبلي، لشارع المدرسة.']
+        ? ['“I need to see him.” You walked south, towards School Street.', '«أريد أن أراه.» مشيتَ جنوباً نحو شارع المدرسة.']
         : s.path === 'witness'
-          ? ['“Who did this?” You asked for facts, because facts can be carried.', '«مين عمل هيك؟» سألت عن الحقيقة، لأنو الحقيقة بتنحمل.']
-          : ['You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'ما قلت شي. قعدت عالرصيف، وقعد أبو يزن جنبك.'],
+          ? ['“Who did this?” You asked for facts, because facts can be carried.', '«من فعل هذا؟» سألتَ عن الحقائق، لأن الحقائق يمكن حملها.']
+          : ['You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'لم تقل شيئاً. جلستَ على الرصيف، وجلس أبو يزن إلى جانبك.'],
     ],
   ];
   return rows.map(([time, [en, arText]]) => [time, ar ? arText : en]);
@@ -7698,11 +8881,11 @@ function showEnd(s) {
     <p class="kicker-small">${esc(t('endKicker'))}</p>
     <h2 id="end-h"><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="end-en">Before I Knew</span></h2>
     <ol class="timeline">
-      <li class="tl-start"><time>${lang() === 'ar' ? '٣:٠٥' : '3:05'}</time><span>${lang() === 'ar' ? 'خالد وسامي عم يمشوا بشارع الزيتون.' : 'Khaled and Sami walk down Zeitoun Street.'}</span></li>
+      <li class="tl-start"><time>${lang() === 'ar' ? '٣:٠٥' : '3:05'}</time><span>${lang() === 'ar' ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'}</span></li>
       ${summary(s)
         .map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`)
         .join('')}
-      <li class="tl-end"><time>${lang() === 'ar' ? '٤:١٥' : '4:15'}</time><span>${lang() === 'ar' ? 'بقيت الشمس ساعتين بالسما.' : 'Two hours of sun left in the sky.'}</span></li>
+      <li class="tl-end"><time>${lang() === 'ar' ? '٤:١٥' : '4:15'}</time><span>${lang() === 'ar' ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'}</span></li>
     </ol>
     <p class="sheet-quiet">${esc(t('endNext'))}</p>
     <div class="sheet-btns">
@@ -7755,11 +8938,11 @@ function pauseAside() {
   const cp = game.state?.checkpoint;
   return `
     <p class="aside-k">${esc(t('objective'))}</p>
-    <p class="aside-v">${obj ? `${esc(ar ? obj[0] : obj[1])}` : '—'}</p>
+    <p class="aside-v">${obj ? `${esc(ar ? obj[0] : obj[1])}` : '·'}</p>
     <p class="aside-k">${esc(t('carrying'))}</p>
     <p class="aside-v">${tools.length ? tools.map((x) => esc(ar ? x.ar : x.en)).join(' · ') : esc(t('nothing'))}</p>
     <p class="aside-k">${esc(t('checkpoint'))}</p>
-    <p class="aside-v">${cp ? `${esc(t('checkpoints')[cp] || cp)} · ${esc(t('times')[cp] || '')}` : '—'}</p>`;
+    <p class="aside-v">${cp ? `${esc(t('checkpoints')[cp] || cp)} · ${esc(t('times')[cp] || '')}` : '·'}</p>`;
 }
 
 function logPage(panel, m) {
@@ -7845,13 +9028,13 @@ const menu = new Menu($('menu'), {
   about: () =>
     lang() === 'ar'
       ? `<h2 class="menu-title">عن القصة</h2>
-    <p><strong>قبل ما عرفت</strong> قصة تفاعلية بتصير ببلدة محاصرة بالغوطة، جنب الشام، بآب ٢٠١٤. سامي عمرو ٢٧ سنة. بيمشي مع أعزّ صحابو، خالد، وبيفترقوا عالمفرق. وبأقل من ساعة، بيعرف إنو خالد استشهد.</p>
-    <p>هاد الفصل الأول: المشوار، والفراق، وساعة ما كنّا عم نعرف. خياراتك بتحدّد مين بيكون سامي لمّا يوصلو الخبر، ولوين بتروح الليلة.</p>
-    <h3>تنبيه</h3>
-    <p>الحياة تحت الحصار: قصف، قنّاص، جوع، موت صديق، وحزن. العنف بينسمع وبينفهم، بس ما بينشاف. مناسبة لعمر ١٦ وفوق.</p>
-    <p class="menu-sub">قصة متخيّلة مبنية على شهادات موثّقة عن حياة الحصار. كل شي فيها مرسوم ومركّب بالكود، بلا صور ولا تسجيلات.</p>`
+    <p><strong>قبل ما عرفت</strong> قصة تفاعلية تدور أحداثها في بلدة محاصرة في الغوطة، قرب دمشق، في آب ٢٠١٤. سامي في السابعة والعشرين. يمشي مع أقرب أصدقائه، أحمد، ثم يفترقان عند مفترق الطرق. وبعد أقلّ من ساعة، يعلم أن أحمد قد استُشهد.</p>
+    <p>هذا هو الفصل الأول: المشوار، والفراق، وساعة ما قبل المعرفة. تحدّد خياراتك من يكون سامي حين يصله الخبر، وإلى أين تمضي الليلة.</p>
+    <h3>تنبيه حول المحتوى</h3>
+    <p>الحياة تحت الحصار: القصف، والقنص، والجوع، وموت صديق، والحزن. يُسمَع العنف ويُفهَم، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.</p>
+    <p class="menu-sub">عمل متخيَّل مستند إلى شهادات موثّقة عن الحياة تحت الحصار. كل ما فيه مرسوم ومولَّد بالبرمجة، من دون صور أو تسجيلات.</p>`
       : `<h2 class="menu-title">About</h2>
-    <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Khaled, and they part at a junction. Less than an hour later, he learns that Khaled has been killed.</p>
+    <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Ahmad, and they part at a junction. Less than an hour later, he learns that Ahmad has been killed.</p>
     <p>This is Act One: the walk, the parting, and the hour of not knowing. Your choices shape who Sami is when the news reaches him, and which way the night goes.</p>
     <h3>Content note</h3>
     <p>Life under military siege: shelling, sniper fire, hunger, the death of a friend, grief. Violence is heard and implied, never shown. Recommended for ages 16 and over.</p>

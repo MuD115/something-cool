@@ -1,4 +1,4 @@
-// Act 1: The Afternoon — بعد الضهر
+// Act 1: The Afternoon (بعد الضهر)
 // Scripted from script/act1.md. All dialogue and examine text is the
 // script's own, in Damascene Arabic with its English.
 
@@ -11,7 +11,7 @@ import { Walker } from '../world/walker.js';
 import { writeSave } from '../engine/save.js';
 
 const SAMI = ['سامي', 'Sami'];
-const KHALED = ['خالد', 'Khaled'];
+const AHMAD = ['أحمد', 'Ahmad'];
 const OLD = ['الختيار', 'The old man'];
 const SPOT = ['المرصد', 'The spotter'];
 const RADIO = ['لاسلكي', 'Walkie-talkie'];
@@ -19,11 +19,12 @@ const LAYLA = ['ليلى', 'Layla'];
 const ABU = ['أبو يزن', 'Abu Yazan'];
 const WMAN = ['زلمة اللاسلكي', 'Walkie-talkie man'];
 
-const LOOK = ['اتفرّج', 'Examine'];
+const LOOK = ['تفحّص', 'Examine'];
 
 const P_FLINCH = { ...POSES.stand, torso: -0.08, head: -0.35, armN: 0.5, foreN: 1.6, armF: 0.4, foreF: 1.4 };
 const P_STRUGGLE = { ...POSES.stand, torso: 0.55, head: 0.1, armN: 0.2, foreN: 0.2, armF: 0.1, foreF: 0.1 };
 const P_TURNED = { ...POSES.stand, head: 0.1 };
+const SPOT_SIT = { ...POSES.sitChair, head: 0.05, armN: 0.75, foreN: 2.95 };
 
 // Pause between lines so the dialogue breathes.
 const GAP = 0.45;
@@ -51,8 +52,8 @@ export const ACT1 = {
     // --- examine texts from the script ---
     L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
     L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي — خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything — bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
-    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش — صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen — he became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
     L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
     L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
@@ -60,15 +61,15 @@ export const ACT1 = {
       x: X.shard,
       y: -60,
       range: 60,
-      label: ['شيل', 'Pick up'],
+      label: ['التقط', 'Pick up'],
       enabled: () => !g.hasTool('mirror'),
       use: () => {
         g.giveTool('mirror');
         g.sound.click();
         g.runner.run(
           (function* () {
-            yield* g.say(null, ['شقفة مراية. بتشوف فيها حالك — أو بتشوف فيها شو ورا الحيطان.', 'A shard of mirror. You can see yourself in it — or you can see what’s around walls.'], 5, 'examine');
-            yield* g.say(null, ['شقفة مراية — بتبيّن فيها الطريق اللي ما عم تشوفها.', 'Mirror shard — reflects the road you can’t see.'], 4, 'item');
+            yield* g.say(null, ['شقفة مراية. بتشوف فيها حالك، أو بتشوف فيها شو ورا الحيطان.', 'A shard of mirror. You can see yourself in it, or you can see what’s around walls.'], 5, 'examine');
+            yield* g.say(null, ['شقفة مراية. بتبيّن فيها الطريق اللي ما عم تشوفها.', 'Mirror shard. It shows the road you can’t see.'], 4, 'item');
           })(),
         );
       },
@@ -85,7 +86,7 @@ export const ACT1 = {
     this.buildNews(g);
 
     if (s.checkpoint !== 'walk') g.a.sunK = { hour: 0.2, school: 0.55, news: 0.8 }[s.checkpoint] || 0;
-    if (s.checkpoint === 'hour') g.text.objective(['روح عالشرقي، عالأنابيب', 'Head east, to the pipes']);
+    if (s.checkpoint === 'hour') g.text.objective(['اتجه شرقاً نحو الأنابيب', 'Head east, to the pipes']);
     g.sound.score?.mood(s.checkpoint === 'walk' ? 'walk' : 'hour', 3);
   },
 
@@ -96,16 +97,25 @@ export const ACT1 = {
     const kh = g.npc('khaled', X.start + 80, { f: 1 });
     g.khaled = kh;
     g.a.khaledMode = 'follow';
-    // Khaled sets the pace: half a step ahead, loose and unhurried.
+    // Ahmad sets the pace: half a step ahead, loose and unhurried.
     kh.brain = (dt) => {
       const p = g.player;
       if (g.a.khaledMode === 'follow') {
         const target = Math.max(kh.x, p.x + 70);
-        if (g.a.holdKhaled && kh.x >= g.a.holdKhaled) kh.update(dt, { stance: kh.stance });
-        else if (target - kh.x > 8) kh.goTo(Math.min(target, g.a.holdKhaled ?? Infinity), dt, { speedScale: 0.55 });
+        if (g.a.holdAhmad && kh.x >= g.a.holdAhmad) kh.update(dt, { stance: kh.stance });
+        else if (target - kh.x > 8) kh.goTo(Math.min(target, g.a.holdAhmad ?? Infinity), dt, { speedScale: 0.55 });
         else kh.update(dt, {});
-        if (p.x < kh.x - 260) kh.f = -1;
-        else if (kh.onGround && !kh.mantle && Math.abs(target - kh.x) <= 8) kh.f = 1;
+        // Waiting (held at the curtain or the junction, or just stopped
+        // because Sami has): after a moment he turns round to face him.
+        const held = g.a.holdAhmad && kh.x >= g.a.holdAhmad - 2;
+        const waiting = held || target - kh.x <= 8;
+        kh.waitT = waiting ? (kh.waitT || 0) + dt : 0;
+        let want = 1;
+        if (kh.waitT > 0.6 && p.x < kh.x - 40) want = -1;
+        if (want !== kh.f && kh.onGround && !kh.mantle) {
+          kh.f = want;
+          kh.rig.pivot();
+        }
       } else if (kh.goal !== null && kh.goal !== undefined) {
         if (kh.goTo(kh.goal, dt, kh.goalOpts || {})) kh.goal = null;
       } else if (g.a.khaledMode === 'depth') {
@@ -151,24 +161,24 @@ export const ACT1 = {
     const kh = g.khaled;
     g.sound.ambience({ wind: 0.4, air: 0.5, generator: 0.6, traffic: 0, crowd: 0 });
     g.text.titleCard([['بعد الضهر', 'The Afternoon'], ['الساعة تلاتة وخمس دقايق', '3:05 PM · 14 August 2014']], 4.5);
-    g.text.objective(['امشي مع خالد', 'Walk with Khaled']);
+    g.text.objective(['امشِ مع أحمد', 'Walk with Ahmad']);
     yield 5;
-    g.prompt('right', 'امشي', 'Walk');
+    g.prompt('right', 'امشِ', 'Walk');
     yield () => g.player.x > X.start + 120;
     g.prompt(null);
     // The sniper curtain runs by position, alongside the talk: crouch under the sag.
-    g.a.holdKhaled = X.sag0 + 40;
+    g.a.holdAhmad = X.sag0 + 40;
     const curtain = g.runner.run(
       (function* () {
         yield () => g.player.x > X.curtain0 - 40;
-        g.prompt('crouch', 'وطّي', 'Crouch down');
+        g.prompt('crouch', 'انحنِ', 'Crouch down');
         yield () => g.player.stance !== 'stand' || g.player.x > X.sag1;
         g.prompt(null);
         // from here he walks on as far as the junction, and waits there
-        g.a.holdKhaled = X.junction - 60;
+        g.a.holdAhmad = X.junction - 60;
         g.a.curtainCleared = true;
         yield () => g.player.x > X.sag1 + 10;
-        if (g.player.stance !== 'stand') g.prompt('crouch', 'قوم', 'Stand up');
+        if (g.player.stance !== 'stand') g.prompt('crouch', 'قِف', 'Stand up');
         yield () => g.player.stance === 'stand';
         g.prompt(null);
       })(),
@@ -176,51 +186,51 @@ export const ACT1 = {
     g.runner.run(ambientShots(g));
 
     yield* talk(g, [
-      [KHALED, ['عارف شو أكتر شي بشتاقلو؟', 'You know what I miss most?']],
+      [AHMAD, ['عارف شو أكتر شي بشتاقلو؟', 'You know what I miss most?']],
       [SAMI, ['الكهربا.', 'Electricity.']],
-      [KHALED, ['لا يا زلمة. البوظة. بوظة بكداش.', 'No, man. Ice cream. Bakdash ice cream.']],
+      [AHMAD, ['لا يا زلمة. البوظة. بوظة بكداش.', 'No, man. Ice cream. Bakdash ice cream.']],
       [SAMI, ['من كل شي عم يصير، البوظة؟', 'Out of everything that’s happening, ice cream?']],
-      [KHALED, ['إي والله. هديك البوظة العربية بالفستق الحلبي. بتذكّر كنّا نروح أنا وياك عالحميدية ونوقف بالطابور ربع ساعة؟', 'I swear. That Arabic ice cream with Aleppo pistachios. Remember we used to go to the Hamidiyya and queue for fifteen minutes?']],
+      [AHMAD, ['إي والله. هديك البوظة العربية بالفستق الحلبي. بتذكّر كنّا نروح أنا وياك عالحميدية ونوقف بالطابور ربع ساعة؟', 'I swear. That Arabic ice cream with Aleppo pistachios. Remember we used to go to the Hamidiyya and queue for fifteen minutes?']],
       [SAMI, ['نص ساعة.', 'Half an hour.']],
-      [KHALED, ['بتستاهل كل دقيقة.', 'Worth every minute.']],
+      [AHMAD, ['بتستاهل كل دقيقة.', 'Worth every minute.']],
     ]);
     yield () => g.player.x > X.pigeon + 60;
     yield 1;
     yield* talk(g, [
       [SAMI, ['كيف الولاد اليوم؟', 'How were the kids today?']],
-      [KHALED, ['منيحين. عم يتعلّمو ماضي وحاضر ومستقبل.', 'Good. They’re learning past, present and future.']],
+      [AHMAD, ['منيحين. عم يتعلّمو ماضي وحاضر ومستقبل.', 'Good. They’re learning past, present and future.']],
       [SAMI, ['بالقواعد تقصد.', 'You mean in grammar.']],
-      [KHALED, ['هيك قلت.', 'That’s what I said.']],
+      [AHMAD, ['هيك قلت.', 'That’s what I said.']],
     ]);
 
     yield () => curtain.done || g.a.curtainCleared;
     yield () => kh.x > X.sag0 + 20;
     yield* talk(g, [
-      [KHALED, ['يا ريت كانت بوظة بكداش بتحمي من القنّاص.', 'If only Bakdash ice cream could protect you from snipers.']],
+      [AHMAD, ['يا ريت كانت بوظة بكداش بتحمي من القنّاص.', 'If only Bakdash ice cream could protect you from snipers.']],
       [SAMI, ['لو هيك كانت أغلى من الدهب.', 'If it could, it’d be worth more than gold.']],
     ]);
     yield () => curtain.done;
 
     // Rami, who asked what "abroad" means.
     yield* talk(g, [
-      [KHALED, ['بتعرف رامي؟ ابن أبو علي؟ اللي ساكنين بآخر الشارع؟', 'You know Rami? Abu Ali’s son? The ones who live at the end of the street?']],
+      [AHMAD, ['بتعرف رامي؟ ابن أبو علي؟ اللي ساكنين بآخر الشارع؟', 'You know Rami? Abu Ali’s son? The ones who live at the end of the street?']],
       [SAMI, ['الصغير؟ اللي ما بيوقف حكي؟', 'The little one? Who never stops talking?']],
     ]);
     // the rubble: climb it
     const climbPrompt = g.runner.run(
       (function* () {
         yield () => g.player.x > X.wall0 - 90;
-        if (g.player.x < X.wall1) g.prompt('jump', 'نطّ / اطلع', 'Jump / Climb');
+        if (g.player.x < X.wall1) g.prompt('jump', 'اقفز / تسلّق', 'Jump / Climb');
         yield () => g.player.x > X.wall0 + 20 || g.player.mantle;
         g.prompt(null);
       })(),
     );
     yield* talk(g, [
-      [KHALED, ['هاد. سألني اليوم: أستاز، شو يعني "برّا"؟', 'That’s him. He asked me today: “Teacher, what does ‘abroad’ mean?”']],
+      [AHMAD, ['هاد. سألني اليوم: أستاز، شو يعني "برّا"؟', 'That’s him. He asked me today: “Teacher, what does ‘abroad’ mean?”']],
     ]);
     yield 1.2;
     yield* talk(g, [
-      [KHALED, ['يعني ما بيعرف. ما طلع من هون بحياتو. ما شاف شي غير هالحارة. "برّا" بالنسبالو كلمة مثل "تنّين" — شي بيسمع فيه بس ما شافو.', 'He doesn’t know. He’s never been outside this neighbourhood in his life. He’s never seen anything else. “Abroad” is like “dragon” to him — something he’s heard of but never seen.']],
+      [AHMAD, ['يعني ما بيعرف. ما طلع من هون بحياتو. ما شاف شي غير هالحارة. "برّا" بالنسبالو كلمة مثل "تنّين": شي بيسمع فيه بس ما شافو.', 'He doesn’t know. He’s never been outside this neighbourhood in his life. He’s never seen anything else. “Abroad” is like “dragon” to him: something he’s heard of but never seen.']],
     ]);
     yield () => climbPrompt.done;
 
@@ -244,17 +254,17 @@ export const ACT1 = {
     g.sound.ambience({ generator: 0.25, air: 0.4 });
     yield 0.6;
     yield* talk(g, [
-      [KHALED, ['يلا، أنا رايح من هون. بدي مرّ عند أم سعيد وعيلتا — بنتن مريضة وما في حدا يشوفها.', 'Right, I’m heading off from here. I want to check on Um Said and her family — their daughter’s ill and there’s no one to see her.']],
+      [AHMAD, ['يلا، أنا رايح من هون. بدي مرّ عند أم سعيد وعيلتا، بنتن مريضة وما في حدا يشوفها.', 'Right, I’m heading off from here. I want to check on Um Said and her family. Their daughter’s ill and there’s no one to see her.']],
       [SAMI, ['من وين رايح؟ من شارع المدرسة؟', 'Which way are you going? Through School Street?']],
-      [KHALED, ['إي، أسرع.', 'Yeah, it’s quicker.']],
+      [AHMAD, ['إي، أسرع.', 'Yeah, it’s quicker.']],
     ]);
     yield 0.8; // he considers saying something
     yield* talk(g, [
       [SAMI, ['خلّي بالك ع حالك.', 'Take care of yourself.']],
-      [KHALED, ['دايماً. بشوفك بالليل إن شاء الله. عندي نكتة جديدة — مو رح تصدّقها.', 'Always. I’ll see you tonight, God willing. I’ve got a new joke — you won’t believe it.']],
+      [AHMAD, ['دايماً. بشوفك بالليل إن شاء الله. عندي نكتة جديدة، مو رح تصدّقها.', 'Always. I’ll see you tonight, God willing. I’ve got a new joke. You won’t believe it.']],
       [SAMI, ['نكاتك ما بتنضحك.', 'Your jokes aren’t funny.']],
-      [KHALED, ['هاي الأحلى من كلهن. الليلة بتسمعها.', 'This one’s the best yet. Tonight, you’ll hear it.']],
-      [KHALED, ['يلا، يا هندسة.', 'See you, ya handasa.']],
+      [AHMAD, ['هاي الأحلى من كلهن. الليلة بتسمعها.', 'This one’s the best yet. Tonight, you’ll hear it.']],
+      [AHMAD, ['يلا، يا هندسة.', 'See you, ya handasa.']],
     ]);
     kh.override = POSES.wave;
     yield 1.1;
@@ -276,7 +286,7 @@ export const ACT1 = {
     g.lock(false);
     g.checkpoint('hour');
     g.sound.score?.mood('hour', 8);
-    g.text.objective(['روح عالشرقي، عالأنابيب', 'Head east, to the pipes']);
+    g.text.objective(['اتجه شرقاً نحو الأنابيب', 'Head east, to the pipes']);
   },
 
   // ============================================================ Scene 3 ==
@@ -306,14 +316,14 @@ export const ACT1 = {
       return move;
     };
 
-    // the spotter's post, on an exposed third-floor slab
-    L.solid(X.spotter - 150, X.spotter + 150, -412, -398, { noClimb: true });
-    const sp = g.npc('spotter', X.spotter + 30, { y: -412, f: -1 });
-    sp.override = POSES.binoculars;
+    // the spotter's post: a stool at a second-floor window, radio to his ear
+    L.solid(X.spotter - 30, X.spotter + 90, -330, -318, { noClimb: true });
+    const sp = g.npc('spotter', X.spotter + 30, { y: -330, f: -1 });
+    sp.override = SPOT_SIT;
     g.spotter = sp;
     L.at(X.spotter - 220, () => g.runner.run(this.spotterScene(g)));
 
-    L.at(X.heli, () => g.runner.run(this.helicopter(g)));
+    L.at(X.heli, () => g.runner.run(this.jetStrike(g)));
     L.at(X.oldMan + 500, () => (g.a.sunK = Math.max(g.a.sunK, 0.3)));
   },
 
@@ -325,8 +335,8 @@ export const ACT1 = {
     p.f = 1;
     yield* g.say(null, ['غالونين مي. عشرين ليتر الواحد. من البير لهون مسافة ربع ساعة. بالحر هاد، ساعة.', 'Two water jugs. Twenty litres each. From the well to here, a fifteen-minute walk. In this heat, an hour.'], 5.5, 'examine');
     const i = yield* g.choose(null, [
-      { ar: 'ساعدو', en: 'Help him' },
-      { ar: 'ضل ماشي', en: 'Keep walking' },
+      { ar: 'ساعِده', en: 'Help him' },
+      { ar: 'تابع طريقك', en: 'Keep walking' },
     ]);
     g.state.choices.push(`A${i + 1}`);
     if (i === 0) {
@@ -400,7 +410,7 @@ export const ACT1 = {
       return;
     }
     g.active = 'mirror';
-    g.prompt('use', 'استعمل المراية', 'Use the mirror');
+    g.prompt('use', 'استخدم المرآة', 'Use the mirror');
     yield () => g.a.mirrorChecked;
     g.prompt(null);
   },
@@ -431,10 +441,10 @@ export const ACT1 = {
     g.lock();
     yield* g.walkPlayer(X.spotter - 140);
     p.f = 1;
-    sp.override = { ...POSES.stand, torso: 0.2, head: 0.5 };
+    sp.override = POSES.peekWindow; // he leans out over the sill to call down
     sp.f = -1;
     g.camOverride = { x: X.spotter - 60, y: -300, view: 1300 };
-    yield* g.say(SPOT, ['يا زلمة! وين رايح؟ البراميل عم تنزل عالقبلي.', 'Hey, man! Where are you headed? Barrels are falling on the southern quarter.'], null, 'shout');
+    yield* g.say(SPOT, ['يا زلمة! وين رايح؟ الطيران عم يضرب عالقبلي.', 'Hey, man! Where are you headed? The planes are hitting the southern quarter.'], null, 'shout');
     yield GAP;
     p.override = POSES.lookUp;
     yield* g.say(SAMI, ['رايح عالشرقي. عالأنابيب.', 'Heading to the eastern quarter. To the pipes.']);
@@ -451,9 +461,9 @@ export const ACT1 = {
     yield* g.walkPlayer(X.spotter - 24);
     p.f = 1;
     g.lock(false);
-    g.prompt('interact', 'خود اللاسلكي', 'Take the walkie-talkie');
+    g.prompt('interact', 'خذ جهاز اللاسلكي', 'Take the walkie-talkie');
     const taken = { v: false };
-    g.level.add({ id: 'walkie', x: X.spotter - 10, y: -170, range: 60, label: ['خود', 'Take'], use: () => (taken.v = true) });
+    g.level.add({ id: 'walkie', x: X.spotter - 10, y: -170, range: 60, label: ['خذ', 'Take'], use: () => (taken.v = true) });
     yield () => taken.v;
     g.level.remove('walkie');
     g.prompt(null);
@@ -461,26 +471,33 @@ export const ACT1 = {
     g.giveTool('walkie');
     g.sound.squelch();
     g.a.rope = 2;
-    yield* g.say(null, ['لاسلكي — بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.', 'Walkie-talkie — hear the spotters’ warnings. Receive only.'], 4.5, 'item');
+    yield* g.say(null, ['لاسلكي. بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.', 'Walkie-talkie. You hear the spotters’ warnings. Receive only.'], 4.5, 'item');
     yield GAP;
-    yield* g.say(SPOT, ['الموجة ٣. إذا سمعت "مروحي" أو "حربي" — انبطح. إذا سمعت "فيل" — الله يستر.', 'Channel 3. If you hear “mirwahi” (helicopter) or “harbi” (jet) — get flat. If you hear “elephant” — God help us.'], 6);
-    sp.override = POSES.binoculars;
+    yield* g.say(SPOT, ['الموجة ٣. إذا سمعت "مروحي" أو "حربي"، انبطح. إذا سمعت "فيل"، الله يستر.', 'Channel 3. If you hear “mirwahi” (helicopter) or “harbi” (jet), get flat. If you hear “elephant”, God help us.'], 6);
+    sp.override = SPOT_SIT;
     sp.f = -1;
     g.camOverride = null;
     g.lock(false);
   },
 
-  *helicopter(g) {
+  // A jet, low and fast. The whine comes first; there are a few seconds to
+  // get flat before it tears overhead, and then it hits another quarter.
+  *jetStrike(g) {
     const p = g.player;
+    g.a.heliWarn = g.time;
     g.sound.score?.mood('danger', 3);
     g.a.sunK = Math.max(g.a.sunK, 0.4);
     g.sound.radio(2.4);
-    yield* g.say(RADIO, ['...مروحي... مروحي فوق الشرقي... مروحي...', '...helicopter... helicopter over the eastern quarter... helicopter...'], 3.5, 'radio');
-    g.sound.helicopter(12);
-    g.a.heli = { t0: g.time + 1.5, dur: 10, x0: p.x * 0.35 + 900, x1: p.x * 0.35 - 900 };
+    yield* g.say(RADIO, ['...حربي... حربي فوق الشرقي... حربي...', '...jet... jet over the eastern quarter... jet...'], 3.5, 'radio');
+    const dur = 10;
+    const over = 0.5;
+    g.sound.jetPass(dur, over);
+    const tOver = g.time + dur * over;
+    // it crosses the sky in little more than a second, low and left to right
+    g.a.jetFly = { t0: tOver - 0.7, dur: 1.4, x0: p.x * 0.35 - 1300, x1: p.x * 0.35 + 1300 };
     g.prompt('prone', 'انبطح!', 'Get down!');
     const t0 = g.time;
-    yield () => p.stance === 'prone' || g.time - t0 > 6;
+    yield () => p.stance === 'prone' || g.time - t0 > 4.3;
     g.prompt(null);
     g.lock();
     if (p.stance !== 'prone') {
@@ -488,21 +505,21 @@ export const ACT1 = {
     }
     // The helplessness is the lesson: lie there and listen.
     g.camOverride = { x: p.x + 40, y: -200, view: 1250 };
-    yield 3.4;
-    g.a.heliShadow = g.time;
-    g.bump(0.15);
-    yield 4.5;
+    yield () => g.time >= tOver - 0.2;
+    g.a.jetShadow = g.time;
+    g.bump(0.35);
+    yield 2;
     g.camOverride = null;
-    // A barrel, dropped on another quarter.
-    g.sound.barrelFar();
-    g.bump(0.45);
+    // The strike, on another quarter.
+    g.sound.strikeFar();
+    g.bump(0.5);
     g.a.plumeAt = g.time;
     g.a.plumeX = g.cam.x * 0.3 - 420;
     yield 3;
     g.sound.radio(2.2);
-    yield* g.say(RADIO, ['...نزل برميل... عالحارة القبلية... نزل برميل...', '...barrel dropped... the southern quarter... barrel dropped...'], 4, 'radio');
+    yield* g.say(RADIO, ['...ضربة حربي... عالحارة القبلية... ضربة حربي...', '...airstrike... the southern quarter... airstrike...'], 4, 'radio');
     g.lock(false);
-    g.prompt('jump', 'قوم', 'Get up');
+    g.prompt('jump', 'قِف', 'Get up');
     yield () => p.stance === 'stand';
     g.prompt(null);
     g.player.rig.dust = 0.15;
@@ -553,7 +570,7 @@ export const ACT1 = {
       x: X.layla,
       y: -130,
       range: 80,
-      label: ['احكي مع ليلى', 'Talk to Layla'],
+      label: ['تحدّث إلى ليلى', 'Talk to Layla'],
       enabled: () => !g.a.laylaTalked && !g.a.shelling,
       use: () => {
         g.a.laylaTalked = true;
@@ -573,7 +590,7 @@ export const ACT1 = {
       x: X.catWall,
       y: -200,
       range: 110,
-      label: ['البسّة', 'The cat'],
+      label: ['القطة', 'The cat'],
       enabled: () => !cat.hidden && !g.a.catDone,
       use: () => g.runner.run(this.catScene(g)),
     });
@@ -652,8 +669,8 @@ export const ACT1 = {
       })(),
     );
     const i = yield* g.choose(null, [
-      { ar: 'احمي الولاد', en: 'Shield the children' },
-      { ar: 'تخبّى', en: 'Take cover' },
+      { ar: 'احمِ الأطفال', en: 'Shield the children' },
+      { ar: 'احتمِ', en: 'Take cover' },
     ], { timed: 7, def: 1 });
     s.choices.push(`B${i + 1}`);
 
@@ -661,10 +678,10 @@ export const ACT1 = {
       s.compassion += 1;
       s.children_helped = true;
       g.lock(false);
-      g.text.objective(['خود ليلى والصغير عالدرج', 'Get Layla and the boy to the stairs']);
+      g.text.objective(['خذ ليلى والطفل إلى الدرج', 'Get Layla and the boy to the stairs']);
       g.prompt('run', 'اركض', 'Run');
       const grabbed = { v: false };
-      g.level.add({ id: 'grab', urgent: true, x: (X.layla + g.boy.x) / 2, y: -110, range: 110, label: ['خدهن', 'Take them'], use: () => (grabbed.v = true) });
+      g.level.add({ id: 'grab', urgent: true, x: (X.layla + g.boy.x) / 2, y: -110, range: 110, label: ['خذهما', 'Take them'], use: () => (grabbed.v = true) });
       yield () => grabbed.v;
       g.level.remove('grab');
       g.prompt(null);
@@ -687,7 +704,7 @@ export const ACT1 = {
           impact(X.stairs - 380, 0.8);
         })(),
       );
-      g.text.objective(['عالدرج', 'To the stairs']);
+      g.text.objective(['إلى الدرج', 'To the stairs']);
       yield () => g.player.x >= X.stairs - 20;
       g.text.objective(null);
       g.lock();
@@ -741,7 +758,7 @@ export const ACT1 = {
     g.player.stance = g.player.stance === 'prone' ? 'prone' : 'stand';
     g.lock(false);
     if (g.player.stance !== 'stand') {
-      g.prompt('jump', 'قوم', 'Get up');
+      g.prompt('jump', 'قِف', 'Get up');
       yield () => g.player.stance === 'stand';
       g.prompt(null);
     }
@@ -786,7 +803,7 @@ export const ACT1 = {
     g.fade = 0;
     // the torch comes to hand; wait for the player to light it (or a few seconds)
     g.active = 'torch';
-    if (!g.torch.on) g.prompt('use', 'شغّل الكشّاف', 'Torch');
+    if (!g.torch.on) g.prompt('use', 'أشعل المصباح', 'Torch');
     const t0 = g.time;
     g.runner.run(
       (function* () {
@@ -900,21 +917,21 @@ export const ACT1 = {
     yield 1;
     ks.override = { ...POSES.sitGround, armN: 1.4, foreN: 2.6 };
     yield* talk(g, [
-      [KHALED, ['بتعرف شو بدي أعمل لمّا خلّص تدريب المعلمين؟', 'You know what I’m going to do when I finish teacher training?']],
+      [AHMAD, ['بتعرف شو بدي أعمل لمّا خلّص تدريب المعلمين؟', 'You know what I’m going to do when I finish teacher training?']],
       [SAMI, ['شو؟', 'What?']],
-      [KHALED, ['بدي افتح مدرسة. مو مدرسة حكومية — مدرسة خاصة. ببيت. غرفة وحدة، كراسي وطبشور، وكتب كتير.', 'I’m going to open a school. Not a government school — a private one. In a house. One room, chairs, chalk, and lots of books.']],
+      [AHMAD, ['بدي افتح مدرسة. مو مدرسة حكومية، مدرسة خاصة. ببيت. غرفة وحدة، كراسي وطبشور، وكتب كتير.', 'I’m going to open a school. Not a government school. A private one. In a house. One room, chairs, chalk, and lots of books.']],
       [SAMI, ['وبتعلّم فيها شعر.', 'And you’ll teach poetry.']],
-      [KHALED, ['بعلّم فيها كل شي. قواعد وشعر وعلوم وكيف الواحد يفكّر لحالو.', 'I’ll teach everything. Grammar and poetry and science and how to think for yourself.']],
+      [AHMAD, ['بعلّم فيها كل شي. قواعد وشعر وعلوم وكيف الواحد يفكّر لحالو.', 'I’ll teach everything. Grammar and poetry and science and how to think for yourself.']],
     ]);
     ks.override = { ...POSES.sitGround };
     yield 1.2;
     yield* g.say(SAMI, ['كيف الواحد يفكّر لحالو. بهالبلد.', 'How to think for yourself. In this country.']);
     yield GAP;
-    // He lowers his voice — instinctively, the way everyone does.
+    // He lowers his voice instinctively, the way everyone does.
     ks.override = { ...POSES.sitGround, torso: 0.3, head: 0.2 };
     g.sound.ambience({ traffic: 0.35, crowd: 0.1 }, 0.8);
     yield 0.8;
-    yield* g.say(KHALED, ['هلّق لا. بس مو لازم يضل هيك.', 'Not now. But it doesn’t have to stay this way.'], 4.5, 'whisper');
+    yield* g.say(AHMAD, ['هلّق لا. بس مو لازم يضل هيك.', 'Not now. But it doesn’t have to stay this way.'], 4.5, 'whisper');
     yield 1;
     ss.override = { ...POSES.sitGround, head: -0.45 }; // looks up at the arbour
     g.sound.birds();
@@ -939,7 +956,6 @@ export const ACT1 = {
     g.snapCamera();
     g.fade = 0;
     g.sound.pigeons(); // the bird is a pigeon, and it flies away
-    g.effects.trickle(X.classroom - 20, -130, 1.5);
     yield 2.2;
     g.camOverride = null;
     g.sound.radio(1.2);
@@ -954,15 +970,18 @@ export const ACT1 = {
     const L = g.level;
     const people = [
       g.npc('woman', X.kerb + 140, { f: -1 }),
-      g.npc('man', X.olive + 60, { f: -1 }),
+      g.npc('man2', X.olive + 60, { f: -1 }),
       g.npc('woman2', X.olive + 130, { f: -1 }),
       g.npc('man', X.olive - 10, { f: 1 }),
+      g.npc('man3', X.olive + 190, { f: -1 }),
     ];
     // a woman sits on the kerb, her face in her hands
     people[0].override = { ...POSES.kerb, head: 0.8, armN: 1.3, foreN: 2.7, armF: 1.2, foreF: 2.6 };
-    people[1].override = { ...POSES.stand, head: 0.2 };
+    people[1].override = { ...POSES.armsCrossed, head: 0.25 };
     people[2].override = { ...POSES.hands, head: 0.1 };
-    people[3].override = { ...POSES.stand, head: 0.1, armN: 1.3, foreN: 2.5 }; // on the walkie-talkie
+    // the man on the walkie-talkie sits on an upturned crate, radio to his ear
+    people[3].override = { ...POSES.sitChair, seat: 34, head: 0.1, armN: 0.75, foreN: 2.95 };
+    people[4].override = { ...POSES.handsOnHips, head: 0.3 };
     people[3].rig.prop = (c, hand) => {
       c.fillStyle = '#1c1c1e';
       c.fillRect(hand[0] - 4, hand[1] - 20, 8, 22);
@@ -983,22 +1002,6 @@ export const ACT1 = {
       g.a.sunK = Math.max(g.a.sunK, 0.9);
     });
     L.at(X.kerb - 120, () => g.runner.run(this.news(g)));
-    // a jet, somewhere over the next town: the other word on channel 3
-    L.at(X.battery + 380, () => g.runner.run(this.jet(g)));
-  },
-
-  *jet(g) {
-    g.sound.radio(1.8);
-    yield* g.say(RADIO, ['...حربي بالجو... حربي...', '...jet in the air... jet...'], 3, 'radio');
-    g.sound.jet(7);
-    g.a.jet = { t0: g.time + 0.8, dur: 5, x0: g.cam.x * 0.12 - 900, x1: g.cam.x * 0.12 + 1100 };
-    yield 5.2;
-    g.sound.strikeFar();
-    g.bump(0.25);
-    g.a.fil = { x: g.cam.x * 0.3 + 520, t: g.time };
-    yield 2.5;
-    g.sound.radio(1.6);
-    yield* g.say(RADIO, ['...ضرب حربي... عالمرج... ضرب حربي...', '...airstrike... out by the farms... airstrike...'], 3.5, 'radio');
   },
 
   *abuArrives(g) {
@@ -1039,7 +1042,7 @@ export const ACT1 = {
     yield GAP;
     abu.override = { ...POSES.stand, armN: 1.25, foreN: 1.45 }; // a hand on his shoulder
     yield 0.8;
-    yield* g.say(ABU, ['خالد... الله يرحمو يا ابني.', 'Khaled... God have mercy on him, my son.'], 4.5);
+    yield* g.say(ABU, ['أحمد... الله يرحمو يا ابني.', 'Ahmad... God have mercy on him, my son.'], 4.5);
     // Silence. The information enters but hasn't landed.
     g.a.drainT0 = g.time;
     g.sound.ambience({ crowd: 0.15, wind: 0.1, air: 0.1 }, 3);
@@ -1075,12 +1078,12 @@ export const ACT1 = {
       p.override = null;
       yield* g.say(SAMI, ['بدي شوفو. وينو هلّق؟', 'I need to see him. Where is he now?']);
       yield GAP;
-      yield* g.say(ABU, ['سامي — ما فيك تروح. الشارع مكشوف. القنّاص لسا هناك.', 'Sami — you can’t go. The street is exposed. The sniper is still there.']);
+      yield* g.say(ABU, ['سامي، ما فيك تروح. الشارع مكشوف. القنّاص لسا هناك.', 'Sami, you can’t go. The street is exposed. The sniper is still there.']);
       yield GAP;
       g.runner.run(g.walkPlayer(X.south - 20));
       yield* g.say(SAMI, ['وينو.', 'Where is he.'], 2.4);
       g.camOverride = { x: X.south - 120, y: -230, view: 1150 };
-      yield* g.say(ABU, ['شارع المدرسة، قبل المفرق. سامي — سامي! ما فيك تروح هلّق!', 'School Street, before the junction. Sami — Sami! You can’t go there now!'], 4, 'shout');
+      yield* g.say(ABU, ['شارع المدرسة، قبل المفرق. سامي... سامي! ما فيك تروح هلّق!', 'School Street, before the junction. Sami... Sami! You can’t go there now!'], 4, 'shout');
       yield () => !g.autoWalk;
       // Sami walks south. The group watches him go.
       g.a.samiDepth = 0.001;
@@ -1094,11 +1097,11 @@ export const ACT1 = {
       g.walkieMan.f = -1;
       yield* g.say(SAMI, ['مين عمل هيك. من وين إجت الطلقة.', 'Who did this. Where did the shot come from.']);
       yield GAP;
-      yield* g.say(WMAN, ['القنّاص عالتلّة الغربية. بالبناية اللي عليها العلم — بتعرفو. نفس القنّاص اللي من أسبوع.', 'The sniper on the western hill. In the building with the flag — you know it. Same sniper from last week.'], 6);
+      yield* g.say(WMAN, ['القنّاص عالتلّة الغربية. بالبناية اللي عليها العلم، بتعرفو. نفس القنّاص اللي من أسبوع.', 'The sniper on the western hill. In the building with the flag. You know it. Same sniper from last week.'], 6);
       yield GAP;
       yield* g.say(SAMI, ['في حدا شافو وهوّي واقع؟', 'Did anyone see him fall?']);
       yield GAP;
-      yield* g.say(WMAN, ['أم سعيد — هيّي اللي طلعت عليه. لحقوها الشباب بعدها. بس ما قدروا يجرّوه — الشارع مكشوف.', 'Um Said — she’s the one who went to him. Some of the men followed her. But they couldn’t move him — the street is exposed.'], 6.5);
+      yield* g.say(WMAN, ['أم سعيد، هيّي اللي طلعت عليه. لحقوها الشباب بعدها. بس ما قدروا يجرّوه، الشارع مكشوف.', 'Um Said. She’s the one who went to him. Some of the men followed her. But they couldn’t move him. The street is exposed.'], 6.5);
       yield GAP;
       yield* g.say(SAMI, ['يعني لسا هناك.', 'So he’s still there.']);
       // Silence from the group. That's the answer.
@@ -1259,7 +1262,8 @@ const PASSERS = [
   { outfit: 'woman' },
   { outfit: 'woman2' },
   { outfit: 'fadi', scale: 0.86 },
-  { outfit: 'man' },
+  { outfit: 'man2' },
+  { outfit: 'man3' },
   { outfit: 'boy', scale: 0.62 },
   { outfit: 'abuyazan' },
 ];
@@ -1272,8 +1276,8 @@ function streetLife(g, dt) {
     g.scene === 'street' &&
     !g.locked &&
     !a.shelling &&
-    !(a.heli && g.time < a.heli.t0 + a.heli.dur + 8) &&
-    !(a.jet && g.time < a.jet.t0 + 10) &&
+    !(a.jetFly && g.time < a.jetFly.t0 + 14) &&
+    !(a.heliWarn && g.time < a.heliWarn + 12) &&
     !a.drainT0 &&
     g.player.x < X.newsStart - 250;
   a.nextPasser ??= g.time + 5;

@@ -6,8 +6,8 @@
 import { Person, POSES, walkPose, crouchWalkPose, crawlPose, blendPose } from '../rigs/person.js';
 import { clamp, lerp, smooth } from '../engine/util.js';
 
-export const HEIGHT = { stand: 188, crouch: 138, prone: 52 };
-const SPEED = { stand: 175, run: 330, crouch: 92, prone: 44, carry: 105 };
+export const HEIGHT = { stand: 170, crouch: 122, prone: 48 };
+const SPEED = { stand: 162, run: 310, crouch: 84, prone: 42, carry: 98 };
 const GRAVITY = 2600;
 const JUMP_V = 640;
 const STEP = 22;
@@ -127,9 +127,14 @@ export class Walker {
     if (this.carry && this.stance === 'stand') speed = SPEED.carry;
     const move = intent.move || 0;
     const target = move * speed;
-    const acc = this.onGround ? 1800 : 700;
+    // ease in and out of a walk rather than snapping to speed
+    const acc = this.onGround ? (Math.abs(target) > Math.abs(this.vx) ? 900 : 1300) : 600;
     this.vx += clamp(target - this.vx, -acc * dt, acc * dt);
-    if (move !== 0) this.f = move > 0 ? 1 : -1;
+    if (move !== 0) {
+      const f = move > 0 ? 1 : -1;
+      if (f !== this.f) this.rig.pivot(); // a quick turn, not a flip
+      this.f = f;
+    }
 
     if (intent.jump && this.onGround && this.stance === 'stand' && !this.carry) {
       if (!this.tryMantle()) {
@@ -211,7 +216,7 @@ export class Walker {
 
   pose(dt, speed, run = false) {
     let target;
-    const phase = (this.stride / 88) * Math.PI;
+    const phase = (this.stride / (this.stance === 'stand' ? 74 : 52)) * Math.PI;
     if (this.mantle) {
       const k = clamp(this.mantle.t);
       target =
@@ -227,8 +232,8 @@ export class Walker {
     } else if (this.stance === 'crouch') {
       target = speed > 4 ? crouchWalkPose(phase) : POSES.crouch;
     } else if (speed > 4) {
-      const runK = clamp((speed - 190) / 120);
-      target = walkPose(phase, clamp(speed / 170, 0.4, 1.2), runK);
+      const runK = clamp((speed - 180) / 110);
+      target = walkPose(phase, clamp(speed / 160, 0.35, 1.2), runK);
       if (this.carry) target = { ...target, ...POSES.carry, thighN: target.thighN, shinN: target.shinN, thighF: target.thighF, shinF: target.shinF, torso: -0.08 };
     } else {
       target = this.carry ? POSES.carry : POSES.stand;
@@ -246,7 +251,7 @@ export class Walker {
 
     // footsteps
     if (this.onGround && speed > 4 && this.stance !== 'prone') {
-      const n = Math.floor(this.stride / 88);
+      const n = Math.floor(this.stride / (this.stance === 'stand' ? 74 : 52));
       if (n !== this.lastStep) {
         this.lastStep = n;
         this.onStep?.(this.stance);

@@ -10,7 +10,7 @@ export const CONCRETE = ['#a99d89', '#9f9480', '#948874', '#ada390', '#91857a', 
 
 // ------------------------------------------------------------ sky & far --
 
-export function sky(R, stops) {
+export function sky(R, stops, { sun = [0.78, 0.16], warmth = 0 } = {}) {
   R.sky((c) => {
     c.save();
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -18,6 +18,22 @@ export function sky(R, stops) {
     for (const [p, col] of stops) g.addColorStop(p, col);
     c.fillStyle = g;
     c.fillRect(0, 0, R.W, R.H);
+    // the sun's glare, warmer as the afternoon goes
+    const sx = sun[0] * R.W;
+    const sy = sun[1] * R.H;
+    const glow = c.createRadialGradient(sx, sy, 0, sx, sy, R.W * 0.55);
+    glow.addColorStop(0, `rgba(255,${238 - warmth * 40},${205 - warmth * 70},${0.35 + warmth * 0.1})`);
+    glow.addColorStop(0.35, `rgba(255,${226 - warmth * 40},${190 - warmth * 70},0.1)`);
+    glow.addColorStop(1, 'rgba(255,220,180,0)');
+    c.fillStyle = glow;
+    c.fillRect(0, 0, R.W, R.H);
+    // high thin haze streaks
+    c.fillStyle = 'rgba(255,250,240,0.06)';
+    for (let i = 0; i < 5; i++) {
+      c.beginPath();
+      c.ellipse(R.W * (0.15 + i * 0.19), R.H * (0.12 + (i % 3) * 0.07), R.W * 0.16, R.H * 0.012, -0.04, 0, Math.PI * 2);
+      c.fill();
+    }
     c.restore();
   });
 }
@@ -141,6 +157,48 @@ export function plume(R, x, y, t, { depth = 0.3, age = 1, color = [120, 105, 90]
 // spec: { x, w, floors, fh, color, seed, torn: 0…1 (corner torn away),
 //         holes: [[fx, fy, r]], balcony: [floor, side], laundry, dishes,
 //         shutters, graffiti: [text, fx, fy, size, color], sign }
+// Render texture for a façade: patched repairs, blotches and hairline
+// cracks. Drawn once per building into its own canvas, then reused.
+const WEATHER = new Map();
+function weathering(w, H, seed) {
+  const key = `${w}x${H}:${seed}`;
+  let cv = WEATHER.get(key);
+  if (cv) return cv;
+  cv = document.createElement('canvas');
+  cv.width = Math.ceil(w);
+  cv.height = Math.ceil(H);
+  const c = cv.getContext('2d');
+  const r = rng(seed * 31 + 7);
+    for (let i = 0; i < Math.round(w / 45); i++) {
+      c.fillStyle = r() < 0.5 ? 'rgba(255,248,235,0.07)' : 'rgba(70,58,44,0.07)';
+      c.fillRect(r() * w, r() * H, 20 + r() * 70, 14 + r() * 50);
+    }
+    // blotchy render texture
+    for (let i = 0; i < Math.round((w * H) / 900); i++) {
+      c.fillStyle = `rgba(${r() < 0.5 ? '255,250,240' : '60,48,36'},${0.03 + r() * 0.04})`;
+      c.beginPath();
+      c.arc(r() * w, r() * H, 2 + r() * 7, 0, Math.PI * 2);
+      c.fill();
+    }
+    // hairline cracks
+    c.strokeStyle = 'rgba(50,40,32,0.28)';
+    c.lineWidth = 0.9;
+    for (let i = 0; i < Math.max(2, Math.round(w / 140)); i++) {
+      let cx0 = r() * w;
+      let cy0 = r() * H;
+      c.beginPath();
+      c.moveTo(cx0, cy0);
+      for (let k = 0; k < 5; k++) {
+        cx0 += (r() - 0.5) * 22;
+        cy0 += 8 + r() * 16;
+        c.lineTo(cx0, cy0);
+      }
+      c.stroke();
+    }
+  WEATHER.set(key, cv);
+  return cv;
+}
+
 export function block(R, spec, t = 0) {
   const { x, w, floors, fh = 140, color = CONCRETE[0], seed = 1 } = spec;
   const H = floors * fh;
@@ -182,9 +240,11 @@ export function block(R, spec, t = 0) {
     c.fill();
     c.clip();
 
-    // weathering and floor slabs
+    // weathering: sun-bleached and dirty render, patched repairs, cracks
     c.fillStyle = 'rgba(60,50,40,0.08)';
     for (let i = 0; i < 12; i++) c.fillRect(x + r() * w, top, 2 + r() * 10, H);
+    // (the fine texture is drawn once per building and reused every frame)
+    c.drawImage(weathering(w, H, seed), x, top);
     for (let f = 0; f <= floors; f++) {
       c.fillStyle = 'rgba(40,32,26,0.22)';
       c.fillRect(x, -f * fh - 6, w, 8);
@@ -212,8 +272,46 @@ export function block(R, spec, t = 0) {
         } else {
           c.fillStyle = kind < 0.55 ? '#211b17' : '#2b241f';
           c.fillRect(wx, wy, ww, wh);
+          // a pale frame and a stone sill
+          c.strokeStyle = 'rgba(235,225,205,0.28)';
+          c.lineWidth = 2;
+          c.strokeRect(wx - 1, wy - 1, ww + 2, wh + 2);
           c.fillStyle = 'rgba(0,0,0,0.25)';
           c.fillRect(wx - 3, wy + wh, ww + 6, 4); // sill shadow
+          c.fillStyle = 'rgba(230,220,200,0.35)';
+          c.fillRect(wx - 5, wy + wh - 1, ww + 10, 3);
+          // rain has run down from the sill for years
+          const st = c.createLinearGradient(0, wy + wh, 0, wy + wh + 50);
+          st.addColorStop(0, 'rgba(60,50,40,0.16)');
+          st.addColorStop(1, 'rgba(60,50,40,0)');
+          c.fillStyle = st;
+          c.fillRect(wx + ww * 0.15, wy + wh + 2, ww * 0.7, 50);
+          const extra = r();
+          if (kind <= 0.55 && extra < 0.3) {
+            // a curtain still hanging, drawn half across
+            c.fillStyle = ['#7a5a48', '#5a6a6e', '#8a7a5a', '#6a4a5a'][Math.floor(r() * 4)];
+            c.globalAlpha = 0.8;
+            c.fillRect(wx + 2, wy + 2, ww * (0.3 + r() * 0.3), wh - 4);
+            c.globalAlpha = 1;
+          } else if (kind <= 0.55 && extra < 0.5) {
+            // the last of the glass, catching the sky
+            c.fillStyle = 'rgba(160,180,200,0.18)';
+            c.beginPath();
+            c.moveTo(wx, wy);
+            c.lineTo(wx + ww * 0.6, wy);
+            c.lineTo(wx, wy + wh * 0.7);
+            c.fill();
+          } else if (f === 0 && extra < 0.75) {
+            // ground-floor grille
+            c.strokeStyle = 'rgba(30,26,22,0.8)';
+            c.lineWidth = 1.5;
+            c.beginPath();
+            for (let gx = wx + 6; gx < wx + ww; gx += 8) {
+              c.moveTo(gx, wy);
+              c.lineTo(gx, wy + wh);
+            }
+            c.stroke();
+          }
           if (kind > 0.7) {
             // closed shutter, some slats missing
             c.fillStyle = spec.shutter || '#7a6a55';
@@ -284,12 +382,19 @@ export function block(R, spec, t = 0) {
       c.fillStyle = 'rgba(30,24,20,0.0)';
     }
 
+    // the base of the wall: grime, splash, and the dark where it meets the street
+    const ao = c.createLinearGradient(0, -60, 0, 0);
+    ao.addColorStop(0, 'rgba(30,24,18,0)');
+    ao.addColorStop(1, 'rgba(30,24,18,0.38)');
+    c.fillStyle = ao;
+    c.fillRect(x, -60, w, 60);
+
     // graffiti
     for (const [text, gx, gy, size, gc, rot] of spec.graffiti || []) {
       c.save();
       c.translate(x + gx * w, gy);
       c.rotate(rot || -0.03);
-      c.font = `${size}px "Aref Ruqaa", "Noto Naskh Arabic", serif`;
+      c.font = `${size}px "Aref Ruqaa", "IBM Plex Sans Arabic", serif`;
       c.fillStyle = gc || 'rgba(40,40,44,0.8)';
       c.textAlign = 'center';
       c.direction = 'rtl';
@@ -337,6 +442,20 @@ export function block(R, spec, t = 0) {
         c.moveTo(i, -34);
         c.lineTo(i, 0);
         c.stroke();
+      }
+      if (!spec.laundry || spec.plants) {
+        // someone still waters these
+        for (let i = 0; i < 3; i++) {
+          const px = 10 + i * (w * 0.3 - 20) / 2;
+          c.fillStyle = '#8a5a3a';
+          c.fillRect(px, -10, 10, 10);
+          c.fillStyle = ['#5e7a3a', '#6e8a44', '#4e6a32'][i];
+          c.beginPath();
+          c.arc(px + 5, -13, 7, 0, Math.PI * 2);
+          c.arc(px + 1, -17, 4, 0, Math.PI * 2);
+          c.arc(px + 9, -18, 4, 0, Math.PI * 2);
+          c.fill();
+        }
       }
       if (spec.laundry) {
         c.strokeStyle = '#2a2420';
@@ -393,19 +512,155 @@ export function shade(hex, k) {
 
 // The street itself: asphalt, a pavement kerb, dust.
 export function street(R, x0, x1, { color = '#6e6559', pave = '#8a8072' } = {}) {
+  const seen = (x) => Math.abs(x - R.cam.x) < 1500;
   R.paint((c) => {
+    // the pavement: worn slabs with dark joints
     c.fillStyle = pave;
     c.fillRect(x0, -4, x1 - x0, 8);
-    c.fillStyle = color;
-    c.fillRect(x0, 4, x1 - x0, 500);
     const r = rng(8);
-    c.fillStyle = 'rgba(40,32,26,0.18)';
-    for (let x = x0; x < x1; x += 40) {
-      if (r() < 0.35) c.fillRect(x, 10 + r() * 30, 20 + r() * 60, 2);
+    c.fillStyle = 'rgba(40,32,26,0.35)';
+    for (let x = x0; x < x1; x += 46 + r() * 20) if (seen(x)) c.fillRect(x, -4, 1.5, 8); // (a cheap stream: fine to run it all)
+    // the kerb stone, lit on top
+    c.fillStyle = '#9d9383';
+    c.fillRect(x0, 3, x1 - x0, 5);
+    c.fillStyle = 'rgba(255,250,235,0.18)';
+    c.fillRect(x0, 3, x1 - x0, 1.2);
+    // asphalt
+    c.fillStyle = color;
+    c.fillRect(x0, 8, x1 - x0, 500);
+    const road = c.createLinearGradient(0, 8, 0, 120);
+    road.addColorStop(0, 'rgba(0,0,0,0.18)');
+    road.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = road;
+    c.fillRect(x0, 8, x1 - x0, 112);
+    // patches of newer tarmac, and cracks (each strip seeded by its own x,
+    // so what's drawn doesn't depend on what's on screen)
+    for (let x = x0; x < x1; x += 60) {
+      if (!seen(x)) continue;
+      const q = rng(Math.floor(x) * 13 + 5);
+      if (q() < 0.12) {
+        c.fillStyle = 'rgba(30,28,26,0.22)';
+        c.fillRect(x, 16 + q() * 50, 50 + q() * 120, 12 + q() * 20);
+      }
+      if (q() < 0.3) {
+        c.strokeStyle = 'rgba(30,24,20,0.35)';
+        c.lineWidth = 1;
+        c.beginPath();
+        let cx = x;
+        let cy = 14 + q() * 60;
+        c.moveTo(cx, cy);
+        for (let k = 0; k < 4; k++) {
+          cx += 10 + q() * 20;
+          cy += (q() - 0.5) * 10;
+          c.lineTo(cx, cy);
+        }
+        c.stroke();
+      }
+      // grit, stones and litter along the kerb
+      for (let gx = x; gx < x + 60; gx += 11) {
+        if (q() < 0.4) {
+          c.fillStyle = `rgba(${150 + q() * 40},${140 + q() * 30},${120 + q() * 30},0.7)`;
+          c.fillRect(gx, 8 + q() * 10, 2 + q() * 3, 2);
+        }
+        if (q() < 0.02) {
+          c.fillStyle = q() < 0.5 ? 'rgba(220,215,200,0.6)' : 'rgba(80,110,140,0.5)';
+          c.fillRect(gx, 10 + q() * 30, 6 + q() * 6, 3); // a scrap of paper or plastic
+        }
+      }
     }
-    // grit and small stones along the kerb
-    c.fillStyle = 'rgba(160,150,130,0.6)';
-    for (let x = x0; x < x1; x += 12) if (r() < 0.4) c.fillRect(x, 1 + r() * 4, 3, 2);
+  });
+}
+
+// Cables sagging across the street between the blocks, and some broken ones
+// hanging. Cast, so they throw thin shadows.
+export function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000 } = {}) {
+  R.cast((c) => {
+    const r = rng(seed);
+    c.strokeStyle = 'rgba(28,24,22,0.85)';
+    c.lineWidth = 1.4;
+    for (let x = from; x < to; x += 260 + r() * 260) {
+      const span = 180 + r() * 260;
+      const y0 = y + (r() - 0.5) * 80;
+      const y1 = y0 + (r() - 0.5) * 60;
+      const hang = r();
+      const drop = r();
+      if (x + span < camX - 1600 || x > camX + 1600) continue;
+      c.beginPath();
+      c.moveTo(x, y0);
+      c.quadraticCurveTo(x + span / 2, Math.max(y0, y1) + 30 + hang * 40, x + span, y1);
+      c.stroke();
+      if (drop < 0.3) {
+        // snapped, hanging down
+        c.beginPath();
+        c.moveTo(x + span * 0.7, y1 + 10);
+        c.quadraticCurveTo(x + span * 0.72, y1 + 60, x + span * 0.66, y1 + 100 + drop * 200);
+        c.stroke();
+      }
+    }
+  });
+}
+
+// Silhouettes very close to the camera, sweeping past faster than the street:
+// a lamp post, twisted rebar, a rubble edge, a hanging wire.
+export function foreground(R, camX, { from = -1000, to = 15000 } = {}) {
+  R.layer(1.32);
+  R.paint((c) => {
+    const r = rng(77);
+    for (let x = from; x < to; x += 900 + r() * 700) {
+      const kind = r();
+      const k1 = r();
+      const k2 = r();
+      if (Math.abs(x - camX * 1.32) > 1700) continue;
+      c.fillStyle = 'rgba(20,16,13,0.92)';
+      c.strokeStyle = 'rgba(20,16,13,0.92)';
+      if (kind < 0.3) {
+        // nothing here: keep the foreground sparse
+      } else if (kind < 0.6) {
+        // a rubble edge with rebar
+        c.beginPath();
+        c.moveTo(x - 40, 60);
+        c.lineTo(x, 10);
+        c.lineTo(x + 60, 20);
+        c.lineTo(x + 90, -10);
+        c.lineTo(x + 150, 25);
+        c.lineTo(x + 190, 60);
+        c.closePath();
+        c.fill();
+        c.lineWidth = 2.5;
+        for (let i = 0; i < 4; i++) {
+          c.beginPath();
+          c.moveTo(x + 40 + i * 22, 10);
+          c.quadraticCurveTo(x + 50 + i * 20, -40, x + 30 + i * 30 + k1 * 30, -70 - k2 * 40 - i * 6);
+          c.stroke();
+        }
+      } else if (kind < 0.8) {
+        // a wire hanging into frame from above
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(x, -900);
+        c.quadraticCurveTo(x + 30, -560, x + 10, -460 - k1 * 60);
+        c.stroke();
+      }
+    }
+  });
+  R.layer(1);
+}
+
+// Dust motes turning slowly in the sunlight.
+export function motes(R, camX, t, strength = 1) {
+  if (strength <= 0) return;
+  R.glow((c) => {
+    const r = rng(5);
+    for (let i = 0; i < 70; i++) {
+      const bx = r() * 2600 - 1300;
+      const by = -40 - r() * 520;
+      const sp = 6 + r() * 10;
+      const x = camX + ((((bx + t * sp) % 2600) + 2600) % 2600) - 1300 + Math.sin(t * 0.7 + i) * 12;
+      const y = by + Math.sin(t * 0.5 + i * 1.7) * 18;
+      const a = (0.07 + r() * 0.12) * strength * (0.6 + 0.4 * Math.sin(t * 1.3 + i));
+      c.fillStyle = `rgba(255,236,200,${a})`;
+      c.fillRect(x, y, 2, 2);
+    }
   });
 }
 
@@ -743,19 +998,125 @@ export function lowWall(R, x, w, h = 70, color = '#a3967f') {
 }
 
 // A Mi-8 seen side-on in the far sky, rotor a blur.
-export function helicopter(c, x, y, s, t) {
+// A fighter jet in side profile, facing right: pointed nose, bubble canopy,
+// swept delta wing, twin fins, and the shimmer of the exhaust.
+export function jet(c, x, y, s, t) {
   c.save();
   c.translate(x, y);
   c.scale(s, s);
-  c.fillStyle = '#1c1c20';
+  // exhaust heat haze
+  const hz = c.createLinearGradient(-150, 0, -58, 0);
+  hz.addColorStop(0, 'rgba(255,220,180,0)');
+  hz.addColorStop(1, 'rgba(255,200,150,0.22)');
+  c.fillStyle = hz;
   c.beginPath();
-  smoothPath(c, [[-60, 0], [-20, -14], [40, -14], [62, -4], [60, 8], [20, 14], [-40, 10]], true);
+  c.ellipse(-100, 1, 48, 5 + Math.sin(t * 40) * 0.8, 0, 0, Math.PI * 2);
   c.fill();
-  c.fillRect(-120, -6, 70, 6); // tail boom
-  c.fillRect(-126, -20, 8, 20);
-  c.fillRect(-4, -20, 8, 8);
-  c.globalAlpha = 0.35;
-  c.fillRect(-90, -24 + Math.sin(t * 60) * 1, 180, 3); // rotor blur
-  c.globalAlpha = 1;
+  // far wing (darker, behind)
+  c.fillStyle = '#23252a';
+  c.beginPath();
+  c.moveTo(-6, -2);
+  c.lineTo(-40, -12);
+  c.lineTo(-52, -12);
+  c.lineTo(-30, -2);
+  c.closePath();
+  c.fill();
+  // fuselage
+  c.fillStyle = '#2d3036';
+  c.beginPath();
+  c.moveTo(78, 1);
+  c.quadraticCurveTo(58, -5, 30, -6);
+  c.lineTo(-50, -5);
+  c.lineTo(-62, -3);
+  c.lineTo(-62, 4);
+  c.lineTo(-48, 6);
+  c.lineTo(30, 6);
+  c.quadraticCurveTo(58, 5, 78, 1);
+  c.closePath();
+  c.fill();
+  // intake
+  c.fillStyle = '#1d1f23';
+  c.fillRect(8, 1, 20, 5);
+  // canopy
+  c.fillStyle = '#5b6470';
+  c.beginPath();
+  c.moveTo(46, -5);
+  c.quadraticCurveTo(36, -13, 20, -9);
+  c.lineTo(18, -5);
+  c.closePath();
+  c.fill();
+  // near wing, swept back
+  c.fillStyle = '#383b42';
+  c.beginPath();
+  c.moveTo(14, 3);
+  c.lineTo(-34, 16);
+  c.lineTo(-48, 16);
+  c.lineTo(-40, 3);
+  c.closePath();
+  c.fill();
+  // twin fins
+  c.fillStyle = '#2a2d33';
+  c.beginPath();
+  c.moveTo(-40, -5);
+  c.lineTo(-58, -26);
+  c.lineTo(-66, -26);
+  c.lineTo(-60, -4);
+  c.closePath();
+  c.fill();
+  c.fillStyle = '#212328';
+  c.beginPath();
+  c.moveTo(-44, -5);
+  c.lineTo(-54, -20);
+  c.lineTo(-60, -20);
+  c.lineTo(-58, -4);
+  c.closePath();
+  c.fill();
+  // tailplane
+  c.fillStyle = '#34373e';
+  c.beginPath();
+  c.moveTo(-46, 3);
+  c.lineTo(-64, 10);
+  c.lineTo(-68, 10);
+  c.lineTo(-62, 2);
+  c.closePath();
+  c.fill();
+  // nozzle glow
+  c.fillStyle = 'rgba(255,170,90,0.5)';
+  c.beginPath();
+  c.ellipse(-63, 0.5, 2, 3.4, 0, 0, Math.PI * 2);
+  c.fill();
+  c.restore();
+}
+
+// The same jet seen from below, as a shadow on the ground: a swept delta
+// with its fins and tailplane. Moving right.
+export function jetShadowShape(c, x, y, s) {
+  c.save();
+  c.translate(x, y);
+  c.scale(s, s);
+  c.beginPath();
+  c.moveTo(80, 0);
+  c.quadraticCurveTo(60, -7, 26, -8);
+  c.lineTo(-10, -12);
+  c.lineTo(-40, -70); // wing tip
+  c.lineTo(-56, -70);
+  c.lineTo(-44, -12);
+  c.lineTo(-56, -10);
+  c.lineTo(-72, -32); // tailplane
+  c.lineTo(-82, -32);
+  c.lineTo(-76, -8);
+  c.lineTo(-78, 0);
+  c.lineTo(-76, 8);
+  c.lineTo(-82, 32);
+  c.lineTo(-72, 32);
+  c.lineTo(-56, 10);
+  c.lineTo(-44, 12);
+  c.lineTo(-56, 70);
+  c.lineTo(-40, 70);
+  c.lineTo(-10, 12);
+  c.lineTo(26, 8);
+  c.quadraticCurveTo(60, 7, 80, 0);
+  c.closePath();
+  c.fill();
   c.restore();
 }

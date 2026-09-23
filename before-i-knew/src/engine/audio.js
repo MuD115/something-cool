@@ -121,15 +121,21 @@ export class Sound {
 
   buildBeds() {
     const ctx = this.ctx;
+    // source → filter → mod (anything that wobbles, around 1) → level g.
+    // Modulators only ever touch `mod`, never the level, so a bed at level 0
+    // is truly silent. (A modulator wired into the level gain adds to it and
+    // leaks: that was the pulsing "helicopter" under everything.)
     const bed = (src, type, freq, q) => {
       const f = ctx.createBiquadFilter();
       f.type = type;
       f.frequency.value = freq;
       f.Q.value = q;
+      const mod = ctx.createGain();
+      mod.gain.value = 1;
       const g = ctx.createGain();
       g.gain.value = 0;
-      src.connect(f).connect(g).connect(this.amb);
-      return { g, f };
+      src.connect(f).connect(mod).connect(g).connect(this.amb);
+      return { g, f, mod };
     };
     this.beds = {
       wind: bed(this.noiseSrc(), 'bandpass', 500, 0.5),
@@ -149,7 +155,7 @@ export class Sound {
     syl.frequency.value = 3.3;
     const sg = ctx.createGain();
     sg.gain.value = 0.4;
-    syl.connect(sg).connect(this.beds.crowd.g.gain);
+    syl.connect(sg).connect(this.beds.crowd.mod.gain);
     syl.start();
 
     // A generator in a basement: a steady low hum through walls, sagging
@@ -282,90 +288,75 @@ export class Sound {
     this.noise({ when: this.t + dur, dur: 0.1, freq: 2400, q: 0.8, vol: 0.1 });
   }
 
-  // A helicopter, high and slow: the low thud of the blades arrives before
-  // the machine. Only ever heard with a barrel bomb.
-  helicopter(dur = 12) {
+  // A fighter jet passing low: a thin whine arrives first, then the tearing
+  // roar with a Doppler drop as it goes over, a rumble that lingers, and the
+  // air itself thumping as it passes. Pans across the stereo field.
+  jetPass(dur = 9, over = 0.42) {
     if (!this.ctx) return;
-    this.heliCount = (this.heliCount || 0) + 1;
     const ctx = this.ctx;
     const w = this.t;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, w);
-    g.gain.exponentialRampToValueAtTime(0.85, w + dur * 0.45);
-    g.gain.exponentialRampToValueAtTime(0.45, w + dur * 0.62);
-    g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
-    // distance: the highs roll off as it comes and goes
-    const air = ctx.createBiquadFilter();
-    air.type = 'lowpass';
-    air.frequency.setValueAtTime(260, w);
-    air.frequency.exponentialRampToValueAtTime(900, w + dur * 0.5);
-    air.frequency.exponentialRampToValueAtTime(240, w + dur);
-    g.connect(air).connect(this.fx);
-    // blade thump: short brown-noise bursts at the blade-pass rate, with a
-    // Doppler drop as it passes over
-    const rate0 = 4.6;
-    let tt = w + 0.05;
-    let i = 0;
-    while (tt < w + dur) {
-      const k = (tt - w) / dur;
-      const rate = rate0 * (k < 0.5 ? 1.04 : 0.95);
-      const n = ctx.createBufferSource();
-      n.buffer = this.brownBuf;
-      const f = ctx.createBiquadFilter();
-      f.type = 'lowpass';
-      f.frequency.value = 170 + (i % 2) * 40;
-      const e = ctx.createGain();
-      e.gain.setValueAtTime(0.0001, tt);
-      e.gain.exponentialRampToValueAtTime(1, tt + 0.012);
-      e.gain.exponentialRampToValueAtTime(0.0001, tt + 0.14);
-      n.connect(f).connect(e).connect(g);
-      n.start(tt, Math.random() * 3);
-      n.stop(tt + 0.16);
-      tt += 1 / rate;
-      i++;
+    const tO = w + dur * over; // overhead
+    const out = ctx.createGain();
+    out.gain.value = 1;
+    let dest = this.fx;
+    if (ctx.createStereoPanner) {
+      const pan = ctx.createStereoPanner();
+      pan.pan.setValueAtTime(-0.9, w);
+      pan.pan.linearRampToValueAtTime(0, tO);
+      pan.pan.linearRampToValueAtTime(0.9, w + dur);
+      pan.connect(this.fx);
+      dest = pan;
     }
-    // a thin turbine whine, far off
-    const tur = ctx.createOscillator();
-    tur.type = 'sawtooth';
-    tur.frequency.setValueAtTime(1180, w);
-    tur.frequency.linearRampToValueAtTime(1240, w + dur * 0.5);
-    tur.frequency.linearRampToValueAtTime(1090, w + dur);
-    const tf = ctx.createBiquadFilter();
-    tf.type = 'bandpass';
-    tf.frequency.value = 1200;
-    tf.Q.value = 12;
-    const tg = ctx.createGain();
-    tg.gain.value = 0.018;
-    tur.connect(tf).connect(tg).connect(g);
-    tur.start(w);
-    tur.stop(w + dur);
-  }
-
-  // A jet: a tearing roar that crosses the sky faster than the eye.
-  jet(dur = 7) {
-    if (!this.ctx) return;
-    const ctx = this.ctx;
-    const w = this.t;
-    const src = this.noiseSrc();
-    const f = ctx.createBiquadFilter();
-    f.type = 'bandpass';
-    f.Q.value = 0.7;
-    f.frequency.setValueAtTime(2600, w);
-    f.frequency.exponentialRampToValueAtTime(900, w + dur * 0.45);
-    f.frequency.exponentialRampToValueAtTime(320, w + dur);
-    const rumble = this.noiseSrc(this.brownBuf);
+    out.connect(dest);
+    this.duck(0.9, dur);
+    // turbine whine: loud on approach, gone when it has passed
+    const whine = ctx.createOscillator();
+    whine.type = 'sawtooth';
+    whine.frequency.setValueAtTime(2300, w);
+    whine.frequency.exponentialRampToValueAtTime(2700, tO - 0.2);
+    whine.frequency.exponentialRampToValueAtTime(900, tO + 0.8);
+    const wf = ctx.createBiquadFilter();
+    wf.type = 'bandpass';
+    wf.Q.value = 14;
+    wf.frequency.setValueAtTime(2300, w);
+    wf.frequency.exponentialRampToValueAtTime(2700, tO - 0.2);
+    wf.frequency.exponentialRampToValueAtTime(900, tO + 0.8);
+    const wg = ctx.createGain();
+    wg.gain.setValueAtTime(0.0001, w);
+    wg.gain.exponentialRampToValueAtTime(0.05, tO - 0.3);
+    wg.gain.exponentialRampToValueAtTime(0.0001, tO + 1.4);
+    whine.connect(wf).connect(wg).connect(out);
+    whine.start(w);
+    whine.stop(w + dur);
+    // the roar: broadband noise swept down through the pass
+    const roar = this.noiseSrc();
     const rf = ctx.createBiquadFilter();
-    rf.type = 'lowpass';
-    rf.frequency.value = 140;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, w);
-    g.gain.exponentialRampToValueAtTime(0.5, w + dur * 0.4);
-    g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
-    src.connect(f).connect(g);
-    rumble.connect(rf).connect(g);
-    g.connect(this.fx);
-    src.stop(w + dur);
-    rumble.stop(w + dur);
+    rf.type = 'bandpass';
+    rf.Q.value = 0.6;
+    rf.frequency.setValueAtTime(2600, w);
+    rf.frequency.exponentialRampToValueAtTime(1500, tO);
+    rf.frequency.exponentialRampToValueAtTime(380, w + dur);
+    const rg = ctx.createGain();
+    rg.gain.setValueAtTime(0.0001, w);
+    rg.gain.exponentialRampToValueAtTime(0.12, tO - 1.2);
+    rg.gain.exponentialRampToValueAtTime(0.75, tO + 0.15);
+    rg.gain.exponentialRampToValueAtTime(0.25, tO + 2.2);
+    rg.gain.exponentialRampToValueAtTime(0.0001, w + dur);
+    roar.connect(rf).connect(rg).connect(out);
+    roar.stop(w + dur);
+    // the rumble that stays behind it
+    const rum = this.noiseSrc(this.brownBuf);
+    const uf = ctx.createBiquadFilter();
+    uf.type = 'lowpass';
+    uf.frequency.value = 140;
+    const ug = ctx.createGain();
+    ug.gain.setValueAtTime(0.0001, w);
+    ug.gain.exponentialRampToValueAtTime(0.9, tO + 0.4);
+    ug.gain.exponentialRampToValueAtTime(0.0001, w + dur);
+    rum.connect(uf).connect(ug).connect(out);
+    rum.stop(w + dur);
+    // the thump of air as it goes over
+    this.tone(48, 1.4, { when: tO, vol: 0.45, to: 30, attack: 0.05 });
   }
 
   // A missile strike beyond the rooftops: sharper than a barrel, shorter tail.
@@ -374,7 +365,9 @@ export class Sound {
     this.duck(0.9, 3);
     this.noise({ when: w, dur: 0.12, freq: 1800, type: 'lowpass', vol: 0.25, q: 0.4 });
     this.noise({ when: w + 0.02, dur: 2.4, freq: 120, type: 'lowpass', vol: 0.8, q: 0.5, buf: this.brownBuf, attack: 0.01 });
-    this.tone(55, 1.2, { when: w, vol: 0.4, to: 30 });
+    this.tone(55, 1.2, { when: w, vol: 0.45, to: 30 });
+    this.noise({ when: w + 0.4, dur: 4, freq: 90, type: 'lowpass', vol: 0.6, q: 0.5, buf: this.brownBuf, attack: 0.3 });
+    for (let i = 0; i < 8; i++) this.noise({ when: w + 0.6 + Math.random() * 2, dur: 0.05, freq: 1500 + Math.random() * 1500, q: 2, vol: 0.03 });
   }
 
   // Music steps back for blasts and speech: amount 0…1 of the music gain.

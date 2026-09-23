@@ -97,22 +97,22 @@ function summary(s) {
     [
       ar ? '٣:٢٠' : '3:20',
       s.helped_old_man
-        ? ['You carried the old man’s water to his daughter’s door.', 'شلت مي الختيار لباب بنتو.']
-        : ['You walked past the old man and his water.', 'مشيت وتركت الختيار ومايتو.'],
+        ? ['You carried the old man’s water to his daughter’s door.', 'حملتَ ماء الرجل العجوز إلى باب ابنته.']
+        : ['You walked past the old man and his water.', 'مضيتَ وتركتَ الرجل العجوز وماءه.'],
     ],
     [
       ar ? '٣:٤٥' : '3:45',
       s.children_helped
-        ? ['When the mortars came, you ran for Layla and the boy.', 'لمّا نزلت القذايف، ركضت لعند ليلى والصغير.']
-        : ['When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'لمّا نزلت القذايف، تخبّيت. ليلى وصّلت الصغير عالدرج لحالها.'],
+        ? ['When the mortars came, you ran for Layla and the boy.', 'حين سقطت القذائف، ركضتَ نحو ليلى والطفل.']
+        : ['When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'حين سقطت القذائف، احتميتَ. أوصلت ليلى الطفل إلى الدرج وحدها.'],
     ],
     [
       ar ? '٤:١٠' : '4:10',
       s.path === 'retrieval'
-        ? ['“I need to see him.” You walked south, towards School Street.', '«بدي شوفو.» مشيت عالقبلي، لشارع المدرسة.']
+        ? ['“I need to see him.” You walked south, towards School Street.', '«أريد أن أراه.» مشيتَ جنوباً نحو شارع المدرسة.']
         : s.path === 'witness'
-          ? ['“Who did this?” You asked for facts, because facts can be carried.', '«مين عمل هيك؟» سألت عن الحقيقة، لأنو الحقيقة بتنحمل.']
-          : ['You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'ما قلت شي. قعدت عالرصيف، وقعد أبو يزن جنبك.'],
+          ? ['“Who did this?” You asked for facts, because facts can be carried.', '«من فعل هذا؟» سألتَ عن الحقائق، لأن الحقائق يمكن حملها.']
+          : ['You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'لم تقل شيئاً. جلستَ على الرصيف، وجلس أبو يزن إلى جانبك.'],
     ],
   ];
   return rows.map(([time, [en, arText]]) => [time, ar ? arText : en]);
@@ -167,11 +167,11 @@ function showEnd(s) {
     <p class="kicker-small">${esc(t('endKicker'))}</p>
     <h2 id="end-h"><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="end-en">Before I Knew</span></h2>
     <ol class="timeline">
-      <li class="tl-start"><time>${lang() === 'ar' ? '٣:٠٥' : '3:05'}</time><span>${lang() === 'ar' ? 'خالد وسامي عم يمشوا بشارع الزيتون.' : 'Khaled and Sami walk down Zeitoun Street.'}</span></li>
+      <li class="tl-start"><time>${lang() === 'ar' ? '٣:٠٥' : '3:05'}</time><span>${lang() === 'ar' ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'}</span></li>
       ${summary(s)
         .map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`)
         .join('')}
-      <li class="tl-end"><time>${lang() === 'ar' ? '٤:١٥' : '4:15'}</time><span>${lang() === 'ar' ? 'بقيت الشمس ساعتين بالسما.' : 'Two hours of sun left in the sky.'}</span></li>
+      <li class="tl-end"><time>${lang() === 'ar' ? '٤:١٥' : '4:15'}</time><span>${lang() === 'ar' ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'}</span></li>
     </ol>
     <p class="sheet-quiet">${esc(t('endNext'))}</p>
     <div class="sheet-btns">
@@ -224,11 +224,11 @@ function pauseAside() {
   const cp = game.state?.checkpoint;
   return `
     <p class="aside-k">${esc(t('objective'))}</p>
-    <p class="aside-v">${obj ? `${esc(ar ? obj[0] : obj[1])}` : '—'}</p>
+    <p class="aside-v">${obj ? `${esc(ar ? obj[0] : obj[1])}` : '·'}</p>
     <p class="aside-k">${esc(t('carrying'))}</p>
     <p class="aside-v">${tools.length ? tools.map((x) => esc(ar ? x.ar : x.en)).join(' · ') : esc(t('nothing'))}</p>
     <p class="aside-k">${esc(t('checkpoint'))}</p>
-    <p class="aside-v">${cp ? `${esc(t('checkpoints')[cp] || cp)} · ${esc(t('times')[cp] || '')}` : '—'}</p>`;
+    <p class="aside-v">${cp ? `${esc(t('checkpoints')[cp] || cp)} · ${esc(t('times')[cp] || '')}` : '·'}</p>`;
 }
 
 function logPage(panel, m) {
@@ -314,13 +314,13 @@ const menu = new Menu($('menu'), {
   about: () =>
     lang() === 'ar'
       ? `<h2 class="menu-title">عن القصة</h2>
-    <p><strong>قبل ما عرفت</strong> قصة تفاعلية بتصير ببلدة محاصرة بالغوطة، جنب الشام، بآب ٢٠١٤. سامي عمرو ٢٧ سنة. بيمشي مع أعزّ صحابو، خالد، وبيفترقوا عالمفرق. وبأقل من ساعة، بيعرف إنو خالد استشهد.</p>
-    <p>هاد الفصل الأول: المشوار، والفراق، وساعة ما كنّا عم نعرف. خياراتك بتحدّد مين بيكون سامي لمّا يوصلو الخبر، ولوين بتروح الليلة.</p>
-    <h3>تنبيه</h3>
-    <p>الحياة تحت الحصار: قصف، قنّاص، جوع، موت صديق، وحزن. العنف بينسمع وبينفهم، بس ما بينشاف. مناسبة لعمر ١٦ وفوق.</p>
-    <p class="menu-sub">قصة متخيّلة مبنية على شهادات موثّقة عن حياة الحصار. كل شي فيها مرسوم ومركّب بالكود، بلا صور ولا تسجيلات.</p>`
+    <p><strong>قبل ما عرفت</strong> قصة تفاعلية تدور أحداثها في بلدة محاصرة في الغوطة، قرب دمشق، في آب ٢٠١٤. سامي في السابعة والعشرين. يمشي مع أقرب أصدقائه، أحمد، ثم يفترقان عند مفترق الطرق. وبعد أقلّ من ساعة، يعلم أن أحمد قد استُشهد.</p>
+    <p>هذا هو الفصل الأول: المشوار، والفراق، وساعة ما قبل المعرفة. تحدّد خياراتك من يكون سامي حين يصله الخبر، وإلى أين تمضي الليلة.</p>
+    <h3>تنبيه حول المحتوى</h3>
+    <p>الحياة تحت الحصار: القصف، والقنص، والجوع، وموت صديق، والحزن. يُسمَع العنف ويُفهَم، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.</p>
+    <p class="menu-sub">عمل متخيَّل مستند إلى شهادات موثّقة عن الحياة تحت الحصار. كل ما فيه مرسوم ومولَّد بالبرمجة، من دون صور أو تسجيلات.</p>`
       : `<h2 class="menu-title">About</h2>
-    <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Khaled, and they part at a junction. Less than an hour later, he learns that Khaled has been killed.</p>
+    <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Ahmad, and they part at a junction. Less than an hour later, he learns that Ahmad has been killed.</p>
     <p>This is Act One: the walk, the parting, and the hour of not knowing. Your choices shape who Sami is when the news reaches him, and which way the night goes.</p>
     <h3>Content note</h3>
     <p>Life under military siege: shelling, sniper fire, hunger, the death of a friend, grief. Violence is heard and implied, never shown. Recommended for ages 16 and over.</p>

@@ -3,16 +3,16 @@
 // are rebindable and persisted through settings.
 
 export const ACTIONS = [
-  ['left', 'Move left', 'روح عاليسار'],
-  ['right', 'Move right', 'روح عاليمين'],
-  ['run', 'Run (hold)', 'اركض'],
-  ['jump', 'Jump / climb', 'نطّ / اطلع'],
-  ['crouch', 'Crouch (toggle)', 'وطّي'],
+  ['left', 'Move left', 'تحرّك يساراً'],
+  ['right', 'Move right', 'تحرّك يميناً'],
+  ['run', 'Run (hold)', 'اركض (مع الضغط المستمر)'],
+  ['jump', 'Jump / climb', 'اقفز / تسلّق'],
+  ['crouch', 'Crouch (toggle)', 'انحنِ'],
   ['prone', 'Go prone (toggle)', 'انبطح'],
-  ['interact', 'Interact / examine', 'استعمل / اتفرّج'],
-  ['tool', 'Next tool', 'الغرض الجاي'],
-  ['use', 'Use tool (hold to crank the torch)', 'استعمل الغرض'],
-  ['skip', 'Skip line (hold)', 'فوّت الحكي (ضل ضاغط)'],
+  ['interact', 'Interact / examine', 'تفاعل / تفحّص'],
+  ['tool', 'Next tool', 'الأداة التالية'],
+  ['use', 'Use tool (hold to crank the torch)', 'استخدم الأداة (اضغط مطوّلاً لشحن المصباح)'],
+  ['skip', 'Skip line (hold)', 'تخطَّ الحوار (مع الضغط المستمر)'],
   ['menu', 'Menu', 'القائمة'],
 ];
 
@@ -34,7 +34,7 @@ export const DEFAULT_KEYS = {
 const PAD = { jump: 0, prone: 1, interact: 2, tool: 3, use: 5, crouch: 4, menu: 9, run: 7, skip: 6 };
 
 export function keyLabel(code) {
-  if (!code) return '—';
+  if (!code) return '·';
   return code
     .replace(/^Key/, '')
     .replace(/^Digit/, '')

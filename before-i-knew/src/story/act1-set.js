@@ -176,13 +176,16 @@ function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false }
 
 // --------------------------------------------------------------- scenes --
 
+// the spotter's window (world units)
+const SPOT_WIN = { x0: X.spotter - 40, x1: X.spotter + 85, top: -470, sill: -372, floor: -330 };
+
 export function drawStreet(R, g) {
   const t = g.time;
   const a = g.a;
   const cx = R.cam.x;
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
 
-  T.sky(R, skyStops(a.sunK));
+  T.sky(R, skyStops(a.sunK), { warmth: clamp(a.sunK || 0) });
   T.skyline(R, { depth: 0.15, y: 30, color: '#a39a90', seed: 4, haze: ['#d8d0c4', 0.35], minarets: [600, 2100] });
   // smoke from elsewhere in Ghouta, always somewhere
   T.plume(R, 900, 60, t, { depth: 0.18, age: 1, height: 380, width: 60, alpha: 0.45, color: [90, 86, 84] });
@@ -191,43 +194,28 @@ export function drawStreet(R, g) {
   if (a.fil) T.plume(R, a.fil.x, 60, t, { depth: 0.3, age: (g.time - a.fil.t) / 9, height: 420, width: 110, alpha: 0.7 });
   T.skyline(R, { depth: 0.32, y: 40, color: '#8f8474', seed: 9, haze: ['#cfc4b2', 0.18], minarets: [1500] });
 
-  // a jet: a glint and a contrail, gone before you find it
-  if (a.jet) {
-    const k = (g.time - a.jet.t0) / a.jet.dur;
-    if (k > 0 && k < 1.6) {
-      R.layer(0.12);
-      R.paint((c) => {
-        const x = lerp(a.jet.x0, a.jet.x1, Math.min(k, 1));
-        const y = -760 + k * 40;
-        const fade = k > 1 ? 1 - (k - 1) / 0.6 : 1;
-        const grad = c.createLinearGradient(x - 700, y, x, y);
-        grad.addColorStop(0, 'rgba(236,236,232,0)');
-        grad.addColorStop(1, `rgba(236,236,232,${0.55 * fade})`);
-        c.strokeStyle = grad;
-        c.lineWidth = 3;
-        c.beginPath();
-        c.moveTo(x - 700, y + 18);
-        c.lineTo(x, y);
-        c.stroke();
-        if (k < 1) {
-          c.fillStyle = '#4a4c50';
-          c.beginPath();
-          c.moveTo(x + 14, y - 1);
-          c.lineTo(x - 10, y - 4);
-          c.lineTo(x - 12, y + 3);
-          c.closePath();
-          c.fill();
-        }
-      });
-      R.layer(1);
-    }
-  }
-  // the helicopter crossing the far sky
-  if (a.heli) {
-    const k = (g.time - a.heli.t0) / a.heli.dur;
-    if (k > 0 && k < 1) {
+  // the jet: low, fast, gone before you find it. A thin vapour trail and a
+  // shimmer of hot exhaust behind it.
+  if (a.jetFly) {
+    const k = (g.time - a.jetFly.t0) / a.jetFly.dur;
+    if (k > -0.05 && k < 2.2) {
       R.layer(0.35);
-      R.paint((c) => T.helicopter(c, lerp(a.heli.x0, a.heli.x1, k), -520 + Math.sin(k * 3) * 10, 1.1, t));
+      R.paint((c) => {
+        const x = lerp(a.jetFly.x0, a.jetFly.x1, Math.min(Math.max(k, 0), 1.2));
+        const y = -330 + k * 24;
+        const fade = k > 1 ? Math.max(0, 1 - (k - 1) / 1.2) : 1;
+        const tail = 900;
+        const grad = c.createLinearGradient(x - tail, y, x - 60, y);
+        grad.addColorStop(0, 'rgba(238,238,234,0)');
+        grad.addColorStop(1, `rgba(238,238,234,${0.4 * fade})`);
+        c.strokeStyle = grad;
+        c.lineWidth = 2.5;
+        c.beginPath();
+        c.moveTo(x - tail, y + 10);
+        c.lineTo(x - 60, y + 2);
+        c.stroke();
+        if (k < 1.2) T.jet(c, x, y, 1.5, t);
+      });
       R.layer(1);
     }
   }
@@ -265,6 +253,7 @@ export function drawStreet(R, g) {
   if (near(9880, 10160)) sideStreet(R, 9880, 10160, { t });
 
   T.street(R, -500, 10800);
+  T.cables(R, cx);
 
   // --- props behind the actors ---
   if (near(X.vine - 100, X.vine + 100)) T.vine(R, X.vine, t);
@@ -308,19 +297,22 @@ export function drawStreet(R, g) {
       });
     }
   }
-  // spotter's post and the rope
+  // spotter's post: the dark room behind his window, and the rope
   if (near(X.spotter - 300, X.spotter + 300)) {
-    R.cast((c) => {
-      c.fillStyle = '#b3a793';
-      c.fillRect(X.spotter - 150, -426, 300, 14); // exposed third-floor slab
+    R.paint((c) => {
+      const g2 = c.createLinearGradient(0, SPOT_WIN.top, 0, SPOT_WIN.sill);
+      g2.addColorStop(0, '#1d1a17');
+      g2.addColorStop(1, '#2b2621');
+      c.fillStyle = g2;
+      c.fillRect(SPOT_WIN.x0, SPOT_WIN.top, SPOT_WIN.x1 - SPOT_WIN.x0, SPOT_WIN.sill - SPOT_WIN.top + 4);
     });
     if (a.rope !== undefined && a.rope < 1.2) {
-      const ry = lerp(-410, -150, clamp(a.rope));
+      const ry = lerp(SPOT_WIN.sill, -150, clamp(a.rope));
       R.cast((c) => {
         c.strokeStyle = '#3a3026';
         c.lineWidth = 1.5;
         c.beginPath();
-        c.moveTo(X.spotter - 10, -420);
+        c.moveTo(X.spotter - 10, SPOT_WIN.sill);
         c.lineTo(X.spotter - 10 + Math.sin(t * 2) * 3, ry);
         c.stroke();
         if (!g.hasTool('walkie')) {
@@ -397,11 +389,34 @@ export function drawStreet(R, g) {
   }
   if (near(X.kerb - 100, X.olive + 200)) {
     T.lowWall(R, X.kerb - 20, 110, 62, '#a79a84');
+    // the walkie-talkie man's upturned crate
+    R.cast((c) => {
+      c.fillStyle = '#6a5238';
+      c.fillRect(X.olive - 30, -30, 40, 30);
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      for (let i = 0; i < 3; i++) c.fillRect(X.olive - 30, -26 + i * 9, 40, 2);
+    });
     T.deadOlive(R, X.olive);
   }
 
   // --- the people ---
   const shear = shearFor(g);
+  // contact shadows: everyone stands on the ground, not above it
+  R.paint((c) => {
+    for (const w of [...g.npcs, ...(g.passers || []), g.player]) {
+      if (!w.visible || w.depthK || w.depth > 0 || !near(w.x - 60, w.x + 60)) continue;
+      const s2 = w.rig.scale || 1;
+      const lift = Math.max(0, w.rig.pose?.seat ? 0 : 0);
+      const gy = w.onGround === false ? w.y + 0 : w.y;
+      const grd = c.createRadialGradient(w.x, gy + 2 + lift, 0, w.x, gy + 2, 26 * s2);
+      grd.addColorStop(0, 'rgba(20,14,10,0.32)');
+      grd.addColorStop(1, 'rgba(20,14,10,0)');
+      c.fillStyle = grd;
+      c.beginPath();
+      c.ellipse(w.x, gy + 2, 26 * s2, 5 * s2, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+  });
   // passers-by far down the side streets, behind everyone
   for (const w of g.passers || []) {
     if (w.depth > 0 && near(w.x - 100, w.x + 100)) R.cast((c) => w.draw(c));
@@ -429,6 +444,36 @@ export function drawStreet(R, g) {
   for (const w of g.npcs) {
     if (!w.visible || !w.depthK) continue;
     R.cast((c) => w.draw(c));
+  }
+  // the wall around the spotter's window, over him: only his upper body shows
+  if (near(X.spotter - 300, X.spotter + 300)) {
+    R.cast((c) => {
+      const W = SPOT_WIN;
+      c.fillStyle = '#b5a892';
+      c.beginPath();
+      c.rect(W.x0 - 110, W.top - 70, W.x1 - W.x0 + 220, W.floor - W.top + 82);
+      c.rect(W.x1, W.top, W.x0 - W.x1, W.sill - W.top); // the opening (reverse winding)
+      c.fill('evenodd');
+      // plaster stains and a crack
+      c.fillStyle = 'rgba(80,66,50,0.14)';
+      c.fillRect(W.x0 - 90, W.sill + 6, 60, 40);
+      c.strokeStyle = 'rgba(60,50,40,0.35)';
+      c.lineWidth = 1;
+      c.beginPath();
+      c.moveTo(W.x1 + 30, W.top - 60);
+      c.lineTo(W.x1 + 44, W.top - 20);
+      c.lineTo(W.x1 + 38, W.top + 30);
+      c.stroke();
+      // the sill and the slab edge
+      c.fillStyle = '#cfc3ab';
+      c.fillRect(W.x0 - 8, W.sill, W.x1 - W.x0 + 16, 7);
+      c.fillStyle = '#8f846f';
+      c.fillRect(W.x0 - 110, W.floor + 6, W.x1 - W.x0 + 220, 8);
+      // the frame, what's left of it
+      c.strokeStyle = '#5a4a38';
+      c.lineWidth = 3;
+      c.strokeRect(W.x0, W.top, W.x1 - W.x0, W.sill - W.top);
+    });
   }
   // a building corner the walker passes behind
   if (a.occluder) {
@@ -460,17 +505,31 @@ export function drawStreet(R, g) {
   R.layer(1);
 
   g.effects.draw(R);
-  // helicopter's shadow sweeping the street
-  if (a.heliShadow) {
-    const k = (g.time - a.heliShadow) / 1.3;
-    if (k > 0 && k < 1) R.shadow((c) => {
-      c.fillStyle = 'rgba(0,0,0,0.9)';
-      c.beginPath();
-      c.ellipse(lerp(cx + 900, cx - 900, k), 0, 420, 900, 0, 0, Math.PI * 2);
-      c.fill();
-    }, cx, 0, 0, 0.14);
+  // the jet's shadow: a swept-wing shape, smeared by its speed, across the
+  // street and up the walls in half a second
+  if (a.jetShadow) {
+    const k = (g.time - a.jetShadow) / 0.55;
+    if (k > 0 && k < 1)
+      R.shadow(
+        (c) => {
+          const x = lerp(cx - 1500, cx + 1500, k);
+          c.fillStyle = 'rgba(0,0,0,0.85)';
+          for (let i = 0; i < 5; i++) {
+            c.globalAlpha = i === 0 ? 1 : 0.16; // motion smear
+            T.jetShadowShape(c, x - i * 80, -230, 2.4);
+          }
+          c.globalAlpha = 1;
+        },
+        cx,
+        -230,
+        0,
+        0.62, // cast across the street and up the walls at a low angle
+      );
   }
   g.effects.drawFog(R);
+  // dust turning in the sun, and silhouettes close to the lens
+  T.motes(R, cx, t, a.shelling ? 0.4 : 1);
+  T.foreground(R, cx);
 }
 
 // ---------------------------------------------------------- the stairwell --

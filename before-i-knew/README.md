@@ -1,7 +1,7 @@
 # قبل ما عرفت / Before I Knew
 
 An interactive side-scrolling story game set in a besieged town in Ghouta, outside Damascus,
-on 14 August 2014. Sami, 27, walks home with his closest friend, Khaled. They part at a
+on 14 August 2014. Sami, 27, walks home with his closest friend, Ahmad. They part at a
 junction. Less than an hour later, the world has already changed, and Sami doesn't know it
 yet.
 
@@ -10,7 +10,8 @@ yet.
 - [`script/act1.md`](script/act1.md) is the Act One script. The game follows it line for
   line.
 
-Dialogue is in the Damascus dialect with English subtitles. The depiction is restrained: violence
+Dialogue is in the Damascus dialect with English subtitles. Menus and on-screen hints use
+Modern Standard Arabic. The depiction is restrained: violence
 is heard and implied, never shown.
 
 **Content note:** life under military siege, shelling, sniper fire, hunger, the death of a
@@ -21,23 +22,22 @@ accounts of siege life.
 
 From 3:05 to 4:15 pm, about 10–20 minutes to play.
 
-1. **The Walk.** Walk Zeitoun Street with Khaled, talking about Bakdash ice cream, grammar
+1. **The Walk.** Walk Zeitoun Street with Ahmad, talking about Bakdash ice cream, grammar
    tenses and a boy who doesn't know what "abroad" means. Along the way you crouch under a
    sniper curtain and climb a collapsed wall.
-2. **The Parting.** Khaled turns down the southern road.
+2. **The Parting.** Ahmad turns down the southern road.
 3. **The Hour.** You spend it alone.
    - The old man with the jerrycans. ◆ **Choice A:** help carry his water, or keep walking.
    - The mirror shard, which lets you look around a corner.
    - The spotter, who hands you a walkie-talkie.
-   - The helicopter. On channel 3 the spotters say «مروحي» for a helicopter and «حربي» for a
-     jet. Get flat before the barrel bomb falls.
+   - The jet. On channel 3 the spotters say «مروحي» for a helicopter and «حربي» for a jet.
+     When «حربي» comes over the radio, get flat before it tears overhead.
    - Mortars fall around Layla and the scrap-collecting children. ◆ **Choice B:** run for
      the children, or take cover. Running for them takes you down into a dark stairwell,
      where you need the hand-crank torch.
    - A cat on a wall.
    - A flashback to 2010.
    - A car battery charging the neighbourhood's phones.
-   - A jet over the farms, heard before it's seen.
 4. **The News.** At the corner with the dead olive tree, Abu Yazan comes up the southern
    street to meet you.
    ◆ **Choice C:** *I need to see him*, *Who did this?* or silence. Each answer takes Sami
@@ -102,7 +102,7 @@ Everything is drawn and synthesised in code. There are no images or recordings.
 - **Sound** ([`src/engine/audio.js`](src/engine/audio.js)) is all Web Audio:
   - the ambience: a generator hum, pigeons, wind;
   - distant shots, mortar whistles and impacts, car alarms;
-  - walkie-talkie static, a jet's roar, and a helicopter's rotor (only ever with a barrel bomb);
+  - walkie-talkie static, and a low jet pass that pans across the stereo field;
   - ringing ears at the news.
 - **Score** ([`src/engine/score.js`](src/engine/score.js)): a light generative score in maqam
   Bayati on D. A deep sub-bass swells slowly under a soft pad in open fifths, with an oud or
