@@ -434,6 +434,17 @@ export function drawStreet(R, g) {
   }
   if (g.cat && !g.cat.hidden && near(g.cat.x - 50, g.cat.x + 50)) {
     R.cast((c) => g.cat.draw(c));
+    // its eyes catch the light
+    if (g.cat.blink < 0.5) {
+      const [ex, ey] = g.cat.eye();
+      R.glow((c) => {
+        const grd = c.createRadialGradient(ex, ey, 0, ex, ey, 5);
+        grd.addColorStop(0, 'rgba(220,230,120,0.55)');
+        grd.addColorStop(1, 'rgba(220,230,120,0)');
+        c.fillStyle = grd;
+        c.fillRect(ex - 5, ey - 5, 10, 10);
+      });
+    }
   }
   const p = g.player;
   if (p.visible) {

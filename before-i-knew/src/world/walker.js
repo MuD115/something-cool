@@ -216,7 +216,7 @@ export class Walker {
 
   pose(dt, speed, run = false) {
     let target;
-    const phase = (this.stride / (this.stance === 'stand' ? 74 : 52)) * Math.PI;
+    const phase = (this.stride / (this.stance === 'stand' ? 74 : this.stance === 'crouch' ? 34 : 52)) * Math.PI;
     if (this.mantle) {
       const k = clamp(this.mantle.t);
       target =
@@ -230,7 +230,13 @@ export class Walker {
     } else if (this.stance === 'prone') {
       target = speed > 4 ? crawlPose(phase * 0.8) : POSES.prone;
     } else if (this.stance === 'crouch') {
-      target = speed > 4 ? crouchWalkPose(phase) : POSES.crouch;
+      if (speed > 4) target = crouchWalkPose(phase);
+      else {
+        // holding still, low: breathing, and a look round now and then
+        const tt = this.time + this.seed;
+        const c = POSES.crouch;
+        target = { ...c, torso: c.torso + 0.015 * Math.sin(tt * 2.1), head: c.head + Math.max(0, Math.sin(tt * 0.3) - 0.7) * 0.6 * Math.sin(tt * 1.1), armN: c.armN + 0.02 * Math.sin(tt * 2.1) };
+      }
     } else if (speed > 4) {
       const runK = clamp((speed - 180) / 110);
       target = walkPose(phase, clamp(speed / 160, 0.35, 1.2), runK);
@@ -251,7 +257,7 @@ export class Walker {
 
     // footsteps
     if (this.onGround && speed > 4 && this.stance !== 'prone') {
-      const n = Math.floor(this.stride / (this.stance === 'stand' ? 74 : 52));
+      const n = Math.floor(this.stride / (this.stance === 'stand' ? 74 : this.stance === 'crouch' ? 34 : 52));
       if (n !== this.lastStep) {
         this.lastStep = n;
         this.onStep?.(this.stance);

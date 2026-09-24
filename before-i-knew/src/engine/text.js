@@ -2,7 +2,22 @@
 // control prompts, title cards, the tool bar and the objective. Arabic is set
 // right-to-left above its English; settings choose which languages show.
 
+import { lang } from './i18n.js';
+
 const $ = (id) => document.getElementById(id);
+
+// Interface text (prompts, hints, the objective, tool and speaker names)
+// shows in the menu language only; dialogue follows the subtitles setting.
+// pair: [arabic, english]. Returns a span in the right script and direction.
+function uiSpan(pair) {
+  const ar = lang() === 'ar';
+  const el = document.createElement('span');
+  el.className = `ui ${ar ? 'ar' : 'en'}`;
+  el.lang = ar ? 'ar' : 'en';
+  el.dir = ar ? 'rtl' : 'ltr';
+  el.textContent = pair[ar ? 0 : 1];
+  return el;
+}
 
 export class Text {
   constructor(settings) {
@@ -19,7 +34,23 @@ export class Text {
     this.queue = [];
     this.log = []; // every line said this session: { who, line, style }
     this.apply();
-    settings.onChange(() => this.apply());
+    settings.onChange((k) => {
+      this.apply();
+      if (k === 'lang') this.relang();
+    });
+  }
+
+  // The menu language changed mid-game: redraw what's showing.
+  relang() {
+    if (this.promptArgs && !this.promptEl.hidden) this.prompt(...this.promptArgs);
+    if (this.current) {
+      const fresh = this.objEl.classList.contains('fresh');
+      this.objective(this.current);
+      if (!fresh) this.objEl.classList.remove('fresh');
+    }
+    this.toolsKey = null;
+    if (this.toolsArgs) this.tools(...this.toolsArgs);
+    this.hintEl.dataset.label = '';
   }
 
   apply() {
@@ -47,9 +78,7 @@ export class Text {
     if (who) {
       const w = document.createElement('div');
       w.className = 'who';
-      w.innerHTML = `<span class="ar" lang="ar" dir="rtl"></span><span class="sep" aria-hidden="true"></span><span class="en"></span>`;
-      w.querySelector('.ar').textContent = who[0];
-      w.querySelector('.en').textContent = who[1];
+      w.appendChild(uiSpan(who));
       box.appendChild(w);
     }
     const ar = document.createElement('p');
@@ -141,14 +170,16 @@ export class Text {
       this.promptEl.hidden = true;
       return;
     }
-    this.promptEl.innerHTML = `<kbd></kbd><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span>`;
+    this.promptArgs = [keys, ar, en];
+    this.promptEl.innerHTML = '<kbd></kbd>';
     this.promptEl.querySelector('kbd').textContent = keys;
-    this.promptEl.querySelector('.ar').textContent = ar;
-    this.promptEl.querySelector('.en').textContent = en;
+    this.promptEl.appendChild(uiSpan([ar, en]));
+    this.promptEl.dir = lang() === 'ar' ? 'rtl' : 'ltr';
     this.promptEl.hidden = false;
   }
 
   // The small interaction hint that floats above the thing you can use.
+  // label: [arabic, english]
   hint(x, y, key, label) {
     const h = this.hintEl;
     if (!label) {
@@ -156,11 +187,13 @@ export class Text {
       h.dataset.label = '';
       return;
     }
-    if (h.dataset.label !== label) {
-      h.dataset.label = label;
-      h.innerHTML = `<kbd></kbd><span></span>`;
+    const id = `${key}|${label[0]}|${label[1]}|${lang()}`;
+    if (h.dataset.label !== id) {
+      h.dataset.label = id;
+      h.innerHTML = '<kbd></kbd>';
       h.querySelector('kbd').textContent = key;
-      h.querySelector('span').textContent = label;
+      h.appendChild(uiSpan(label));
+      h.dir = lang() === 'ar' ? 'rtl' : 'ltr';
     }
     h.style.left = `${x * 100}%`;
     h.style.top = `${y * 100}%`;
@@ -176,9 +209,9 @@ export class Text {
       this.objEl.hidden = true;
       return;
     }
-    this.objEl.innerHTML = `<span class="obj-mark" aria-hidden="true"></span><span class="obj-text"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>`;
-    this.objEl.querySelector('.ar').textContent = line[0];
-    this.objEl.querySelector('.en').textContent = line[1];
+    this.objEl.innerHTML = `<span class="obj-mark" aria-hidden="true"></span><span class="obj-text"></span>`;
+    this.objEl.querySelector('.obj-text').appendChild(uiSpan(line));
+    this.objEl.dir = lang() === 'ar' ? 'rtl' : 'ltr';
     this.objEl.hidden = false;
     this.objEl.classList.add('fresh');
     this.objTimer = setTimeout(() => this.objEl.classList.remove('fresh'), 8000);
@@ -186,7 +219,8 @@ export class Text {
 
   // tools: [{ id, ar, en }], active id, torch charge 0…1, torch on, use key
   tools(list, active, charge, on, useKey = 'F') {
-    const key = JSON.stringify([list.map((t) => t.id), active, on, Math.round(charge * 40), useKey]);
+    this.toolsArgs = [list, active, charge, on, useKey];
+    const key = JSON.stringify([list.map((t) => t.id), active, on, Math.round(charge * 40), useKey, lang()]);
     if (key === this.toolsKey) return;
     this.toolsKey = key;
     this.toolsEl.innerHTML = '';
@@ -197,13 +231,13 @@ export class Text {
         t.id === 'torch'
           ? `<svg class="tool-ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="ring-bg"/><circle cx="20" cy="20" r="17" class="ring-fg" pathLength="100" stroke-dasharray="${(charge * 100).toFixed(1)} 100"/></svg>`
           : '';
-      d.innerHTML = `<span class="tool-badge">${ring}<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[t.id] || ''}</svg></span><span class="tool-name"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>${t.id === active ? '<kbd class="tool-key"></kbd>' : ''}`;
-      d.querySelector('.ar').textContent = t.ar;
-      d.querySelector('.en').textContent = t.en;
+      d.innerHTML = `<span class="tool-badge">${ring}<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[t.id] || ''}</svg></span><span class="tool-name"></span>${t.id === active ? '<kbd class="tool-key"></kbd>' : ''}`;
+      d.querySelector('.tool-name').appendChild(uiSpan([t.ar, t.en]));
       if (t.id === active) d.querySelector('.tool-key').textContent = useKey;
       this.toolsEl.appendChild(d);
     }
     this.toolsEl.hidden = list.length === 0;
+    this.toolsEl.dir = lang() === 'ar' ? 'rtl' : 'ltr';
   }
 }
 

@@ -44,7 +44,7 @@ Ten. Collecting scrap metal from a collapsed building when Sami meets her. Brigh
 
 ### The Cat
 
-A thin tabby with a torn ear, sitting on rubble. It watches Sami. He watches it. No speech, no symbolism forced. Two creatures surviving in the same wreckage. It appears twice: once in Act 1, once in the night scenes. Its presence is a rest — a moment where nothing is asked of the player.
+A thin black cat with a notched ear, sitting on rubble. It watches Sami. He watches it. No speech, no symbolism forced. Two creatures surviving in the same wreckage. It appears twice: once in Act 1, once in the night scenes. Its presence is a rest — a moment where nothing is asked of the player.
 
 ---
 
@@ -166,7 +166,7 @@ The player acquires tools throughout the game. Each has practical gameplay use a
 **Duration:** 15–20 minutes of play.
 **Status:** Full production script (see `script/act1.md`).
 
-The act opens with Sami and Ahmad walking together through the damaged eastern quarter. They talk — not about the war, but around it. Ice cream they miss. A student of Ahmad's who asked what "abroad" means. The grape vine pushing through a collapsed wall. The walk introduces movement, the feel of the town, and the friendship.
+The act opens with Sami and Ahmad walking together through the damaged eastern quarter. They talk — not about the war, but around it. The football they used to play after school. A student of Ahmad's who asked what "abroad" means. The grape vine pushing through a collapsed wall. The walk introduces movement, the feel of the town, and the friendship.
 
 They reach a junction. Ahmad is heading to check on a family in the southern quarter. They part casually — "see you tonight, God willing." Ahmad rounds a corner. The player watches the empty street.
 

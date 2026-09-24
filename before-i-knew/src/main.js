@@ -341,7 +341,8 @@ function logPage(panel, m) {
   for (const e of text.log) {
     const row = document.createElement('div');
     row.className = `log-row style-${e.style || 'plain'}`;
-    const who = e.who ? `<span class="log-who"><span class="ar" lang="ar" dir="rtl">${esc(e.who[0])}</span> <span class="en">${esc(e.who[1])}</span></span>` : '';
+    const whoName = e.who ? (lang() === 'ar' ? `<span class="ar" lang="ar" dir="rtl">${esc(e.who[0])}</span>` : `<span class="en">${esc(e.who[1])}</span>`) : '';
+    const who = e.who ? `<span class="log-who">${whoName}</span>` : '';
     const draft = e.draft ? `<span class="log-draft">[draft]</span>` : '';
     row.innerHTML = `${who}${draft}<span class="log-lines">${subs !== 'en' ? `<span class="ar" lang="ar" dir="rtl">${esc(e.line[0])}</span>` : ''}${subs !== 'ar' ? `<span class="en" dir="ltr">${esc(e.line[1])}</span>` : ''}</span>`;
     box.appendChild(row);

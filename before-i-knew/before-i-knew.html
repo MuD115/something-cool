@@ -66,8 +66,8 @@
   }
 
   /* subtitle language modes (the menus follow the menu language instead) */
-  #stage[data-subs='en'] :is(#sub, #card, #choice, #prompt, #objective, #tools, #hint) .ar { display: none !important; }
-  #stage[data-subs='ar'] :is(#sub, #card, #choice, #prompt, #objective, #tools) .en { display: none !important; }
+  #stage[data-subs='en'] :is(#sub, #card, #choice) .ar:not(.ui) { display: none !important; }
+  #stage[data-subs='ar'] :is(#sub, #card, #choice) .en:not(.ui) { display: none !important; }
   #stage[data-hints='off'] #hint, #stage[data-hints='off'] #prompt kbd { display: none !important; }
   /* HUD only while playing, and never behind a menu or the end */
   #stage:not(.playing) :is(#prompt, #hint, #tools, #objective, #sub, #choice),
@@ -82,7 +82,7 @@
     left: 50%;
     bottom: 5%;
     transform: translateX(-50%);
-    width: min(78%, 64ch);
+    width: min(94%, 96ch);
     display: grid;
     justify-items: center;
     pointer-events: none;
@@ -115,21 +115,13 @@
     text-shadow: none;
   }
   #sub .who .ar { font: 700 max(12px, calc(var(--t) * 1.02)) / 1.4 var(--arabic); color: #fff; }
-  #sub .who .en { font: 600 max(10px, calc(var(--t) * 0.74)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; }
-  #sub .who .sep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.5); }
-  #stage[data-subs='en'] #sub .who .sep, #stage[data-subs='ar'] #sub .who .sep { display: none; }
+  #sub .who .en { font: 600 max(11px, calc(var(--t) * 0.84)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; }
   #sub p { margin: 0; text-wrap: balance; color: #fff; }
   #sub p.ar { font-size: max(17px, calc(var(--t) * 1.75)); line-height: 1.6; font-weight: 500; }
   #sub p.en { font: 500 max(14px, calc(var(--t) * 1.28)) / 1.4 var(--sans); }
   #stage[data-subs='en'] #sub p.en { font-size: max(16px, calc(var(--t) * 1.55)); }
-  /* examine: a note, no speaker, a rule on the leading side */
-  #sub[data-style='examine'] .sub-box, #sub[data-style='item'] .sub-box {
-    justify-items: start;
-    text-align: start;
-    border-inline-start: 3px solid rgba(255, 255, 255, 0.85);
-    border-radius: 2px 6px 6px 2px;
-  }
-  #sub[data-style='examine'] p.ar, #sub[data-style='item'] p.ar { justify-self: stretch; text-align: right; font-weight: 400; }
+  /* examine and item notes: centred like speech, set apart by italic English */
+  #sub[data-style='examine'] p.ar, #sub[data-style='item'] p.ar { font-weight: 400; }
   #sub[data-style='examine'] p.en, #sub[data-style='item'] p.en { font-style: italic; font-family: var(--serif); font-weight: 400; }
   /* radio: a dashed tag with a walkie icon; mono English */
   #sub[data-style='radio'] .who { border-style: dashed; }
@@ -244,7 +236,7 @@
   }
   #prompt kbd { font-size: max(12px, calc(var(--t) * 0.95)); min-height: 1.9em; border-radius: 999px; padding-inline: 0.7em; }
   #prompt .ar { font-size: max(15px, calc(var(--t) * 1.4)); font-weight: 600; }
-  #prompt .en { font: 500 max(12px, calc(var(--t) * 1)) / 1 var(--sans); color: #e6e0d4; }
+  #prompt .en { font: 600 max(13px, calc(var(--t) * 1.15)) / 1 var(--sans); color: var(--ink); }
   @keyframes pop { from { opacity: 0; transform: translate(-50%, 6px) scale(0.96); } }
   @keyframes glow { 50% { border-color: rgba(174, 193, 120, 0.8); box-shadow: 0 0 0 4px rgba(174, 193, 120, 0.12); } }
 
@@ -297,7 +289,7 @@
   .obj-mark { width: 9px; height: 9px; transform: rotate(45deg); border: 2px solid var(--leaf); flex: none; }
   .obj-text { display: grid; gap: 0.05em; overflow: hidden; max-width: 40vw; transition: max-width 0.8s var(--ease), opacity 0.6s; }
   #objective .ar { font-size: max(13px, calc(var(--t) * 1.1)); font-weight: 600; }
-  #objective .en { font: max(10px, calc(var(--t) * 0.78)) / 1.4 var(--sans); color: var(--dust); letter-spacing: 0.02em; white-space: nowrap; }
+  #objective .en { font: 600 max(12px, calc(var(--t) * 0.95)) / 1.4 var(--sans); color: var(--paper); letter-spacing: 0.01em; white-space: nowrap; }
   #objective:not(.fresh) { background: transparent; opacity: 0.7; }
   #objective:not(.fresh) .obj-text { max-width: 0; opacity: 0; }
   #objective.fresh .obj-mark { background: var(--leaf); }
@@ -337,7 +329,7 @@
   .tool-name { display: none; }
   .tool.active .tool-name { display: grid; }
   .tool-name .ar { font-size: max(11px, calc(var(--t) * 0.9)); font-weight: 600; text-shadow: 0 1px 4px #000; }
-  .tool-name .en { font: max(9px, calc(var(--t) * 0.7)) / 1.2 var(--sans); color: var(--dust); text-shadow: 0 1px 4px #000; }
+  .tool-name .en { font: 600 max(10px, calc(var(--t) * 0.8)) / 1.2 var(--sans); color: var(--ink); text-shadow: 0 1px 4px #000; }
   .tool-key { font-size: max(9px, calc(var(--t) * 0.68)); }
 
   /* the mirror shard: the view flips and is cropped to a jagged piece */
@@ -553,7 +545,7 @@
   .log-lines { display: grid; gap: 0.1em; justify-self: stretch; }
   .log-lines .ar { text-align: right; font-size: max(14px, calc(var(--u) * 1.05)); }
   .log-lines .en { color: #ddd6c9; font-size: max(12px, calc(var(--u) * 0.88)); }
-  .log-row.style-examine .log-lines { border-inline-start: 2px solid var(--line); padding-inline-start: 0.7em; font-style: italic; }
+  .log-row.style-examine .log-lines { font-style: italic; }
 
   /* --------------------------------------------- note, end, touch --- */
   .sheet {
@@ -2114,13 +2106,212 @@ class Score {
 return { MOODS, Score };
 })();
 
+// ---- src/engine/i18n.js
+const __src_engine_i18n = (() => {
+// Interface strings in English and Damascene Arabic. The dialogue has its
+// own two languages (subtitles setting); this is the menus, settings, sheets
+// and HUD labels (the menu language setting).
+
+const STR = {
+  en: {
+    kickerDate: 'Ghouta · August 2014',
+    title: 'Before I Knew',
+    tagline: 'An ordinary afternoon. A friend heads home another way. Less than an hour later, the world has already changed, and you don’t know it yet.',
+    continue: 'Continue',
+    newGame: 'New game',
+    newGameSub: 'Act One · The Afternoon',
+    settings: 'Settings',
+    controls: 'Controls',
+    about: 'About',
+    resume: 'Resume',
+    restart: 'Restart from checkpoint',
+    mainMenu: 'Main menu',
+    log: 'Dialogue log',
+    logEmpty: 'Nothing has been said yet.',
+    paused: 'Paused',
+    back: 'Back',
+    restore: 'Restore defaults',
+    rebindHelp: 'Select a key to change it, then press the new key.',
+    pressKey: 'Press a key…',
+    controlsExtra: 'Choices: click them, or press 1, 2 or 3. A gamepad works too. On a phone, use the on-screen buttons.',
+    now: 'Now',
+    objective: 'Objective',
+    carrying: 'Carrying',
+    nothing: 'Nothing yet',
+    checkpoint: 'Checkpoint',
+    // settings groups and rows
+    gSound: 'Sound',
+    gText: 'Text',
+    gDisplay: 'Display',
+    gPlay: 'Play',
+    master: 'Master volume',
+    music: 'Music',
+    effects: 'Sound effects',
+    lang: 'Menu language',
+    subtitles: 'Subtitles',
+    subsBoth: 'Arabic and English',
+    subsEn: 'English only',
+    subsAr: 'Arabic only',
+    textSize: 'Text size',
+    small: 'Small',
+    medium: 'Medium',
+    large: 'Large',
+    xlarge: 'Extra large',
+    backing: 'Subtitle backing',
+    off: 'Off',
+    light: 'Light',
+    dark: 'Dark',
+    quality: 'Graphics quality',
+    auto: 'Auto',
+    low: 'Low',
+    high: 'High',
+    shake: 'Camera shake',
+    reduceFlashes: 'Reduce flashes',
+    hints: 'Control hints',
+    // sheets
+    noteKicker: 'Content note',
+    noteTitle: 'Before you begin',
+    noteBody: 'This story is about the siege of Ghouta: shelling, sniper fire, hunger, and the death of a friend. Violence is heard and its aftermath is seen, but it is never shown. Recommended for ages 16 and over.',
+    noteSound: 'Sound matters. Headphones are best.',
+    begin: 'Begin',
+    endKicker: 'End of Act One · The Afternoon',
+    endNext: 'Act Two, The Evening, is being written. The path you chose is saved for it.',
+    again: 'Play again, choose differently',
+    chapters: 'Chapters',
+    chapter1: 'Act One · The Afternoon',
+    chapter1Sub: '3:05 to 4:15 pm',
+    chapter2: 'Act Two · The Evening (Retrieval)',
+    chapter2Sub: '4:30 to 7:00 pm · after «I need to see him»',
+    chapter2Locked: 'Finish Act One after choosing «I need to see him»',
+    continueAct2: 'Continue to Act Two',
+    endNextAct2: 'Sami is going to find him. The evening begins.',
+    pathPending: 'The evening on this path is still being written. Your choices are saved for it.',
+    endKicker2: 'End of Act Two · The Evening',
+    endNext2: 'Act Three, The Night, comes next. The path you chose is saved for it.',
+    againAct2: 'Play Act Two again',
+    checkpoints: { walk: 'The Walk', hour: 'The Hour', school: 'The School', news: 'The Corner', south: 'Act Two · South', lanes: 'Act Two · The Lanes', front: 'Act Two · The Frontline' },
+    times: { walk: '3:05 pm', hour: '3:25 pm', school: '3:50 pm', news: '4:10 pm', south: '4:30 pm', lanes: '4:35 pm', front: '4:50 pm' },
+    rotate: 'Turn your phone sideways for the full frame.',
+  },
+  ar: {
+    kickerDate: 'الغوطة · آب ٢٠١٤',
+    title: 'قبل ما عرفت',
+    tagline: 'عصرٌ عاديّ. صديقٌ يسلك طريقاً آخر إلى بيته. وبعد أقلّ من ساعة، يكون العالم قد تغيّر، وأنت لا تعلم بعد.',
+    continue: 'متابعة',
+    newGame: 'لعبة جديدة',
+    newGameSub: 'الفصل الأول · بعد الظهر',
+    settings: 'الإعدادات',
+    controls: 'عناصر التحكم',
+    about: 'عن القصة',
+    resume: 'استئناف',
+    restart: 'العودة إلى آخر نقطة حفظ',
+    mainMenu: 'القائمة الرئيسية',
+    log: 'سجل الحوار',
+    logEmpty: 'لم يُقَل شيء بعد.',
+    paused: 'متوقّف مؤقتاً',
+    back: 'رجوع',
+    restore: 'استعادة الإعدادات الافتراضية',
+    rebindHelp: 'اختر زراً لتغييره، ثم اضغط الزر الجديد.',
+    pressKey: 'اضغط زراً…',
+    controlsExtra: 'الخيارات: انقر عليها، أو اضغط ١ أو ٢ أو ٣. تعمل يد التحكم أيضاً. على الهاتف، استخدم الأزرار الظاهرة على الشاشة.',
+    now: 'الآن',
+    objective: 'المهمة',
+    carrying: 'بحوزتك',
+    nothing: 'لا شيء بعد',
+    checkpoint: 'نقطة الحفظ',
+    gSound: 'الصوت',
+    gText: 'النصوص',
+    gDisplay: 'العرض',
+    gPlay: 'اللعب',
+    master: 'مستوى الصوت العام',
+    music: 'الموسيقى',
+    effects: 'المؤثرات الصوتية',
+    lang: 'لغة القوائم',
+    subtitles: 'الترجمة',
+    subsBoth: 'العربية والإنكليزية',
+    subsEn: 'الإنكليزية فقط',
+    subsAr: 'العربية فقط',
+    textSize: 'حجم النص',
+    small: 'صغير',
+    medium: 'متوسط',
+    large: 'كبير',
+    xlarge: 'كبير جداً',
+    backing: 'خلفية الترجمة',
+    off: 'بلا خلفية',
+    light: 'فاتحة',
+    dark: 'داكنة',
+    quality: 'جودة الرسوم',
+    auto: 'تلقائي',
+    low: 'منخفضة',
+    high: 'عالية',
+    shake: 'اهتزاز الكاميرا',
+    reduceFlashes: 'تخفيف الومضات',
+    hints: 'تلميحات التحكم',
+    noteKicker: 'تنبيه حول المحتوى',
+    noteTitle: 'قبل أن تبدأ',
+    noteBody: 'تدور هذه القصة حول حصار الغوطة: القصف، والقنص، والجوع، وموت صديق. يُسمَع العنف وتُرى آثاره، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.',
+    noteSound: 'للصوت أهمية كبيرة. يُفضَّل استخدام سمّاعات الرأس.',
+    begin: 'ابدأ',
+    endKicker: 'نهاية الفصل الأول · بعد الظهر',
+    endNext: 'الفصل الثاني، المساء، قيد الكتابة. الطريق الذي اخترته محفوظ له.',
+    again: 'العب مجدداً واختر خياراً آخر',
+    chapters: 'الفصول',
+    chapter1: 'الفصل الأول · بعد الظهر',
+    chapter1Sub: 'من ٣:٠٥ إلى ٤:١٥',
+    chapter2: 'الفصل الثاني · المساء (الاسترداد)',
+    chapter2Sub: 'من ٤:٣٠ إلى ٧:٠٠ · بعد «أريد أن أراه»',
+    chapter2Locked: 'أنهِ الفصل الأول بعد اختيار «أريد أن أراه»',
+    continueAct2: 'تابع إلى الفصل الثاني',
+    endNextAct2: 'سامي ذاهب ليجده. يبدأ المساء.',
+    pathPending: 'مساء هذا الطريق قيد الكتابة. خياراتك محفوظة له.',
+    endKicker2: 'نهاية الفصل الثاني · المساء',
+    endNext2: 'الفصل الثالث، الليل، هو التالي. الطريق الذي اخترته محفوظ له.',
+    againAct2: 'العب الفصل الثاني مجدداً',
+    checkpoints: { walk: 'المشوار', hour: 'الساعة', school: 'المدرسة', news: 'الزاوية', south: 'الفصل الثاني · الجنوب', lanes: 'الفصل الثاني · الممرات', front: 'الفصل الثاني · خط التماس' },
+    times: { walk: '٣:٠٥', hour: '٣:٢٥', school: '٣:٥٠', news: '٤:١٠', south: '٤:٣٠', lanes: '٤:٣٥', front: '٤:٥٠' },
+    rotate: 'أدِر هاتفك أفقياً لرؤية الصورة كاملة.',
+  },
+};
+
+let settingsRef = null;
+
+function bindI18n(settings) {
+  settingsRef = settings;
+}
+
+function lang() {
+  return settingsRef?.get('lang') === 'ar' ? 'ar' : 'en';
+}
+
+function t(key) {
+  const l = lang();
+  return STR[l][key] ?? STR.en[key] ?? key;
+}
+
+return { bindI18n, lang, t };
+})();
+
 // ---- src/engine/text.js
 const __src_engine_text = (() => {
 // On-screen text: bilingual subtitles, examine notes, radio chatter, choices,
 // control prompts, title cards, the tool bar and the objective. Arabic is set
 // right-to-left above its English; settings choose which languages show.
 
+const { lang } = __src_engine_i18n;
 const $ = (id) => document.getElementById(id);
+
+// Interface text (prompts, hints, the objective, tool and speaker names)
+// shows in the menu language only; dialogue follows the subtitles setting.
+// pair: [arabic, english]. Returns a span in the right script and direction.
+function uiSpan(pair) {
+  const ar = lang() === 'ar';
+  const el = document.createElement('span');
+  el.className = `ui ${ar ? 'ar' : 'en'}`;
+  el.lang = ar ? 'ar' : 'en';
+  el.dir = ar ? 'rtl' : 'ltr';
+  el.textContent = pair[ar ? 0 : 1];
+  return el;
+}
 
 class Text {
   constructor(settings) {
@@ -2137,7 +2328,23 @@ class Text {
     this.queue = [];
     this.log = []; // every line said this session: { who, line, style }
     this.apply();
-    settings.onChange(() => this.apply());
+    settings.onChange((k) => {
+      this.apply();
+      if (k === 'lang') this.relang();
+    });
+  }
+
+  // The menu language changed mid-game: redraw what's showing.
+  relang() {
+    if (this.promptArgs && !this.promptEl.hidden) this.prompt(...this.promptArgs);
+    if (this.current) {
+      const fresh = this.objEl.classList.contains('fresh');
+      this.objective(this.current);
+      if (!fresh) this.objEl.classList.remove('fresh');
+    }
+    this.toolsKey = null;
+    if (this.toolsArgs) this.tools(...this.toolsArgs);
+    this.hintEl.dataset.label = '';
   }
 
   apply() {
@@ -2165,9 +2372,7 @@ class Text {
     if (who) {
       const w = document.createElement('div');
       w.className = 'who';
-      w.innerHTML = `<span class="ar" lang="ar" dir="rtl"></span><span class="sep" aria-hidden="true"></span><span class="en"></span>`;
-      w.querySelector('.ar').textContent = who[0];
-      w.querySelector('.en').textContent = who[1];
+      w.appendChild(uiSpan(who));
       box.appendChild(w);
     }
     const ar = document.createElement('p');
@@ -2259,14 +2464,16 @@ class Text {
       this.promptEl.hidden = true;
       return;
     }
-    this.promptEl.innerHTML = `<kbd></kbd><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span>`;
+    this.promptArgs = [keys, ar, en];
+    this.promptEl.innerHTML = '<kbd></kbd>';
     this.promptEl.querySelector('kbd').textContent = keys;
-    this.promptEl.querySelector('.ar').textContent = ar;
-    this.promptEl.querySelector('.en').textContent = en;
+    this.promptEl.appendChild(uiSpan([ar, en]));
+    this.promptEl.dir = lang() === 'ar' ? 'rtl' : 'ltr';
     this.promptEl.hidden = false;
   }
 
   // The small interaction hint that floats above the thing you can use.
+  // label: [arabic, english]
   hint(x, y, key, label) {
     const h = this.hintEl;
     if (!label) {
@@ -2274,11 +2481,13 @@ class Text {
       h.dataset.label = '';
       return;
     }
-    if (h.dataset.label !== label) {
-      h.dataset.label = label;
-      h.innerHTML = `<kbd></kbd><span></span>`;
+    const id = `${key}|${label[0]}|${label[1]}|${lang()}`;
+    if (h.dataset.label !== id) {
+      h.dataset.label = id;
+      h.innerHTML = '<kbd></kbd>';
       h.querySelector('kbd').textContent = key;
-      h.querySelector('span').textContent = label;
+      h.appendChild(uiSpan(label));
+      h.dir = lang() === 'ar' ? 'rtl' : 'ltr';
     }
     h.style.left = `${x * 100}%`;
     h.style.top = `${y * 100}%`;
@@ -2294,9 +2503,9 @@ class Text {
       this.objEl.hidden = true;
       return;
     }
-    this.objEl.innerHTML = `<span class="obj-mark" aria-hidden="true"></span><span class="obj-text"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>`;
-    this.objEl.querySelector('.ar').textContent = line[0];
-    this.objEl.querySelector('.en').textContent = line[1];
+    this.objEl.innerHTML = `<span class="obj-mark" aria-hidden="true"></span><span class="obj-text"></span>`;
+    this.objEl.querySelector('.obj-text').appendChild(uiSpan(line));
+    this.objEl.dir = lang() === 'ar' ? 'rtl' : 'ltr';
     this.objEl.hidden = false;
     this.objEl.classList.add('fresh');
     this.objTimer = setTimeout(() => this.objEl.classList.remove('fresh'), 8000);
@@ -2304,7 +2513,8 @@ class Text {
 
   // tools: [{ id, ar, en }], active id, torch charge 0…1, torch on, use key
   tools(list, active, charge, on, useKey = 'F') {
-    const key = JSON.stringify([list.map((t) => t.id), active, on, Math.round(charge * 40), useKey]);
+    this.toolsArgs = [list, active, charge, on, useKey];
+    const key = JSON.stringify([list.map((t) => t.id), active, on, Math.round(charge * 40), useKey, lang()]);
     if (key === this.toolsKey) return;
     this.toolsKey = key;
     this.toolsEl.innerHTML = '';
@@ -2315,13 +2525,13 @@ class Text {
         t.id === 'torch'
           ? `<svg class="tool-ring" viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="17" class="ring-bg"/><circle cx="20" cy="20" r="17" class="ring-fg" pathLength="100" stroke-dasharray="${(charge * 100).toFixed(1)} 100"/></svg>`
           : '';
-      d.innerHTML = `<span class="tool-badge">${ring}<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[t.id] || ''}</svg></span><span class="tool-name"><span class="ar" lang="ar" dir="rtl"></span><span class="en"></span></span>${t.id === active ? '<kbd class="tool-key"></kbd>' : ''}`;
-      d.querySelector('.ar').textContent = t.ar;
-      d.querySelector('.en').textContent = t.en;
+      d.innerHTML = `<span class="tool-badge">${ring}<svg class="tool-icon" viewBox="0 0 24 24" aria-hidden="true">${ICONS[t.id] || ''}</svg></span><span class="tool-name"></span>${t.id === active ? '<kbd class="tool-key"></kbd>' : ''}`;
+      d.querySelector('.tool-name').appendChild(uiSpan([t.ar, t.en]));
       if (t.id === active) d.querySelector('.tool-key').textContent = useKey;
       this.toolsEl.appendChild(d);
     }
     this.toolsEl.hidden = list.length === 0;
+    this.toolsEl.dir = lang() === 'ar' ? 'rtl' : 'ltr';
   }
 }
 
@@ -2871,191 +3081,6 @@ function fmt(f, v) {
 return { Menu };
 })();
 
-// ---- src/engine/i18n.js
-const __src_engine_i18n = (() => {
-// Interface strings in English and Damascene Arabic. The dialogue has its
-// own two languages (subtitles setting); this is the menus, settings, sheets
-// and HUD labels (the menu language setting).
-
-const STR = {
-  en: {
-    kickerDate: 'Ghouta · August 2014',
-    title: 'Before I Knew',
-    tagline: 'An ordinary afternoon. A friend heads home another way. Less than an hour later, the world has already changed, and you don’t know it yet.',
-    continue: 'Continue',
-    newGame: 'New game',
-    newGameSub: 'Act One · The Afternoon',
-    settings: 'Settings',
-    controls: 'Controls',
-    about: 'About',
-    resume: 'Resume',
-    restart: 'Restart from checkpoint',
-    mainMenu: 'Main menu',
-    log: 'Dialogue log',
-    logEmpty: 'Nothing has been said yet.',
-    paused: 'Paused',
-    back: 'Back',
-    restore: 'Restore defaults',
-    rebindHelp: 'Select a key to change it, then press the new key.',
-    pressKey: 'Press a key…',
-    controlsExtra: 'Choices: click them, or press 1, 2 or 3. A gamepad works too. On a phone, use the on-screen buttons.',
-    now: 'Now',
-    objective: 'Objective',
-    carrying: 'Carrying',
-    nothing: 'Nothing yet',
-    checkpoint: 'Checkpoint',
-    // settings groups and rows
-    gSound: 'Sound',
-    gText: 'Text',
-    gDisplay: 'Display',
-    gPlay: 'Play',
-    master: 'Master volume',
-    music: 'Music',
-    effects: 'Sound effects',
-    lang: 'Menu language',
-    subtitles: 'Subtitles',
-    subsBoth: 'Arabic and English',
-    subsEn: 'English only',
-    subsAr: 'Arabic only',
-    textSize: 'Text size',
-    small: 'Small',
-    medium: 'Medium',
-    large: 'Large',
-    xlarge: 'Extra large',
-    backing: 'Subtitle backing',
-    off: 'Off',
-    light: 'Light',
-    dark: 'Dark',
-    quality: 'Graphics quality',
-    auto: 'Auto',
-    low: 'Low',
-    high: 'High',
-    shake: 'Camera shake',
-    reduceFlashes: 'Reduce flashes',
-    hints: 'Control hints',
-    // sheets
-    noteKicker: 'Content note',
-    noteTitle: 'Before you begin',
-    noteBody: 'This story is about the siege of Ghouta: shelling, sniper fire, hunger, and the death of a friend. Violence is heard and its aftermath is seen, but it is never shown. Recommended for ages 16 and over.',
-    noteSound: 'Sound matters. Headphones are best.',
-    begin: 'Begin',
-    endKicker: 'End of Act One · The Afternoon',
-    endNext: 'Act Two, The Evening, is being written. The path you chose is saved for it.',
-    again: 'Play again, choose differently',
-    chapters: 'Chapters',
-    chapter1: 'Act One · The Afternoon',
-    chapter1Sub: '3:05 to 4:15 pm',
-    chapter2: 'Act Two · The Evening (Retrieval)',
-    chapter2Sub: '4:30 to 7:00 pm · after «I need to see him»',
-    chapter2Locked: 'Finish Act One after choosing «I need to see him»',
-    continueAct2: 'Continue to Act Two',
-    endNextAct2: 'Sami is going to find him. The evening begins.',
-    pathPending: 'The evening on this path is still being written. Your choices are saved for it.',
-    endKicker2: 'End of Act Two · The Evening',
-    endNext2: 'Act Three, The Night, comes next. The path you chose is saved for it.',
-    againAct2: 'Play Act Two again',
-    checkpoints: { walk: 'The Walk', hour: 'The Hour', school: 'The School', news: 'The Corner', south: 'Act Two · South', lanes: 'Act Two · The Lanes', front: 'Act Two · The Frontline' },
-    times: { walk: '3:05 pm', hour: '3:25 pm', school: '3:50 pm', news: '4:10 pm', south: '4:30 pm', lanes: '4:35 pm', front: '4:50 pm' },
-    rotate: 'Turn your phone sideways for the full frame.',
-  },
-  ar: {
-    kickerDate: 'الغوطة · آب ٢٠١٤',
-    title: 'قبل ما عرفت',
-    tagline: 'عصرٌ عاديّ. صديقٌ يسلك طريقاً آخر إلى بيته. وبعد أقلّ من ساعة، يكون العالم قد تغيّر، وأنت لا تعلم بعد.',
-    continue: 'متابعة',
-    newGame: 'لعبة جديدة',
-    newGameSub: 'الفصل الأول · بعد الظهر',
-    settings: 'الإعدادات',
-    controls: 'عناصر التحكم',
-    about: 'عن القصة',
-    resume: 'استئناف',
-    restart: 'العودة إلى آخر نقطة حفظ',
-    mainMenu: 'القائمة الرئيسية',
-    log: 'سجل الحوار',
-    logEmpty: 'لم يُقَل شيء بعد.',
-    paused: 'متوقّف مؤقتاً',
-    back: 'رجوع',
-    restore: 'استعادة الإعدادات الافتراضية',
-    rebindHelp: 'اختر زراً لتغييره، ثم اضغط الزر الجديد.',
-    pressKey: 'اضغط زراً…',
-    controlsExtra: 'الخيارات: انقر عليها، أو اضغط ١ أو ٢ أو ٣. تعمل يد التحكم أيضاً. على الهاتف، استخدم الأزرار الظاهرة على الشاشة.',
-    now: 'الآن',
-    objective: 'المهمة',
-    carrying: 'بحوزتك',
-    nothing: 'لا شيء بعد',
-    checkpoint: 'نقطة الحفظ',
-    gSound: 'الصوت',
-    gText: 'النصوص',
-    gDisplay: 'العرض',
-    gPlay: 'اللعب',
-    master: 'مستوى الصوت العام',
-    music: 'الموسيقى',
-    effects: 'المؤثرات الصوتية',
-    lang: 'لغة القوائم',
-    subtitles: 'الترجمة',
-    subsBoth: 'العربية والإنكليزية',
-    subsEn: 'الإنكليزية فقط',
-    subsAr: 'العربية فقط',
-    textSize: 'حجم النص',
-    small: 'صغير',
-    medium: 'متوسط',
-    large: 'كبير',
-    xlarge: 'كبير جداً',
-    backing: 'خلفية الترجمة',
-    off: 'بلا خلفية',
-    light: 'فاتحة',
-    dark: 'داكنة',
-    quality: 'جودة الرسوم',
-    auto: 'تلقائي',
-    low: 'منخفضة',
-    high: 'عالية',
-    shake: 'اهتزاز الكاميرا',
-    reduceFlashes: 'تخفيف الومضات',
-    hints: 'تلميحات التحكم',
-    noteKicker: 'تنبيه حول المحتوى',
-    noteTitle: 'قبل أن تبدأ',
-    noteBody: 'تدور هذه القصة حول حصار الغوطة: القصف، والقنص، والجوع، وموت صديق. يُسمَع العنف وتُرى آثاره، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.',
-    noteSound: 'للصوت أهمية كبيرة. يُفضَّل استخدام سمّاعات الرأس.',
-    begin: 'ابدأ',
-    endKicker: 'نهاية الفصل الأول · بعد الظهر',
-    endNext: 'الفصل الثاني، المساء، قيد الكتابة. الطريق الذي اخترته محفوظ له.',
-    again: 'العب مجدداً واختر خياراً آخر',
-    chapters: 'الفصول',
-    chapter1: 'الفصل الأول · بعد الظهر',
-    chapter1Sub: 'من ٣:٠٥ إلى ٤:١٥',
-    chapter2: 'الفصل الثاني · المساء (الاسترداد)',
-    chapter2Sub: 'من ٤:٣٠ إلى ٧:٠٠ · بعد «أريد أن أراه»',
-    chapter2Locked: 'أنهِ الفصل الأول بعد اختيار «أريد أن أراه»',
-    continueAct2: 'تابع إلى الفصل الثاني',
-    endNextAct2: 'سامي ذاهب ليجده. يبدأ المساء.',
-    pathPending: 'مساء هذا الطريق قيد الكتابة. خياراتك محفوظة له.',
-    endKicker2: 'نهاية الفصل الثاني · المساء',
-    endNext2: 'الفصل الثالث، الليل، هو التالي. الطريق الذي اخترته محفوظ له.',
-    againAct2: 'العب الفصل الثاني مجدداً',
-    checkpoints: { walk: 'المشوار', hour: 'الساعة', school: 'المدرسة', news: 'الزاوية', south: 'الفصل الثاني · الجنوب', lanes: 'الفصل الثاني · الممرات', front: 'الفصل الثاني · خط التماس' },
-    times: { walk: '٣:٠٥', hour: '٣:٢٥', school: '٣:٥٠', news: '٤:١٠', south: '٤:٣٠', lanes: '٤:٣٥', front: '٤:٥٠' },
-    rotate: 'أدِر هاتفك أفقياً لرؤية الصورة كاملة.',
-  },
-};
-
-let settingsRef = null;
-
-function bindI18n(settings) {
-  settingsRef = settings;
-}
-
-function lang() {
-  return settingsRef?.get('lang') === 'ar' ? 'ar' : 'en';
-}
-
-function t(key) {
-  const l = lang();
-  return STR[l][key] ?? STR.en[key] ?? key;
-}
-
-return { bindI18n, lang, t };
-})();
-
 // ---- src/engine/save.js
 const __src_engine_save = (() => {
 // Story state (the bible's state variables) and the last checkpoint.
@@ -3362,9 +3387,10 @@ const OUTFITS = {
 // for sitting on something.
 const POSES = {
   stand: { torso: 0.02, head: 0, thighN: 0.05, shinN: 0.02, thighF: -0.06, shinF: -0.06, armN: 0.05, foreN: 0.16, armF: -0.05, foreF: 0.06 },
-  // a low crouch: knees forward, feet flat, back fairly straight, eyes ahead
-  // ducking low: bent at the waist and knees, hips over the feet, eyes ahead
-  crouch: { torso: 0.88, head: -0.62, thighN: 0.92, shinN: -0.32, thighF: 0.58, shinF: -0.56, armN: 0.55, foreN: 0.95, armF: 0.4, foreF: 0.8 },
+  // a low, cautious crouch: hips dropped, knees over the toes, the far leg
+  // back on the ball of the foot, back at about 30°, head level and eyes
+  // ahead, the near hand loose in front for balance
+  crouch: { torso: 0.55, head: -0.3, thighN: 1.15, shinN: -0.72, thighF: 0.75, shinF: -1.08, armN: 0.45, foreN: 1.0, armF: 0.3, foreF: 0.85 },
   prone: { torso: 1.52, head: -0.95, thighN: -1.48, shinN: -1.56, thighF: -1.5, shinF: -1.58, armN: 1.05, foreN: 1.95, armF: 0.95, foreF: 1.85 },
   kneel: { torso: 0.12, head: 0.25, thighN: 1.45, shinN: 0.05, thighF: 0.15, shinF: -1.55, armN: 0.5, foreN: 1.1, armF: 0.35, foreF: 0.9 },
   kerb: { torso: 0.32, head: 0.55, thighN: 1.5, shinN: 0.12, thighF: 1.42, shinF: 0.05, armN: 0.95, foreN: 1.75, armF: 0.85, foreF: 1.65 },
@@ -3429,21 +3455,48 @@ function walkPose(p, stride = 1, run = 0) {
   };
 }
 
-// Crouched, moving: short shuffling steps, body steady, hands loose.
+// Crouched, moving: a low, careful walk. Each leg swings its thigh through
+// an arc; while the foot is planted the shin is solved so the foot stays on
+// the ground (the body rolls over it), and on the swing the foot lifts and
+// comes through with the knee folded. The hips dip on each step, the body
+// pitches into it, and the arms counter-swing short and low.
+const CROUCH_G = 46; // hip height when crouched
+function crouchLeg(q, bob) {
+  const th = 1.0 + 0.3 * Math.sin(q);
+  const swing = Math.max(0, Math.cos(q)); // thigh coming forward: foot in the air
+  const solve = (y) => -Math.acos(clamp((y - L.thigh * Math.cos(th)) / L.shin, -1, 1));
+  const ground = CROUCH_G + bob;
+  let sh = solve(ground);
+  sh = solve(ground - footDrop(sh)); // the heel lifts as the shin sweeps back
+  if (swing > 0) sh = solve(ground - footDrop(sh) - 11 * swing) - swing * 0.3; // lift and fold on the swing
+  return [th, sh];
+}
+
+// Holding still, the crouch is the gait's moment with both feet planted.
+{
+  const [tn, sn] = crouchLeg(Math.PI / 2, 0);
+  const [tf, sf] = crouchLeg((3 * Math.PI) / 2, 0);
+  Object.assign(POSES.crouch, { thighN: tn, shinN: sn, thighF: tf, shinF: sf });
+}
+
 function crouchWalkPose(p) {
   const c = POSES.crouch;
+  const bob = 1.6 * Math.cos(2 * p); // lowest as each foot lands
+  const [tn, sn] = crouchLeg(p, bob);
+  const [tf, sf] = crouchLeg(p + Math.PI, bob);
   const s = Math.sin(p);
-  const lift = (x) => Math.max(0, x) * 0.28;
-  const mid = (c.thighN + c.thighF) / 2;
   return {
     ...c,
-    torso: c.torso + 0.03 * Math.cos(2 * p),
-    thighN: mid + 0.3 * s + lift(Math.cos(p)) * 0.5,
-    shinN: mid - 0.45 + 0.3 * s - lift(Math.cos(p)) * 1.4,
-    thighF: mid - 0.3 * s + lift(-Math.cos(p)) * 0.5,
-    shinF: mid - 0.45 - 0.3 * s - lift(-Math.cos(p)) * 1.4,
-    armN: c.armN - 0.2 * s,
-    armF: c.armF + 0.2 * s,
+    torso: c.torso + 0.04 * Math.cos(2 * p) - 0.02,
+    head: c.head - 0.03 * Math.cos(2 * p),
+    thighN: tn,
+    shinN: sn,
+    thighF: tf,
+    shinF: sf,
+    armN: c.armN - 0.22 * s,
+    foreN: c.foreN - 0.12 * s,
+    armF: c.armF + 0.22 * s,
+    foreF: c.foreF + 0.12 * s,
   };
 }
 
@@ -3467,6 +3520,24 @@ function crawlPose(p) {
 }
 
 const down = (a) => [Math.sin(a), Math.cos(a)];
+
+// How the foot sits for a given shin angle: a shin swept back lifts the heel
+// (the foot rolls onto its ball), a shin reaching forward lands on the heel.
+// Positive is heel-up. The drop is how far below the ankle the lowest point
+// of the foot then goes, so the hips can be set to keep it on the ground.
+// How rounded the back is for a given lean: 0 upright, 1 bent well forward,
+// and back to 0 as the body goes flat (prone).
+const hunch = (lean) => clamp((lean - 0.2) / 0.45) * clamp((1.3 - lean) / 0.3);
+
+function footRoll(shinA) {
+  if (shinA < -0.3) return Math.min(0.8, (-shinA - 0.3) * 0.9);
+  if (shinA > 0.2) return -Math.min(0.3, (shinA - 0.2) * 0.6);
+  return 0;
+}
+function footDrop(shinA) {
+  const r = footRoll(shinA);
+  return r > 0 ? 13 * Math.sin(r) : 6 * Math.sin(-r);
+}
 
 // A limb segment as a round-capped stroke: convex at both ends, so joints
 // never show a notch where two segments meet.
@@ -3539,6 +3610,13 @@ class Person {
     const up = [Math.sin(p.torso), -Math.cos(p.torso)];
     j.neck = [up[0] * L.torso, up[1] * L.torso];
     j.shoulder = [up[0] * (L.torso - 7), up[1] * (L.torso - 7)];
+    // hunched, the shoulders roll forward and the neck comes out of them
+    const hs = hunch(p.torso);
+    if (hs > 0) {
+      const fw = [Math.cos(p.torso), Math.sin(p.torso)];
+      j.shoulder = [j.shoulder[0] + fw[0] * 3 * hs, j.shoulder[1] + fw[1] * 3 * hs];
+      j.neck = [j.neck[0] + fw[0] * 2.5 * hs, j.neck[1] + fw[1] * 2.5 * hs];
+    }
     const ha = p.torso + p.head;
     j.head = [j.neck[0] + Math.sin(ha) * (L.neck + L.head), j.neck[1] - Math.cos(ha) * (L.neck + L.head)];
     const aN = down(p.armN);
@@ -3561,7 +3639,7 @@ class Person {
     if (this.pose.seat != null) return this.pose.seat;
     // Lowest of feet, knees and the torso itself, so poses blend smoothly
     // from standing to kneeling to lying flat.
-    return Math.max(j.footN[1], j.footF[1], j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
+    return Math.max(j.footN[1] + footDrop(this.pose.shinN), j.footF[1] + footDrop(this.pose.shinF), j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
   }
 
   hip() {
@@ -3678,9 +3756,14 @@ class Person {
     const w = o.baggy ? 14 : 11.5;
     const torsoPath = () => {
       ctx.beginPath();
-      const pts = [at(o.baggy ? -10 : -4, -w), at(o.baggy ? -10 : -2, w), at(L.torso - 15, w + 1.5), at(L.torso - 3, 9), at(L.torso, -3), at(L.torso - 6, -11), at(18, -w - 0.5)];
+      const pts = [at(o.baggy ? -10 : -4, -w), at(o.baggy ? -10 : -2, w), at(L.torso - 15, w + 1.5), at(L.torso - 3, 9), at(L.torso, -3)];
       ctx.moveTo(...pts[0]);
       for (const q of pts.slice(1)) ctx.lineTo(...q);
+      // the back: straight when upright, rounding into a curve as he bends
+      // forward (upper back humped, shoulders rolled), flat again lying down
+      const h = hunch(p.torso);
+      ctx.lineTo(...at(L.torso - 6, -11 - 2 * h));
+      ctx.quadraticCurveTo(...at(L.torso * 0.5, -w - 0.5 - 7 * h), ...at(6, -w - 1.5 * h));
       ctx.closePath();
     };
     torsoPath();
@@ -4530,7 +4613,7 @@ class Person {
     }
     ctx.save();
     ctx.translate(foot[0], foot[1]);
-    ctx.rotate(-shinA * 0.8);
+    ctx.rotate(footRoll(shinA));
     const fw = o.footwear || 'shoe';
     if (fw === 'sandal') {
       ctx.fillStyle = skin;
@@ -4873,7 +4956,7 @@ class Walker {
 
   pose(dt, speed, run = false) {
     let target;
-    const phase = (this.stride / (this.stance === 'stand' ? 74 : 52)) * Math.PI;
+    const phase = (this.stride / (this.stance === 'stand' ? 74 : this.stance === 'crouch' ? 34 : 52)) * Math.PI;
     if (this.mantle) {
       const k = clamp(this.mantle.t);
       target =
@@ -4887,7 +4970,13 @@ class Walker {
     } else if (this.stance === 'prone') {
       target = speed > 4 ? crawlPose(phase * 0.8) : POSES.prone;
     } else if (this.stance === 'crouch') {
-      target = speed > 4 ? crouchWalkPose(phase) : POSES.crouch;
+      if (speed > 4) target = crouchWalkPose(phase);
+      else {
+        // holding still, low: breathing, and a look round now and then
+        const tt = this.time + this.seed;
+        const c = POSES.crouch;
+        target = { ...c, torso: c.torso + 0.015 * Math.sin(tt * 2.1), head: c.head + Math.max(0, Math.sin(tt * 0.3) - 0.7) * 0.6 * Math.sin(tt * 1.1), armN: c.armN + 0.02 * Math.sin(tt * 2.1) };
+      }
     } else if (speed > 4) {
       const runK = clamp((speed - 180) / 110);
       target = walkPose(phase, clamp(speed / 160, 0.35, 1.2), runK);
@@ -4908,7 +4997,7 @@ class Walker {
 
     // footsteps
     if (this.onGround && speed > 4 && this.stance !== 'prone') {
-      const n = Math.floor(this.stride / (this.stance === 'stand' ? 74 : 52));
+      const n = Math.floor(this.stride / (this.stance === 'stand' ? 74 : this.stance === 'crouch' ? 34 : 52));
       if (n !== this.lastStep) {
         this.lastStep = n;
         this.onStep?.(this.stance);
@@ -5416,7 +5505,7 @@ class Game {
     }
     const [u, v] = this.R.cam.toUv(t.x, t.y, this.R.W, this.R.H);
     const key = keyLabel(this.input.bindings().interact?.[0]);
-    this.text.hint(u, v, key, `${t.label[1]} · ${t.label[0]}`);
+    this.text.hint(u, v, key, t.label);
     if (this.input.hit('interact')) t.use(this);
   }
 
@@ -5459,13 +5548,19 @@ return { TOOLS, Game };
 
 // ---- src/rigs/cat.js
 const __src_rigs_cat = (() => {
-// A thin tabby with a torn left ear. Sits, blinks slowly, stands, walks and
-// drops off walls. Local frame: facing right, ground at y = 0.
+// A lean black street cat with a notched left ear. Sits, blinks slowly,
+// stands, walks and drops off walls. Local frame: facing right, ground at
+// y = 0. Black fur is drawn near-black with a cool sheen along the spine, the
+// crown and the shoulder, so the shape still reads against dark stone.
 
 const { ik2, noise1, lerp, clamp } = __src_engine_util;
-const { smoothPath, limb } = __src_rigs_shapes;
-const COAT = '#6e5d4a';
-const DARK = '#3e3328';
+const { smoothPath } = __src_rigs_shapes;
+const FUR = '#141416';
+const FAR = '#0a0a0c';
+const SHEEN = 'rgba(120,128,150,0.32)';
+const EYE = '#c2c83c';
+
+const mixp = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
 
 class Cat {
   constructor() {
@@ -5477,131 +5572,276 @@ class Cat {
     this.phase = 0;
     this.blink = 0;
     this.time = 0;
-    this.headTurn = 0; // 0 profile … 1 facing the camera
+    this.headTurn = 0; // kept for the scene scripts
     this.hidden = false;
   }
 
   update(dt) {
     this.time += dt;
-    if (this.speed > 1) this.phase = (this.phase + dt * this.speed * 0.012) % 1;
+    if (this.speed > 1) this.phase = (this.phase + dt * this.speed * 0.014) % 1;
+  }
+
+  // Key points of the body, blended between standing and sitting: an
+  // outline (tail root, rump, back, withers, neck, chest, belly, thigh,
+  // haunch), the head, and where the legs join.
+  shape() {
+    const s = this.sit;
+    const breathe = Math.sin(this.time * 1.9) * 0.6;
+    const walking = this.speed > 1 && s < 0.5;
+    const bob = walking ? Math.sin(this.phase * Math.PI * 4) * 1.2 : 0;
+    const STAND = [[-34, -34], [-28, -41], [-6, -38], [14, -42], [22, -45], [30, -29], [21, -16], [-2, -20], [-17, -19], [-33, -23]];
+    const SIT = [[-26, -6], [-27, -22], [-15, -38], [2, -50], [9, -55], [19, -37], [17, -14], [7, -5], [-6, -2], [-24, 0]];
+    const outline = STAND.map((q, k) => [lerp(q[0], SIT[k][0], s), lerp(q[1] + bob, SIT[k][1] + (k >= 2 && k <= 5 ? breathe * 0.4 : 0), s)]);
+    return {
+      s,
+      walking,
+      outline,
+      head: mixp([35, -52 + bob], [17, -69 + breathe * 0.3], s),
+      shoulder: mixp([20, -30 + bob], [12, -28], s),
+      hip: mixp([-24, -30 + bob], [-14, -12], s),
+      breathe,
+    };
   }
 
   draw(ctx) {
     if (this.hidden) return;
-    const s = this.sit;
+    const b = this.shape();
+    const { s } = b;
+    const O = b.outline;
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.scale(this.f * 0.9, 0.9);
-
-    const rump = [lerp(-26, -18, s), lerp(-30, -14, s)];
-    const chest = [lerp(24, 10, s), lerp(-32, -42, s)];
-
-    // tail: curls round the feet when sitting, sweeps when walking
-    ctx.strokeStyle = COAT;
     ctx.lineCap = 'round';
-    ctx.lineWidth = 5;
+    ctx.lineJoin = 'round';
+
+    this.tail(ctx, b);
+    // far legs first, darker
+    this.frontLeg(ctx, b, 0.5, false);
+    this.hindLeg(ctx, b, 0.0, false);
+
+    // body: deep chest, tucked waist, round haunch
     ctx.beginPath();
-    ctx.moveTo(rump[0] - 4, rump[1]);
-    const sway = noise1(this.time * 0.8) * 8;
-    if (s > 0.5) ctx.bezierCurveTo(-38, 0, 0, 6, 22 + sway, 0);
-    else ctx.bezierCurveTo(-48, -40 + sway, -58, -54, -52 + sway, -64);
+    smoothPath(ctx, O, true);
+    ctx.fillStyle = FUR;
+    ctx.fill();
+    // sheen along the spine and over the shoulder
+    ctx.strokeStyle = SHEEN;
+    ctx.lineWidth = 2.2;
+    ctx.beginPath();
+    ctx.moveTo(O[1][0] + 1, O[1][1] + 1.5);
+    ctx.quadraticCurveTo(O[2][0], O[2][1] + 1, O[3][0] - 1, O[3][1] + 1.5);
+    ctx.stroke();
+    ctx.lineWidth = 1.4;
+    ctx.beginPath();
+    ctx.arc(b.shoulder[0] - 2, b.shoulder[1] - 2, 7, -2.6, -1.0);
     ctx.stroke();
 
-    // legs
-    const legs = [
-      [chest[0] - 4, chest[1] + 8, 0.0, true],
-      [chest[0] + 2, chest[1] + 8, 0.5, false],
-      [rump[0] + 2, rump[1] + 4, 0.25, true],
-      [rump[0] - 4, rump[1] + 4, 0.75, false],
-    ];
-    const drawLeg = ([hx, hy, off, near]) => {
-      const ph = (this.phase + off) % 1;
-      const walking = this.speed > 1 && s < 0.5;
-      let fx = hx + (walking ? Math.sin(ph * Math.PI * 2) * 9 : 0);
-      let fy = walking ? -Math.max(0, Math.sin(ph * Math.PI * 2)) * 6 : 0;
-      if (s > 0.5 && hx < 0) {
-        // haunches folded
-        fx = hx + 14;
-        fy = 0;
-      }
-      const j = ik2(hx, hy, fx, fy, 16, 16, hx > 0 ? -1 : 1);
-      const col = near ? COAT : DARK;
-      limb(ctx, hx, hy, j.jx, j.jy, near ? 7 : 6, 5, col);
-      limb(ctx, j.jx, j.jy, j.ex, j.ey, 5, 4, col);
-    };
-    drawLeg(legs[1]);
-    drawLeg(legs[3]);
-
-    // body: thin, ribs showing
-    ctx.beginPath();
-    smoothPath(ctx, [
-      [rump[0] - 8, rump[1] - 2],
-      [lerp(rump[0], chest[0], 0.5), lerp(rump[1], chest[1], 0.5) - 8],
-      [chest[0] + 6, chest[1] - 4],
-      [chest[0] + 8, chest[1] + 8],
-      [lerp(rump[0], chest[0], 0.5), lerp(rump[1], chest[1], 0.5) + 6],
-      [rump[0] - 4, rump[1] + 10],
-    ], true);
-    ctx.fillStyle = COAT;
-    ctx.fill();
-    // tabby stripes and ribs
-    ctx.strokeStyle = 'rgba(40,30,22,0.55)';
-    ctx.lineWidth = 1.6;
-    for (let i = 0; i < 4; i++) {
-      const t = 0.25 + i * 0.16;
-      const bx = lerp(rump[0], chest[0], t);
-      const by = lerp(rump[1], chest[1], t);
+    // near legs
+    this.hindLeg(ctx, b, 0.5, true);
+    this.frontLeg(ctx, b, 0.0, true);
+    // sitting: the haunch as a round mass over the folded hind leg
+    if (s > 0.05) {
+      ctx.globalAlpha = s;
+      ctx.fillStyle = FUR;
       ctx.beginPath();
-      ctx.moveTo(bx - 2, by - 7);
-      ctx.quadraticCurveTo(bx + 1, by, bx - 1, by + 6);
+      ctx.ellipse(-14, -12, 13, 12, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.strokeStyle = SHEEN;
+      ctx.lineWidth = 1.4;
+      ctx.beginPath();
+      ctx.arc(-14, -12, 11, -2.7, -1.1);
       ctx.stroke();
+      ctx.globalAlpha = 1;
     }
 
-    drawLeg(legs[0]);
-    drawLeg(legs[2]);
-
-    // head
-    const hx = chest[0] + 10;
-    const hy = chest[1] - 12;
-    ctx.save();
-    ctx.translate(hx, hy);
+    // neck into head
+    ctx.fillStyle = FUR;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 10, 8.5, 0, 0, Math.PI * 2);
-    ctx.fillStyle = COAT;
+    ctx.moveTo(O[3][0] - 2, O[3][1] + 2);
+    ctx.quadraticCurveTo(b.head[0] - 8, b.head[1] - 2, b.head[0] - 4, b.head[1] + 2);
+    ctx.lineTo(b.head[0] + 4, b.head[1] + 10);
+    ctx.quadraticCurveTo(O[5][0] + 2, O[5][1] - 8, O[5][0], O[5][1] + 2);
+    ctx.closePath();
     ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(6, 0);
-    ctx.lineTo(13, 3);
-    ctx.lineTo(6, 6);
-    ctx.fill();
-    // ears: right intact, left torn at the tip
-    ctx.beginPath();
-    ctx.moveTo(-6, -5);
-    ctx.lineTo(-5, -15);
-    ctx.lineTo(1, -7);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.moveTo(1, -7);
-    ctx.lineTo(4, -13);
-    ctx.lineTo(6, -12);
-    ctx.lineTo(7, -5);
-    ctx.fill();
-    // amber eye, closing on a slow blink
-    const open = 1 - clamp(this.blink);
-    ctx.fillStyle = '#d19a2e';
-    ctx.beginPath();
-    ctx.ellipse(4, -1.5, 2.4, 2 * open + 0.2, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.restore();
+    this.headDraw(ctx, b.head);
     ctx.restore();
   }
 
-  // Eye position in world space, for a faint glint.
+  headDraw(ctx, h) {
+    ctx.save();
+    ctx.translate(h[0], h[1]);
+    ctx.rotate(noise1(this.time * 0.3) * 0.05);
+    ctx.scale(1.2, 1.2);
+    // far ear, then the skull, muzzle and chin
+    ctx.fillStyle = FAR;
+    ctx.beginPath();
+    ctx.moveTo(-6, -6);
+    ctx.lineTo(-7, -18);
+    ctx.lineTo(0, -8);
+    ctx.fill();
+    ctx.fillStyle = FUR;
+    ctx.beginPath();
+    ctx.moveTo(-9, 2);
+    ctx.quadraticCurveTo(-10, -9, -1, -9);
+    ctx.quadraticCurveTo(6, -9, 9, -3); // brow
+    ctx.lineTo(13, 1); // nose bridge
+    ctx.quadraticCurveTo(14, 3, 12.5, 4.5); // nose
+    ctx.quadraticCurveTo(10, 5.5, 9, 7); // mouth
+    ctx.quadraticCurveTo(6, 9, 1, 8); // chin
+    ctx.quadraticCurveTo(-6, 8, -9, 2); // jaw
+    ctx.fill();
+    // near ear, tall, with a notch out of its tip (the left ear)
+    ctx.beginPath();
+    ctx.moveTo(-3, -7);
+    ctx.lineTo(0, -19);
+    ctx.lineTo(1.5, -16);
+    ctx.lineTo(3, -18);
+    ctx.lineTo(6, -7);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(80,58,62,0.5)'; // inner ear, a little warmth
+    ctx.beginPath();
+    ctx.moveTo(0, -8);
+    ctx.lineTo(1.5, -14);
+    ctx.lineTo(4, -8);
+    ctx.fill();
+    // sheen on the crown and the bridge of the nose
+    ctx.strokeStyle = SHEEN;
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(-7, -5);
+    ctx.quadraticCurveTo(-1, -9.5, 7, -6);
+    ctx.moveTo(9.5, -2);
+    ctx.lineTo(12.5, 1);
+    ctx.stroke();
+    // eye: yellow-green almond with a slit pupil; lids close on a blink
+    const open = 1 - clamp(this.blink);
+    ctx.fillStyle = EYE;
+    ctx.beginPath();
+    ctx.ellipse(5.5, -2.5, 2.8, 2.1 * open + 0.15, -0.15, 0, Math.PI * 2);
+    ctx.fill();
+    if (open > 0.3) {
+      ctx.fillStyle = '#050505';
+      ctx.beginPath();
+      ctx.ellipse(6, -2.5, 0.55, 1.7 * open, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // whiskers
+    ctx.strokeStyle = 'rgba(200,200,205,0.45)';
+    ctx.lineWidth = 0.5;
+    ctx.beginPath();
+    for (const [dy, len, a] of [[3.5, 14, -0.12], [5, 15, 0.05], [6.2, 12, 0.22]]) {
+      ctx.moveTo(10, dy);
+      ctx.quadraticCurveTo(10 + len * 0.6, dy + a * 6 - 1, 10 + len, dy + a * len);
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // Front leg: shoulder, elbow (pointing back), wrist, paw.
+  frontLeg(ctx, b, off, near) {
+    const s = b.s;
+    const top = [b.shoulder[0] + (near ? 1 : -3), b.shoulder[1]];
+    let paw;
+    let lift = 0;
+    if (b.walking) {
+      const ph = (this.phase + off) % 1;
+      const swing = ph < 0.4;
+      const k = swing ? ph / 0.4 : (ph - 0.4) / 0.6;
+      paw = [top[0] + (swing ? lerp(-9, 11, k) : lerp(11, -9, k)), 0];
+      lift = swing ? Math.sin(k * Math.PI) * 7 : 0;
+    } else paw = [lerp(top[0] + 2, near ? 14 : 18, s), 0];
+    paw[1] -= lift;
+    const j = ik2(top[0], top[1], paw[0], paw[1] - 3, 15, 16, -1);
+    const col = near ? FUR : FAR;
+    ctx.strokeStyle = col;
+    ctx.lineWidth = near ? 8 : 7;
+    ctx.beginPath();
+    ctx.moveTo(top[0], top[1]);
+    ctx.lineTo(j.jx, j.jy);
+    ctx.stroke();
+    ctx.lineWidth = near ? 5 : 4.5;
+    ctx.beginPath();
+    ctx.moveTo(j.jx, j.jy);
+    ctx.lineTo(j.ex, j.ey);
+    ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.ellipse(j.ex + 2, j.ey + 1.5, 3.8, 2.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+    if (near) {
+      ctx.strokeStyle = SHEEN;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(top[0] + 2, top[1]);
+      ctx.lineTo(j.jx + 2, j.jy);
+      ctx.stroke();
+    }
+  }
+
+  // Hind leg, digitigrade: hip, knee (forward), hock (back), paw.
+  hindLeg(ctx, b, off, near) {
+    const s = b.s;
+    const hip = [b.hip[0] + (near ? 2 : -2), b.hip[1]];
+    const col = near ? FUR : FAR;
+    let paw;
+    let lift = 0;
+    if (b.walking) {
+      const ph = (this.phase + off + 0.25) % 1;
+      const swing = ph < 0.4;
+      const k = swing ? ph / 0.4 : (ph - 0.4) / 0.6;
+      paw = [hip[0] + (swing ? lerp(-10, 12, k) : lerp(12, -10, k)), 0];
+      lift = swing ? Math.sin(k * Math.PI) * 7 : 0;
+    } else paw = [lerp(hip[0] + 2, hip[0] + 16, s), 0];
+    paw[1] -= lift;
+    // sitting folds the leg flat: hock on the ground behind the paw
+    const hock = [paw[0] - lerp(7, 16, s), paw[1] - lerp(12, 3, s)];
+    const j = ik2(hip[0], hip[1], hock[0], hock[1], 17, 16, 1);
+    ctx.strokeStyle = col;
+    ctx.lineWidth = near ? 12 : 10;
+    ctx.beginPath();
+    ctx.moveTo(hip[0], hip[1]);
+    ctx.lineTo(j.jx, j.jy);
+    ctx.stroke();
+    ctx.lineWidth = near ? 5.4 : 4.8;
+    ctx.beginPath();
+    ctx.moveTo(j.jx, j.jy);
+    ctx.lineTo(hock[0], hock[1]);
+    ctx.lineTo(paw[0], paw[1] - 2);
+    ctx.stroke();
+    ctx.fillStyle = col;
+    ctx.beginPath();
+    ctx.ellipse(paw[0] + 1.5, paw[1] - 1, 4, 2.4, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  // Tail: curled round the paws when sitting; up and swaying in a slow S
+  // when walking.
+  tail(ctx, b) {
+    const s = b.s;
+    const r = b.outline[0];
+    const sway = noise1(this.time * 0.7) * 6;
+    const flick = Math.max(0, noise1(this.time * 2.3 + 4)) * 5;
+    ctx.strokeStyle = FUR;
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.moveTo(r[0] + 2, r[1]);
+    if (s > 0.5) {
+      // out behind the haunch and round the front of the paws
+      ctx.bezierCurveTo(r[0] - 14, r[1] + 4, -20, 1, 2, -1.5);
+      ctx.quadraticCurveTo(20 + sway * 0.5, -2, 27 + flick, -7 - flick * 0.4);
+    } else {
+      ctx.bezierCurveTo(r[0] - 16, r[1] + 2, r[0] - 26 + sway, r[1] - 22, r[0] - 16 + sway, r[1] - 40 - flick);
+    }
+    ctx.stroke();
+    ctx.strokeStyle = SHEEN;
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+  }
+
+  // Eye position in world space, for a glint.
   eye() {
-    const s = this.sit;
-    const cx = lerp(24, 10, s) + 14;
-    const cy = lerp(-32, -42, s) - 13.5;
-    return [this.x + cx * this.f * 0.9, this.y + cy * 0.9];
+    const h = this.shape().head;
+    return [this.x + (h[0] + 6.6) * this.f * 0.9, this.y + (h[1] - 3) * 0.9];
   }
 }
 
@@ -7172,6 +7412,17 @@ function drawStreet(R, g) {
   }
   if (g.cat && !g.cat.hidden && near(g.cat.x - 50, g.cat.x + 50)) {
     R.cast((c) => g.cat.draw(c));
+    // its eyes catch the light
+    if (g.cat.blink < 0.5) {
+      const [ex, ey] = g.cat.eye();
+      R.glow((c) => {
+        const grd = c.createRadialGradient(ex, ey, 0, ex, ey, 5);
+        grd.addColorStop(0, 'rgba(220,230,120,0.55)');
+        grd.addColorStop(1, 'rgba(220,230,120,0)');
+        c.fillStyle = grd;
+        c.fillRect(ex - 5, ey - 5, 10, 10);
+      });
+    }
   }
   const p = g.player;
   if (p.visible) {
@@ -7637,11 +7888,11 @@ const ACT1 = {
     yield* talk(g, [
       [AHMAD, ['عارف شو أكتر شي بشتاقلو؟', 'You know what I miss most?']],
       [SAMI, ['الكهربا.', 'Electricity.']],
-      [AHMAD, ['لا يا زلمة. البوظة. بوظة بكداش.', 'No, man. Ice cream. Bakdash ice cream.']],
-      [SAMI, ['من كل شي عم يصير، البوظة؟', 'Out of everything that’s happening, ice cream?']],
-      [AHMAD, ['إي والله. هديك البوظة العربية بالفستق الحلبي. بتذكّر كنّا نروح أنا وياك عالحميدية ونوقف بالطابور ربع ساعة؟', 'I swear. That Arabic ice cream with Aleppo pistachios. Remember we used to go to the Hamidiyya and queue for fifteen minutes?']],
-      [SAMI, ['نص ساعة.', 'Half an hour.']],
-      [AHMAD, ['بتستاهل كل دقيقة.', 'Worth every minute.']],
+      [AHMAD, ['لا يا زلمة. الفوتبول بعد المدرسة.', 'No, man. Football after school.']],
+      [SAMI, ['من كل شي عم يصير، الفوتبول؟', 'Out of everything that’s happening, football?']],
+      [AHMAD, ['إي والله. بتذكّر كنّا نرمي الشنط عالرصيف ونلعب بالشارع لحتى يعتّم؟', 'I swear. Remember we used to throw our bags on the pavement and play in the street till it got dark?']],
+      [SAMI, ['لحتى يطلع أبوك يدوّر عليك.', 'Till your dad came out looking for you.']],
+      [AHMAD, ['بتستاهل كل قتلة.', 'Worth every beating.']],
     ]);
     yield () => g.player.x > X.pigeon + 60;
     yield 1;
@@ -7655,8 +7906,8 @@ const ACT1 = {
     yield () => curtain.done || g.a.curtainCleared;
     yield () => kh.x > X.sag0 + 20;
     yield* talk(g, [
-      [AHMAD, ['يا ريت كانت بوظة بكداش بتحمي من القنّاص.', 'If only Bakdash ice cream could protect you from snipers.']],
-      [SAMI, ['لو هيك كانت أغلى من الدهب.', 'If it could, it’d be worth more than gold.']],
+      [AHMAD, ['يا ريت نرجع نلعب بهالشارع متل زمان.', 'I wish we could play in this street like before.']],
+      [SAMI, ['بهالشارع؟ هلّق المشي فيه صار رياضة.', 'This street? Now just walking down it is a sport.']],
     ]);
     yield () => curtain.done;
 
@@ -10813,7 +11064,8 @@ function logPage(panel, m) {
   for (const e of text.log) {
     const row = document.createElement('div');
     row.className = `log-row style-${e.style || 'plain'}`;
-    const who = e.who ? `<span class="log-who"><span class="ar" lang="ar" dir="rtl">${esc(e.who[0])}</span> <span class="en">${esc(e.who[1])}</span></span>` : '';
+    const whoName = e.who ? (lang() === 'ar' ? `<span class="ar" lang="ar" dir="rtl">${esc(e.who[0])}</span>` : `<span class="en">${esc(e.who[1])}</span>`) : '';
+    const who = e.who ? `<span class="log-who">${whoName}</span>` : '';
     const draft = e.draft ? `<span class="log-draft">[draft]</span>` : '';
     row.innerHTML = `${who}${draft}<span class="log-lines">${subs !== 'en' ? `<span class="ar" lang="ar" dir="rtl">${esc(e.line[0])}</span>` : ''}${subs !== 'ar' ? `<span class="en" dir="ltr">${esc(e.line[1])}</span>` : ''}</span>`;
     box.appendChild(row);

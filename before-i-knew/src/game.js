@@ -321,7 +321,7 @@ export class Game {
     }
     const [u, v] = this.R.cam.toUv(t.x, t.y, this.R.W, this.R.H);
     const key = keyLabel(this.input.bindings().interact?.[0]);
-    this.text.hint(u, v, key, `${t.label[1]} · ${t.label[0]}`);
+    this.text.hint(u, v, key, t.label);
     if (this.input.hit('interact')) t.use(this);
   }
 

@@ -66,8 +66,8 @@
   }
 
   /* subtitle language modes (the menus follow the menu language instead) */
-  #stage[data-subs='en'] :is(#sub, #card, #choice, #prompt, #objective, #tools, #hint) .ar { display: none !important; }
-  #stage[data-subs='ar'] :is(#sub, #card, #choice, #prompt, #objective, #tools) .en { display: none !important; }
+  #stage[data-subs='en'] :is(#sub, #card, #choice) .ar:not(.ui) { display: none !important; }
+  #stage[data-subs='ar'] :is(#sub, #card, #choice) .en:not(.ui) { display: none !important; }
   #stage[data-hints='off'] #hint, #stage[data-hints='off'] #prompt kbd { display: none !important; }
   /* HUD only while playing, and never behind a menu or the end */
   #stage:not(.playing) :is(#prompt, #hint, #tools, #objective, #sub, #choice),
@@ -82,7 +82,7 @@
     left: 50%;
     bottom: 5%;
     transform: translateX(-50%);
-    width: min(78%, 64ch);
+    width: min(94%, 96ch);
     display: grid;
     justify-items: center;
     pointer-events: none;
@@ -115,21 +115,13 @@
     text-shadow: none;
   }
   #sub .who .ar { font: 700 max(12px, calc(var(--t) * 1.02)) / 1.4 var(--arabic); color: #fff; }
-  #sub .who .en { font: 600 max(10px, calc(var(--t) * 0.74)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; }
-  #sub .who .sep { width: 1px; align-self: stretch; background: rgba(255, 255, 255, 0.5); }
-  #stage[data-subs='en'] #sub .who .sep, #stage[data-subs='ar'] #sub .who .sep { display: none; }
+  #sub .who .en { font: 600 max(11px, calc(var(--t) * 0.84)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; }
   #sub p { margin: 0; text-wrap: balance; color: #fff; }
   #sub p.ar { font-size: max(17px, calc(var(--t) * 1.75)); line-height: 1.6; font-weight: 500; }
   #sub p.en { font: 500 max(14px, calc(var(--t) * 1.28)) / 1.4 var(--sans); }
   #stage[data-subs='en'] #sub p.en { font-size: max(16px, calc(var(--t) * 1.55)); }
-  /* examine: a note, no speaker, a rule on the leading side */
-  #sub[data-style='examine'] .sub-box, #sub[data-style='item'] .sub-box {
-    justify-items: start;
-    text-align: start;
-    border-inline-start: 3px solid rgba(255, 255, 255, 0.85);
-    border-radius: 2px 6px 6px 2px;
-  }
-  #sub[data-style='examine'] p.ar, #sub[data-style='item'] p.ar { justify-self: stretch; text-align: right; font-weight: 400; }
+  /* examine and item notes: centred like speech, set apart by italic English */
+  #sub[data-style='examine'] p.ar, #sub[data-style='item'] p.ar { font-weight: 400; }
   #sub[data-style='examine'] p.en, #sub[data-style='item'] p.en { font-style: italic; font-family: var(--serif); font-weight: 400; }
   /* radio: a dashed tag with a walkie icon; mono English */
   #sub[data-style='radio'] .who { border-style: dashed; }
@@ -244,7 +236,7 @@
   }
   #prompt kbd { font-size: max(12px, calc(var(--t) * 0.95)); min-height: 1.9em; border-radius: 999px; padding-inline: 0.7em; }
   #prompt .ar { font-size: max(15px, calc(var(--t) * 1.4)); font-weight: 600; }
-  #prompt .en { font: 500 max(12px, calc(var(--t) * 1)) / 1 var(--sans); color: #e6e0d4; }
+  #prompt .en { font: 600 max(13px, calc(var(--t) * 1.15)) / 1 var(--sans); color: var(--ink); }
   @keyframes pop { from { opacity: 0; transform: translate(-50%, 6px) scale(0.96); } }
   @keyframes glow { 50% { border-color: rgba(174, 193, 120, 0.8); box-shadow: 0 0 0 4px rgba(174, 193, 120, 0.12); } }
 
@@ -297,7 +289,7 @@
   .obj-mark { width: 9px; height: 9px; transform: rotate(45deg); border: 2px solid var(--leaf); flex: none; }
   .obj-text { display: grid; gap: 0.05em; overflow: hidden; max-width: 40vw; transition: max-width 0.8s var(--ease), opacity 0.6s; }
   #objective .ar { font-size: max(13px, calc(var(--t) * 1.1)); font-weight: 600; }
-  #objective .en { font: max(10px, calc(var(--t) * 0.78)) / 1.4 var(--sans); color: var(--dust); letter-spacing: 0.02em; white-space: nowrap; }
+  #objective .en { font: 600 max(12px, calc(var(--t) * 0.95)) / 1.4 var(--sans); color: var(--paper); letter-spacing: 0.01em; white-space: nowrap; }
   #objective:not(.fresh) { background: transparent; opacity: 0.7; }
   #objective:not(.fresh) .obj-text { max-width: 0; opacity: 0; }
   #objective.fresh .obj-mark { background: var(--leaf); }
@@ -337,7 +329,7 @@
   .tool-name { display: none; }
   .tool.active .tool-name { display: grid; }
   .tool-name .ar { font-size: max(11px, calc(var(--t) * 0.9)); font-weight: 600; text-shadow: 0 1px 4px #000; }
-  .tool-name .en { font: max(9px, calc(var(--t) * 0.7)) / 1.2 var(--sans); color: var(--dust); text-shadow: 0 1px 4px #000; }
+  .tool-name .en { font: 600 max(10px, calc(var(--t) * 0.8)) / 1.2 var(--sans); color: var(--ink); text-shadow: 0 1px 4px #000; }
   .tool-key { font-size: max(9px, calc(var(--t) * 0.68)); }
 
   /* the mirror shard: the view flips and is cropped to a jagged piece */
@@ -553,7 +545,7 @@
   .log-lines { display: grid; gap: 0.1em; justify-self: stretch; }
   .log-lines .ar { text-align: right; font-size: max(14px, calc(var(--u) * 1.05)); }
   .log-lines .en { color: #ddd6c9; font-size: max(12px, calc(var(--u) * 0.88)); }
-  .log-row.style-examine .log-lines { border-inline-start: 2px solid var(--line); padding-inline-start: 0.7em; font-style: italic; }
+  .log-row.style-examine .log-lines { font-style: italic; }
 
   /* --------------------------------------------- note, end, touch --- */
   .sheet {

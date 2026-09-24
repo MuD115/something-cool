@@ -44,9 +44,10 @@ export const OUTFITS = {
 // for sitting on something.
 export const POSES = {
   stand: { torso: 0.02, head: 0, thighN: 0.05, shinN: 0.02, thighF: -0.06, shinF: -0.06, armN: 0.05, foreN: 0.16, armF: -0.05, foreF: 0.06 },
-  // a low crouch: knees forward, feet flat, back fairly straight, eyes ahead
-  // ducking low: bent at the waist and knees, hips over the feet, eyes ahead
-  crouch: { torso: 0.88, head: -0.62, thighN: 0.92, shinN: -0.32, thighF: 0.58, shinF: -0.56, armN: 0.55, foreN: 0.95, armF: 0.4, foreF: 0.8 },
+  // a low, cautious crouch: hips dropped, knees over the toes, the far leg
+  // back on the ball of the foot, back at about 30°, head level and eyes
+  // ahead, the near hand loose in front for balance
+  crouch: { torso: 0.55, head: -0.3, thighN: 1.15, shinN: -0.72, thighF: 0.75, shinF: -1.08, armN: 0.45, foreN: 1.0, armF: 0.3, foreF: 0.85 },
   prone: { torso: 1.52, head: -0.95, thighN: -1.48, shinN: -1.56, thighF: -1.5, shinF: -1.58, armN: 1.05, foreN: 1.95, armF: 0.95, foreF: 1.85 },
   kneel: { torso: 0.12, head: 0.25, thighN: 1.45, shinN: 0.05, thighF: 0.15, shinF: -1.55, armN: 0.5, foreN: 1.1, armF: 0.35, foreF: 0.9 },
   kerb: { torso: 0.32, head: 0.55, thighN: 1.5, shinN: 0.12, thighF: 1.42, shinF: 0.05, armN: 0.95, foreN: 1.75, armF: 0.85, foreF: 1.65 },
@@ -111,21 +112,48 @@ export function walkPose(p, stride = 1, run = 0) {
   };
 }
 
-// Crouched, moving: short shuffling steps, body steady, hands loose.
+// Crouched, moving: a low, careful walk. Each leg swings its thigh through
+// an arc; while the foot is planted the shin is solved so the foot stays on
+// the ground (the body rolls over it), and on the swing the foot lifts and
+// comes through with the knee folded. The hips dip on each step, the body
+// pitches into it, and the arms counter-swing short and low.
+const CROUCH_G = 46; // hip height when crouched
+function crouchLeg(q, bob) {
+  const th = 1.0 + 0.3 * Math.sin(q);
+  const swing = Math.max(0, Math.cos(q)); // thigh coming forward: foot in the air
+  const solve = (y) => -Math.acos(clamp((y - L.thigh * Math.cos(th)) / L.shin, -1, 1));
+  const ground = CROUCH_G + bob;
+  let sh = solve(ground);
+  sh = solve(ground - footDrop(sh)); // the heel lifts as the shin sweeps back
+  if (swing > 0) sh = solve(ground - footDrop(sh) - 11 * swing) - swing * 0.3; // lift and fold on the swing
+  return [th, sh];
+}
+
+// Holding still, the crouch is the gait's moment with both feet planted.
+{
+  const [tn, sn] = crouchLeg(Math.PI / 2, 0);
+  const [tf, sf] = crouchLeg((3 * Math.PI) / 2, 0);
+  Object.assign(POSES.crouch, { thighN: tn, shinN: sn, thighF: tf, shinF: sf });
+}
+
 export function crouchWalkPose(p) {
   const c = POSES.crouch;
+  const bob = 1.6 * Math.cos(2 * p); // lowest as each foot lands
+  const [tn, sn] = crouchLeg(p, bob);
+  const [tf, sf] = crouchLeg(p + Math.PI, bob);
   const s = Math.sin(p);
-  const lift = (x) => Math.max(0, x) * 0.28;
-  const mid = (c.thighN + c.thighF) / 2;
   return {
     ...c,
-    torso: c.torso + 0.03 * Math.cos(2 * p),
-    thighN: mid + 0.3 * s + lift(Math.cos(p)) * 0.5,
-    shinN: mid - 0.45 + 0.3 * s - lift(Math.cos(p)) * 1.4,
-    thighF: mid - 0.3 * s + lift(-Math.cos(p)) * 0.5,
-    shinF: mid - 0.45 - 0.3 * s - lift(-Math.cos(p)) * 1.4,
-    armN: c.armN - 0.2 * s,
-    armF: c.armF + 0.2 * s,
+    torso: c.torso + 0.04 * Math.cos(2 * p) - 0.02,
+    head: c.head - 0.03 * Math.cos(2 * p),
+    thighN: tn,
+    shinN: sn,
+    thighF: tf,
+    shinF: sf,
+    armN: c.armN - 0.22 * s,
+    foreN: c.foreN - 0.12 * s,
+    armF: c.armF + 0.22 * s,
+    foreF: c.foreF + 0.12 * s,
   };
 }
 
@@ -149,6 +177,24 @@ export function crawlPose(p) {
 }
 
 const down = (a) => [Math.sin(a), Math.cos(a)];
+
+// How the foot sits for a given shin angle: a shin swept back lifts the heel
+// (the foot rolls onto its ball), a shin reaching forward lands on the heel.
+// Positive is heel-up. The drop is how far below the ankle the lowest point
+// of the foot then goes, so the hips can be set to keep it on the ground.
+// How rounded the back is for a given lean: 0 upright, 1 bent well forward,
+// and back to 0 as the body goes flat (prone).
+const hunch = (lean) => clamp((lean - 0.2) / 0.45) * clamp((1.3 - lean) / 0.3);
+
+function footRoll(shinA) {
+  if (shinA < -0.3) return Math.min(0.8, (-shinA - 0.3) * 0.9);
+  if (shinA > 0.2) return -Math.min(0.3, (shinA - 0.2) * 0.6);
+  return 0;
+}
+function footDrop(shinA) {
+  const r = footRoll(shinA);
+  return r > 0 ? 13 * Math.sin(r) : 6 * Math.sin(-r);
+}
 
 // A limb segment as a round-capped stroke: convex at both ends, so joints
 // never show a notch where two segments meet.
@@ -221,6 +267,13 @@ export class Person {
     const up = [Math.sin(p.torso), -Math.cos(p.torso)];
     j.neck = [up[0] * L.torso, up[1] * L.torso];
     j.shoulder = [up[0] * (L.torso - 7), up[1] * (L.torso - 7)];
+    // hunched, the shoulders roll forward and the neck comes out of them
+    const hs = hunch(p.torso);
+    if (hs > 0) {
+      const fw = [Math.cos(p.torso), Math.sin(p.torso)];
+      j.shoulder = [j.shoulder[0] + fw[0] * 3 * hs, j.shoulder[1] + fw[1] * 3 * hs];
+      j.neck = [j.neck[0] + fw[0] * 2.5 * hs, j.neck[1] + fw[1] * 2.5 * hs];
+    }
     const ha = p.torso + p.head;
     j.head = [j.neck[0] + Math.sin(ha) * (L.neck + L.head), j.neck[1] - Math.cos(ha) * (L.neck + L.head)];
     const aN = down(p.armN);
@@ -243,7 +296,7 @@ export class Person {
     if (this.pose.seat != null) return this.pose.seat;
     // Lowest of feet, knees and the torso itself, so poses blend smoothly
     // from standing to kneeling to lying flat.
-    return Math.max(j.footN[1], j.footF[1], j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
+    return Math.max(j.footN[1] + footDrop(this.pose.shinN), j.footF[1] + footDrop(this.pose.shinF), j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
   }
 
   hip() {
@@ -360,9 +413,14 @@ export class Person {
     const w = o.baggy ? 14 : 11.5;
     const torsoPath = () => {
       ctx.beginPath();
-      const pts = [at(o.baggy ? -10 : -4, -w), at(o.baggy ? -10 : -2, w), at(L.torso - 15, w + 1.5), at(L.torso - 3, 9), at(L.torso, -3), at(L.torso - 6, -11), at(18, -w - 0.5)];
+      const pts = [at(o.baggy ? -10 : -4, -w), at(o.baggy ? -10 : -2, w), at(L.torso - 15, w + 1.5), at(L.torso - 3, 9), at(L.torso, -3)];
       ctx.moveTo(...pts[0]);
       for (const q of pts.slice(1)) ctx.lineTo(...q);
+      // the back: straight when upright, rounding into a curve as he bends
+      // forward (upper back humped, shoulders rolled), flat again lying down
+      const h = hunch(p.torso);
+      ctx.lineTo(...at(L.torso - 6, -11 - 2 * h));
+      ctx.quadraticCurveTo(...at(L.torso * 0.5, -w - 0.5 - 7 * h), ...at(6, -w - 1.5 * h));
       ctx.closePath();
     };
     torsoPath();
@@ -1212,7 +1270,7 @@ export class Person {
     }
     ctx.save();
     ctx.translate(foot[0], foot[1]);
-    ctx.rotate(-shinA * 0.8);
+    ctx.rotate(footRoll(shinA));
     const fw = o.footwear || 'shoe';
     if (fw === 'sandal') {
       ctx.fillStyle = skin;

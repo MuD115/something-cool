@@ -22,7 +22,7 @@ accounts of siege life.
 
 From 3:05 to 4:15 pm, about 10–20 minutes to play.
 
-1. **The Walk.** Walk Zeitoun Street with Ahmad, talking about Bakdash ice cream, grammar
+1. **The Walk.** Walk Zeitoun Street with Ahmad, talking about the football they played after school, grammar
    tenses and a boy who doesn't know what "abroad" means. Along the way you crouch under a
    sniper curtain and climb a collapsed wall.
 2. **The Parting.** Ahmad turns down the southern road.
@@ -120,7 +120,7 @@ Everything is drawn and synthesised in code. There are no images or recordings.
 - **People and the cat** ([`src/rigs/`](src/rigs)): one procedural rig, with outfits for each
   character and a pose library. It has side, front and back views, with a quick turn between
   them, for anyone walking into or out of a side street. Idle figures breathe, blink and glance
-  around, and passers-by cross the side streets in the calm stretches. The tabby is a separate
+  around, and passers-by cross the side streets in the calm stretches. The black cat is a separate
   small rig.
 - **Sound** ([`src/engine/audio.js`](src/engine/audio.js)) is all Web Audio:
   - the ambience: a generator hum, pigeons, wind;

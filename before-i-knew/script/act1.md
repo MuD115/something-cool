@@ -47,24 +47,24 @@ A **grape vine** grows from a crack in the rubble on the right side, climbing th
 > *Electricity.*
 
 **أحمد:**
-> لا يا زلمة. البوظة. بوظة بكداش.
-> *No, man. Ice cream. Bakdash ice cream.*
+> لا يا زلمة. الفوتبول بعد المدرسة.
+> *No, man. Football after school.*
 
 **سامي:**
-> *(half-smiling)* من كل شي عم يصير، البوظة؟
-> *(half-smiling)* Out of everything that's happening, ice cream?
+> *(half-smiling)* من كل شي عم يصير، الفوتبول؟
+> *(half-smiling)* Out of everything that's happening, football?
 
 **أحمد:**
-> إي والله. هديك البوظة العربية بالفستق الحلبي. بتذكّر كنّا نروح أنا وياك عالحميدية ونوقف بالطابور ربع ساعة؟
-> *I swear. That Arabic ice cream with Aleppo pistachios. Remember we used to go to the Hamidiyya and queue for fifteen minutes?*
+> إي والله. بتذكّر كنّا نرمي الشنط عالرصيف ونلعب بالشارع لحتى يعتّم؟
+> *I swear. Remember we used to throw our bags on the pavement and play in the street till it got dark?*
 
 **سامي:**
-> نص ساعة.
-> *Half an hour.*
+> لحتى يطلع أبوك يدوّر عليك.
+> *Till your dad came out looking for you.*
 
 **أحمد:**
-> بتستاهل كل دقيقة.
-> *Worth every minute.*
+> بتستاهل كل قتلة.
+> *Worth every beating.*
 
 *A pause. They walk. A pigeon bursts from a window above them. Both flinch slightly, a reflex.*
 
@@ -124,12 +124,12 @@ They approach a gap between two buildings. Across the gap, a **sniper curtain**,
 *[TUTORIAL: Crouching introduced. The player ducks under the sagging curtain. Ahmad does the same beside them.]*
 
 **أحمد:**
-> *(ducking)* يا ريت كانت بوظة بكداش بتحمي من القنّاص.
-> *(ducking)* If only Bakdash ice cream could protect you from snipers.
+> *(ducking)* يا ريت نرجع نلعب بهالشارع متل زمان.
+> *(ducking)* I wish we could play in this street like before.
 
 **سامي:**
-> لو هيك كانت أغلى من الدهب.
-> *If it could, it'd be worth more than gold.*
+> بهالشارع؟ هلّق المشي فيه صار رياضة.
+> *This street? Now just walking down it is a sport.*
 
 ### Gameplay: The Collapsed Wall
 
@@ -486,7 +486,7 @@ In the stairwell, breathing. Layla is pressed against the wall, eyes closed. The
 
 Sami moves out of the stairwell / from behind his cover. The open area has a new crater, fresh, smoking, maybe four metres across. The scrap metal the children were collecting is scattered.
 
-On a **section of collapsed wall**, at eye level, sits a **cat**. A thin tabby with a torn left ear and visible ribs. It is sitting perfectly still, watching Sami. Its eyes are amber.
+On a **section of collapsed wall**, at eye level, sits a **cat**. A thin black cat with a notched left ear and visible ribs. It is sitting perfectly still, watching Sami. Its eyes are amber.
 
 **[INTERACTION: THE CAT]**
 
@@ -640,7 +640,7 @@ Sami approaches the corner. A **group of six or seven people** stand in a loose 
 > من نص ساعة. ساعة بالكتير.
 > *Half an hour ago. An hour at most.*
 
-*[ACTING NOTE: Half an hour. While Sami was helping the old man with water, or not. While he was lying flat under a jet. While a cat blinked at him. Ahmad was already gone. The hour of unknowing collapses. Every moment the player just lived through is retroactively stained. The ice cream, the joke, the half-wave, all of it happened in a world where Ahmad was either alive or already dead, and Sami will never know which moment was which.]*
+*[ACTING NOTE: Half an hour. While Sami was helping the old man with water, or not. While he was lying flat under a jet. While a cat blinked at him. Ahmad was already gone. The hour of unknowing collapses. Every moment the player just lived through is retroactively stained. The football, the joke, the half-wave, all of it happened in a world where Ahmad was either alive or already dead, and Sami will never know which moment was which.]*
 
 *The woman on the kerb is crying quietly. The man with the walkie-talkie has stopped talking and is looking at Sami. Everyone in the group knows. They have been waiting to see who would tell him.*
 
@@ -790,7 +790,7 @@ The screen fades. The ambient sound fades. A moment of darkness.
 | **C** (The News) | C1: Rush / C2: Seek / C3: Freeze | grief_response, path, courage/isolation |
 
 ### Key Emotional Beats
-1. The ordinary friendship in the walk, ice cream, children, grammar
+1. The ordinary friendship in the walk, football, children, grammar
 2. The casual parting, "tonight, you'll hear the joke"
 3. The hour of unknowing, living in a world where Ahmad may already be dead
 4. The news, Abu Yazan's four words

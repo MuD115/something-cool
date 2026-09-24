@@ -188,11 +188,11 @@ export const ACT1 = {
     yield* talk(g, [
       [AHMAD, ['عارف شو أكتر شي بشتاقلو؟', 'You know what I miss most?']],
       [SAMI, ['الكهربا.', 'Electricity.']],
-      [AHMAD, ['لا يا زلمة. البوظة. بوظة بكداش.', 'No, man. Ice cream. Bakdash ice cream.']],
-      [SAMI, ['من كل شي عم يصير، البوظة؟', 'Out of everything that’s happening, ice cream?']],
-      [AHMAD, ['إي والله. هديك البوظة العربية بالفستق الحلبي. بتذكّر كنّا نروح أنا وياك عالحميدية ونوقف بالطابور ربع ساعة؟', 'I swear. That Arabic ice cream with Aleppo pistachios. Remember we used to go to the Hamidiyya and queue for fifteen minutes?']],
-      [SAMI, ['نص ساعة.', 'Half an hour.']],
-      [AHMAD, ['بتستاهل كل دقيقة.', 'Worth every minute.']],
+      [AHMAD, ['لا يا زلمة. الفوتبول بعد المدرسة.', 'No, man. Football after school.']],
+      [SAMI, ['من كل شي عم يصير، الفوتبول؟', 'Out of everything that’s happening, football?']],
+      [AHMAD, ['إي والله. بتذكّر كنّا نرمي الشنط عالرصيف ونلعب بالشارع لحتى يعتّم؟', 'I swear. Remember we used to throw our bags on the pavement and play in the street till it got dark?']],
+      [SAMI, ['لحتى يطلع أبوك يدوّر عليك.', 'Till your dad came out looking for you.']],
+      [AHMAD, ['بتستاهل كل قتلة.', 'Worth every beating.']],
     ]);
     yield () => g.player.x > X.pigeon + 60;
     yield 1;
@@ -206,8 +206,8 @@ export const ACT1 = {
     yield () => curtain.done || g.a.curtainCleared;
     yield () => kh.x > X.sag0 + 20;
     yield* talk(g, [
-      [AHMAD, ['يا ريت كانت بوظة بكداش بتحمي من القنّاص.', 'If only Bakdash ice cream could protect you from snipers.']],
-      [SAMI, ['لو هيك كانت أغلى من الدهب.', 'If it could, it’d be worth more than gold.']],
+      [AHMAD, ['يا ريت نرجع نلعب بهالشارع متل زمان.', 'I wish we could play in this street like before.']],
+      [SAMI, ['بهالشارع؟ هلّق المشي فيه صار رياضة.', 'This street? Now just walking down it is a sport.']],
     ]);
     yield () => curtain.done;
 
