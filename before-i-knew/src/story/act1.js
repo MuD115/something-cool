@@ -3,7 +3,7 @@
 // script's own, in Damascene Arabic with its English.
 
 import { lerp, clamp, smooth } from '../engine/util.js';
-import { POSES } from '../rigs/person.js';
+import { POSES, Person } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
 import { jerryCan } from '../sets/town.js';
 import { X, drawStreet, sunLook, drawStairwell, stairLook, drawFlashback, flashLook, surfaceAt } from './act1-set.js';
@@ -512,7 +512,15 @@ export const ACT1 = {
     g.camOverride = null;
     // The strike, on another quarter.
     g.sound.strikeFar();
-    g.bump(0.5);
+    g.bump(0.95);
+    g.runner.run(
+      (function* () {
+        yield 0.7;
+        g.bump(0.45); // the ground keeps shaking
+        yield 0.8;
+        g.bump(0.25);
+      })(),
+    );
     g.a.plumeAt = g.time;
     g.a.plumeX = g.cam.x * 0.3 - 420;
     yield 3;
@@ -1032,15 +1040,17 @@ export const ACT1 = {
     p.f = 1;
     g.camOverride = { x: X.kerb + 90, y: -230, view: 1050 };
     yield 0.6;
+    // he comes close: close enough to put a hand on Sami's shoulder
+    const reach = handOnShoulder(abu, p);
     abu.override = null;
-    yield* g.walkNpc(abu, X.kerb + 110, { speedScale: 0.4 });
+    yield* g.walkNpc(abu, reach.x, { speedScale: 0.4 });
     abu.f = -1;
     abu.override = { ...POSES.stand, head: 0.05 };
     yield* g.say(ABU, ['سامي.', 'Sami.'], 2.5);
     yield GAP;
     yield* g.say(SAMI, ['شو في يا عمّو؟ ليش هالناس مجتمعين؟', 'What is it, uncle? Why are these people gathered?']);
     yield GAP;
-    abu.override = { ...POSES.stand, armN: 1.25, foreN: 1.45 }; // a hand on his shoulder
+    abu.override = reach.pose; // a hand on his shoulder
     yield 0.8;
     yield* g.say(ABU, ['أحمد... الله يرحمو يا ابني.', 'Ahmad... God have mercy on him, my son.'], 4.5);
     // Silence. The information enters but hasn't landed.
@@ -1053,6 +1063,7 @@ export const ACT1 = {
     // his hand goes to the wall; the street goes distant, as if through water
     p.f = -1;
     p.override = { ...POSES.wallHand };
+    abu.override = { ...POSES.stand, head: 0.2 }; // his hand falls away
     g.sound.setMuffle(0.7, 3);
     g.sound.ringing(0.8, 1.5);
     yield 2;
@@ -1155,6 +1166,9 @@ export const ACT1 = {
 
   update(g, dt) {
     const a = g.a;
+    // the people of the memory and the stairwell live outside the street's
+    // list, so they're moved (and their poses settle) here
+    for (const w of [...(g.flashActors || []), ...(g.stairKids || [])]) w.update(dt, {});
     // the news drains the colour out of the world
     if (a.drainT0) a.drain = clamp((g.time - a.drainT0) / 6);
     if (a.compress) a.sunK = lerp(0.9, 1.15, clamp((g.time - a.compress) / 12));
@@ -1209,6 +1223,29 @@ export const ACT1 = {
     return l;
   },
 };
+
+// Where to stand, and how to hold the arm, so one person's near hand rests
+// on another's shoulder. Tries arm angles until the hand is at shoulder
+// height, then stands at the distance that puts it there.
+function handOnShoulder(who, to) {
+  to.rig.solve();
+  const [sx, sy] = to.rig.world('shoulder');
+  const f = to.x < who.x ? -1 : 1;
+  const probe = new Person('abuyazan', who.rig.scale);
+  let best = null;
+  for (let a = 0.9; a <= 1.9; a += 0.02) {
+    const pose = { ...POSES.stand, head: 0.12, armN: a, foreN: a + 0.12 };
+    probe.setPose(pose);
+    probe.x = 0;
+    probe.y = who.y;
+    probe.f = f;
+    const [hx, hy] = probe.world('handN');
+    const err = Math.abs(hy - (sy - 4));
+    if (!best || err < best.err) best = { err, pose, hx };
+  }
+  // the hand lands just on the near side of the shoulder
+  return { pose: best.pose, x: sx - f * 2 - best.hx };
+}
 
 // ------------------------------------------------------ depth and doors --
 

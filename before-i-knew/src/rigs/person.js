@@ -51,7 +51,8 @@ export const POSES = {
   prone: { torso: 1.52, head: -0.95, thighN: -1.48, shinN: -1.56, thighF: -1.5, shinF: -1.58, armN: 1.05, foreN: 1.95, armF: 0.95, foreF: 1.85 },
   kneel: { torso: 0.12, head: 0.25, thighN: 1.45, shinN: 0.05, thighF: 0.15, shinF: -1.55, armN: 0.5, foreN: 1.1, armF: 0.35, foreF: 0.9 },
   kerb: { torso: 0.32, head: 0.55, thighN: 1.5, shinN: 0.12, thighF: 1.42, shinF: 0.05, armN: 0.95, foreN: 1.75, armF: 0.85, foreF: 1.65 },
-  sitGround: { torso: -0.05, head: 0.05, thighN: 1.55, shinN: 2.7, thighF: 1.45, shinF: 2.6, armN: 0.5, foreN: 1.4, armF: 0.4, foreF: 1.3 },
+  // on the floor (a cushion), knees up, feet flat by the hips, forearms on the knees
+  sitGround: { torso: -0.12, head: 0.08, thighN: 2.0, shinN: -0.83, thighF: 1.85, shinF: -0.95, armN: 0.85, foreN: 1.55, armF: 0.75, foreF: 1.45 },
   // on a chair, crate or stool: thighs level, shins down
   sitChair: { seat: 40, torso: -0.04, head: 0.05, thighN: 1.5, shinN: 0.12, thighF: 1.45, shinF: 0.02, armN: 0.35, foreN: 1.25, armF: 0.3, foreF: 1.15 },
   // on a ledge, legs dangling

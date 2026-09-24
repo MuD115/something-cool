@@ -91,9 +91,10 @@ the children and the path. It's saved in the browser.
 You can rebind every key under **Controls**. On phones and tablets, on-screen buttons appear.
 
 **Menus.** The main menu has Continue (from the last checkpoint, in whichever act), New game,
-Chapters, Settings, Controls and About. Finishing Act One on the Retrieval path unlocks Act Two
-in Chapters, and its end card offers **Continue to Act Two**, carrying your choices and tools
-over. During play, `Esc` pauses the game and opens Resume, Dialogue log, Settings, Controls,
+Chapters, Settings, Controls and About. Finishing Act One, with any ending, unlocks Act Two:
+the end card offers **Continue to Act Two**, carrying your choices and tools over, and so does
+Continue on the main menu. (The Witness and Grief evenings are still to come; for now Act Two
+follows Sami south, to Ahmad.) During play, `Esc` pauses the game and opens Resume, Dialogue log, Settings, Controls,
 Restart from checkpoint and Main menu. The pause screen also shows the current objective, what
 you're carrying and the checkpoint. Settings:
 

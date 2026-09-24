@@ -356,18 +356,28 @@ export class Sound {
     rum.connect(uf).connect(ug).connect(out);
     rum.stop(w + dur);
     // the thump of air as it goes over
-    this.tone(48, 1.4, { when: tO, vol: 0.45, to: 30, attack: 0.05 });
+    this.tone(48, 1.6, { when: tO, vol: 0.7, to: 28, attack: 0.05 });
   }
 
   // A missile strike beyond the rooftops: sharper than a barrel, shorter tail.
   strikeFar(delay = 0) {
     const w = this.t + delay;
-    this.duck(0.9, 3);
-    this.noise({ when: w, dur: 0.12, freq: 1800, type: 'lowpass', vol: 0.25, q: 0.4 });
-    this.noise({ when: w + 0.02, dur: 2.4, freq: 120, type: 'lowpass', vol: 0.8, q: 0.5, buf: this.brownBuf, attack: 0.01 });
-    this.tone(55, 1.2, { when: w, vol: 0.45, to: 30 });
-    this.noise({ when: w + 0.4, dur: 4, freq: 90, type: 'lowpass', vol: 0.6, q: 0.5, buf: this.brownBuf, attack: 0.3 });
-    for (let i = 0; i < 8; i++) this.noise({ when: w + 0.6 + Math.random() * 2, dur: 0.05, freq: 1500 + Math.random() * 1500, q: 2, vol: 0.03 });
+    const brown = this.brownBuf;
+    this.duck(1, 6);
+    // the crack of it, off the buildings
+    this.noise({ when: w, dur: 0.3, freq: 2400, type: 'lowpass', vol: 0.8, q: 0.3 });
+    this.noise({ when: w, dur: 0.16, freq: 520, q: 0.5, vol: 0.7 });
+    // the blast body, and a sub-bass punch felt in the chest
+    this.noise({ when: w + 0.02, dur: 3.4, freq: 150, type: 'lowpass', vol: 1.5, q: 0.6, buf: brown, attack: 0.006 });
+    this.tone(64, 1.7, { when: w, vol: 1.0, to: 26, attack: 0.008 });
+    this.tone(40, 3.4, { when: w + 0.04, vol: 0.95, to: 22, attack: 0.02 });
+    this.tone(30, 5, { when: w + 0.12, vol: 0.6, to: 19, attack: 0.25 }); // the ground shaking
+    // its echo off the far blocks, then the long rolling rumble
+    this.noise({ when: w + 0.42, dur: 2.4, freq: 240, type: 'lowpass', vol: 0.7, q: 0.5, buf: brown, attack: 0.02 });
+    this.tone(48, 2, { when: w + 0.42, vol: 0.45, to: 28, attack: 0.02 });
+    this.noise({ when: w + 0.5, dur: 7, freq: 85, type: 'lowpass', vol: 1.1, q: 0.5, buf: brown, attack: 0.4 });
+    // debris and glass coming down for a long time after
+    for (let i = 0; i < 16; i++) this.noise({ when: w + 0.5 + Math.random() * 3.5, dur: 0.05 + Math.random() * 0.05, freq: 1400 + Math.random() * 2400, q: 2, vol: 0.05 + Math.random() * 0.04 });
   }
 
   // Music steps back for blasts and speech: amount 0…1 of the music gain.

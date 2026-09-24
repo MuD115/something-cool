@@ -389,6 +389,36 @@ export function drawStreet(R, g) {
   }
   if (near(X.kerb - 100, X.olive + 200)) {
     T.lowWall(R, X.kerb - 20, 110, 62, '#a79a84');
+    // a fallen concrete beam propped on two blocks by the kerb: where people
+    // sit to wait for news (and where Sami sits, if he says nothing)
+    R.cast((c) => {
+      const x0 = X.kerb + 100;
+      const x1 = X.kerb + 222;
+      c.fillStyle = '#8e8676';
+      c.fillRect(x0 + 6, -24, 22, 24);
+      c.fillRect(x1 - 30, -24, 22, 24);
+      c.fillStyle = 'rgba(0,0,0,0.2)';
+      c.fillRect(x0 + 6, -24, 22, 3);
+      c.fillRect(x1 - 30, -24, 22, 3);
+      c.fillStyle = '#a39b8a';
+      c.beginPath();
+      c.moveTo(x0, -40);
+      c.lineTo(x1, -41);
+      c.lineTo(x1 + 3, -24);
+      c.lineTo(x0 - 2, -23);
+      c.closePath();
+      c.fill();
+      c.fillStyle = 'rgba(255,250,235,0.18)';
+      c.fillRect(x0, -40, x1 - x0, 2);
+      c.strokeStyle = '#4a3b2e';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.moveTo(x1, -34);
+      c.quadraticCurveTo(x1 + 12, -38, x1 + 16, -30); // rebar out of the broken end
+      c.moveTo(x1, -28);
+      c.lineTo(x1 + 10, -22);
+      c.stroke();
+    });
     // the walkie-talkie man's upturned crate
     R.cast((c) => {
       c.fillStyle = '#6a5238';
@@ -662,6 +692,21 @@ export function drawFlashback(R, g) {
         c.arc(bx + ((i % 3) - 1) * 6, -312 + Math.floor(i / 3) * 7, 4.5, 0, Math.PI * 2);
         c.fill();
       }
+    }
+    // floor cushions along the wall, a kilim stripe on each
+    for (const [cx, w] of [[-90, 120], [90, 120]]) {
+      c.fillStyle = '#7a3a2c';
+      c.beginPath();
+      c.moveTo(cx - w / 2, 0);
+      c.lineTo(cx - w / 2 + 4, -14);
+      c.quadraticCurveTo(cx, -17, cx + w / 2 - 4, -14);
+      c.lineTo(cx + w / 2, 0);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#c9a25a';
+      c.fillRect(cx - w / 2 + 6, -9, w - 12, 2);
+      c.fillStyle = '#2f4a5a';
+      for (let k = cx - w / 2 + 10; k < cx + w / 2 - 10; k += 14) c.fillRect(k, -6, 6, 3);
     }
     // low table with tea
     c.fillStyle = '#6a4a30';

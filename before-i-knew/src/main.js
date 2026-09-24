@@ -205,7 +205,7 @@ function showEnd(s) {
   const ar = lang() === 'ar';
   // Act One on the retrieval path unlocks Act Two, and carries its state
   const p = progress();
-  if (key === 'act1' && s.path === 'retrieval') {
+  if (key === 'act1') {
     if (!p.unlocked.includes('act2r')) p.unlocked.push('act2r');
     p.carry = { ...s };
     saveProgress(p);
@@ -214,7 +214,7 @@ function showEnd(s) {
   const rows = act1 ? summary(s) : summary2(s);
   const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
   const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
-  const next = act1 && s.path === 'retrieval';
+  const next = act1; // every ending of Act One goes on into Act Two
   const end = $('end');
   sheetDir(end);
   end.innerHTML = `
@@ -225,7 +225,7 @@ function showEnd(s) {
       ${rows.map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`).join('')}
       <li class="tl-end"><time>${last[0]}</time><span>${esc(last[1])}</span></li>
     </ol>
-    <p class="sheet-quiet">${esc(t(act1 ? (next ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
+    <p class="sheet-quiet">${esc(t(act1 ? (s.path === 'retrieval' ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
     <div class="sheet-btns">
       ${next ? `<button type="button" id="end-next" class="primary">${esc(t('continueAct2'))}</button>` : ''}
       <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : 'againAct2'))}</button>
@@ -277,10 +277,15 @@ const saved = () => {
   const s = loadSave();
   return s && !s.completed && !(actKey(s) === 'act1' && s.checkpoint === 'walk') ? s : null;
 };
+// Act One finished (any ending) and Act Two not yet begun: Continue starts it.
+const nextAct = () => {
+  const s = loadSave();
+  return s && s.completed && actKey(s) === 'act1' ? s : null;
+};
 
 function continueSub() {
   const s = saved();
-  if (!s) return '';
+  if (!s) return nextAct() ? t('chapter2') : '';
   return `${t('checkpoints')[s.checkpoint] || ''} · ${t('times')[s.checkpoint] || ''}`;
 }
 
@@ -359,7 +364,17 @@ const menu = new Menu($('menu'), {
     <h1><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="en" lang="en">Before I Knew</span></h1>
     <p class="tagline">${esc(t('tagline'))}</p>`,
   main: [
-    { label: () => t('continue'), sub: continueSub, hidden: () => !saved(), action: () => startGame(saved()) },
+    {
+      label: () => t('continue'),
+      sub: continueSub,
+      hidden: () => !saved() && !nextAct(),
+      action: () => {
+        if (saved()) return startGame(saved());
+        const n = act2State(nextAct());
+        writeSave(n);
+        startGame(n);
+      },
+    },
     { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
     { label: () => t('chapters'), action: (m) => m.push('chapters') },
     { label: () => t('settings'), action: (m) => m.push('settings') },

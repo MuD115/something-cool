@@ -1590,18 +1590,28 @@ class Sound {
     rum.connect(uf).connect(ug).connect(out);
     rum.stop(w + dur);
     // the thump of air as it goes over
-    this.tone(48, 1.4, { when: tO, vol: 0.45, to: 30, attack: 0.05 });
+    this.tone(48, 1.6, { when: tO, vol: 0.7, to: 28, attack: 0.05 });
   }
 
   // A missile strike beyond the rooftops: sharper than a barrel, shorter tail.
   strikeFar(delay = 0) {
     const w = this.t + delay;
-    this.duck(0.9, 3);
-    this.noise({ when: w, dur: 0.12, freq: 1800, type: 'lowpass', vol: 0.25, q: 0.4 });
-    this.noise({ when: w + 0.02, dur: 2.4, freq: 120, type: 'lowpass', vol: 0.8, q: 0.5, buf: this.brownBuf, attack: 0.01 });
-    this.tone(55, 1.2, { when: w, vol: 0.45, to: 30 });
-    this.noise({ when: w + 0.4, dur: 4, freq: 90, type: 'lowpass', vol: 0.6, q: 0.5, buf: this.brownBuf, attack: 0.3 });
-    for (let i = 0; i < 8; i++) this.noise({ when: w + 0.6 + Math.random() * 2, dur: 0.05, freq: 1500 + Math.random() * 1500, q: 2, vol: 0.03 });
+    const brown = this.brownBuf;
+    this.duck(1, 6);
+    // the crack of it, off the buildings
+    this.noise({ when: w, dur: 0.3, freq: 2400, type: 'lowpass', vol: 0.8, q: 0.3 });
+    this.noise({ when: w, dur: 0.16, freq: 520, q: 0.5, vol: 0.7 });
+    // the blast body, and a sub-bass punch felt in the chest
+    this.noise({ when: w + 0.02, dur: 3.4, freq: 150, type: 'lowpass', vol: 1.5, q: 0.6, buf: brown, attack: 0.006 });
+    this.tone(64, 1.7, { when: w, vol: 1.0, to: 26, attack: 0.008 });
+    this.tone(40, 3.4, { when: w + 0.04, vol: 0.95, to: 22, attack: 0.02 });
+    this.tone(30, 5, { when: w + 0.12, vol: 0.6, to: 19, attack: 0.25 }); // the ground shaking
+    // its echo off the far blocks, then the long rolling rumble
+    this.noise({ when: w + 0.42, dur: 2.4, freq: 240, type: 'lowpass', vol: 0.7, q: 0.5, buf: brown, attack: 0.02 });
+    this.tone(48, 2, { when: w + 0.42, vol: 0.45, to: 28, attack: 0.02 });
+    this.noise({ when: w + 0.5, dur: 7, freq: 85, type: 'lowpass', vol: 1.1, q: 0.5, buf: brown, attack: 0.4 });
+    // debris and glass coming down for a long time after
+    for (let i = 0; i < 16; i++) this.noise({ when: w + 0.5 + Math.random() * 3.5, dur: 0.05 + Math.random() * 0.05, freq: 1400 + Math.random() * 2400, q: 2, vol: 0.05 + Math.random() * 0.04 });
   }
 
   // Music steps back for blasts and speech: amount 0…1 of the music gain.
@@ -2181,11 +2191,11 @@ const STR = {
     chapter1: 'Act One · The Afternoon',
     chapter1Sub: '3:05 to 4:15 pm',
     chapter2: 'Act Two · The Evening (Retrieval)',
-    chapter2Sub: '4:30 to 7:00 pm · after «I need to see him»',
-    chapter2Locked: 'Finish Act One after choosing «I need to see him»',
+    chapter2Sub: '4:30 to 7:00 pm · the road to Ahmad',
+    chapter2Locked: 'Finish Act One to open it',
     continueAct2: 'Continue to Act Two',
     endNextAct2: 'Sami is going to find him. The evening begins.',
-    pathPending: 'The evening on this path is still being written. Your choices are saved for it.',
+    pathPending: 'This ending’s own evening is still being written. Act Two follows Sami south, to Ahmad; your choices are saved.',
     endKicker2: 'End of Act Two · The Evening',
     endNext2: 'Act Three, The Night, comes next. The path you chose is saved for it.',
     againAct2: 'Play Act Two again',
@@ -2259,11 +2269,11 @@ const STR = {
     chapter1: 'الفصل الأول · بعد الظهر',
     chapter1Sub: 'من ٣:٠٥ إلى ٤:١٥',
     chapter2: 'الفصل الثاني · المساء (الاسترداد)',
-    chapter2Sub: 'من ٤:٣٠ إلى ٧:٠٠ · بعد «أريد أن أراه»',
-    chapter2Locked: 'أنهِ الفصل الأول بعد اختيار «أريد أن أراه»',
+    chapter2Sub: 'من ٤:٣٠ إلى ٧:٠٠ · الطريق إلى أحمد',
+    chapter2Locked: 'أنهِ الفصل الأول لفتحه',
     continueAct2: 'تابع إلى الفصل الثاني',
     endNextAct2: 'سامي ذاهب ليجده. يبدأ المساء.',
-    pathPending: 'مساء هذا الطريق قيد الكتابة. خياراتك محفوظة له.',
+    pathPending: 'مساء هذه النهاية قيد الكتابة. يتبع الفصل الثاني سامي جنوباً نحو أحمد، وخياراتك محفوظة.',
     endKicker2: 'نهاية الفصل الثاني · المساء',
     endNext2: 'الفصل الثالث، الليل، هو التالي. الطريق الذي اخترته محفوظ له.',
     againAct2: 'العب الفصل الثاني مجدداً',
@@ -3394,7 +3404,8 @@ const POSES = {
   prone: { torso: 1.52, head: -0.95, thighN: -1.48, shinN: -1.56, thighF: -1.5, shinF: -1.58, armN: 1.05, foreN: 1.95, armF: 0.95, foreF: 1.85 },
   kneel: { torso: 0.12, head: 0.25, thighN: 1.45, shinN: 0.05, thighF: 0.15, shinF: -1.55, armN: 0.5, foreN: 1.1, armF: 0.35, foreF: 0.9 },
   kerb: { torso: 0.32, head: 0.55, thighN: 1.5, shinN: 0.12, thighF: 1.42, shinF: 0.05, armN: 0.95, foreN: 1.75, armF: 0.85, foreF: 1.65 },
-  sitGround: { torso: -0.05, head: 0.05, thighN: 1.55, shinN: 2.7, thighF: 1.45, shinF: 2.6, armN: 0.5, foreN: 1.4, armF: 0.4, foreF: 1.3 },
+  // on the floor (a cushion), knees up, feet flat by the hips, forearms on the knees
+  sitGround: { torso: -0.12, head: 0.08, thighN: 2.0, shinN: -0.83, thighF: 1.85, shinF: -0.95, armN: 0.85, foreN: 1.55, armF: 0.75, foreF: 1.45 },
   // on a chair, crate or stool: thighs level, shins down
   sitChair: { seat: 40, torso: -0.04, head: 0.05, thighN: 1.5, shinN: 0.12, thighF: 1.45, shinF: 0.02, armN: 0.35, foreN: 1.25, armF: 0.3, foreF: 1.15 },
   // on a ledge, legs dangling
@@ -7367,6 +7378,36 @@ function drawStreet(R, g) {
   }
   if (near(X.kerb - 100, X.olive + 200)) {
     T.lowWall(R, X.kerb - 20, 110, 62, '#a79a84');
+    // a fallen concrete beam propped on two blocks by the kerb: where people
+    // sit to wait for news (and where Sami sits, if he says nothing)
+    R.cast((c) => {
+      const x0 = X.kerb + 100;
+      const x1 = X.kerb + 222;
+      c.fillStyle = '#8e8676';
+      c.fillRect(x0 + 6, -24, 22, 24);
+      c.fillRect(x1 - 30, -24, 22, 24);
+      c.fillStyle = 'rgba(0,0,0,0.2)';
+      c.fillRect(x0 + 6, -24, 22, 3);
+      c.fillRect(x1 - 30, -24, 22, 3);
+      c.fillStyle = '#a39b8a';
+      c.beginPath();
+      c.moveTo(x0, -40);
+      c.lineTo(x1, -41);
+      c.lineTo(x1 + 3, -24);
+      c.lineTo(x0 - 2, -23);
+      c.closePath();
+      c.fill();
+      c.fillStyle = 'rgba(255,250,235,0.18)';
+      c.fillRect(x0, -40, x1 - x0, 2);
+      c.strokeStyle = '#4a3b2e';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      c.moveTo(x1, -34);
+      c.quadraticCurveTo(x1 + 12, -38, x1 + 16, -30); // rebar out of the broken end
+      c.moveTo(x1, -28);
+      c.lineTo(x1 + 10, -22);
+      c.stroke();
+    });
     // the walkie-talkie man's upturned crate
     R.cast((c) => {
       c.fillStyle = '#6a5238';
@@ -7641,6 +7682,21 @@ function drawFlashback(R, g) {
         c.fill();
       }
     }
+    // floor cushions along the wall, a kilim stripe on each
+    for (const [cx, w] of [[-90, 120], [90, 120]]) {
+      c.fillStyle = '#7a3a2c';
+      c.beginPath();
+      c.moveTo(cx - w / 2, 0);
+      c.lineTo(cx - w / 2 + 4, -14);
+      c.quadraticCurveTo(cx, -17, cx + w / 2 - 4, -14);
+      c.lineTo(cx + w / 2, 0);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#c9a25a';
+      c.fillRect(cx - w / 2 + 6, -9, w - 12, 2);
+      c.fillStyle = '#2f4a5a';
+      for (let k = cx - w / 2 + 10; k < cx + w / 2 - 10; k += 14) c.fillRect(k, -6, 6, 3);
+    }
     // low table with tea
     c.fillStyle = '#6a4a30';
     c.fillRect(-60, -44, 120, 8);
@@ -7704,7 +7760,7 @@ const __src_story_act1 = (() => {
 // script's own, in Damascene Arabic with its English.
 
 const { lerp, clamp, smooth } = __src_engine_util;
-const { POSES } = __src_rigs_person;
+const { POSES, Person } = __src_rigs_person;
 const { Cat } = __src_rigs_cat;
 const { jerryCan } = __src_sets_town;
 const { X, drawStreet, sunLook, drawStairwell, stairLook, drawFlashback, flashLook, surfaceAt } = __src_story_act1_set;
@@ -8212,7 +8268,15 @@ const ACT1 = {
     g.camOverride = null;
     // The strike, on another quarter.
     g.sound.strikeFar();
-    g.bump(0.5);
+    g.bump(0.95);
+    g.runner.run(
+      (function* () {
+        yield 0.7;
+        g.bump(0.45); // the ground keeps shaking
+        yield 0.8;
+        g.bump(0.25);
+      })(),
+    );
     g.a.plumeAt = g.time;
     g.a.plumeX = g.cam.x * 0.3 - 420;
     yield 3;
@@ -8732,15 +8796,17 @@ const ACT1 = {
     p.f = 1;
     g.camOverride = { x: X.kerb + 90, y: -230, view: 1050 };
     yield 0.6;
+    // he comes close: close enough to put a hand on Sami's shoulder
+    const reach = handOnShoulder(abu, p);
     abu.override = null;
-    yield* g.walkNpc(abu, X.kerb + 110, { speedScale: 0.4 });
+    yield* g.walkNpc(abu, reach.x, { speedScale: 0.4 });
     abu.f = -1;
     abu.override = { ...POSES.stand, head: 0.05 };
     yield* g.say(ABU, ['سامي.', 'Sami.'], 2.5);
     yield GAP;
     yield* g.say(SAMI, ['شو في يا عمّو؟ ليش هالناس مجتمعين؟', 'What is it, uncle? Why are these people gathered?']);
     yield GAP;
-    abu.override = { ...POSES.stand, armN: 1.25, foreN: 1.45 }; // a hand on his shoulder
+    abu.override = reach.pose; // a hand on his shoulder
     yield 0.8;
     yield* g.say(ABU, ['أحمد... الله يرحمو يا ابني.', 'Ahmad... God have mercy on him, my son.'], 4.5);
     // Silence. The information enters but hasn't landed.
@@ -8753,6 +8819,7 @@ const ACT1 = {
     // his hand goes to the wall; the street goes distant, as if through water
     p.f = -1;
     p.override = { ...POSES.wallHand };
+    abu.override = { ...POSES.stand, head: 0.2 }; // his hand falls away
     g.sound.setMuffle(0.7, 3);
     g.sound.ringing(0.8, 1.5);
     yield 2;
@@ -8855,6 +8922,9 @@ const ACT1 = {
 
   update(g, dt) {
     const a = g.a;
+    // the people of the memory and the stairwell live outside the street's
+    // list, so they're moved (and their poses settle) here
+    for (const w of [...(g.flashActors || []), ...(g.stairKids || [])]) w.update(dt, {});
     // the news drains the colour out of the world
     if (a.drainT0) a.drain = clamp((g.time - a.drainT0) / 6);
     if (a.compress) a.sunK = lerp(0.9, 1.15, clamp((g.time - a.compress) / 12));
@@ -8909,6 +8979,29 @@ const ACT1 = {
     return l;
   },
 };
+
+// Where to stand, and how to hold the arm, so one person's near hand rests
+// on another's shoulder. Tries arm angles until the hand is at shoulder
+// height, then stands at the distance that puts it there.
+function handOnShoulder(who, to) {
+  to.rig.solve();
+  const [sx, sy] = to.rig.world('shoulder');
+  const f = to.x < who.x ? -1 : 1;
+  const probe = new Person('abuyazan', who.rig.scale);
+  let best = null;
+  for (let a = 0.9; a <= 1.9; a += 0.02) {
+    const pose = { ...POSES.stand, head: 0.12, armN: a, foreN: a + 0.12 };
+    probe.setPose(pose);
+    probe.x = 0;
+    probe.y = who.y;
+    probe.f = f;
+    const [hx, hy] = probe.world('handN');
+    const err = Math.abs(hy - (sy - 4));
+    if (!best || err < best.err) best = { err, pose, hx };
+  }
+  // the hand lands just on the near side of the shoulder
+  return { pose: best.pose, x: sx - f * 2 - best.hx };
+}
 
 // ------------------------------------------------------ depth and doors --
 
@@ -10928,7 +11021,7 @@ function showEnd(s) {
   const ar = lang() === 'ar';
   // Act One on the retrieval path unlocks Act Two, and carries its state
   const p = progress();
-  if (key === 'act1' && s.path === 'retrieval') {
+  if (key === 'act1') {
     if (!p.unlocked.includes('act2r')) p.unlocked.push('act2r');
     p.carry = { ...s };
     saveProgress(p);
@@ -10937,7 +11030,7 @@ function showEnd(s) {
   const rows = act1 ? summary(s) : summary2(s);
   const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
   const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
-  const next = act1 && s.path === 'retrieval';
+  const next = act1; // every ending of Act One goes on into Act Two
   const end = $('end');
   sheetDir(end);
   end.innerHTML = `
@@ -10948,7 +11041,7 @@ function showEnd(s) {
       ${rows.map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`).join('')}
       <li class="tl-end"><time>${last[0]}</time><span>${esc(last[1])}</span></li>
     </ol>
-    <p class="sheet-quiet">${esc(t(act1 ? (next ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
+    <p class="sheet-quiet">${esc(t(act1 ? (s.path === 'retrieval' ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
     <div class="sheet-btns">
       ${next ? `<button type="button" id="end-next" class="primary">${esc(t('continueAct2'))}</button>` : ''}
       <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : 'againAct2'))}</button>
@@ -11000,10 +11093,15 @@ const saved = () => {
   const s = loadSave();
   return s && !s.completed && !(actKey(s) === 'act1' && s.checkpoint === 'walk') ? s : null;
 };
+// Act One finished (any ending) and Act Two not yet begun: Continue starts it.
+const nextAct = () => {
+  const s = loadSave();
+  return s && s.completed && actKey(s) === 'act1' ? s : null;
+};
 
 function continueSub() {
   const s = saved();
-  if (!s) return '';
+  if (!s) return nextAct() ? t('chapter2') : '';
   return `${t('checkpoints')[s.checkpoint] || ''} · ${t('times')[s.checkpoint] || ''}`;
 }
 
@@ -11082,7 +11180,17 @@ const menu = new Menu($('menu'), {
     <h1><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="en" lang="en">Before I Knew</span></h1>
     <p class="tagline">${esc(t('tagline'))}</p>`,
   main: [
-    { label: () => t('continue'), sub: continueSub, hidden: () => !saved(), action: () => startGame(saved()) },
+    {
+      label: () => t('continue'),
+      sub: continueSub,
+      hidden: () => !saved() && !nextAct(),
+      action: () => {
+        if (saved()) return startGame(saved());
+        const n = act2State(nextAct());
+        writeSave(n);
+        startGame(n);
+      },
+    },
     { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
     { label: () => t('chapters'), action: (m) => m.push('chapters') },
     { label: () => t('settings'), action: (m) => m.push('settings') },
