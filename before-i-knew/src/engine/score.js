@@ -30,6 +30,8 @@ export const MOODS = {
   danger: { bass: 0.85, pad: 0, pluck: 0, ney: 0, pulse: 0.9, cutoff: 500, reg: 0 },
   memory: { bass: 0.45, pad: 0.42, pluck: 0.7, ney: 0, pulse: 0, cutoff: 1500, reg: 2 },
   silence: { bass: 0, pad: 0, pluck: 0, ney: 0, pulse: 0, cutoff: 500, reg: 0 },
+  dusk: { bass: 0.6, pad: 0.3, pluck: 0.08, ney: 0.1, pulse: 0, cutoff: 700, reg: 0 },
+  tense: { bass: 0.75, pad: 0.06, pluck: 0, ney: 0, pulse: 0.4, cutoff: 540, reg: 0 },
   after: { bass: 0.62, pad: 0.12, pluck: 0, ney: 0, pulse: 0, cutoff: 600, reg: 0 },
 };
 

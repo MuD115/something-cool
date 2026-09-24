@@ -43,6 +43,17 @@ export class Effects {
     this.fog = Math.min(1, this.fog + 0.35 * size);
   }
 
+  // A round striking a wall: a spray of plaster and chips, no fire.
+  puff(x, y, size = 0.45) {
+    const r = this.r;
+    for (let i = 0; i < 8; i++) {
+      this.items.push({ kind: 'dust', x: x + (r() - 0.5) * 10, y: y + (r() - 0.5) * 10, vx: (r() - 0.3) * 200 * size, vy: -40 - r() * 160 * size, rad: 8 + r() * 16 * size, t: 0, life: 1.4 + r() * 1.2, shade: 1 + r() * 0.15 });
+    }
+    for (let i = 0; i < 7; i++) {
+      this.items.push({ kind: 'debris', x, y, vx: (r() - 0.5) * 500 * size, vy: -120 - r() * 360 * size, spin: (r() - 0.5) * 20, a: r() * 6, w: 2 + r() * 4, t: 0, life: 1.6 });
+    }
+  }
+
   trickle(x, y, dur = 3) {
     this.items.push({ kind: 'trickle', x, y, t: 0, life: dur });
   }

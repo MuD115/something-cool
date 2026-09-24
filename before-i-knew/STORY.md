@@ -190,7 +190,7 @@ Choice C — the main branching point:
 
 **Time:** 4:30 PM – 7:00 PM. The light turns gold, then amber, then fades.
 **Duration:** 15–20 minutes of play.
-**Status:** Detailed outline.
+**Status:** Full script in [`script/act2.md`](script/act2.md). Path A (Retrieval) is built and playable.
 
 #### Path A — Retrieval (from C1)
 
@@ -222,7 +222,7 @@ Sami cannot act. Abu Yazan sits with him. Time passes. A flashback takes over: S
 
 **Time:** 8:00 PM – 3:00 AM. Darkness. Moonlight through ruined rooftops.
 **Duration:** 20–25 minutes of play.
-**Status:** Detailed outline.
+**Status:** Full script in [`script/act3.md`](script/act3.md).
 
 The longest act. The night paths share certain scenes — the moonlight walk, the cat's second appearance, the rooftop overlooking Damascus — but diverge in their central encounters.
 
@@ -271,7 +271,7 @@ Near the end of Act 3, Sami climbs to a rooftop. He can see Damascus in the dist
 
 **Time:** 4:00 AM – 6:30 AM. The azan (call to prayer) sounds. First light.
 **Duration:** 10–15 minutes of play.
-**Status:** Detailed outline.
+**Status:** Full script in [`script/act4.md`](script/act4.md).
 
 The shortest act. Dawn is resolution — not necessarily peace, but an ending to the night. The accumulated state variables determine which ending the player reaches.
 

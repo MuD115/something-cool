@@ -513,6 +513,89 @@ export class Sound {
     this.tone(530, 0.35, { type: 'square', vol: 0.012 });
   }
 
+  // A sniper's warning shot, close: the supersonic crack arrives before the
+  // report from the hill, then the round slaps into the wall ahead.
+  sniperCrack() {
+    if (!this.ctx) return;
+    this.noise({ dur: 0.035, freq: 5200, q: 0.5, type: 'highpass', vol: 0.55 });
+    this.noise({ when: this.t + 0.012, dur: 0.06, freq: 1400, q: 0.8, vol: 0.35 });
+    // the chip of stone and the grit that follows it
+    this.noise({ when: this.t + 0.03, dur: 0.12, freq: 900, q: 1.2, vol: 0.3 });
+    for (let i = 0; i < 6; i++) this.noise({ when: this.t + 0.08 + i * 0.05 + Math.random() * 0.03, dur: 0.05, freq: 2600 + Math.random() * 1500, q: 2, vol: 0.05 });
+    // the report, a beat later, rolling off the buildings
+    this.noise({ when: this.t + 0.45, dur: 1.6, freq: 260, type: 'lowpass', vol: 0.22, buf: this.brownBuf });
+    this.noise({ when: this.t + 0.45, dur: 0.12, freq: 1100, q: 0.7, vol: 0.1 });
+    this.duck(0.5, 1.5);
+  }
+
+  // Swifts at dusk: thin screaming calls, a small party of them wheeling past.
+  swifts() {
+    if (!this.ctx) return;
+    const n = 3 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < n; i++) {
+      const w = this.t + i * (0.09 + Math.random() * 0.12);
+      const f = 5200 + Math.random() * 1400;
+      this.tone(f, 0.16 + Math.random() * 0.1, { when: w, type: 'sawtooth', vol: 0.006, to: f * 0.82 });
+      this.tone(f * 1.01, 0.14, { when: w + 0.01, vol: 0.012, to: f * 0.8 });
+    }
+  }
+
+  // Someone pulls the starter cord on a generator, twice; the second catches.
+  generatorStart(level = 0.5) {
+    if (!this.ctx) return;
+    for (const d of [0, 1.3]) {
+      this.noise({ when: this.t + d, dur: 0.5, freq: 160, q: 1, vol: 0.12, attack: 0.02, sweep: 420 });
+      this.tone(38, 0.5, { when: this.t + d, type: 'triangle', vol: 0.06, to: 62 });
+    }
+    setTimeout(() => this.ambience({ generator: level }, 2.5), 1500);
+  }
+
+  // The call to the sunset prayer from a minaret across town: a single voice,
+  // long melismatic lines in Bayati, softened by distance and walls.
+  adhanFar(vol = 0.1) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const out = ctx.createGain();
+    out.gain.value = vol;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 1300;
+    const dl = ctx.createDelay(1);
+    dl.delayTime.value = 0.23;
+    const fb = ctx.createGain();
+    fb.gain.value = 0.35;
+    out.connect(lp).connect(this.amb);
+    lp.connect(dl).connect(fb).connect(dl);
+    dl.connect(this.amb);
+    const N = BAYATI;
+    // phrase: (notes, each [freq, beats])
+    const phrases = [
+      [[N.A3, 3], [N.Bb3, 0.6], [N.A3, 0.6], [N.G3, 0.8], [N.A3, 4]],
+      [[N.A3, 1], [N.C4, 2.5], [N.Bb3, 0.6], [N.A3, 0.6], [N.G3, 0.6], [N.F3, 1], [N.G3, 3.5]],
+      [[N.D4, 2.5], [N.C4, 0.7], [N.Bb3, 0.7], [N.A3, 0.7], [N.G3, 1], [N.A3, 4.5]],
+    ];
+    let w = this.t + 0.5;
+    for (const ph of phrases) {
+      for (const [f, b] of ph) {
+        const d = b * 0.42;
+        this.ney(f, d + 0.25, 0.9, { when: w, dest: out });
+        w += d;
+      }
+      w += 2.2; // breath
+    }
+    setTimeout(() => out.disconnect(), (w - this.t + 4) * 1000);
+    return w - this.t;
+  }
+
+  // A building settling: a deep groan of stressed concrete, then grit falling.
+  groan() {
+    if (!this.ctx) return;
+    this.tone(46, 3.2, { type: 'sawtooth', vol: 0.05, to: 38, attack: 0.8 });
+    this.noise({ dur: 3.2, freq: 120, type: 'lowpass', vol: 0.25, attack: 0.9, buf: this.brownBuf });
+    this.noise({ when: this.t + 1.6, dur: 2.2, freq: 3000, q: 0.6, vol: 0.05, attack: 0.3 });
+    for (let i = 0; i < 5; i++) this.noise({ when: this.t + 2 + i * 0.22, dur: 0.06, freq: 1200 + Math.random() * 800, q: 1.5, vol: 0.08 });
+  }
+
   click() {
     this.noise({ dur: 0.03, freq: 3200, q: 4, vol: 0.25 });
   }

@@ -12,6 +12,9 @@ export const TOOLS = {
   torch: { id: 'torch', ar: 'مصباح يدوي', en: 'Hand-crank torch' },
   mirror: { id: 'mirror', ar: 'شظية مرآة', en: 'Mirror shard' },
   walkie: { id: 'walkie', ar: 'جهاز لاسلكي', en: 'Walkie-talkie' },
+  whitecloth: { id: 'whitecloth', ar: 'قماشة بيضاء', en: 'White cloth' },
+  lighter: { id: 'lighter', ar: 'ولّاعة أحمد', en: 'Ahmad’s lighter' },
+  journal: { id: 'journal', ar: 'دفتر أحمد', en: 'Ahmad’s journal' },
 };
 
 export class Game {

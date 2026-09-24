@@ -16,7 +16,7 @@ const L = { thigh: 41, shin: 40, torso: 54, neck: 6, head: 10.4, upper: 28, fore
 //     'buzz' | 'bald' | 'ponytail' | 'braid')
 //   beard ('none' | 'stubble' | 'short' | 'full' | 'long' | 'goatee' |
 //     'chinstrap' | 'moustache' | 'thickMoustache'), beardColor
-//   headwear ('hijab' | 'kufi' | 'cap' | 'beanie' | 'keffiyeh'), headColor
+//   headwear ('hijab' | 'kufi' | 'cap' | 'beanie'), headColor
 //   layer: { kind: 'vest' | 'sweater' | 'jacket' | 'coat', color }
 //   robe (a jalabiya to the ankles), keffiyeh ('shoulders'), scarf colour
 //   belt colour (pouch: true), satchel colour, glasses, watch
@@ -24,7 +24,8 @@ const L = { thigh: 41, shin: 40, torso: 54, neck: 6, head: 10.4, upper: 28, fore
 export const OUTFITS = {
   sami: { top: '#5f6b73', sleeve: 'long', rolled: true, trousers: '#2e2f33', shoes: '#2a221b', footwear: 'boot', skin: '#b58565', hair: '#221c18', hairStyle: 'short', beard: 'stubble', belt: '#3a2c20', pouch: true, watch: true },
   khaled: { top: '#d8cfbd', sleeve: 'long', trousers: '#3e3a35', shoes: '#2a211a', skin: '#b98a6a', hair: '#2b211a', hairStyle: 'sidepart', beard: 'short', layer: { kind: 'vest', color: '#6b5a44' }, glasses: true, satchel: '#5a3f26' },
-  oldman: { top: '#8d8578', robe: true, trousers: '#8d8578', shoes: '#6a5a48', footwear: 'sandal', skin: '#9c7457', hair: '#d8d2c8', hairStyle: 'bald', beard: 'long', beardColor: '#dcd6cc', headwear: 'kufi', headColor: '#e8e2d6', keffiyeh: 'shoulders' },
+  oldman: { top: '#8d8578', robe: true, trousers: '#8d8578', shoes: '#6a5a48', footwear: 'sandal', skin: '#9c7457', hair: '#d8d2c8', hairStyle: 'bald', beard: 'long', beardColor: '#dcd6cc', headwear: 'kufi', headColor: '#e8e2d6', scarf: '#4a4238' },
+  medic: { top: '#b9b5aa', sleeve: 'long', rolled: true, trousers: '#3a3d44', shoes: '#232120', skin: '#b58768', hair: '#1f1915', hairStyle: 'short', beard: 'stubble', layer: { kind: 'coat', color: '#a9a59a' } },
   abuyazan: { top: '#7d7a70', sleeve: 'long', trousers: '#34332f', shoes: '#1e1c1a', skin: '#a7795a', hair: '#8f8a82', hairStyle: 'receding', beard: 'thickMoustache', beardColor: '#8e877e', layer: { kind: 'jacket', color: '#3f403c' }, headwear: 'cap', headColor: '#4a4640' },
   spotter: { top: '#4b5245', sleeve: 'long', rolled: true, trousers: '#2d2f31', shoes: '#1d1b19', footwear: 'boot', skin: '#b78867', hair: '#1f1a16', hairStyle: 'buzz', beard: 'goatee', layer: { kind: 'vest', color: '#5b5a3e' }, headwear: 'beanie', headColor: '#2c2c2e' },
   fadi: { top: '#7a3b2c', sleeve: 'short', pattern: 'stripe', patternColor: '#c9b89a', trousers: '#3a3f4a', shoes: '#222', footwear: 'sandal', skin: '#bf9070', hair: '#2a1f18', hairStyle: 'curly', beard: 'none' },
@@ -32,7 +33,7 @@ export const OUTFITS = {
   woman2: { top: '#4a3a2e', robe: true, trousers: '#4a3a2e', shoes: '#1a1818', skin: '#bb8d6e', hair: '#1a1616', beard: 'none', headwear: 'hijab', headColor: '#2e2a28', layer: { kind: 'coat', color: '#5a4636' } },
   man: { top: '#6b5a48', sleeve: 'long', pattern: 'check', patternColor: '#8a735a', trousers: '#33312e', shoes: '#1e1c1a', skin: '#ae7f5f', hair: '#2a231d', hairStyle: 'short', beard: 'chinstrap' },
   man2: { top: '#9a9486', sleeve: 'long', trousers: '#3b3a36', shoes: '#1e1c1a', skin: '#a57656', hair: '#2a231d', hairStyle: 'receding', beard: 'full', layer: { kind: 'sweater', color: '#57504a' } },
-  man3: { top: '#b7ad98', robe: true, trousers: '#b7ad98', shoes: '#5a4a3a', footwear: 'sandal', skin: '#a07252', hair: '#1f1a16', hairStyle: 'short', beard: 'full', headwear: 'keffiyeh', headColor: '#e4ddd0' },
+  man3: { top: '#b7ad98', robe: true, trousers: '#b7ad98', shoes: '#5a4a3a', footwear: 'sandal', skin: '#a07252', hair: '#1f1a16', hairStyle: 'short', beard: 'full', headwear: 'kufi', headColor: '#e8e2d6' },
   layla: { top: '#9a9b8c', sleeve: 'long', trousers: '#4a3b3a', shoes: '#2a2019', skin: '#c4957a', hair: '#1e1612', hairStyle: 'ponytail', beard: 'none', baggy: true, scarf: '#8a4a3a' },
   boy: { top: '#6e5a3c', sleeve: 'short', trousers: '#3a3a3e', shoes: '#2a2019', footwear: 'sandal', skin: '#c09073', hair: '#2a1f18', hairStyle: 'curly', beard: 'none' },
   kid2: { top: '#3c5a6e', sleeve: 'short', pattern: 'stripe', patternColor: '#b8c0c4', trousers: '#4a3f33', shoes: '#2a2019', skin: '#b98a6a', hair: '#1e1612', hairStyle: 'short', beard: 'none' },
@@ -804,31 +805,7 @@ export class Person {
       ctx.fill();
       ctx.fillStyle = 'rgba(255,255,255,0.08)';
       ctx.fillRect(-hr * 1.04, -hr * 0.55, hr * 1.9, 3); // the fold
-    } else if (h === 'keffiyeh') {
-      ctx.beginPath();
-      ctx.moveTo(hr * 0.7, -hr * 0.6);
-      ctx.quadraticCurveTo(hr * 0.2, -hr * 1.35, -hr * 1.0, -hr * 0.9);
-      ctx.quadraticCurveTo(-hr * 1.5, hr * 0.4, -hr * 1.2, hr * 2.0);
-      ctx.lineTo(-hr * 0.3, hr * 1.6);
-      ctx.lineTo(-hr * 0.1, hr * 0.2);
-      ctx.lineTo(hr * 0.4, -hr * 0.3);
-      ctx.closePath();
-      ctx.fill();
-      // the band (agal) and a hint of the pattern
-      ctx.strokeStyle = '#1a1a1a';
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.moveTo(hr * 0.5, -hr * 0.72);
-      ctx.quadraticCurveTo(-hr * 0.2, -hr * 1.02, -hr * 0.95, -hr * 0.62);
-      ctx.stroke();
-      ctx.strokeStyle = 'rgba(150,40,40,0.35)';
-      ctx.lineWidth = 0.8;
-      ctx.beginPath();
-      for (let i = 0; i < 4; i++) {
-        ctx.moveTo(-hr * (0.4 + i * 0.25), -hr * 0.6);
-        ctx.lineTo(-hr * (0.6 + i * 0.25), hr * 1.4);
-      }
-      ctx.stroke();
+
     }
   }
 
@@ -1130,23 +1107,7 @@ export class Person {
         ctx.fillStyle = shade(o.headColor || '#444444', 0.8);
         ctx.fillRect(-hr * 0.9, -hr * 0.5, hr * 1.8, 2);
       }
-    } else if (h === 'keffiyeh') {
-      ctx.beginPath();
-      ctx.moveTo(-hr * 1.05, hr * 1.6);
-      ctx.quadraticCurveTo(-hr * 1.25, -hr * 1.3, 0, -hr * 1.25);
-      ctx.quadraticCurveTo(hr * 1.25, -hr * 1.3, hr * 1.05, hr * 1.6);
-      if (front) {
-        ctx.lineTo(hr * 0.8, hr * 0.2);
-        ctx.quadraticCurveTo(hr * 0.8, -hr * 0.75, 0, -hr * 0.78);
-        ctx.quadraticCurveTo(-hr * 0.8, -hr * 0.75, -hr * 0.8, hr * 0.2);
-      }
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#1a1a1a';
-      ctx.lineWidth = 2.2;
-      ctx.beginPath();
-      ctx.ellipse(0, -hr * 0.75, hr * 0.98, hr * 0.28, 0, 0, Math.PI * 2);
-      ctx.stroke();
+
     }
   }
 

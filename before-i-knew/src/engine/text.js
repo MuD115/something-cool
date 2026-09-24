@@ -215,4 +215,10 @@ const ICONS = {
     '<path d="M6 21 9.5 3.5l9 4.5-5.5 13z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M10.5 8.5l4 2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" opacity="0.7"/>',
   walkie:
     '<path d="M9 2.5v5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><rect x="6.5" y="7.5" width="11" height="14" rx="2" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9.5 11.5h5M9.5 14h5M9.5 16.5h5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+  lighter:
+    '<rect x="7" y="9" width="10" height="13" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M7 12.5h10" stroke="currentColor" stroke-width="1.2"/><path d="M12 7.5c-1.6-1.4-1-3.4.4-5 .3 1.4 1.8 2.3 1.2 4-.3.8-1 1.1-1.6 1z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round" class="beam"/>',
+  journal:
+    '<path d="M6 3.5h11.5v17H6a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 6 3.5z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M8.5 3.5v17M11 8h4.5M11 11h4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/>',
+  whitecloth:
+    '<path d="M5 22V2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5 3.5c3-1.2 5 1 8 0s4.5-.8 6 0v8c-1.5-.8-3-1-6 0s-5-1.2-8 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
 };

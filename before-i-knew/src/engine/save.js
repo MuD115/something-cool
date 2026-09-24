@@ -4,7 +4,7 @@ const KEY = 'before-i-knew:save:v1';
 
 export function freshState() {
   return {
-    act: 1,
+    act: 'act1', // 'act1' | 'act2r' (Act Two, Retrieval)
     checkpoint: 'walk',
     compassion: 0,
     courage: 0,

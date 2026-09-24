@@ -9,6 +9,34 @@ import { bindI18n, t, lang } from './engine/i18n.js';
 import { freshState, loadSave, writeSave, clearSave } from './engine/save.js';
 import { Game, TOOLS } from './game.js';
 import { ACT1 } from './story/act1.js';
+import { ACT2R } from './story/act2r.js';
+
+// The chapters. A save names its act; old saves (act: 1) are Act One.
+const ACTS = { act1: ACT1, act2r: ACT2R };
+const actKey = (s) => (s && ACTS[s.act] ? s.act : 'act1');
+
+// What the player has unlocked, and the state Act One ended with (carried
+// into Act Two from the Chapters page). Kept apart from the checkpoint save.
+const PROGRESS = 'before-i-knew:progress:v1';
+function progress() {
+  try {
+    return { unlocked: ['act1'], carry: null, ...JSON.parse(localStorage.getItem(PROGRESS) || '{}') };
+  } catch {
+    return { unlocked: ['act1'], carry: null };
+  }
+}
+function saveProgress(p) {
+  try {
+    localStorage.setItem(PROGRESS, JSON.stringify(p));
+  } catch {
+    /* fine */
+  }
+}
+// Act Two (Retrieval) begins where Act One's «بدي شوفو» left Sami.
+function act2State(s) {
+  const tools = [...new Set([...(s?.tools || []), 'torch', 'mirror', 'walkie'])];
+  return { ...freshState(), ...(s || {}), path: 'retrieval', act: 'act2r', checkpoint: 'south', completed: false, tools };
+}
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
@@ -91,6 +119,18 @@ function titleScene() {
 titleScene();
 
 // The end card: each choice as a moment in the afternoon.
+function summary2(s) {
+  const ar = lang() === 'ar';
+  const n = s.lane_retries || 0;
+  return [
+    [ar ? '٤:٣٥' : '4:35', ar ? (n ? `عبرتَ الحارة الجنوبية تحت عين القنّاص، وردّتك رصاصة التحذير ${n} مرة.` : 'عبرتَ الحارة الجنوبية تحت عين القنّاص، ولم يرك.') : n ? `You crossed the southern quarter under the sniper's eye. A warning shot turned you back ${n} time${n > 1 ? 's' : ''}.` : "You crossed the southern quarter under the sniper's eye. He never saw you."],
+    [ar ? '٤:٤٢' : '4:42', ar ? 'قال المسعف: ما قدرنا نوصلّو.' : 'The medic said: we couldn’t reach him.'],
+    [ar ? '٤:٥٥' : '4:55', ar ? 'رأيتَ شكلاً مغطّى بحرام، وسط شارع المدرسة.' : 'You saw a shape under a blanket, in the middle of School Street.'],
+    [ar ? '٥:٠٠' : '5:00', s.d_choice === 'cloth' ? (ar ? 'لففتَ شرشفاً أبيض على سكّة ستارة، لتكلّمهم.' : 'You wrapped a white sheet round a curtain rail, to go and talk to them.') : ar ? 'نظرتَ إلى المبنى المدمّر، ورأيتَ طريقاً.' : 'You looked at the ruined building, and saw a way.'],
+    [ar ? '٥:١٠' : '5:10', ar ? 'أعطاك أبو يزن ولّاعة أحمد ودفتره.' : 'Abu Yazan gave you Ahmad’s lighter, and his journal.'],
+  ];
+}
+
 function summary(s) {
   const ar = lang() === 'ar';
   const rows = [
@@ -125,7 +165,7 @@ function startGame(state) {
   $('end').hidden = true;
   stage.classList.add('playing');
   sound.start().then(() => {
-    game.start(ACT1, state);
+    game.start(ACTS[actKey(state)], state);
     game.onEnd = showEnd;
   });
 }
@@ -161,32 +201,59 @@ function showEnd(s) {
   text.hideCard();
   game.clearHud();
   stage.classList.add('ended');
+  const key = actKey(s);
+  const ar = lang() === 'ar';
+  // Act One on the retrieval path unlocks Act Two, and carries its state
+  const p = progress();
+  if (key === 'act1' && s.path === 'retrieval') {
+    if (!p.unlocked.includes('act2r')) p.unlocked.push('act2r');
+    p.carry = { ...s };
+    saveProgress(p);
+  }
+  const act1 = key === 'act1';
+  const rows = act1 ? summary(s) : summary2(s);
+  const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
+  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
+  const next = act1 && s.path === 'retrieval';
   const end = $('end');
   sheetDir(end);
   end.innerHTML = `
-    <p class="kicker-small">${esc(t('endKicker'))}</p>
+    <p class="kicker-small">${esc(t(act1 ? 'endKicker' : 'endKicker2'))}</p>
     <h2 id="end-h"><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="end-en">Before I Knew</span></h2>
     <ol class="timeline">
-      <li class="tl-start"><time>${lang() === 'ar' ? '٣:٠٥' : '3:05'}</time><span>${lang() === 'ar' ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'}</span></li>
-      ${summary(s)
-        .map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`)
-        .join('')}
-      <li class="tl-end"><time>${lang() === 'ar' ? '٤:١٥' : '4:15'}</time><span>${lang() === 'ar' ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'}</span></li>
+      <li class="tl-start"><time>${first[0]}</time><span>${esc(first[1])}</span></li>
+      ${rows.map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`).join('')}
+      <li class="tl-end"><time>${last[0]}</time><span>${esc(last[1])}</span></li>
     </ol>
-    <p class="sheet-quiet">${esc(t('endNext'))}</p>
+    <p class="sheet-quiet">${esc(t(act1 ? (next ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
     <div class="sheet-btns">
-      <button type="button" id="end-again" class="primary">${esc(t('again'))}</button>
+      ${next ? `<button type="button" id="end-next" class="primary">${esc(t('continueAct2'))}</button>` : ''}
+      <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : 'againAct2'))}</button>
       <button type="button" id="end-menu">${esc(t('mainMenu'))}</button>
     </div>`;
   end.hidden = false;
   requestAnimationFrame(() => end.classList.add('show'));
-  $('end-again').addEventListener('click', () => {
+  const close = () => {
     end.hidden = true;
     end.classList.remove('show');
-    newGame();
+  };
+  $('end-next')?.addEventListener('click', () => {
+    close();
+    const n = act2State(s);
+    writeSave(n);
+    startGame(n);
+  });
+  $('end-again').addEventListener('click', () => {
+    close();
+    if (act1) newGame();
+    else {
+      const n = act2State(progress().carry || s);
+      writeSave(n);
+      startGame(n);
+    }
   });
   $('end-menu').addEventListener('click', () => toMainMenu());
-  $('end-again').focus();
+  ($('end-next') || $('end-again')).focus();
 }
 
 function toMainMenu() {
@@ -208,7 +275,7 @@ function toMainMenu() {
 
 const saved = () => {
   const s = loadSave();
-  return s && !s.completed && s.checkpoint !== 'walk' ? s : null;
+  return s && !s.completed && !(actKey(s) === 'act1' && s.checkpoint === 'walk') ? s : null;
 };
 
 function continueSub() {
@@ -231,6 +298,36 @@ function pauseAside() {
     <p class="aside-v">${cp ? `${esc(t('checkpoints')[cp] || cp)} · ${esc(t('times')[cp] || '')}` : '·'}</p>`;
 }
 
+function chaptersPage(panel, m) {
+  const h = document.createElement('h2');
+  h.className = 'menu-title';
+  h.textContent = t('chapters');
+  panel.appendChild(h);
+  const p = progress();
+  const list = document.createElement('div');
+  list.className = 'menu-list chapter-list';
+  const item = (n, title, sub, locked, go) => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = `menu-btn${locked ? ' locked' : ''}`;
+    b.disabled = locked;
+    b.innerHTML = `<span class="menu-btn-n">${n}</span><span class="menu-btn-text"><span class="menu-btn-label"></span><span class="menu-btn-sub"></span></span>`;
+    b.querySelector('.menu-btn-label').textContent = title;
+    b.querySelector('.menu-btn-sub').textContent = sub;
+    if (!locked) b.addEventListener('click', go);
+    list.appendChild(b);
+  };
+  item('I', t('chapter1'), t('chapter1Sub'), false, () => newGame());
+  const open2 = p.unlocked.includes('act2r');
+  item('II', t('chapter2'), open2 ? t('chapter2Sub') : t('chapter2Locked'), !open2, () => {
+    const n = act2State(p.carry);
+    writeSave(n);
+    startGame(n);
+  });
+  panel.appendChild(list);
+  m.backButton(panel);
+}
+
 function logPage(panel, m) {
   const h = document.createElement('h2');
   h.className = 'menu-title';
@@ -245,7 +342,8 @@ function logPage(panel, m) {
     const row = document.createElement('div');
     row.className = `log-row style-${e.style || 'plain'}`;
     const who = e.who ? `<span class="log-who"><span class="ar" lang="ar" dir="rtl">${esc(e.who[0])}</span> <span class="en">${esc(e.who[1])}</span></span>` : '';
-    row.innerHTML = `${who}<span class="log-lines">${subs !== 'en' ? `<span class="ar" lang="ar" dir="rtl">${esc(e.line[0])}</span>` : ''}${subs !== 'ar' ? `<span class="en" dir="ltr">${esc(e.line[1])}</span>` : ''}</span>`;
+    const draft = e.draft ? `<span class="log-draft">[draft]</span>` : '';
+    row.innerHTML = `${who}${draft}<span class="log-lines">${subs !== 'en' ? `<span class="ar" lang="ar" dir="rtl">${esc(e.line[0])}</span>` : ''}${subs !== 'ar' ? `<span class="en" dir="ltr">${esc(e.line[1])}</span>` : ''}</span>`;
     box.appendChild(row);
   }
   panel.appendChild(box);
@@ -262,6 +360,7 @@ const menu = new Menu($('menu'), {
   main: [
     { label: () => t('continue'), sub: continueSub, hidden: () => !saved(), action: () => startGame(saved()) },
     { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
+    { label: () => t('chapters'), action: (m) => m.push('chapters') },
     { label: () => t('settings'), action: (m) => m.push('settings') },
     { label: () => t('controls'), action: (m) => m.push('controls') },
     { label: () => t('about'), action: (m) => m.push('about') },
@@ -281,7 +380,7 @@ const menu = new Menu($('menu'), {
     { label: () => t('mainMenu'), action: () => toMainMenu() },
   ],
   pauseAside,
-  pages: { log: logPage },
+  pages: { log: logPage, chapters: chaptersPage },
   onOpen: () => {
     game.paused = true;
     stage.classList.add('paused');
@@ -422,6 +521,7 @@ window.game = {
   settings,
   text,
   start: (checkpoint = 'walk', extra = {}) => startGame({ ...freshState(), checkpoint, ...extra }),
+  startAct2: (checkpoint = 'south', extra = {}) => startGame({ ...act2State(null), checkpoint, ...extra }),
   get mode() {
     return mode;
   },
