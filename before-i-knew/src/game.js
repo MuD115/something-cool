@@ -35,8 +35,19 @@ export class Game {
     this.runner = new Runner();
     this.effects = new Effects();
     this.player = new Walker(this.level, 'sami');
-    this.player.onStep = (stance) => this.sound.step(this.surface?.(this.player.x) || 'grit', stance === 'crouch' ? 0.1 : 0.18);
-    this.player.onLand = (k) => this.sound.land(0.15 + k * 0.3);
+    this.player.onStep = (stance) => {
+      const p = this.player;
+      const surface = this.scene === 'stairwell' ? 'hollow' : this.surface?.(p.x) || 'grit';
+      this.sound.step(surface, stance === 'crouch' ? 0.13 : 0.18, { crouch: stance === 'crouch' });
+      // running kicks up a little dust
+      if (this.scene === 'street' && Math.abs(p.vx) > 240) this.effects.puff(p.x - p.f * 8, p.y - 2, 0.12, false);
+    };
+    this.player.onLand = (k) => {
+      this.sound.land(0.15 + k * 0.3);
+      if (k > 0.25 && this.scene === 'street') this.effects.puff(this.player.x, this.player.y - 2, 0.15 + k * 0.2, false);
+    };
+    // distant life only out in the street, and never under a menu
+    this.sound.lifeGate = () => this.scene === 'street' && !this.paused;
     this.npcs = [];
     this.passers = [];
     this.locked = false;
@@ -73,6 +84,13 @@ export class Game {
     w.place(x, opts.y);
     w.f = opts.f ?? -1;
     w.goal = null;
+    // their footsteps too, quieter with distance and placed left or right
+    w.onStep = (stance) => {
+      if (!w.visible || w.depthK || this.scene !== 'street') return;
+      const dx = Math.abs(w.x - this.player.x);
+      if (dx > 700) return;
+      this.sound.step(this.surface?.(w.x) || 'grit', 0.11 * (1 - dx / 700) * (w.rig.scale || 1), { crouch: stance === 'crouch', pan: this.sound.panFor(w.x) });
+    };
     Object.assign(w, opts.props || {});
     this.npcs.push(w);
     return w;
@@ -106,8 +124,14 @@ export class Game {
 
   // Generators for scripts --------------------------------------------------
 
+  // How long a line stays up: long enough to read the longer of its two
+  // languages (Arabic reads a little slower per letter).
+  readTime(line) {
+    return Math.max(2.4, 1.2 + Math.max(line[1].length * 0.055, line[0].length * 0.065));
+  }
+
   *say(who, line, dur = null, style = '') {
-    const d = dur ?? Math.max(2.4, 1.2 + line[1].length * 0.055);
+    const d = dur ?? this.readTime(line);
     const id = this.text.say(who, line, d, style);
     this.sound.score?.speak(d);
     const end = this.time + d;
@@ -117,7 +141,7 @@ export class Game {
 
   // Show a line without waiting for it.
   line(who, line, dur = null, style = '') {
-    const d = dur ?? Math.max(2.4, 1.2 + line[1].length * 0.055);
+    const d = dur ?? this.readTime(line);
     this.text.say(who, line, d, style);
     this.sound.score?.speak(d);
   }
@@ -259,8 +283,9 @@ export class Game {
     this.effects.update(dt);
     this.act.update?.(this, dt);
 
-    // camera
+    // camera (and where sounds are placed from)
     const target = this.cameraTarget();
+    this.sound.listenerX = this.cam.x;
     const k = 1 - Math.exp(-dt * (this.camOverride ? 2.2 : 3.2));
     this.cam.x = lerp(this.cam.x, target.x, k);
     this.cam.y = lerp(this.cam.y, target.y ?? -205, k);

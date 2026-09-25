@@ -88,6 +88,7 @@ export const ACT1 = {
     if (s.checkpoint !== 'walk') g.a.sunK = { hour: 0.2, school: 0.55, news: 0.8 }[s.checkpoint] || 0;
     if (s.checkpoint === 'hour') g.text.objective(['اتجه شرقاً نحو الأنابيب', 'Head east, to the pipes']);
     g.sound.score?.mood(s.checkpoint === 'walk' ? 'walk' : 'hour', 3);
+    g.sound.life(0.7);
   },
 
   // ============================================================ Scene 1 ==
@@ -633,7 +634,7 @@ export const ACT1 = {
     g.sound.score?.mood('danger', 1.5);
     g.a.sunK = Math.max(g.a.sunK, 0.62);
     const impact = (x, dist) => {
-      g.sound.mortarImpact(dist);
+      g.sound.mortarImpact(dist, g.sound.panFor(x));
       g.effects.blast(x, 0, dist < 1.5 ? 1 : 0.6);
       g.a.flashAt = g.time;
       g.a.flashX = x;
@@ -1032,6 +1033,7 @@ export const ACT1 = {
     const abu = g.abu;
     const s = g.state;
     g.sound.score?.mood('silence', 4);
+    g.sound.life(0); // the town goes quiet around the news
     g.lock();
     g.text.objective(null);
     // He lets Sami come to him: the walk toward is the last of not knowing.

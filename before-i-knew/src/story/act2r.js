@@ -118,6 +118,7 @@ export const ACT2R = {
 
     g.sound.ambience({ wind: 0.35, air: 0.45, generator: 0, crowd: 0, traffic: 0 }, 2);
     g.sound.score?.mood('dusk', 4);
+    g.sound.life(0.5);
     g.runner.run(this.opening(g));
     g.runner.run(ambient(g));
   },
@@ -273,6 +274,7 @@ export const ACT2R = {
     const p = g.player;
     const gd = g.guard;
     g.sound.score?.mood('silence', 3);
+    g.sound.life(0); // near the line, nothing moves
     g.sound.ambience({ wind: 0.12, air: 0.15, generator: 0 }, 3);
     g.lock();
     g.text.objective(null);

@@ -4,6 +4,8 @@
 //        music (ney and oud) → master, beside the world bus
 // Settings drive master / music / effects volumes.
 
+const LIFE = ['dogFar', 'dogFar', 'childrenFar', 'tinCreak', 'rubbleSettle', 'doorFar', 'motorbikeFar'];
+
 export const BAYATI = {
   // D Bayati with its half-flat second (E↓), in Hz.
   D3: 146.83, Eb3: 151.1, F3: 174.61, G3: 196.0, A3: 220.0, Bb3: 233.08, C4: 261.63, D4: 293.66, Ed4: 318.0, F4: 349.23, G4: 392.0,
@@ -23,9 +25,18 @@ export class Sound {
 
     this.master = ctx.createGain();
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14;
-    comp.ratio.value = 3.5;
-    this.master.connect(comp).connect(ctx.destination);
+    comp.threshold.value = -16;
+    comp.ratio.value = 3;
+    comp.attack.value = 0.01;
+    comp.release.value = 0.25;
+    // a limiter after it, so big blasts stay full without clipping
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -2;
+    lim.knee.value = 0;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.002;
+    lim.release.value = 0.12;
+    this.master.connect(comp).connect(lim).connect(ctx.destination);
 
     this.muffle = ctx.createBiquadFilter();
     this.muffle.type = 'lowpass';
@@ -39,13 +50,28 @@ export class Sound {
     this.fx.connect(this.world);
     this.amb.connect(this.world);
 
-    // A long, dry-ish space: streets between concrete walls.
+    // A street between concrete walls: hard early slaps off the facing
+    // buildings (different on each side), then a tail that darkens as it
+    // dies away.
     this.verb = ctx.createConvolver();
-    const len = ctx.sampleRate * 2.6;
-    const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    const sr = ctx.sampleRate;
+    const len = Math.floor(sr * 2.4);
+    const ir = ctx.createBuffer(2, len, sr);
     for (let ch = 0; ch < 2; ch++) {
       const d = ir.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5) * (i < 400 ? i / 400 : 1);
+      let lp = 0;
+      for (let i = 0; i < len; i++) {
+        const k = i / len;
+        const n = Math.random() * 2 - 1;
+        const cut = 0.55 - 0.45 * k; // one-pole lowpass closing over the tail
+        lp += cut * (n - lp);
+        d[i] = lp * Math.pow(1 - k, 3.2) * (i < 600 ? i / 600 : 1) * 0.8;
+      }
+      const slaps = ch ? [0.043, 0.071, 0.118, 0.19] : [0.052, 0.088, 0.131, 0.21];
+      slaps.forEach((tt, j) => {
+        const at = Math.floor(tt * sr);
+        for (let i = 0; i < 90; i++) d[at + i] += (Math.random() * 2 - 1) * 0.55 * Math.pow(0.72, j) * (1 - i / 90);
+      });
     }
     this.verb.buffer = ir;
     this.verbIn = ctx.createGain();
@@ -150,6 +176,33 @@ export class Sound {
     lg.gain.value = 260;
     lfo.connect(lg).connect(this.beds.wind.f.frequency);
     lfo.start();
+    // Gusts: the wind swells and falls on a slow, uneven cycle, and on the
+    // strong ones a thin whistle comes through the broken windows.
+    const gust = ctx.createOscillator();
+    gust.frequency.value = 0.11;
+    const gust2 = ctx.createOscillator();
+    gust2.frequency.value = 0.043;
+    const gg = ctx.createGain();
+    gg.gain.value = 0.35;
+    gust.connect(gg);
+    gust2.connect(gg);
+    gg.connect(this.beds.wind.mod.gain);
+    gust.start();
+    gust2.start();
+    const whistle = ctx.createBiquadFilter();
+    whistle.type = 'bandpass';
+    whistle.frequency.value = 1750;
+    whistle.Q.value = 14;
+    const wg = ctx.createGain();
+    wg.gain.value = 0;
+    const wlfo = ctx.createGain();
+    wlfo.gain.value = 0.22;
+    const rect = ctx.createWaveShaper(); // only the peaks of the gusts
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) curve[i] = Math.max(0, (i / 255) * 2 - 1.3) * 3;
+    rect.curve = curve;
+    gust.connect(rect).connect(wlfo).connect(wg.gain);
+    this.noiseSrc().connect(whistle).connect(wg).connect(this.beds.wind.mod);
     // Murmuring voices: syllable-rate amplitude flutter.
     const syl = ctx.createOscillator();
     syl.frequency.value = 3.3;
@@ -189,6 +242,83 @@ export class Sound {
     this.beds.generator = { g: gen };
   }
 
+  // Distant life: now and then, something far off in the town. level 0…1
+  // sets how often; the game's lifeGate says when it's allowed (the street,
+  // not paused, not in a memory).
+  life(level) {
+    this.lifeLevel = level;
+    if (this.lifeTimer || !this.ctx) return;
+    this.lifeTimer = setInterval(() => {
+      if (!this.ctx || this.ctx.state !== 'running' || !(this.lifeLevel > 0)) return;
+      if (this.lifeGate && !this.lifeGate()) return;
+      if (Math.random() > this.lifeLevel * 0.16) return;
+      const pick = LIFE[Math.floor(Math.random() * LIFE.length)];
+      this[pick]((Math.random() * 2 - 1) * 0.85);
+    }, 1000);
+  }
+
+  dogFar(pan) {
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const w = this.t + i * (0.32 + Math.random() * 0.15);
+      this.noise({ when: w, dur: 0.14, freq: 700 + Math.random() * 120, q: 3, vol: 0.05, dest: this.amb, pan, sweep: 520 });
+      this.tone(420 + Math.random() * 60, 0.12, { when: w, type: 'sawtooth', vol: 0.006, to: 300, dest: this.amb, pan });
+    }
+  }
+
+  childrenFar(pan) {
+    // voices too far to make out: syllables of filtered breath
+    let w = this.t;
+    const n = 6 + Math.floor(Math.random() * 8);
+    for (let i = 0; i < n; i++) {
+      const f = 1100 + Math.random() * 900;
+      this.noise({ when: w, dur: 0.08 + Math.random() * 0.12, freq: f, q: 5, vol: 0.012 + Math.random() * 0.01, dest: this.amb, pan, sweep: f * (0.8 + Math.random() * 0.4) });
+      w += 0.1 + Math.random() * 0.18;
+    }
+  }
+
+  tinCreak(pan) {
+    this.tone(170 + Math.random() * 40, 0.9, { type: 'sawtooth', vol: 0.006, to: 240, attack: 0.2, dest: this.amb, pan });
+    this.noise({ dur: 0.9, freq: 2400, q: 6, vol: 0.012, attack: 0.3, dest: this.amb, pan, sweep: 2900 });
+  }
+
+  rubbleSettle(pan) {
+    this.noise({ dur: 0.6, freq: 260, type: 'lowpass', vol: 0.05, attack: 0.05, buf: this.brownBuf, dest: this.amb, pan });
+    for (let i = 0; i < 5; i++) this.noise({ when: this.t + 0.1 + Math.random() * 0.8, dur: 0.04, freq: 1500 + Math.random() * 2000, q: 3, vol: 0.025, dest: this.amb, pan });
+  }
+
+  doorFar(pan) {
+    this.noise({ dur: 0.25, freq: 420, type: 'lowpass', vol: 0.07, dest: this.amb, pan });
+    this.tone(95, 0.2, { vol: 0.05, to: 60, dest: this.amb, pan });
+  }
+
+  motorbikeFar(pan) {
+    // a two-stroke somewhere across town, passing: its pitch rises and falls
+    const ctx = this.ctx;
+    const w = this.t;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(62, w);
+    o.frequency.linearRampToValueAtTime(96, w + 2.2);
+    o.frequency.linearRampToValueAtTime(70, w + 4.5);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 520;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    g.gain.exponentialRampToValueAtTime(0.018, w + 2);
+    g.gain.exponentialRampToValueAtTime(0.0001, w + 4.6);
+    const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    o.connect(f).connect(g);
+    if (p) {
+      p.pan.setValueAtTime(pan, w);
+      p.pan.linearRampToValueAtTime(-pan, w + 4.5);
+      g.connect(p).connect(this.amb);
+    } else g.connect(this.amb);
+    o.start(w);
+    o.stop(w + 4.7);
+  }
+
   ambience(levels, time = 1.2) {
     if (!this.ctx) return;
     const scale = { wind: 0.3, air: 0.35, traffic: 0.5, crowd: 0.12, generator: 0.12 };
@@ -209,7 +339,21 @@ export class Sound {
 
   // ------------------------------------------------------------- one-shots --
 
-  noise({ when = this.t, dur = 0.2, freq = 800, q = 1, type = 'bandpass', vol = 0.5, attack = 0.005, buf, dest = this.fx, sweep }) {
+  // A stereo position for a world x, relative to where the camera looks.
+  panFor(x) {
+    return Math.max(-1, Math.min(1, (x - (this.listenerX ?? x)) / 900));
+  }
+
+  // Route through a panner when a position is given.
+  out(dest, pan) {
+    if (pan == null || !this.ctx.createStereoPanner) return dest;
+    const p = this.ctx.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    p.connect(dest);
+    return p;
+  }
+
+  noise({ when = this.t, dur = 0.2, freq = 800, q = 1, type = 'bandpass', vol = 0.5, attack = 0.005, buf, dest = this.fx, sweep, pan }) {
     if (!this.ctx) return;
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
@@ -223,12 +367,12 @@ export class Sound {
     g.gain.setValueAtTime(0.0001, when);
     g.gain.linearRampToValueAtTime(vol, when + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-    src.connect(f).connect(g).connect(dest);
+    src.connect(f).connect(g).connect(this.out(dest, pan));
     src.start(when, Math.random() * 3);
     src.stop(when + dur + 0.05);
   }
 
-  tone(freq, dur, { when = this.t, type = 'sine', vol = 0.3, to, dest = this.fx, attack = 0.005 } = {}) {
+  tone(freq, dur, { when = this.t, type = 'sine', vol = 0.3, to, dest = this.fx, attack = 0.005, pan } = {}) {
     if (!this.ctx) return;
     const o = this.ctx.createOscillator();
     o.type = type;
@@ -238,19 +382,36 @@ export class Sound {
     g.gain.setValueAtTime(0.0001, when);
     g.gain.linearRampToValueAtTime(vol, when + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-    o.connect(g).connect(dest);
+    o.connect(g).connect(this.out(dest, pan));
     o.start(when);
     o.stop(when + dur + 0.05);
   }
 
-  step(surface = 'grit', vol = 0.18) {
-    const v = vol * (0.7 + Math.random() * 0.5);
-    if (surface === 'wood') {
-      this.tone(160, 0.06, { vol: v * 0.8, to: 90 });
+  // A footstep in two parts: the heel's thud and the toe's scuff a moment
+  // later, coloured by what's underfoot. Crouched steps are soft, rolled
+  // and close, with a whisper of cloth.
+  step(surface = 'grit', vol = 0.18, { pan, crouch = false } = {}) {
+    if (!this.ctx) return;
+    const v = vol * (0.75 + Math.random() * 0.45);
+    const w = this.t;
+    const o = { pan };
+    if (surface === 'wood' || surface === 'hollow') {
+      this.tone(150 + Math.random() * 20, 0.08, { when: w, vol: v * 0.9, to: 80, ...o });
+      this.noise({ when: w + 0.05, dur: 0.05, freq: 1800, q: 1, vol: v * 0.35, ...o });
       return;
     }
-    this.noise({ dur: 0.07, freq: surface === 'rubble' ? 1400 : 2600, q: 0.9, vol: v });
-    if (surface === 'rubble' && Math.random() < 0.3) this.noise({ when: this.t + 0.04, dur: 0.05, freq: 3400, q: 3, vol: v * 0.5 });
+    const soft = crouch ? 0.55 : 1;
+    // heel: low thump through the sole
+    this.tone(95 + Math.random() * 25, 0.07, { when: w, vol: v * 0.55 * soft, to: 55, ...o });
+    this.noise({ when: w, dur: 0.05, freq: 900, q: 0.8, vol: v * 0.5 * soft, ...o });
+    // toe: the grit crunch
+    const crunch = surface === 'rubble' ? 1500 : 2800;
+    this.noise({ when: w + (crouch ? 0.09 : 0.055), dur: crouch ? 0.11 : 0.07, freq: crunch + Math.random() * 500, q: 0.9, vol: v * 0.8 * soft, ...o });
+    if (surface === 'rubble' && Math.random() < 0.5) {
+      // a loose stone knocked
+      this.noise({ when: w + 0.08 + Math.random() * 0.06, dur: 0.04, freq: 2600 + Math.random() * 1500, q: 4, vol: v * 0.45, ...o });
+    }
+    if (crouch) this.noise({ when: w + 0.02, dur: 0.22, freq: 2200, q: 0.5, vol: v * 0.12, attack: 0.06, ...o });
   }
 
   land(vol = 0.35) {
@@ -266,9 +427,23 @@ export class Sound {
     for (let i = 0; i < 9; i++) this.noise({ when: this.t + i * 0.06 + Math.random() * 0.03, dur: 0.06, freq: 900 + Math.random() * 500, q: 1.5, vol: 0.12 });
   }
 
+  // Gunfire somewhere off: a single shot or a short burst, each report
+  // followed by its slap echo off the buildings. Further away is duller.
   distantShot() {
-    this.noise({ dur: 0.08, freq: 2400, q: 0.6, vol: 0.12 });
-    this.noise({ when: this.t + 0.04, dur: 1.2, freq: 300, type: 'lowpass', vol: 0.08, buf: this.brownBuf });
+    if (!this.ctx) return;
+    const dist = 0.5 + Math.random() * 0.5; // 0.5 near … 1 far
+    const pan = (Math.random() * 2 - 1) * 0.8;
+    const burst = Math.random() < 0.35 ? 3 + Math.floor(Math.random() * 5) : 1;
+    const gap = 0.09 + Math.random() * 0.05;
+    const echo = 0.3 + Math.random() * 0.6;
+    const bright = 3600 - dist * 2400;
+    for (let i = 0; i < burst; i++) {
+      const w = this.t + i * gap * (0.85 + Math.random() * 0.3);
+      const v = (0.16 - dist * 0.07) * (0.8 + Math.random() * 0.3);
+      this.noise({ when: w, dur: 0.07, freq: bright, q: 0.6, vol: v, pan });
+      this.noise({ when: w + 0.01, dur: 0.9, freq: 260, type: 'lowpass', vol: v * 0.7, buf: this.brownBuf, pan });
+      this.noise({ when: w + echo, dur: 0.12, freq: bright * 0.6, q: 0.8, vol: v * 0.35, pan: -pan * 0.6 });
+    }
   }
 
   slosh() {
@@ -394,18 +569,40 @@ export class Sound {
     this.tone(48, 1.8, { when: w, vol: 0.5, to: 28 });
   }
 
-  mortarWhistle(dur = 1.3) {
-    this.tone(1250, dur, { vol: 0.08, to: 520, attack: 0.3 });
+  // An incoming mortar: a thin falling whistle with air in it, dropping in
+  // pitch as it comes down (Doppler), louder at the end.
+  mortarWhistle(dur = 1.3, pan) {
+    if (!this.ctx) return;
+    const w = this.t;
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(1350, w);
+    o.frequency.exponentialRampToValueAtTime(480, w + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    g.gain.exponentialRampToValueAtTime(0.03, w + dur * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.11, w + dur * 0.95);
+    g.gain.exponentialRampToValueAtTime(0.0001, w + dur + 0.02);
+    o.connect(g).connect(this.out(this.fx, pan));
+    o.start(w);
+    o.stop(w + dur + 0.05);
+    this.noise({ when: w, dur, freq: 1350, q: 9, vol: 0.05, attack: dur * 0.8, sweep: 500, pan });
   }
 
-  mortarImpact(dist = 1) {
+  mortarImpact(dist = 1, pan) {
     const v = 1 / Math.max(dist, 0.6);
-    this.duck(0.8, 2.5);
-    this.noise({ dur: 0.18, freq: 2600, type: 'highpass', vol: 0.45 * v, q: 0.4 });
-    this.noise({ dur: 1.8, freq: 160, type: 'lowpass', vol: 0.9 * v, q: 0.5, buf: this.brownBuf, attack: 0.01 });
-    this.tone(70, 0.6, { vol: 0.5 * v, to: 35 });
-    // debris patter
-    for (let i = 0; i < 10; i++) this.noise({ when: this.t + 0.3 + Math.random() * 1.2, dur: 0.05, freq: 1800 + Math.random() * 2000, q: 2, vol: 0.06 * v });
+    const o = { pan };
+    this.duck(0.85, 3);
+    this.noise({ dur: 0.2, freq: 2600, type: 'highpass', vol: 0.45 * v, q: 0.4, ...o });
+    this.noise({ dur: 2.2, freq: 170, type: 'lowpass', vol: 1.0 * v, q: 0.5, buf: this.brownBuf, attack: 0.008, ...o });
+    this.tone(72, 0.7, { vol: 0.6 * v, to: 32, ...o });
+    this.tone(44, 1.4, { vol: 0.35 * v, to: 24, attack: 0.02 });
+    // the slap off the buildings across the street, from the other side
+    this.noise({ when: this.t + 0.18, dur: 0.5, freq: 900, q: 0.6, vol: 0.18 * v, pan: pan == null ? null : -pan * 0.7 });
+    // a shower of grit, then pieces coming down for a while
+    this.noise({ when: this.t + 0.15, dur: 1.4, freq: 3200, q: 0.5, vol: 0.05 * v, attack: 0.2, ...o });
+    for (let i = 0; i < 14; i++) this.noise({ when: this.t + 0.3 + Math.random() * 1.8, dur: 0.05, freq: 1600 + Math.random() * 2400, q: 2, vol: 0.07 * v * Math.random(), ...o });
   }
 
   carAlarm(dur = 9) {
@@ -606,14 +803,16 @@ export class Sound {
     for (let i = 0; i < 5; i++) this.noise({ when: this.t + 2 + i * 0.22, dur: 0.06, freq: 1200 + Math.random() * 800, q: 1.5, vol: 0.08 });
   }
 
+  // A soft, woody tick.
   click() {
-    this.noise({ dur: 0.03, freq: 3200, q: 4, vol: 0.25 });
+    this.noise({ dur: 0.025, freq: 2200, q: 3, vol: 0.12 });
+    this.tone(620, 0.04, { vol: 0.04, to: 420 });
   }
 
   // A soft two-note cue when a choice appears.
   sting() {
-    this.pluck(BAYATI.D3 * 2, this.t, 0.2);
-    this.pluck(BAYATI.A3, this.t + 0.08, 0.16);
+    this.pluck(BAYATI.D3 * 2, this.t, 0.13, this.music, 1500);
+    this.pluck(BAYATI.A3, this.t + 0.12, 0.1, this.music, 1400);
   }
 
   crank() {

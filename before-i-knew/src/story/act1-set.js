@@ -5,6 +5,7 @@
 
 import { lerp, clamp, rng, noise1, mixc, smooth } from '../engine/util.js';
 import * as T from '../sets/town.js';
+import { horizon, rgbOf } from '../sets/horizon.js';
 import { Person, POSES } from '../rigs/person.js';
 
 export const X = {
@@ -186,7 +187,16 @@ export function drawStreet(R, g) {
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
 
   T.sky(R, skyStops(a.sunK), { warmth: clamp(a.sunK || 0) });
-  T.skyline(R, { depth: 0.15, y: 30, color: '#a39a90', seed: 4, haze: ['#d8d0c4', 0.35], minarets: [600, 2100] });
+  const stops = skyStops(a.sunK);
+  horizon(R, {
+    haze: rgbOf(stops[stops.length - 1][1]),
+    shade: mixc([128, 118, 106], [98, 86, 84], a.sunK || 0),
+    cloud: mixc([255, 248, 236], [255, 214, 180], a.sunK || 0),
+    span: 11000,
+    seed: 4,
+    t,
+    lite: g.settings.get('quality') === 'low',
+  });
   // smoke from elsewhere in Ghouta, always somewhere
   T.plume(R, 900, 60, t, { depth: 0.18, age: 1, height: 380, width: 60, alpha: 0.45, color: [90, 86, 84] });
   // the barrel bomb's dust, a district away: behind the nearer rooftops

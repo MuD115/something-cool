@@ -123,11 +123,24 @@ Everything is drawn and synthesised in code. There are no images or recordings.
   them, for anyone walking into or out of a side street. Idle figures breathe, blink and glance
   around, and passers-by cross the side streets in the calm stretches. The black cat is a separate
   small rig.
-- **Sound** ([`src/engine/audio.js`](src/engine/audio.js)) is all Web Audio:
-  - the ambience: a generator hum, pigeons, wind;
-  - distant shots, mortar whistles and impacts, car alarms;
-  - walkie-talkie static, and a low jet pass that pans across the stereo field;
+- **The distance** ([`src/sets/horizon.js`](src/sets/horizon.js)) is layered and softened with
+  depth: Mount Qasioun's ridge with its masts, Damascus with its domes, minarets and cranes, then
+  the nearer towns of Ghouta, with haze lifting off the horizon, drifting cirrus and the odd
+  flock of birds. The far layers are drawn once, blurred, into small cached images, so the
+  softness costs almost nothing per frame. At dusk, generator lights come on in the far city.
+- **Sound** ([`src/engine/audio.js`](src/engine/audio.js)) is all Web Audio, in a street-shaped
+  space (early slaps off the facing buildings, a darkening tail) through a compressor and a
+  limiter:
+  - the ambience: a generator hum, pigeons, gusting wind that whistles through broken windows;
+  - distant life, now and then: a dog, children far off, tin creaking, rubble settling, a
+    door, a motorbike across town;
+  - footsteps in two parts (heel and toe), coloured by the ground and softer crouched; the
+    people around you have their own;
+  - gunfire in single shots and bursts with their echoes, mortar whistles and impacts, the
+    airstrike's sub-bass, car alarms;
+  - walkie-talkie static, and a low jet pass;
   - ringing ears at the news.
+  Sounds sit left or right of the screen where they happen.
 - **Score** ([`src/engine/score.js`](src/engine/score.js)): a light generative score in maqam
   Bayati on D. A deep sub-bass swells slowly under a soft pad in open fifths, with an oud or
   qanun phrase and a breath of ney now and then. The story sets its mood (the walk, the hour,

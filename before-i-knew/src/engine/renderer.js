@@ -248,6 +248,16 @@ export class Renderer {
     fn(this.layers.emit.x);
   }
 
+  // Far distance: drawn into the emissive layer as it is (unlit, already
+  // hazed), so it reads like sky; nearer painted things cover it as usual.
+  far(fn) {
+    const e = this.layers.emit.x;
+    e.save();
+    e.globalCompositeOperation = 'source-over';
+    fn(e);
+    e.restore();
+  }
+
   // Opaque, lit, casts no shadow. Covers anything glowing behind it.
   paint(fn) {
     fn(this.layers.alb.x);

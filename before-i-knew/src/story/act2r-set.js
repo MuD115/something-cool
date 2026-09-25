@@ -12,6 +12,7 @@
 
 import { lerp, clamp, rng, mixc } from '../engine/util.js';
 import * as T from '../sets/town.js';
+import { horizon, rgbOf } from '../sets/horizon.js';
 
 export const X = {
   start: 150,
@@ -754,7 +755,17 @@ export function drawStreet(R, g) {
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
 
   T.sky(R, skyStops(k), { sun: [0.08, lerp(0.42, 0.72, k)], warmth: clamp(0.8 + k * 0.4) });
-  T.skyline(R, { depth: 0.15, y: 30, color: mixc([163, 154, 144], [112, 98, 118], k).map(Math.round).reduce((s, v) => s + v.toString(16).padStart(2, '0'), '#'), seed: 14, haze: ['#d8b8a0', 0.3], minarets: [900] });
+  const stops = skyStops(k);
+  horizon(R, {
+    haze: rgbOf(stops[stops.length - 1][1]),
+    shade: mixc([118, 100, 104], [62, 52, 74], k),
+    cloud: mixc([255, 214, 180], [236, 150, 140], k),
+    span: 7000,
+    seed: 14,
+    t,
+    lights: clamp((k - 0.3) / 0.4),
+    lite: g.settings.get('quality') === 'low',
+  });
   T.plume(R, 1600, 60, t, { depth: 0.18, age: 1, height: 360, width: 60, alpha: 0.4, color: [80, 74, 78] });
   T.skyline(R, { depth: 0.32, y: 40, color: mixc([143, 132, 116], [96, 84, 96], k).map(Math.round).reduce((s, v) => s + v.toString(16).padStart(2, '0'), '#'), seed: 19, haze: ['#cfae96', 0.18] });
 

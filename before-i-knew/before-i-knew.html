@@ -1101,6 +1101,16 @@ class Renderer {
     fn(this.layers.emit.x);
   }
 
+  // Far distance: drawn into the emissive layer as it is (unlit, already
+  // hazed), so it reads like sky; nearer painted things cover it as usual.
+  far(fn) {
+    const e = this.layers.emit.x;
+    e.save();
+    e.globalCompositeOperation = 'source-over';
+    fn(e);
+    e.restore();
+  }
+
   // Opaque, lit, casts no shadow. Covers anything glowing behind it.
   paint(fn) {
     fn(this.layers.alb.x);
@@ -1238,6 +1248,8 @@ const __src_engine_audio = (() => {
 //        music (ney and oud) → master, beside the world bus
 // Settings drive master / music / effects volumes.
 
+const LIFE = ['dogFar', 'dogFar', 'childrenFar', 'tinCreak', 'rubbleSettle', 'doorFar', 'motorbikeFar'];
+
 const BAYATI = {
   // D Bayati with its half-flat second (E↓), in Hz.
   D3: 146.83, Eb3: 151.1, F3: 174.61, G3: 196.0, A3: 220.0, Bb3: 233.08, C4: 261.63, D4: 293.66, Ed4: 318.0, F4: 349.23, G4: 392.0,
@@ -1257,9 +1269,18 @@ class Sound {
 
     this.master = ctx.createGain();
     const comp = ctx.createDynamicsCompressor();
-    comp.threshold.value = -14;
-    comp.ratio.value = 3.5;
-    this.master.connect(comp).connect(ctx.destination);
+    comp.threshold.value = -16;
+    comp.ratio.value = 3;
+    comp.attack.value = 0.01;
+    comp.release.value = 0.25;
+    // a limiter after it, so big blasts stay full without clipping
+    const lim = ctx.createDynamicsCompressor();
+    lim.threshold.value = -2;
+    lim.knee.value = 0;
+    lim.ratio.value = 20;
+    lim.attack.value = 0.002;
+    lim.release.value = 0.12;
+    this.master.connect(comp).connect(lim).connect(ctx.destination);
 
     this.muffle = ctx.createBiquadFilter();
     this.muffle.type = 'lowpass';
@@ -1273,13 +1294,28 @@ class Sound {
     this.fx.connect(this.world);
     this.amb.connect(this.world);
 
-    // A long, dry-ish space: streets between concrete walls.
+    // A street between concrete walls: hard early slaps off the facing
+    // buildings (different on each side), then a tail that darkens as it
+    // dies away.
     this.verb = ctx.createConvolver();
-    const len = ctx.sampleRate * 2.6;
-    const ir = ctx.createBuffer(2, len, ctx.sampleRate);
+    const sr = ctx.sampleRate;
+    const len = Math.floor(sr * 2.4);
+    const ir = ctx.createBuffer(2, len, sr);
     for (let ch = 0; ch < 2; ch++) {
       const d = ir.getChannelData(ch);
-      for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3.5) * (i < 400 ? i / 400 : 1);
+      let lp = 0;
+      for (let i = 0; i < len; i++) {
+        const k = i / len;
+        const n = Math.random() * 2 - 1;
+        const cut = 0.55 - 0.45 * k; // one-pole lowpass closing over the tail
+        lp += cut * (n - lp);
+        d[i] = lp * Math.pow(1 - k, 3.2) * (i < 600 ? i / 600 : 1) * 0.8;
+      }
+      const slaps = ch ? [0.043, 0.071, 0.118, 0.19] : [0.052, 0.088, 0.131, 0.21];
+      slaps.forEach((tt, j) => {
+        const at = Math.floor(tt * sr);
+        for (let i = 0; i < 90; i++) d[at + i] += (Math.random() * 2 - 1) * 0.55 * Math.pow(0.72, j) * (1 - i / 90);
+      });
     }
     this.verb.buffer = ir;
     this.verbIn = ctx.createGain();
@@ -1384,6 +1420,33 @@ class Sound {
     lg.gain.value = 260;
     lfo.connect(lg).connect(this.beds.wind.f.frequency);
     lfo.start();
+    // Gusts: the wind swells and falls on a slow, uneven cycle, and on the
+    // strong ones a thin whistle comes through the broken windows.
+    const gust = ctx.createOscillator();
+    gust.frequency.value = 0.11;
+    const gust2 = ctx.createOscillator();
+    gust2.frequency.value = 0.043;
+    const gg = ctx.createGain();
+    gg.gain.value = 0.35;
+    gust.connect(gg);
+    gust2.connect(gg);
+    gg.connect(this.beds.wind.mod.gain);
+    gust.start();
+    gust2.start();
+    const whistle = ctx.createBiquadFilter();
+    whistle.type = 'bandpass';
+    whistle.frequency.value = 1750;
+    whistle.Q.value = 14;
+    const wg = ctx.createGain();
+    wg.gain.value = 0;
+    const wlfo = ctx.createGain();
+    wlfo.gain.value = 0.22;
+    const rect = ctx.createWaveShaper(); // only the peaks of the gusts
+    const curve = new Float32Array(256);
+    for (let i = 0; i < 256; i++) curve[i] = Math.max(0, (i / 255) * 2 - 1.3) * 3;
+    rect.curve = curve;
+    gust.connect(rect).connect(wlfo).connect(wg.gain);
+    this.noiseSrc().connect(whistle).connect(wg).connect(this.beds.wind.mod);
     // Murmuring voices: syllable-rate amplitude flutter.
     const syl = ctx.createOscillator();
     syl.frequency.value = 3.3;
@@ -1423,6 +1486,83 @@ class Sound {
     this.beds.generator = { g: gen };
   }
 
+  // Distant life: now and then, something far off in the town. level 0…1
+  // sets how often; the game's lifeGate says when it's allowed (the street,
+  // not paused, not in a memory).
+  life(level) {
+    this.lifeLevel = level;
+    if (this.lifeTimer || !this.ctx) return;
+    this.lifeTimer = setInterval(() => {
+      if (!this.ctx || this.ctx.state !== 'running' || !(this.lifeLevel > 0)) return;
+      if (this.lifeGate && !this.lifeGate()) return;
+      if (Math.random() > this.lifeLevel * 0.16) return;
+      const pick = LIFE[Math.floor(Math.random() * LIFE.length)];
+      this[pick]((Math.random() * 2 - 1) * 0.85);
+    }, 1000);
+  }
+
+  dogFar(pan) {
+    const n = 2 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < n; i++) {
+      const w = this.t + i * (0.32 + Math.random() * 0.15);
+      this.noise({ when: w, dur: 0.14, freq: 700 + Math.random() * 120, q: 3, vol: 0.05, dest: this.amb, pan, sweep: 520 });
+      this.tone(420 + Math.random() * 60, 0.12, { when: w, type: 'sawtooth', vol: 0.006, to: 300, dest: this.amb, pan });
+    }
+  }
+
+  childrenFar(pan) {
+    // voices too far to make out: syllables of filtered breath
+    let w = this.t;
+    const n = 6 + Math.floor(Math.random() * 8);
+    for (let i = 0; i < n; i++) {
+      const f = 1100 + Math.random() * 900;
+      this.noise({ when: w, dur: 0.08 + Math.random() * 0.12, freq: f, q: 5, vol: 0.012 + Math.random() * 0.01, dest: this.amb, pan, sweep: f * (0.8 + Math.random() * 0.4) });
+      w += 0.1 + Math.random() * 0.18;
+    }
+  }
+
+  tinCreak(pan) {
+    this.tone(170 + Math.random() * 40, 0.9, { type: 'sawtooth', vol: 0.006, to: 240, attack: 0.2, dest: this.amb, pan });
+    this.noise({ dur: 0.9, freq: 2400, q: 6, vol: 0.012, attack: 0.3, dest: this.amb, pan, sweep: 2900 });
+  }
+
+  rubbleSettle(pan) {
+    this.noise({ dur: 0.6, freq: 260, type: 'lowpass', vol: 0.05, attack: 0.05, buf: this.brownBuf, dest: this.amb, pan });
+    for (let i = 0; i < 5; i++) this.noise({ when: this.t + 0.1 + Math.random() * 0.8, dur: 0.04, freq: 1500 + Math.random() * 2000, q: 3, vol: 0.025, dest: this.amb, pan });
+  }
+
+  doorFar(pan) {
+    this.noise({ dur: 0.25, freq: 420, type: 'lowpass', vol: 0.07, dest: this.amb, pan });
+    this.tone(95, 0.2, { vol: 0.05, to: 60, dest: this.amb, pan });
+  }
+
+  motorbikeFar(pan) {
+    // a two-stroke somewhere across town, passing: its pitch rises and falls
+    const ctx = this.ctx;
+    const w = this.t;
+    const o = ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(62, w);
+    o.frequency.linearRampToValueAtTime(96, w + 2.2);
+    o.frequency.linearRampToValueAtTime(70, w + 4.5);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 520;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    g.gain.exponentialRampToValueAtTime(0.018, w + 2);
+    g.gain.exponentialRampToValueAtTime(0.0001, w + 4.6);
+    const p = ctx.createStereoPanner ? ctx.createStereoPanner() : null;
+    o.connect(f).connect(g);
+    if (p) {
+      p.pan.setValueAtTime(pan, w);
+      p.pan.linearRampToValueAtTime(-pan, w + 4.5);
+      g.connect(p).connect(this.amb);
+    } else g.connect(this.amb);
+    o.start(w);
+    o.stop(w + 4.7);
+  }
+
   ambience(levels, time = 1.2) {
     if (!this.ctx) return;
     const scale = { wind: 0.3, air: 0.35, traffic: 0.5, crowd: 0.12, generator: 0.12 };
@@ -1443,7 +1583,21 @@ class Sound {
 
   // ------------------------------------------------------------- one-shots --
 
-  noise({ when = this.t, dur = 0.2, freq = 800, q = 1, type = 'bandpass', vol = 0.5, attack = 0.005, buf, dest = this.fx, sweep }) {
+  // A stereo position for a world x, relative to where the camera looks.
+  panFor(x) {
+    return Math.max(-1, Math.min(1, (x - (this.listenerX ?? x)) / 900));
+  }
+
+  // Route through a panner when a position is given.
+  out(dest, pan) {
+    if (pan == null || !this.ctx.createStereoPanner) return dest;
+    const p = this.ctx.createStereoPanner();
+    p.pan.value = Math.max(-1, Math.min(1, pan));
+    p.connect(dest);
+    return p;
+  }
+
+  noise({ when = this.t, dur = 0.2, freq = 800, q = 1, type = 'bandpass', vol = 0.5, attack = 0.005, buf, dest = this.fx, sweep, pan }) {
     if (!this.ctx) return;
     const ctx = this.ctx;
     const src = ctx.createBufferSource();
@@ -1457,12 +1611,12 @@ class Sound {
     g.gain.setValueAtTime(0.0001, when);
     g.gain.linearRampToValueAtTime(vol, when + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-    src.connect(f).connect(g).connect(dest);
+    src.connect(f).connect(g).connect(this.out(dest, pan));
     src.start(when, Math.random() * 3);
     src.stop(when + dur + 0.05);
   }
 
-  tone(freq, dur, { when = this.t, type = 'sine', vol = 0.3, to, dest = this.fx, attack = 0.005 } = {}) {
+  tone(freq, dur, { when = this.t, type = 'sine', vol = 0.3, to, dest = this.fx, attack = 0.005, pan } = {}) {
     if (!this.ctx) return;
     const o = this.ctx.createOscillator();
     o.type = type;
@@ -1472,19 +1626,36 @@ class Sound {
     g.gain.setValueAtTime(0.0001, when);
     g.gain.linearRampToValueAtTime(vol, when + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, when + dur);
-    o.connect(g).connect(dest);
+    o.connect(g).connect(this.out(dest, pan));
     o.start(when);
     o.stop(when + dur + 0.05);
   }
 
-  step(surface = 'grit', vol = 0.18) {
-    const v = vol * (0.7 + Math.random() * 0.5);
-    if (surface === 'wood') {
-      this.tone(160, 0.06, { vol: v * 0.8, to: 90 });
+  // A footstep in two parts: the heel's thud and the toe's scuff a moment
+  // later, coloured by what's underfoot. Crouched steps are soft, rolled
+  // and close, with a whisper of cloth.
+  step(surface = 'grit', vol = 0.18, { pan, crouch = false } = {}) {
+    if (!this.ctx) return;
+    const v = vol * (0.75 + Math.random() * 0.45);
+    const w = this.t;
+    const o = { pan };
+    if (surface === 'wood' || surface === 'hollow') {
+      this.tone(150 + Math.random() * 20, 0.08, { when: w, vol: v * 0.9, to: 80, ...o });
+      this.noise({ when: w + 0.05, dur: 0.05, freq: 1800, q: 1, vol: v * 0.35, ...o });
       return;
     }
-    this.noise({ dur: 0.07, freq: surface === 'rubble' ? 1400 : 2600, q: 0.9, vol: v });
-    if (surface === 'rubble' && Math.random() < 0.3) this.noise({ when: this.t + 0.04, dur: 0.05, freq: 3400, q: 3, vol: v * 0.5 });
+    const soft = crouch ? 0.55 : 1;
+    // heel: low thump through the sole
+    this.tone(95 + Math.random() * 25, 0.07, { when: w, vol: v * 0.55 * soft, to: 55, ...o });
+    this.noise({ when: w, dur: 0.05, freq: 900, q: 0.8, vol: v * 0.5 * soft, ...o });
+    // toe: the grit crunch
+    const crunch = surface === 'rubble' ? 1500 : 2800;
+    this.noise({ when: w + (crouch ? 0.09 : 0.055), dur: crouch ? 0.11 : 0.07, freq: crunch + Math.random() * 500, q: 0.9, vol: v * 0.8 * soft, ...o });
+    if (surface === 'rubble' && Math.random() < 0.5) {
+      // a loose stone knocked
+      this.noise({ when: w + 0.08 + Math.random() * 0.06, dur: 0.04, freq: 2600 + Math.random() * 1500, q: 4, vol: v * 0.45, ...o });
+    }
+    if (crouch) this.noise({ when: w + 0.02, dur: 0.22, freq: 2200, q: 0.5, vol: v * 0.12, attack: 0.06, ...o });
   }
 
   land(vol = 0.35) {
@@ -1500,9 +1671,23 @@ class Sound {
     for (let i = 0; i < 9; i++) this.noise({ when: this.t + i * 0.06 + Math.random() * 0.03, dur: 0.06, freq: 900 + Math.random() * 500, q: 1.5, vol: 0.12 });
   }
 
+  // Gunfire somewhere off: a single shot or a short burst, each report
+  // followed by its slap echo off the buildings. Further away is duller.
   distantShot() {
-    this.noise({ dur: 0.08, freq: 2400, q: 0.6, vol: 0.12 });
-    this.noise({ when: this.t + 0.04, dur: 1.2, freq: 300, type: 'lowpass', vol: 0.08, buf: this.brownBuf });
+    if (!this.ctx) return;
+    const dist = 0.5 + Math.random() * 0.5; // 0.5 near … 1 far
+    const pan = (Math.random() * 2 - 1) * 0.8;
+    const burst = Math.random() < 0.35 ? 3 + Math.floor(Math.random() * 5) : 1;
+    const gap = 0.09 + Math.random() * 0.05;
+    const echo = 0.3 + Math.random() * 0.6;
+    const bright = 3600 - dist * 2400;
+    for (let i = 0; i < burst; i++) {
+      const w = this.t + i * gap * (0.85 + Math.random() * 0.3);
+      const v = (0.16 - dist * 0.07) * (0.8 + Math.random() * 0.3);
+      this.noise({ when: w, dur: 0.07, freq: bright, q: 0.6, vol: v, pan });
+      this.noise({ when: w + 0.01, dur: 0.9, freq: 260, type: 'lowpass', vol: v * 0.7, buf: this.brownBuf, pan });
+      this.noise({ when: w + echo, dur: 0.12, freq: bright * 0.6, q: 0.8, vol: v * 0.35, pan: -pan * 0.6 });
+    }
   }
 
   slosh() {
@@ -1628,18 +1813,40 @@ class Sound {
     this.tone(48, 1.8, { when: w, vol: 0.5, to: 28 });
   }
 
-  mortarWhistle(dur = 1.3) {
-    this.tone(1250, dur, { vol: 0.08, to: 520, attack: 0.3 });
+  // An incoming mortar: a thin falling whistle with air in it, dropping in
+  // pitch as it comes down (Doppler), louder at the end.
+  mortarWhistle(dur = 1.3, pan) {
+    if (!this.ctx) return;
+    const w = this.t;
+    const ctx = this.ctx;
+    const o = ctx.createOscillator();
+    o.type = 'sine';
+    o.frequency.setValueAtTime(1350, w);
+    o.frequency.exponentialRampToValueAtTime(480, w + dur);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    g.gain.exponentialRampToValueAtTime(0.03, w + dur * 0.4);
+    g.gain.exponentialRampToValueAtTime(0.11, w + dur * 0.95);
+    g.gain.exponentialRampToValueAtTime(0.0001, w + dur + 0.02);
+    o.connect(g).connect(this.out(this.fx, pan));
+    o.start(w);
+    o.stop(w + dur + 0.05);
+    this.noise({ when: w, dur, freq: 1350, q: 9, vol: 0.05, attack: dur * 0.8, sweep: 500, pan });
   }
 
-  mortarImpact(dist = 1) {
+  mortarImpact(dist = 1, pan) {
     const v = 1 / Math.max(dist, 0.6);
-    this.duck(0.8, 2.5);
-    this.noise({ dur: 0.18, freq: 2600, type: 'highpass', vol: 0.45 * v, q: 0.4 });
-    this.noise({ dur: 1.8, freq: 160, type: 'lowpass', vol: 0.9 * v, q: 0.5, buf: this.brownBuf, attack: 0.01 });
-    this.tone(70, 0.6, { vol: 0.5 * v, to: 35 });
-    // debris patter
-    for (let i = 0; i < 10; i++) this.noise({ when: this.t + 0.3 + Math.random() * 1.2, dur: 0.05, freq: 1800 + Math.random() * 2000, q: 2, vol: 0.06 * v });
+    const o = { pan };
+    this.duck(0.85, 3);
+    this.noise({ dur: 0.2, freq: 2600, type: 'highpass', vol: 0.45 * v, q: 0.4, ...o });
+    this.noise({ dur: 2.2, freq: 170, type: 'lowpass', vol: 1.0 * v, q: 0.5, buf: this.brownBuf, attack: 0.008, ...o });
+    this.tone(72, 0.7, { vol: 0.6 * v, to: 32, ...o });
+    this.tone(44, 1.4, { vol: 0.35 * v, to: 24, attack: 0.02 });
+    // the slap off the buildings across the street, from the other side
+    this.noise({ when: this.t + 0.18, dur: 0.5, freq: 900, q: 0.6, vol: 0.18 * v, pan: pan == null ? null : -pan * 0.7 });
+    // a shower of grit, then pieces coming down for a while
+    this.noise({ when: this.t + 0.15, dur: 1.4, freq: 3200, q: 0.5, vol: 0.05 * v, attack: 0.2, ...o });
+    for (let i = 0; i < 14; i++) this.noise({ when: this.t + 0.3 + Math.random() * 1.8, dur: 0.05, freq: 1600 + Math.random() * 2400, q: 2, vol: 0.07 * v * Math.random(), ...o });
   }
 
   carAlarm(dur = 9) {
@@ -1840,14 +2047,16 @@ class Sound {
     for (let i = 0; i < 5; i++) this.noise({ when: this.t + 2 + i * 0.22, dur: 0.06, freq: 1200 + Math.random() * 800, q: 1.5, vol: 0.08 });
   }
 
+  // A soft, woody tick.
   click() {
-    this.noise({ dur: 0.03, freq: 3200, q: 4, vol: 0.25 });
+    this.noise({ dur: 0.025, freq: 2200, q: 3, vol: 0.12 });
+    this.tone(620, 0.04, { vol: 0.04, to: 420 });
   }
 
   // A soft two-note cue when a choice appears.
   sting() {
-    this.pluck(BAYATI.D3 * 2, this.t, 0.2);
-    this.pluck(BAYATI.A3, this.t + 0.08, 0.16);
+    this.pluck(BAYATI.D3 * 2, this.t, 0.13, this.music, 1500);
+    this.pluck(BAYATI.A3, this.t + 0.12, 0.1, this.music, 1400);
   }
 
   crank() {
@@ -5088,12 +5297,12 @@ class Effects {
   }
 
   // A round striking a wall: a spray of plaster and chips, no fire.
-  puff(x, y, size = 0.45) {
+  puff(x, y, size = 0.45, chips = true) {
     const r = this.r;
     for (let i = 0; i < 8; i++) {
       this.items.push({ kind: 'dust', x: x + (r() - 0.5) * 10, y: y + (r() - 0.5) * 10, vx: (r() - 0.3) * 200 * size, vy: -40 - r() * 160 * size, rad: 8 + r() * 16 * size, t: 0, life: 1.4 + r() * 1.2, shade: 1 + r() * 0.15 });
     }
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < (chips ? 7 : 0); i++) {
       this.items.push({ kind: 'debris', x, y, vx: (r() - 0.5) * 500 * size, vy: -120 - r() * 360 * size, spin: (r() - 0.5) * 20, a: r() * 6, w: 2 + r() * 4, t: 0, life: 1.6 });
     }
   }
@@ -5230,8 +5439,19 @@ class Game {
     this.runner = new Runner();
     this.effects = new Effects();
     this.player = new Walker(this.level, 'sami');
-    this.player.onStep = (stance) => this.sound.step(this.surface?.(this.player.x) || 'grit', stance === 'crouch' ? 0.1 : 0.18);
-    this.player.onLand = (k) => this.sound.land(0.15 + k * 0.3);
+    this.player.onStep = (stance) => {
+      const p = this.player;
+      const surface = this.scene === 'stairwell' ? 'hollow' : this.surface?.(p.x) || 'grit';
+      this.sound.step(surface, stance === 'crouch' ? 0.13 : 0.18, { crouch: stance === 'crouch' });
+      // running kicks up a little dust
+      if (this.scene === 'street' && Math.abs(p.vx) > 240) this.effects.puff(p.x - p.f * 8, p.y - 2, 0.12, false);
+    };
+    this.player.onLand = (k) => {
+      this.sound.land(0.15 + k * 0.3);
+      if (k > 0.25 && this.scene === 'street') this.effects.puff(this.player.x, this.player.y - 2, 0.15 + k * 0.2, false);
+    };
+    // distant life only out in the street, and never under a menu
+    this.sound.lifeGate = () => this.scene === 'street' && !this.paused;
     this.npcs = [];
     this.passers = [];
     this.locked = false;
@@ -5268,6 +5488,13 @@ class Game {
     w.place(x, opts.y);
     w.f = opts.f ?? -1;
     w.goal = null;
+    // their footsteps too, quieter with distance and placed left or right
+    w.onStep = (stance) => {
+      if (!w.visible || w.depthK || this.scene !== 'street') return;
+      const dx = Math.abs(w.x - this.player.x);
+      if (dx > 700) return;
+      this.sound.step(this.surface?.(w.x) || 'grit', 0.11 * (1 - dx / 700) * (w.rig.scale || 1), { crouch: stance === 'crouch', pan: this.sound.panFor(w.x) });
+    };
     Object.assign(w, opts.props || {});
     this.npcs.push(w);
     return w;
@@ -5301,8 +5528,14 @@ class Game {
 
   // Generators for scripts --------------------------------------------------
 
+  // How long a line stays up: long enough to read the longer of its two
+  // languages (Arabic reads a little slower per letter).
+  readTime(line) {
+    return Math.max(2.4, 1.2 + Math.max(line[1].length * 0.055, line[0].length * 0.065));
+  }
+
   *say(who, line, dur = null, style = '') {
-    const d = dur ?? Math.max(2.4, 1.2 + line[1].length * 0.055);
+    const d = dur ?? this.readTime(line);
     const id = this.text.say(who, line, d, style);
     this.sound.score?.speak(d);
     const end = this.time + d;
@@ -5312,7 +5545,7 @@ class Game {
 
   // Show a line without waiting for it.
   line(who, line, dur = null, style = '') {
-    const d = dur ?? Math.max(2.4, 1.2 + line[1].length * 0.055);
+    const d = dur ?? this.readTime(line);
     this.text.say(who, line, d, style);
     this.sound.score?.speak(d);
   }
@@ -5454,8 +5687,9 @@ class Game {
     this.effects.update(dt);
     this.act.update?.(this, dt);
 
-    // camera
+    // camera (and where sounds are placed from)
     const target = this.cameraTarget();
+    this.sound.listenerX = this.cam.x;
     const k = 1 - Math.exp(-dt * (this.camOverride ? 2.2 : 3.2));
     this.cam.x = lerp(this.cam.x, target.x, k);
     this.cam.y = lerp(this.cam.y, target.y ?? -205, k);
@@ -6986,6 +7220,347 @@ function jetShadowShape(c, x, y, s) {
 return { CONCRETE, sky, skyline, minaret, plume, block, shade, street, cables, foreground, motes, rubble, sniperCurtain, shop, vine, school, roomDoor, jerryCan, scrapPiles, crater, deadOlive, lowWall, jet, jetShadowShape };
 })();
 
+// ---- src/sets/horizon.js
+const __src_sets_horizon = (() => {
+// The far distance, in layers that grow hazier and softer as they recede:
+//   0.05  Mount Qasioun, the long ridge over Damascus, with its masts
+//   0.10  Damascus itself: a dense low city, domes, minarets, towers, cranes
+//   0.18  the nearer towns of Ghouta: broken roofs, water tanks, dishes, trees
+// then air: haze lifting off the horizon, high cirrus, now and then a flock.
+//
+// The blurred layers are drawn once into small offscreen canvases (about half
+// a pixel per world unit, with a canvas blur filter) and reused every frame,
+// so the softness costs almost nothing. They're keyed by colour, which moves
+// slowly with the light, and a few variants are kept.
+//
+// They draw into the emissive pass (R.far): unlit and already hazed, like the
+// sky, so the lighting doesn't flatten them; nearer painted things cover them.
+
+const { rng, noise1, lerp, clamp, mixc } = __src_engine_util;
+const { minaret } = __src_sets_town;
+const PX = 0.5; // canvas pixels per world unit
+const LIFT = { ridge: -70, city: -60, towns: -50 };
+const CACHE = new Map();
+const MAX = 14;
+
+const css = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+const q = (c) => c.map((v) => Math.round(v / 6) * 6); // quantise, so colours cache
+
+function cached(key, w, h, draw) {
+  let e = CACHE.get(key);
+  if (e) {
+    CACHE.delete(key); // most recent last
+    CACHE.set(key, e);
+    return e;
+  }
+  const cv = document.createElement('canvas');
+  cv.width = Math.ceil(w * PX);
+  cv.height = Math.ceil(h * PX);
+  const c = cv.getContext('2d');
+  draw(c);
+  e = cv;
+  CACHE.set(key, e);
+  if (CACHE.size > MAX) CACHE.delete(CACHE.keys().next().value);
+  return e;
+}
+
+// A layer's strip in world units: wide enough for the camera's whole travel.
+const strip = (depth, span) => ({ x0: -1000, x1: 1000 + span * depth, y0: -620, y1: 160 });
+
+function renderLayer(kind, depth, span, seed, color, blur, lite) {
+  const s = strip(depth, span);
+  const key = `${kind}|${seed}|${span}|${color.join(',')}|${lite ? 0 : blur}`;
+  return {
+    s,
+    cv: cached(key, s.x1 - s.x0, s.y1 - s.y0, (c) => {
+      c.scale(PX, PX);
+      c.translate(-s.x0, -s.y0);
+      if (!lite && blur) c.filter = `blur(${(blur * PX).toFixed(2)}px)`;
+      c.fillStyle = css(color);
+      c.strokeStyle = css(color);
+      LAYERS[kind](c, s, rng(seed));
+    }),
+  };
+}
+
+const LAYERS = {
+  // The ridge: long, low, rising to the west; a few masts on the summit.
+  ridge(c, s, r) {
+    c.beginPath();
+    c.moveTo(s.x0, s.y1);
+    let top = { x: 0, y: 0 };
+    for (let x = s.x0; x <= s.x1; x += 12) {
+      const k = (x - s.x0) / (s.x1 - s.x0);
+      const rise = Math.pow(1 - k, 1.4) * 90 + 30; // higher in the west
+      const y = -40 - rise - noise1(x * 0.004 + 3) * 30 - noise1(x * 0.017) * 9;
+      if (y < top.y) top = { x, y };
+      c.lineTo(x, y);
+    }
+    c.lineTo(s.x1, s.y1);
+    c.closePath();
+    c.fill();
+    // the masts on the summit
+    c.lineWidth = 2.5;
+    for (let i = 0; i < 3; i++) {
+      const mx = top.x + (i - 1) * 46 + r() * 10;
+      const my = top.y + 12 + Math.abs(i - 1) * 8;
+      c.beginPath();
+      c.moveTo(mx, my);
+      c.lineTo(mx, my - 50 - r() * 30);
+      c.stroke();
+      c.fillRect(mx - 5, my - 30, 10, 5);
+    }
+  },
+
+  // The city: dense low blocks, domes with finials, minarets, a few towers,
+  // cranes left standing over buildings that were never finished.
+  city(c, s, r) {
+    const base = 30;
+    c.beginPath();
+    c.moveTo(s.x0, s.y1);
+    for (let x = s.x0; x < s.x1; ) {
+      const w = 14 + r() * 34;
+      const h = 14 + r() * 48 + (r() < 0.06 ? 60 + r() * 60 : 0);
+      c.lineTo(x, base - h);
+      c.lineTo(x + w, base - h);
+      x += w;
+    }
+    c.lineTo(s.x1, s.y1);
+    c.closePath();
+    c.fill();
+    for (let x = s.x0 + 40; x < s.x1; x += 120 + r() * 220) {
+      const kind = r();
+      if (kind < 0.35) {
+        // a dome on a drum, with a crescent finial
+        const d = 16 + r() * 14;
+        c.fillRect(x - d * 0.8, base - 50, d * 1.6, 22);
+        c.beginPath();
+        c.arc(x, base - 50, d, Math.PI, 0);
+        c.fill();
+        c.fillRect(x - 1, base - 50 - d - 10, 2, 10);
+      } else if (kind < 0.75) {
+        minaret(c, x, base - 30, 0.5 + r() * 0.25, c.fillStyle, false);
+      } else if (kind < 0.88) {
+        // a crane: mast, jib, counter-jib, the cable hanging
+        const hgt = 150 + r() * 60;
+        c.lineWidth = 3;
+        c.beginPath();
+        c.moveTo(x, base - 20);
+        c.lineTo(x, base - hgt);
+        c.moveTo(x - 40, base - hgt + 6);
+        c.lineTo(x + 110 + r() * 40, base - hgt + 6);
+        c.stroke();
+        c.lineWidth = 1.2;
+        c.beginPath();
+        c.moveTo(x, base - hgt - 16);
+        c.lineTo(x - 40, base - hgt + 6);
+        c.moveTo(x, base - hgt - 16);
+        c.lineTo(x + 100, base - hgt + 6);
+        c.moveTo(x + 70, base - hgt + 6);
+        c.lineTo(x + 70, base - hgt + 60);
+        c.stroke();
+        c.fillRect(x - 44, base - hgt + 4, 14, 10);
+      } else {
+        // a tower block
+        c.fillRect(x, base - 120 - r() * 50, 26 + r() * 16, 140);
+      }
+    }
+  },
+
+  // The nearer towns: roofs with water tanks and dishes, broken tops with
+  // rebar, cypress spires and olive crowns between the houses.
+  towns(c, s, r) {
+    const base = 40;
+    const tops = [];
+    c.beginPath();
+    c.moveTo(s.x0, s.y1);
+    for (let x = s.x0; x < s.x1; ) {
+      const w = 40 + r() * 90;
+      const h = 30 + r() * 80;
+      const broken = r() < 0.28;
+      c.lineTo(x, base - h);
+      if (broken) {
+        c.lineTo(x + w * 0.35, base - h + 6);
+        c.lineTo(x + w * 0.5, base - h * 0.6);
+        c.lineTo(x + w * 0.62, base - h * 0.75);
+      }
+      c.lineTo(x + w, base - h);
+      tops.push([x, w, h, broken]);
+      x += w;
+    }
+    c.lineTo(s.x1, s.y1);
+    c.closePath();
+    c.fill();
+    for (const [x, w, h, broken] of tops) {
+      const y = base - h;
+      if (broken) {
+        c.lineWidth = 1.2;
+        c.beginPath();
+        for (let i = 0; i < 4; i++) {
+          const bx = x + w * (0.4 + i * 0.05);
+          c.moveTo(bx, y + h * 0.3);
+          c.lineTo(bx + (r() - 0.5) * 6, y + h * 0.3 - 10 - r() * 10);
+        }
+        c.stroke();
+        continue;
+      }
+      if (r() < 0.55) {
+        // water tank on legs
+        const tx = x + 8 + r() * (w - 26);
+        c.fillRect(tx, y - 16, 16, 11);
+        c.fillRect(tx + 2, y - 5, 2, 5);
+        c.fillRect(tx + 12, y - 5, 2, 5);
+      }
+      if (r() < 0.5) {
+        // satellite dish
+        const dx = x + 10 + r() * (w - 20);
+        c.beginPath();
+        c.ellipse(dx, y - 7, 5, 6, -0.5, 0, Math.PI * 2);
+        c.fill();
+        c.fillRect(dx - 0.5, y - 4, 1.5, 4);
+      }
+      if (r() < 0.35) {
+        // a cypress, or an olive tree, between the houses
+        const tx = x + w - 6;
+        c.beginPath();
+        if (r() < 0.5) c.ellipse(tx, base - h * 0.4 - 28, 7, 34, 0, 0, Math.PI * 2);
+        else c.ellipse(tx, base - h * 0.35, 20, 14, 0, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+  },
+
+  // High cirrus: long thin streaks, soft.
+  clouds(c, s, r) {
+    for (let i = 0; i < 18; i++) {
+      const x = s.x0 + r() * (s.x1 - s.x0);
+      const y = s.y0 + 30 + r() * 150;
+      const w = 120 + r() * 260;
+      c.globalAlpha = 0.18 + r() * 0.25;
+      c.beginPath();
+      c.ellipse(x, y, w, 5 + r() * 7, -0.03 + r() * 0.06, 0, Math.PI * 2);
+      c.fill();
+      c.beginPath();
+      c.ellipse(x + w * 0.3, y + 6, w * 0.5, 3 + r() * 4, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.globalAlpha = 1;
+  },
+};
+
+// Draw a cached layer image at its parallax depth.
+// lift: raise the layer into the band of sky that shows above the street's
+// roofs, through torn corners and down side streets.
+function place(R, layer, depth, lift = 0) {
+  R.layer(depth);
+  R.far((c) => c.drawImage(layer.cv, layer.s.x0, layer.s.y0 + lift, layer.s.x1 - layer.s.x0, layer.s.y1 - layer.s.y0));
+}
+
+// A band of haze lifting off the horizon, in screen space.
+function hazeBand(R, depth, y, color, alpha) {
+  R.layer(depth);
+  const [, v] = R.cam.toUv(0, y, R.W, R.H, depth);
+  R.far((c) => {
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    const cy = v * R.H;
+    const hgt = R.H * 0.12;
+    const g = c.createLinearGradient(0, cy - hgt, 0, cy + hgt * 0.5);
+    g.addColorStop(0, css(color, 0));
+    g.addColorStop(0.65, css(color, alpha));
+    g.addColorStop(1, css(color, alpha * 0.6));
+    c.fillStyle = g;
+    c.fillRect(0, cy - hgt, R.W, hgt * 1.5);
+    c.restore();
+  });
+}
+
+// opts: haze (rgb, the sky at the horizon), shade (rgb, the darkest far
+// silhouette), cloud (rgb), span (how far the camera travels), seed, t,
+// lights (0…1, windows lit in the city at dusk), lite (low quality).
+function horizon(R, { haze, shade, cloud = [255, 246, 232], span = 11000, seed = 1, t = 0, lights = 0, lite = false }) {
+  const H = q(haze);
+  const far = (fog) => q(mixc(shade, haze, fog));
+
+  // the cirrus drifts slowly across the whole sky
+  const cl = renderLayer('clouds', 0.03, span, seed + 5, q(cloud), 7, lite);
+  R.layer(0.03);
+  R.far((c) => {
+    c.save();
+    c.translate((t * 3) % 800, 0);
+    c.globalAlpha = 0.9;
+    c.drawImage(cl.cv, cl.s.x0 - 800, cl.s.y0, cl.s.x1 - cl.s.x0, cl.s.y1 - cl.s.y0);
+    c.drawImage(cl.cv, cl.s.x0, cl.s.y0, cl.s.x1 - cl.s.x0, cl.s.y1 - cl.s.y0);
+    c.restore();
+  });
+
+  if (!lite) {
+    place(R, renderLayer('ridge', 0.05, span, seed + 1, far(0.6), 3.5, lite), 0.05, LIFT.ridge);
+    hazeBand(R, 0.05, 20 + LIFT.ridge, H, 0.22);
+    place(R, renderLayer('city', 0.1, span, seed + 2, far(0.42), 1.8, lite), 0.1, LIFT.city);
+    if (lights > 0.02) cityLights(R, span, seed + 2, lights, t);
+  }
+  hazeBand(R, 0.1, 30 + LIFT.city, H, 0.14);
+  place(R, renderLayer('towns', 0.18, span, seed + 3, far(0.24), 0.9, lite), 0.18, LIFT.towns);
+  hazeBand(R, 0.18, 45 + LIFT.towns, H, 0.07);
+  birds(R, t, seed, shade);
+  R.layer(1);
+}
+
+// Generator lights coming on in the far city as the light goes.
+function cityLights(R, span, seed, k, t) {
+  const s = strip(0.1, span);
+  R.layer(0.1);
+  R.glow((c) => {
+    const r = rng(seed * 7 + 3);
+    for (let i = 0; i < 90; i++) {
+      const x = s.x0 + r() * (s.x1 - s.x0);
+      const y = 30 - 8 - r() * 40 + LIFT.city;
+      const on = r() < k;
+      const flick = 0.75 + 0.25 * Math.sin(t * (1 + r()) + i);
+      if (!on) continue;
+      c.fillStyle = `rgba(255,${190 + r() * 40},120,${0.55 * flick})`;
+      c.fillRect(x, y, 2.2, 2.2);
+    }
+  });
+}
+
+// Now and then a loose flock crosses the distance.
+function birds(R, t, seed, shade) {
+  const period = 34;
+  const u = (t % period) / 16;
+  if (u > 1) return;
+  const n = Math.floor(t / period);
+  const r = rng(seed * 31 + n);
+  const dir = r() < 0.5 ? 1 : -1;
+  R.layer(0.25);
+  const cx = R.cam.x * 0.25;
+  R.far((c) => {
+    c.fillStyle = css(shade, 0.7);
+    for (let i = 0; i < 14; i++) {
+      const bx = cx + dir * lerp(-1000, 1000, u) + (r() - 0.5) * 220 + Math.sin(t * 0.8 + i) * 10;
+      const by = -330 - r() * 120 + Math.sin(t * 1.3 + i * 2) * 8;
+      const flap = Math.sin(t * 9 + i * 1.7) * 2.5;
+      c.beginPath();
+      c.moveTo(bx - 5, by - flap);
+      c.quadraticCurveTo(bx - 2, by - 1, bx, by);
+      c.quadraticCurveTo(bx + 2, by - 1, bx + 5, by - flap);
+      c.lineTo(bx, by + 1.2);
+      c.fill();
+    }
+  });
+  void clamp;
+}
+
+// Parse 'rgb(r,g,b)' or '#rrggbb' to [r, g, b].
+function rgbOf(str) {
+  if (str.startsWith('#')) return [1, 3, 5].map((j) => parseInt(str.slice(j, j + 2), 16));
+  return str.match(/[\d.]+/g).slice(0, 3).map(Number);
+}
+
+return { horizon, rgbOf };
+})();
+
 // ---- src/story/act1-set.js
 const __src_story_act1_set = (() => {
 // Act 1's world: where everything stands, and how each place is drawn and lit.
@@ -6995,6 +7570,7 @@ const __src_story_act1_set = (() => {
 
 const { lerp, clamp, rng, noise1, mixc, smooth } = __src_engine_util;
 const T = __src_sets_town;
+const { horizon, rgbOf } = __src_sets_horizon;
 const { Person, POSES } = __src_rigs_person;
 const X = {
   start: 150,
@@ -7175,7 +7751,16 @@ function drawStreet(R, g) {
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
 
   T.sky(R, skyStops(a.sunK), { warmth: clamp(a.sunK || 0) });
-  T.skyline(R, { depth: 0.15, y: 30, color: '#a39a90', seed: 4, haze: ['#d8d0c4', 0.35], minarets: [600, 2100] });
+  const stops = skyStops(a.sunK);
+  horizon(R, {
+    haze: rgbOf(stops[stops.length - 1][1]),
+    shade: mixc([128, 118, 106], [98, 86, 84], a.sunK || 0),
+    cloud: mixc([255, 248, 236], [255, 214, 180], a.sunK || 0),
+    span: 11000,
+    seed: 4,
+    t,
+    lite: g.settings.get('quality') === 'low',
+  });
   // smoke from elsewhere in Ghouta, always somewhere
   T.plume(R, 900, 60, t, { depth: 0.18, age: 1, height: 380, width: 60, alpha: 0.45, color: [90, 86, 84] });
   // the barrel bomb's dust, a district away: behind the nearer rooftops
@@ -7844,6 +8429,7 @@ const ACT1 = {
     if (s.checkpoint !== 'walk') g.a.sunK = { hour: 0.2, school: 0.55, news: 0.8 }[s.checkpoint] || 0;
     if (s.checkpoint === 'hour') g.text.objective(['اتجه شرقاً نحو الأنابيب', 'Head east, to the pipes']);
     g.sound.score?.mood(s.checkpoint === 'walk' ? 'walk' : 'hour', 3);
+    g.sound.life(0.7);
   },
 
   // ============================================================ Scene 1 ==
@@ -8389,7 +8975,7 @@ const ACT1 = {
     g.sound.score?.mood('danger', 1.5);
     g.a.sunK = Math.max(g.a.sunK, 0.62);
     const impact = (x, dist) => {
-      g.sound.mortarImpact(dist);
+      g.sound.mortarImpact(dist, g.sound.panFor(x));
       g.effects.blast(x, 0, dist < 1.5 ? 1 : 0.6);
       g.a.flashAt = g.time;
       g.a.flashX = x;
@@ -8788,6 +9374,7 @@ const ACT1 = {
     const abu = g.abu;
     const s = g.state;
     g.sound.score?.mood('silence', 4);
+    g.sound.life(0); // the town goes quiet around the news
     g.lock();
     g.text.objective(null);
     // He lets Sami come to him: the walk toward is the last of not knowing.
@@ -9165,6 +9752,7 @@ const __src_story_act2r_set = (() => {
 
 const { lerp, clamp, rng, mixc } = __src_engine_util;
 const T = __src_sets_town;
+const { horizon, rgbOf } = __src_sets_horizon;
 const X = {
   start: 150,
   lanesCp: 900,
@@ -9906,7 +10494,17 @@ function drawStreet(R, g) {
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
 
   T.sky(R, skyStops(k), { sun: [0.08, lerp(0.42, 0.72, k)], warmth: clamp(0.8 + k * 0.4) });
-  T.skyline(R, { depth: 0.15, y: 30, color: mixc([163, 154, 144], [112, 98, 118], k).map(Math.round).reduce((s, v) => s + v.toString(16).padStart(2, '0'), '#'), seed: 14, haze: ['#d8b8a0', 0.3], minarets: [900] });
+  const stops = skyStops(k);
+  horizon(R, {
+    haze: rgbOf(stops[stops.length - 1][1]),
+    shade: mixc([118, 100, 104], [62, 52, 74], k),
+    cloud: mixc([255, 214, 180], [236, 150, 140], k),
+    span: 7000,
+    seed: 14,
+    t,
+    lights: clamp((k - 0.3) / 0.4),
+    lite: g.settings.get('quality') === 'low',
+  });
   T.plume(R, 1600, 60, t, { depth: 0.18, age: 1, height: 360, width: 60, alpha: 0.4, color: [80, 74, 78] });
   T.skyline(R, { depth: 0.32, y: 40, color: mixc([143, 132, 116], [96, 84, 96], k).map(Math.round).reduce((s, v) => s + v.toString(16).padStart(2, '0'), '#'), seed: 19, haze: ['#cfae96', 0.18] });
 
@@ -10297,6 +10895,7 @@ const ACT2R = {
 
     g.sound.ambience({ wind: 0.35, air: 0.45, generator: 0, crowd: 0, traffic: 0 }, 2);
     g.sound.score?.mood('dusk', 4);
+    g.sound.life(0.5);
     g.runner.run(this.opening(g));
     g.runner.run(ambient(g));
   },
@@ -10452,6 +11051,7 @@ const ACT2R = {
     const p = g.player;
     const gd = g.guard;
     g.sound.score?.mood('silence', 3);
+    g.sound.life(0); // near the line, nothing moves
     g.sound.ambience({ wind: 0.12, air: 0.15, generator: 0 }, 3);
     g.lock();
     g.text.objective(null);
