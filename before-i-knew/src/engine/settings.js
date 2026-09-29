@@ -15,6 +15,10 @@ export const DEFAULTS = {
   shake: true,
   reduceFlashes: false,
   hints: true,
+  readSpeed: 1, // subtitle time: 1.35 slow, 1 normal, 0.8 fast
+  crouchMode: 'toggle', // 'toggle' | 'hold'
+  lanes: 'standard', // Act Two sniper lanes: 'standard' | 'forgiving'
+  vibration: true,
   lang: 'en', // menu language: 'en' | 'ar'
   backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
   quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'

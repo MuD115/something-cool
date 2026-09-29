@@ -414,6 +414,41 @@ export class Sound {
     if (crouch) this.noise({ when: w + 0.02, dur: 0.22, freq: 2200, q: 0.5, vol: v * 0.12, attack: 0.06, ...o });
   }
 
+  // A cat's purr: a low rumble pulsing about 25 times a second, swelling on
+  // each breath in and out.
+  purr(dur = 3, pan) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const w = this.t;
+    const src = this.noiseSrc(this.brownBuf);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 320;
+    f.Q.value = 0.7;
+    const am = ctx.createGain();
+    am.gain.value = 0.5;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 25;
+    const depth = ctx.createGain();
+    depth.gain.value = 0.5;
+    lfo.connect(depth).connect(am.gain);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    // breathing: in (higher, softer), out (lower, fuller), about 1.4 s a cycle
+    for (let t = 0; t < dur; t += 1.4) {
+      g.gain.linearRampToValueAtTime(0.16, w + t + 0.5);
+      g.gain.linearRampToValueAtTime(0.1, w + t + 0.75);
+      g.gain.linearRampToValueAtTime(0.28, w + t + 1.25);
+      lfo.frequency.setValueAtTime(27, w + t);
+      lfo.frequency.setValueAtTime(23, w + t + 0.7);
+    }
+    g.gain.exponentialRampToValueAtTime(0.0001, w + dur + 0.4);
+    src.connect(f).connect(am).connect(g).connect(this.out(this.fx, pan));
+    lfo.start(w);
+    lfo.stop(w + dur + 0.5);
+    src.stop(w + dur + 0.5);
+  }
+
   land(vol = 0.35) {
     this.tone(110, 0.15, { vol, to: 50 });
     this.noise({ dur: 0.2, freq: 1200, q: 0.7, vol: vol * 0.6 });
@@ -537,6 +572,7 @@ export class Sound {
   // A missile strike beyond the rooftops: sharper than a barrel, shorter tail.
   strikeFar(delay = 0) {
     const w = this.t + delay;
+    this.onImpact?.(1, 1.6, delay);
     const brown = this.brownBuf;
     this.duck(1, 6);
     // the crack of it, off the buildings
@@ -592,6 +628,7 @@ export class Sound {
 
   mortarImpact(dist = 1, pan) {
     const v = 1 / Math.max(dist, 0.6);
+    this.onImpact?.(Math.min(1, 0.55 * v), 0.5);
     const o = { pan };
     this.duck(0.85, 3);
     this.noise({ dur: 0.2, freq: 2600, type: 'highpass', vol: 0.45 * v, q: 0.4, ...o });
@@ -724,6 +761,7 @@ export class Sound {
   // report from the hill, then the round slaps into the wall ahead.
   sniperCrack() {
     if (!this.ctx) return;
+    this.onImpact?.(0.35, 0.12);
     this.noise({ dur: 0.035, freq: 5200, q: 0.5, type: 'highpass', vol: 0.55 });
     this.noise({ when: this.t + 0.012, dur: 0.06, freq: 1400, q: 0.8, vol: 0.35 });
     // the chip of stone and the grit that follows it

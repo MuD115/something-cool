@@ -547,6 +547,65 @@
   .log-lines .en { color: #ddd6c9; font-size: max(12px, calc(var(--u) * 0.88)); }
   .log-row.style-examine .log-lines { font-style: italic; }
 
+  /* --------------------------- chapters' scenes, your story, belongings --- */
+  .chapter-list .menu-btn.scene { padding-block: 0.35em; margin-inline-start: 2.2em; width: calc(100% - 2.2em); }
+  .chapter-list .menu-btn.scene .menu-btn-n { font-size: max(9px, calc(var(--u) * 0.62)); min-width: 4.6em; }
+  .chapter-list .menu-btn.scene .menu-btn-label { font-size: 0.86em; }
+  .menu-story, .menu-belongings { max-height: min(58vh, 460px); overflow-y: auto; display: grid; gap: 12px; padding: 0.4em 0.4em 0.6em 0; outline: none; }
+  .story-dec, .story-notes { display: grid; gap: 0.35em; }
+  .story-dec-t { margin: 0; display: flex; gap: 0.8em; align-items: baseline; font: 600 max(12px, calc(var(--u) * 0.86)) / 1.3 var(--sans); color: var(--ink); }
+  .menu[dir='rtl'] .story-dec-t { font-family: var(--arabic); }
+  .story-dec-t time { font: 500 max(10px, calc(var(--u) * 0.72)) / 1 var(--mono); color: var(--dust); }
+  .story-count { margin-inline-start: auto; font: 500 max(10px, calc(var(--u) * 0.72)) / 1 var(--mono); color: var(--dust); }
+  .story-dec ul, .story-notes ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.25em; }
+  .story-dec li, .story-notes li { display: flex; gap: 0.8em; align-items: baseline; padding: 0.3em 0.7em; border-inline-start: 2px solid var(--line); font: italic max(12px, calc(var(--u) * 0.9)) / 1.45 var(--serif); color: #cfc7b9; }
+  .menu[dir='rtl'] .story-dec li, .menu[dir='rtl'] .story-notes li { font-style: normal; font-family: var(--arabic); }
+  .story-dec li.last { border-color: var(--leaf); color: var(--ink); }
+  .story-dec li em { margin-inline-start: auto; flex: none; font: 500 max(9px, calc(var(--u) * 0.6)) / 1 var(--mono); font-style: normal; letter-spacing: 0.12em; text-transform: uppercase; color: var(--leaf); }
+  .menu[dir='rtl'] .story-dec li em { font-family: var(--arabic); letter-spacing: 0; }
+  .story-dec li.unseen { color: var(--faint); font-style: normal; letter-spacing: 0.3em; }
+  .story-dots { margin: 0.1em 0 0; color: var(--leaf); letter-spacing: 0.35em; font-size: max(9px, calc(var(--u) * 0.6)); }
+  .belong { display: grid; gap: 0.3em; justify-items: start; padding: 0.5em 0; border-bottom: 1px solid var(--line); }
+  .belong-name { margin: 0; display: flex; gap: 0.7em; align-items: baseline; font: 600 max(13px, calc(var(--u) * 0.95)) / 1.3 var(--sans); color: var(--ink); }
+  .menu[dir='rtl'] .belong-name { font-family: var(--arabic); }
+  .belong-desc { margin: 0; display: grid; gap: 0.2em; justify-self: stretch; }
+  .belong-desc .ar { text-align: right; font: max(13px, calc(var(--u) * 0.98)) / 1.5 var(--arabic); color: #ddd6c9; }
+  .belong-desc .en { font: italic max(12px, calc(var(--u) * 0.88)) / 1.45 var(--serif); color: #cfc7b9; }
+  .journal-page { position: relative; display: grid; gap: 0.9em; padding: 1.4em 1.6em; border-radius: 3px; background: linear-gradient(#e9dfc8, #ddd0b3); color: #2b2621; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45); background-image: repeating-linear-gradient(transparent 0 1.9em, rgba(60, 80, 120, 0.18) 1.9em calc(1.9em + 1px)), linear-gradient(#e9dfc8, #ddd0b3); }
+  .journal-ar { margin: 0; text-align: right; font: 400 max(18px, calc(var(--u) * 1.5)) / 1.9 var(--ruqaa); color: #28231e; }
+  .journal-en { margin: 0; font: italic max(12px, calc(var(--u) * 0.88)) / 1.5 var(--serif); color: #5a5046; }
+  .journal-page .log-draft { position: absolute; inset-inline-end: 0.8em; bottom: 0.6em; color: #8a7f70; }
+  .journal-nav { display: flex; align-items: center; justify-content: space-between; gap: 1em; margin-top: 0.4em; }
+  .journal-n { font: 500 max(10px, calc(var(--u) * 0.7)) / 1 var(--mono); color: var(--dust); }
+  .menu[dir='rtl'] .journal-n { font-family: var(--arabic); }
+  .menu-link:disabled { opacity: 0.35; cursor: default; }
+  .menu-about h3 + p, .end-after p { max-width: 60ch; }
+  #end { overflow-y: auto; }
+  .end-noticed { font: italic max(12px, calc(var(--u) * 0.9)) / 1.4 var(--serif) !important; color: var(--dust) !important; }
+  .sheet[dir='rtl'] .end-noticed { font-style: normal !important; font-family: var(--arabic) !important; }
+  .sheet button.end-after-link { border: none; padding: 0.4em 0.8em; color: var(--dust); text-decoration: underline; text-underline-offset: 0.25em; font-size: max(11px, calc(var(--u) * 0.8)); }
+  .end-after { display: grid; gap: 0.6em; justify-items: center; max-width: 60ch; padding-bottom: 1.2em; }
+  .end-after h3 { margin: 0; font: 500 max(10px, calc(var(--u) * 0.72)) / 1 var(--mono); letter-spacing: 0.22em; text-transform: uppercase; color: var(--leaf); }
+  .sheet[dir='rtl'] .end-after h3 { font: 700 max(12px, calc(var(--u) * 0.85)) / 1.2 var(--arabic); letter-spacing: 0; }
+
+  /* ------------------------------------------------ saved, photo mode --- */
+  #saved { position: absolute; z-index: 12; inset-inline-end: calc(var(--u) * 1.4); bottom: calc(var(--u) * 1.2); display: flex; gap: 0.5em; align-items: center; font: 500 max(10px, calc(var(--u) * 0.7)) / 1 var(--mono); letter-spacing: 0.12em; text-transform: uppercase; color: var(--dust); opacity: 0; pointer-events: none; }
+  #stage[data-lang='ar'] #saved { font-family: var(--arabic); letter-spacing: 0; }
+  #saved.show { animation: savedShow 1.9s ease both; }
+  #saved .saved-ring { width: 0.95em; height: 0.95em; border-radius: 50%; border: 1.5px solid var(--leaf); border-top-color: transparent; animation: spin 0.9s linear infinite; }
+  @keyframes savedShow { 0% { opacity: 0; } 15%, 75% { opacity: 1; } 100% { opacity: 0; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  #stage.photo :is(#objective, #tools, #card, #prompt, #hint, #sub, #choice, #touch, #saved) { visibility: hidden !important; }
+  #photo { position: absolute; z-index: 30; left: 50%; bottom: calc(var(--u) * 1.2); transform: translateX(-50%); display: grid; gap: 0.5em; justify-items: center; width: min(94%, 760px); padding: 0.7em 1em; border-radius: 10px; background: rgba(8, 7, 6, 0.62); backdrop-filter: blur(6px); }
+  #photo[dir='rtl'] :is(p, button) { font-family: var(--arabic); }
+  .photo-help { margin: 0; font: 500 max(10px, calc(var(--u) * 0.7)) / 1.4 var(--mono); color: var(--dust); text-align: center; }
+  .photo-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  .photo-btns button { font: 500 max(12px, calc(var(--u) * 0.85)) / 1 var(--sans); color: var(--ink); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 0.6em 1.1em; cursor: pointer; }
+  .photo-btns button.primary { background: var(--paper); color: var(--night); border-color: var(--paper); }
+  .photo-btns button:hover, .photo-btns button:focus-visible { border-color: var(--leaf); outline: none; }
+  .photo-toast { margin: 0; min-height: 1em; font: 500 max(10px, calc(var(--u) * 0.7)) / 1 var(--mono); color: var(--leaf); }
+  @media (prefers-reduced-motion: reduce) { #saved .saved-ring { animation: none; } }
+
   /* --------------------------------------------- note, end, touch --- */
   .sheet {
     position: absolute;
@@ -686,6 +745,8 @@
     <button type="button" id="t-skip" aria-label="Skip line"><svg viewBox="0 0 24 24" width="20" height="20"><path d="M5 6l7 6-7 6zM13 6l7 6-7 6z" fill="currentColor"/></svg></button>
   </div>
 
+  <div id="saved" aria-hidden="true"><span class="saved-ring"></span><span class="saved-t"></span></div>
+  <div id="photo" hidden></div>
   <div id="menu"></div>
 
   <section id="note" class="sheet" hidden aria-labelledby="note-h"></section>
@@ -1658,6 +1719,41 @@ class Sound {
     if (crouch) this.noise({ when: w + 0.02, dur: 0.22, freq: 2200, q: 0.5, vol: v * 0.12, attack: 0.06, ...o });
   }
 
+  // A cat's purr: a low rumble pulsing about 25 times a second, swelling on
+  // each breath in and out.
+  purr(dur = 3, pan) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const w = this.t;
+    const src = this.noiseSrc(this.brownBuf);
+    const f = ctx.createBiquadFilter();
+    f.type = 'lowpass';
+    f.frequency.value = 320;
+    f.Q.value = 0.7;
+    const am = ctx.createGain();
+    am.gain.value = 0.5;
+    const lfo = ctx.createOscillator();
+    lfo.frequency.value = 25;
+    const depth = ctx.createGain();
+    depth.gain.value = 0.5;
+    lfo.connect(depth).connect(am.gain);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    // breathing: in (higher, softer), out (lower, fuller), about 1.4 s a cycle
+    for (let t = 0; t < dur; t += 1.4) {
+      g.gain.linearRampToValueAtTime(0.16, w + t + 0.5);
+      g.gain.linearRampToValueAtTime(0.1, w + t + 0.75);
+      g.gain.linearRampToValueAtTime(0.28, w + t + 1.25);
+      lfo.frequency.setValueAtTime(27, w + t);
+      lfo.frequency.setValueAtTime(23, w + t + 0.7);
+    }
+    g.gain.exponentialRampToValueAtTime(0.0001, w + dur + 0.4);
+    src.connect(f).connect(am).connect(g).connect(this.out(this.fx, pan));
+    lfo.start(w);
+    lfo.stop(w + dur + 0.5);
+    src.stop(w + dur + 0.5);
+  }
+
   land(vol = 0.35) {
     this.tone(110, 0.15, { vol, to: 50 });
     this.noise({ dur: 0.2, freq: 1200, q: 0.7, vol: vol * 0.6 });
@@ -1781,6 +1877,7 @@ class Sound {
   // A missile strike beyond the rooftops: sharper than a barrel, shorter tail.
   strikeFar(delay = 0) {
     const w = this.t + delay;
+    this.onImpact?.(1, 1.6, delay);
     const brown = this.brownBuf;
     this.duck(1, 6);
     // the crack of it, off the buildings
@@ -1836,6 +1933,7 @@ class Sound {
 
   mortarImpact(dist = 1, pan) {
     const v = 1 / Math.max(dist, 0.6);
+    this.onImpact?.(Math.min(1, 0.55 * v), 0.5);
     const o = { pan };
     this.duck(0.85, 3);
     this.noise({ dur: 0.2, freq: 2600, type: 'highpass', vol: 0.45 * v, q: 0.4, ...o });
@@ -1968,6 +2066,7 @@ class Sound {
   // report from the hill, then the round slaps into the wall ahead.
   sniperCrack() {
     if (!this.ctx) return;
+    this.onImpact?.(0.35, 0.12);
     this.noise({ dur: 0.035, freq: 5200, q: 0.5, type: 'highpass', vol: 0.55 });
     this.noise({ when: this.t + 0.012, dur: 0.06, freq: 1400, q: 0.8, vol: 0.35 });
     // the chip of stone and the grit that follows it
@@ -2331,6 +2430,9 @@ const __src_engine_i18n = (() => {
 // own two languages (subtitles setting); this is the menus, settings, sheets
 // and HUD labels (the menu language setting).
 
+// Eastern Arabic digits for the Arabic strings.
+const ar = (n) => String(n).replace(/[0-9]/g, (d) => '٠١٢٣٤٥٦٧٨٩'[d]);
+
 const STR = {
   en: {
     kickerDate: 'Ghouta · August 2014',
@@ -2411,6 +2513,57 @@ const STR = {
     checkpoints: { walk: 'The Walk', hour: 'The Hour', school: 'The School', news: 'The Corner', south: 'Act Two · South', lanes: 'Act Two · The Lanes', front: 'Act Two · The Frontline' },
     times: { walk: '3:05 pm', hour: '3:25 pm', school: '3:50 pm', news: '4:10 pm', south: '4:30 pm', lanes: '4:35 pm', front: '4:50 pm' },
     rotate: 'Turn your phone sideways for the full frame.',
+    // accessibility
+    gAccess: 'Accessibility',
+    readSpeed: 'Subtitle reading time',
+    slow: 'Longer',
+    normal: 'Normal',
+    fast: 'Shorter',
+    crouchMode: 'Crouch and prone',
+    crouchToggle: 'Press to toggle',
+    crouchHold: 'Hold',
+    lanes: 'Sniper lanes',
+    lanesStandard: 'Standard',
+    lanesForgiving: 'Forgiving',
+    vibration: 'Vibration',
+    // the story so far
+    yourStory: 'Your story',
+    yourStorySub: 'The choices you have made, and those still ahead of you',
+    storyLast: 'Last time',
+    storyUnseen: 'Not yet chosen',
+    storyNone: 'Finish an act to see its choices here.',
+    decWater: 'The old man and his water',
+    decMortar: 'When the mortars came',
+    decNews: 'After the news',
+    decWay: 'How to reach Ahmad',
+    memories: 'What you noticed',
+    memoriesSub: 'The things Sami stopped to look at',
+    memoriesNone: 'Nothing yet. Stop and look around.',
+    noticed: (n, of) => `You stopped to look at ${n} of ${of} things.`,
+    noticedAct: (n, of) => `${n} of ${of}`,
+    belongings: 'Belongings',
+    belongingsNone: 'Sami carries nothing yet.',
+    read: 'Read',
+    pageN: (n, of) => `Page ${n} of ${of}`,
+    prevPage: 'Previous page',
+    nextPage: 'Next page',
+    scenes: 'Scenes',
+    sceneLocked: 'Reach it in the story to open it',
+    saved: 'Saved',
+    // photo mode
+    photo: 'Photo mode',
+    photoHelp: 'Arrows: move · + / −: zoom · F: filter · Enter: save · Esc: leave',
+    photoSave: 'Save photo',
+    photoFilter: 'Filter',
+    photoExit: 'Leave',
+    photoSaved: 'Photo saved',
+    fNatural: 'Natural',
+    fWarm: 'Warm',
+    fMono: 'Black and white',
+    fFaded: 'Faded',
+    // afterword
+    afterword: 'Afterword',
+    afterwordLink: 'Read the afterword',
   },
   ar: {
     kickerDate: 'الغوطة · آب ٢٠١٤',
@@ -2489,6 +2642,53 @@ const STR = {
     checkpoints: { walk: 'المشوار', hour: 'الساعة', school: 'المدرسة', news: 'الزاوية', south: 'الفصل الثاني · الجنوب', lanes: 'الفصل الثاني · الممرات', front: 'الفصل الثاني · خط التماس' },
     times: { walk: '٣:٠٥', hour: '٣:٢٥', school: '٣:٥٠', news: '٤:١٠', south: '٤:٣٠', lanes: '٤:٣٥', front: '٤:٥٠' },
     rotate: 'أدِر هاتفك أفقياً لرؤية الصورة كاملة.',
+    gAccess: 'سهولة الوصول',
+    readSpeed: 'مدة عرض الترجمة',
+    slow: 'أطول',
+    normal: 'عادية',
+    fast: 'أقصر',
+    crouchMode: 'الانحناء والانبطاح',
+    crouchToggle: 'اضغط للتبديل',
+    crouchHold: 'اضغط باستمرار',
+    lanes: 'ممرات القنّاص',
+    lanesStandard: 'عادية',
+    lanesForgiving: 'متسامحة',
+    vibration: 'الاهتزاز',
+    yourStory: 'قصّتك',
+    yourStorySub: 'الخيارات التي اتخذتها، والخيارات التي لم تجرّبها بعد',
+    storyLast: 'في المرة الأخيرة',
+    storyUnseen: 'لم يُختَر بعد',
+    storyNone: 'أنهِ فصلاً لترى خياراته هنا.',
+    decWater: 'الرجل العجوز وماؤه',
+    decMortar: 'حين سقطت القذائف',
+    decNews: 'بعد الخبر',
+    decWay: 'الطريق إلى أحمد',
+    memories: 'ما لاحظته',
+    memoriesSub: 'الأشياء التي توقّف سامي ليتأمّلها',
+    memoriesNone: 'لا شيء بعد. توقّف وتأمّل ما حولك.',
+    noticed: (n, of) => `توقّفتَ لتتأمّل ${ar(n)} من ${ar(of)} أشياء.`,
+    noticedAct: (n, of) => `${ar(n)} من ${ar(of)}`,
+    belongings: 'الأغراض',
+    belongingsNone: 'لا يحمل سامي شيئاً بعد.',
+    read: 'اقرأ',
+    pageN: (n, of) => `الصفحة ${ar(n)} من ${ar(of)}`,
+    prevPage: 'الصفحة السابقة',
+    nextPage: 'الصفحة التالية',
+    scenes: 'المشاهد',
+    sceneLocked: 'بلغه في القصة لفتحه',
+    saved: 'تمّ الحفظ',
+    photo: 'وضع التصوير',
+    photoHelp: 'الأسهم: تحريك · + / −: تكبير · F: مرشّح · Enter: حفظ · Esc: خروج',
+    photoSave: 'احفظ الصورة',
+    photoFilter: 'مرشّح',
+    photoExit: 'خروج',
+    photoSaved: 'حُفظت الصورة',
+    fNatural: 'طبيعي',
+    fWarm: 'دافئ',
+    fMono: 'أبيض وأسود',
+    fFaded: 'باهت',
+    afterword: 'كلمة أخيرة',
+    afterwordLink: 'اقرأ الكلمة الأخيرة',
   },
 };
 
@@ -2952,6 +3152,10 @@ const DEFAULTS = {
   shake: true,
   reduceFlashes: false,
   hints: true,
+  readSpeed: 1, // subtitle time: 1.35 slow, 1 normal, 0.8 fast
+  crouchMode: 'toggle', // 'toggle' | 'hold'
+  lanes: 'standard', // Act Two sniper lanes: 'standard' | 'forgiving'
+  vibration: true,
   lang: 'en', // menu language: 'en' | 'ar'
   backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
   quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'
@@ -5512,6 +5716,7 @@ class Game {
   checkpoint(id) {
     this.state.checkpoint = id;
     writeSave(this.state);
+    this.onCheckpoint?.(id, this.state);
   }
 
   lock(on = true) {
@@ -5531,11 +5736,19 @@ class Game {
   // How long a line stays up: long enough to read the longer of its two
   // languages (Arabic reads a little slower per letter).
   readTime(line) {
-    return Math.max(2.4, 1.2 + Math.max(line[1].length * 0.055, line[0].length * 0.065));
+    const k = this.settings.get('readSpeed') || 1;
+    return Math.max(2.4, 1.2 + Math.max(line[1].length * 0.055, line[0].length * 0.065)) * k;
+  }
+
+  // A scripted duration is stretched or shortened by the reading-time
+  // setting too, never below what the line needs at that setting.
+  dur(line, dur) {
+    const k = this.settings.get('readSpeed') || 1;
+    return dur == null ? this.readTime(line) : Math.max(dur * k, k < 1 ? this.readTime(line) : 0);
   }
 
   *say(who, line, dur = null, style = '') {
-    const d = dur ?? this.readTime(line);
+    const d = this.dur(line, dur);
     const id = this.text.say(who, line, d, style);
     this.sound.score?.speak(d);
     const end = this.time + d;
@@ -5545,7 +5758,7 @@ class Game {
 
   // Show a line without waiting for it.
   line(who, line, dur = null, style = '') {
-    const d = dur ?? this.readTime(line);
+    const d = this.dur(line, dur);
     this.text.say(who, line, d, style);
     this.sound.score?.speak(d);
   }
@@ -5658,14 +5871,23 @@ class Game {
       if (done) this.autoWalk = null;
     } else if (!this.locked && this.scene === 'street') {
       let stance;
-      if (input.hit('crouch')) stance = p.stance === 'crouch' ? 'stand' : 'crouch';
-      if (input.hit('prone')) stance = p.stance === 'prone' ? 'stand' : 'prone';
-      if (input.hit('jump') && p.stance !== 'stand') stance = 'stand';
+      let told = true;
+      if (this.settings.get('crouchMode') === 'hold') {
+        // held: down while the key is, up (when there's room) once it's let go
+        const want = input.held('prone') ? 'prone' : input.held('crouch') ? 'crouch' : 'stand';
+        told = want !== this.heldWant;
+        this.heldWant = want;
+        if (want !== p.stance && (want !== 'stand' || !p.override)) stance = want;
+      } else {
+        if (input.hit('crouch')) stance = p.stance === 'crouch' ? 'stand' : 'crouch';
+        if (input.hit('prone')) stance = p.stance === 'prone' ? 'stand' : 'prone';
+        if (input.hit('jump') && p.stance !== 'stand') stance = 'stand';
+      }
       const move = (input.held('right') ? 1 : 0) - (input.held('left') ? 1 : 0);
       p.update(dt, { move: this.gate ? this.gate(move) : move, run: input.held('run'), jump: input.hit('jump') && p.stance === 'stand', stance });
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
-      } else if (stance === 'stand' && p.stance !== 'stand') {
+      } else if (stance === 'stand' && p.stance !== 'stand' && told) {
         this.text.say(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
@@ -5751,7 +5973,11 @@ class Game {
     const [u, v] = this.R.cam.toUv(t.x, t.y, this.R.W, this.R.H);
     const key = keyLabel(this.input.bindings().interact?.[0]);
     this.text.hint(u, v, key, t.label);
-    if (this.input.hit('interact')) t.use(this);
+    if (this.input.hit('interact')) {
+      t.use(this);
+      // an examine point: remember it, and what Sami made of it
+      if (t.look) this.onNotice?.(t.id, t.lookText || this.text.log[this.text.log.length - 1]?.line);
+    }
   }
 
   // Torch as a light source, for the act's look().
@@ -5818,6 +6044,7 @@ class Cat {
     this.blink = 0;
     this.time = 0;
     this.headTurn = 0; // kept for the scene scripts
+    this.lean = 0; // 0 … 1: leaning its head into a hand
     this.hidden = false;
   }
 
@@ -5836,12 +6063,14 @@ class Cat {
     const bob = walking ? Math.sin(this.phase * Math.PI * 4) * 1.2 : 0;
     const STAND = [[-34, -34], [-28, -41], [-6, -38], [14, -42], [22, -45], [30, -29], [21, -16], [-2, -20], [-17, -19], [-33, -23]];
     const SIT = [[-26, -6], [-27, -22], [-15, -38], [2, -50], [9, -55], [19, -37], [17, -14], [7, -5], [-6, -2], [-24, 0]];
-    const outline = STAND.map((q, k) => [lerp(q[0], SIT[k][0], s), lerp(q[1] + bob, SIT[k][1] + (k >= 2 && k <= 5 ? breathe * 0.4 : 0), s)]);
+    // leaning into a hand, standing: the back and rump rise to meet it
+    const arch = [0, 3, 4, 2, 0, 0, 0, 0, 0, 1];
+    const outline = STAND.map((q, k) => [lerp(q[0], SIT[k][0], s), lerp(q[1] + bob - arch[k] * this.lean, SIT[k][1] + (k >= 2 && k <= 5 ? breathe * 0.4 : 0), s)]);
     return {
       s,
       walking,
       outline,
-      head: mixp([35, -52 + bob], [17, -69 + breathe * 0.3], s),
+      head: mixp([35 + this.lean * 3, -52 + bob - this.lean * 2], [17 + this.lean * 4, -69 + breathe * 0.3 + this.lean * 3], s),
       shoulder: mixp([20, -30 + bob], [12, -28], s),
       hip: mixp([-24, -30 + bob], [-14, -12], s),
       breathe,
@@ -5915,7 +6144,7 @@ class Cat {
   headDraw(ctx, h) {
     ctx.save();
     ctx.translate(h[0], h[1]);
-    ctx.rotate(noise1(this.time * 0.3) * 0.05);
+    ctx.rotate(noise1(this.time * 0.3) * 0.05 * (1 - this.lean) - this.lean * 0.32);
     ctx.scale(1.2, 1.2);
     // far ear, then the skull, muzzle and chin
     ctx.fillStyle = FAR;
@@ -6073,7 +6302,8 @@ class Cat {
     if (s > 0.5) {
       // out behind the haunch and round the front of the paws
       ctx.bezierCurveTo(r[0] - 14, r[1] + 4, -20, 1, 2, -1.5);
-      ctx.quadraticCurveTo(20 + sway * 0.5, -2, 27 + flick, -7 - flick * 0.4);
+      const curl = this.lean * 9;
+      ctx.quadraticCurveTo(20 + sway * 0.5, -2 - curl * 0.3, 27 + flick - curl * 0.3, -7 - flick * 0.4 - curl);
     } else {
       ctx.bezierCurveTo(r[0] - 16, r[1] + 2, r[0] - 26 + sway, r[1] - 22, r[0] - 16 + sway, r[1] - 40 - flick);
     }
@@ -8369,6 +8599,9 @@ const SPOT_SIT = { ...POSES.sitChair, head: 0.05, armN: 0.75, foreN: 2.95 };
 
 // Pause between lines so the dialogue breathes.
 const GAP = 0.45;
+const CAT_LINE = ['بسّة. مو جوعانة أكتر من أي حدا هون. وعم تستنى نفس الشي: إنو يخلص.', 'A cat. No hungrier than anyone else here. Waiting for the same thing: for it to end.'];
+// (not in the script: a placeholder for the stroke)
+const STROKE_LINE = ['خلّتني. للحظة، ما في غير شي دافي تحت إيدي.', 'It lets me. For a moment, there’s only something warm under my hand.'];
 
 function* talk(g, lines) {
   for (const [who, line, style] of lines) {
@@ -8391,12 +8624,12 @@ const ACT1 = {
     L.ceiling(X.sag0, X.sag1, -150); // the sagged curtain: crouch under it
 
     // --- examine texts from the script ---
-    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
-    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
-    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
-    L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
-    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
+    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
+    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, look: true, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
+    L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, look: true, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
+    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
       id: 'shard',
       x: X.shard,
@@ -8941,8 +9174,23 @@ const ACT1 = {
       y: -200,
       range: 110,
       label: ['القطة', 'The cat'],
+      look: true,
+      lookText: CAT_LINE,
       enabled: () => !cat.hidden && !g.a.catDone,
       use: () => g.runner.run(this.catScene(g)),
+    });
+    // for a few seconds after, it will let him reach out to it
+    L.add({
+      id: 'catStroke',
+      x: X.catWall,
+      y: -200,
+      range: 130,
+      urgent: true,
+      label: ['ملّس عليها', 'Stroke it'],
+      look: true,
+      lookText: STROKE_LINE,
+      enabled: () => g.a.catWait && !g.a.stroke,
+      use: () => (g.a.stroke = true),
     });
 
     L.at(6950, () => {
@@ -9201,8 +9449,21 @@ const ACT1 = {
       cat.blink = Math.sin(clamp(k) * Math.PI);
       return k >= 1;
     };
-    yield* g.say(null, ['بسّة. مو جوعانة أكتر من أي حدا هون. وعم تستنى نفس الشي: إنو يخلص.', 'A cat. No hungrier than anyone else here. Waiting for the same thing: for it to end.'], 6, 'examine');
+    yield* g.say(null, CAT_LINE, 6, 'examine');
+    // it stays a moment, if he wants to reach out to it
+    g.a.catWait = true;
+    g.lock(false);
+    const t2 = g.time;
+    yield () => g.a.stroke || g.time - t2 > 5;
+    g.a.catWait = false;
+    if (g.a.stroke) {
+      yield* this.catStroke(g);
+      g.camOverride = null;
+      g.lock(false);
+      return;
+    }
     yield 1.2;
+    g.lock();
     // it turns, drops off the wall, and is gone into the rubble without a sound
     cat.f = 1;
     const t1 = g.time;
@@ -9217,6 +9478,83 @@ const ACT1 = {
     };
     g.camOverride = null;
     g.lock(false);
+  },
+
+  // Sami crouches and holds out a hand. The cat drops off the wall, comes to
+  // him, turns its back to be stroked, arches into his hand with its eyes
+  // closed and purrs; then it has had enough, and goes into the rubble.
+  *catStroke(g) {
+    const cat = g.cat;
+    const p = g.player;
+    g.lock();
+    g.state.stroked_cat = true;
+    const f = p.x < cat.x ? 1 : -1;
+    // room for the cat between him and the foot of the wall
+    yield* g.walkPlayer(X.catWall - f * 150);
+    p.f = f;
+    g.camOverride = { x: X.catWall - f * 90, y: -150, view: 820 };
+    // his hand, low and forward, at the height of a standing cat's back
+    const backY = p.y - 34 * 0.9 - 2;
+    const reach = handTo(p, 'sami', 0, backY, f, { ...POSES.crouch, head: 0.3 });
+    const handX = p.x - reach.x;
+    const rest = { ...reach.pose, armN: 0.45, foreN: 1.0 };
+    p.override = rest;
+    g.sound.cloth();
+    yield 0.5;
+    p.override = reach.pose;
+    yield 0.6;
+
+    // down off the wall, landing where its back will be under his hand
+    const landX = handX + 5.4 * f;
+    const x0 = cat.x;
+    const y0 = cat.y;
+    cat.f = -f;
+    const t1 = g.time;
+    yield () => {
+      const k = clamp((g.time - t1) / 0.7);
+      cat.sit = 1 - clamp(k * 4);
+      cat.x = lerp(x0, landX, smooth(k));
+      cat.y = lerp(y0, p.y, k) - Math.sin(k * Math.PI) * 30;
+      cat.speed = k < 0.3 ? 0 : 50;
+      return k >= 1;
+    };
+    cat.speed = 0;
+    g.sound.step('grit', 0.05, { pan: g.sound.panFor(cat.x) });
+    yield 0.35;
+    // it turns, and offers its back
+    cat.f = f;
+    yield 0.3;
+
+    g.sound.purr(4.6, g.sound.panFor(cat.x));
+    const t0 = g.time;
+    yield () => {
+      const k = (g.time - t0) / 4.6;
+      // three slow strokes along its back, head to tail
+      const s = Math.sin(clamp(k) * Math.PI * 6 - Math.PI / 2);
+      p.override = { ...reach.pose, armN: reach.pose.armN + s * 0.12, foreN: reach.pose.foreN + s * 0.05 };
+      cat.lean = Math.sin(clamp(k * 1.4) * Math.PI * 0.5) * (1 - clamp((k - 0.88) * 8));
+      cat.blink = cat.lean * 0.9;
+      return k >= 1;
+    };
+    g.line(null, STROKE_LINE, 5, 'examine');
+    const e = g.text.log[g.text.log.length - 1];
+    if (e?.line === STROKE_LINE) e.draft = true; // "[draft]" in the log
+    cat.lean = 0;
+    cat.blink = 0;
+    p.override = rest;
+    yield 0.8;
+    // off, unhurried, towards the rubble, and gone
+    const t2 = g.time;
+    const x2 = cat.x;
+    yield () => {
+      const k = (g.time - t2) / 1.8;
+      cat.x = x2 + f * k * 130;
+      cat.speed = 60;
+      if (k >= 1) cat.hidden = true;
+      return k >= 1;
+    };
+    p.override = null;
+    yield 0.8;
   },
 
   *flashback(g) {
@@ -9574,20 +9912,26 @@ function handOnShoulder(who, to) {
   to.rig.solve();
   const [sx, sy] = to.rig.world('shoulder');
   const f = to.x < who.x ? -1 : 1;
-  const probe = new Person('abuyazan', who.rig.scale);
+  // the hand lands just on the near side of the shoulder
+  return handTo(who, 'abuyazan', sx - f * 2, sy - 4, f);
+}
+
+// The same for any point: the arm angle that brings the near hand to height
+// ty, and where to stand (facing f) so it lands at tx.
+function handTo(who, outfit, tx, ty, f, base = { ...POSES.stand, head: 0.12 }) {
+  const probe = new Person(outfit, who.rig.scale);
   let best = null;
-  for (let a = 0.9; a <= 1.9; a += 0.02) {
-    const pose = { ...POSES.stand, head: 0.12, armN: a, foreN: a + 0.12 };
+  for (let a = 0.6; a <= 2.4; a += 0.02) {
+    const pose = { ...base, armN: a, foreN: a + 0.12 };
     probe.setPose(pose);
     probe.x = 0;
     probe.y = who.y;
     probe.f = f;
     const [hx, hy] = probe.world('handN');
-    const err = Math.abs(hy - (sy - 4));
+    const err = Math.abs(hy - ty);
     if (!best || err < best.err) best = { err, pose, hx };
   }
-  // the hand lands just on the near side of the shoulder
-  return { pose: best.pose, x: sx - f * 2 - best.hx };
+  return { pose: best.pose, x: tx - best.hx };
 }
 
 // ------------------------------------------------------ depth and doors --
@@ -10873,7 +11217,7 @@ const ACT2R = {
     L.ceiling(X.crawl[0], X.crawl[1], -58);
 
     // --- examine points ---
-    const look = (id, x, y, key, range = 90) => L.add({ id, x, y, range, label: ['تفحّص', 'Examine'], use: () => line(g, key) });
+    const look = (id, x, y, key, range = 90) => L.add({ id, x, y, range, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key) });
     look('wall1', X.wall1[0] - 40, -120, 'lane1_wall');
     look('car', X.car[0] - 30, -110, 'lane2_car');
     look('crawl', X.crawl[0] - 50, -80, 'crawl', 70);
@@ -10972,9 +11316,14 @@ const ACT2R = {
     g.fade = 0.55;
     yield 0.2;
     p.override = null;
-    p.place(lane.x0 - 70);
-    p.f = 1;
-    p.stance = 'crouch';
+    if (a.forgiving) {
+      // forgiving lanes: he drops flat where he is, out of the sniper's line
+      p.stance = 'prone';
+    } else {
+      p.place(lane.x0 - 70);
+      p.f = 1;
+      p.stance = 'crouch';
+    }
     g.fade = 0;
     g.state.lane_retries += 1;
     a.expose = 0;
@@ -11276,9 +11625,10 @@ const ACT2R = {
     const k = clamp((p.x - X.start) / (X.stop - X.start)) * 0.5;
     a.duskK = a.duskEnd ? lerp(a.duskK, 0.8, 1 - Math.exp(-dt * 0.35)) : Math.max(a.duskK, k);
 
-    // lane 2: at the window 6.5 s, away 3.5 s
+    // lane 2: at the window 6.5 s, away 3.5 s (forgiving: 5 and 5)
+    a.forgiving = g.settings.get('lanes') === 'forgiving';
     const c2 = a.t2 ? (g.time - a.t2) % 10 : 0;
-    const w2 = c2 < 6.5 ? 1 : 0;
+    const w2 = c2 < (a.forgiving ? 5 : 6.5) ? 1 : 0;
     if (a.radio2 && (w2 > 0.5) !== (a.watch2 > 0.5)) {
       g.sound.radio(1.6);
       line(g, w2 ? 'radio_watch' : 'radio_away');
@@ -11286,7 +11636,7 @@ const ACT2R = {
     a.watch2 = w2;
     // lane 3: the smoke thickens and thins on an 11 s cycle
     const c3 = a.t3 ? (g.time - a.t3) % 11 : 6;
-    a.smoke = lerp(a.smoke, c3 < 5.5 ? 1 : 0, 1 - Math.exp(-dt * 1.2));
+    a.smoke = lerp(a.smoke, c3 < (a.forgiving ? 7.5 : 5.5) ? 1 : 0, 1 - Math.exp(-dt * 1.2));
     a.watch3 = a.smoke < 0.55 ? 1 : 0;
 
     // exposure in a lane
@@ -11297,7 +11647,7 @@ const ACT2R = {
       const safe = p.stance === 'prone' || covered || !watching;
       a.laneState = { id: lane.id, watching, safe };
       a.expose = safe ? Math.max(0, a.expose - dt * 2) : a.expose + dt;
-      if (a.expose > 0.4 && !a.shotBusy) {
+      if (a.expose > (a.forgiving ? 0.9 : 0.4) && !a.shotBusy) {
         a.expose = 0;
         g.runner.run(this.warningShot(g, lane));
       }
@@ -11413,6 +11763,198 @@ function* ambient(g) {
 return { ACT2R };
 })();
 
+// ---- src/story/items.js
+const __src_story_items = (() => {
+// What Sami carries, as the Belongings page describes it, and the pages of
+// Ahmad's journal. Damascus dialect, with the English. Lines taken from the
+// scripts are final; the rest are placeholders, marked `draft: true` (shown
+// "[draft]" on the page). To replace one, change its text and delete the flag.
+
+const { LINES } = __src_story_act2r_lines;
+const pair = (L) => ({ ar: L.ar, en: L.en });
+
+const ITEMS = {
+  torch: { ar: 'مصباح بدينمو. دوّر المقبض وبيضوي شوي، وبس توقّف بيخفت.', en: 'A hand-crank torch. Wind the handle and it gives a little light; stop, and it fades.', draft: true },
+  mirror: { ar: 'شقفة مراية. بتبيّن فيها الطريق اللي ما عم تشوفها.', en: 'Mirror shard. It shows the road you can’t see.' },
+  walkie: { ar: 'لاسلكي. بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.', en: 'Walkie-talkie. You hear the spotters’ warnings. Receive only.' },
+  whitecloth: pair(LINES.cloth_item),
+  lighter: pair(LINES.lighter),
+  journal: pair(LINES.journal),
+};
+
+// Ahmad's journal, page by page. Only the last page is from the script.
+const JOURNAL = [
+  {
+    ar: 'درس اليوم: كان وأخواتها.\nكان الطقسُ حارّاً.\nصار الماءُ قليلاً.\nأصبح الصفُّ أهدأَ من أمس.',
+    en: 'Today’s lesson: kāna and her sisters.\nThe weather was hot.\nThe water became scarce.\nThe class became quieter than yesterday.',
+    draft: true,
+  },
+  {
+    ar: 'سبعتعش طالب اليوم. تلاتة غايبين.\nهبة جابت شمعتين من بيتها.\nلازم نلاقي ورق. عم يكتبوا عالورقة من الوجّين.',
+    en: 'Seventeen pupils today. Three absent.\nHiba brought two candles from home.\nWe need to find paper. They’re writing on both sides of every sheet.',
+    draft: true,
+  },
+  {
+    ar: 'عمر، هبة، ريم، محمد الصغير، محمد الكبير، سلمى، طارق، نور.\nنور كل يوم بتسأل: إيمتى بترجع المدرسة الحقيقية؟',
+    en: 'Omar, Hiba, Reem, Little Mohammad, Big Mohammad, Salma, Tariq, Nour.\nEvery day Nour asks: when is the real school coming back?',
+    draft: true,
+  },
+  {
+    ar: 'بكرا بدي علّمهن قصيدة محمود درويش.',
+    en: 'Tomorrow I’ll teach them a Mahmoud Darwish poem.',
+  },
+];
+
+return { ITEMS, JOURNAL };
+})();
+
+// ---- src/engine/photo.js
+const __src_engine_photo = (() => {
+// Photo mode: the story stops, the HUD steps aside, and the camera is free
+// to move a little way around Sami, zoom, and take one of four looks. A
+// photo is the frame as drawn, with the look baked in, saved as a PNG.
+
+const { clamp, lerp } = __src_engine_util;
+// CSS filters, used live on the canvas and baked in when saving.
+const FILTERS = [
+  ['natural', 'fNatural', 'none'],
+  ['warm', 'fWarm', 'sepia(0.22) saturate(1.15) brightness(1.03)'],
+  ['mono', 'fMono', 'grayscale(1) contrast(1.12)'],
+  ['faded', 'fFaded', 'sepia(0.35) contrast(0.82) brightness(1.08) saturate(0.7)'],
+];
+
+class Photo {
+  constructor({ game, stage, canvas, input, t, onExit, render }) {
+    Object.assign(this, { game, stage, canvas, input, t, onExit, render });
+    this.active = false;
+    this.el = document.getElementById('photo');
+    this.onKey = (e) => this.key(e);
+  }
+
+  open() {
+    const g = this.game;
+    this.active = true;
+    this.filter = 0;
+    this.home = { ...g.cam };
+    this.cam = { ...g.cam };
+    this.want = { ...g.cam };
+    this.stage.classList.add('photo');
+    this.applyFilter();
+    this.draw();
+    window.addEventListener('keydown', this.onKey, true);
+  }
+
+  close() {
+    if (!this.active) return;
+    this.active = false;
+    this.stage.classList.remove('photo');
+    this.canvas.style.filter = '';
+    Object.assign(this.game.cam, this.home);
+    window.removeEventListener('keydown', this.onKey, true);
+    this.el.hidden = true;
+    this.onExit?.();
+  }
+
+  // The panel: what the keys do, and buttons for touch and mouse.
+  draw() {
+    const t = this.t;
+    this.el.hidden = false;
+    this.el.dir = document.documentElement.lang === 'ar' ? 'rtl' : 'ltr';
+    this.el.innerHTML = `
+      <p class="photo-help">${t('photoHelp')}</p>
+      <div class="photo-btns">
+        <button type="button" data-a="out" aria-label="−">−</button>
+        <button type="button" data-a="in" aria-label="+">+</button>
+        <button type="button" data-a="filter">${t('photoFilter')}: <span class="photo-f">${t(FILTERS[this.filter][1])}</span></button>
+        <button type="button" data-a="save" class="primary">${t('photoSave')}</button>
+        <button type="button" data-a="exit">${t('photoExit')}</button>
+      </div>
+      <p class="photo-toast" aria-live="polite"></p>`;
+    for (const b of this.el.querySelectorAll('button')) b.addEventListener('click', () => this.act(b.dataset.a));
+  }
+
+  act(a) {
+    if (a === 'in') this.want.view *= 0.85;
+    else if (a === 'out') this.want.view /= 0.85;
+    else if (a === 'filter') {
+      this.filter = (this.filter + 1) % FILTERS.length;
+      this.applyFilter();
+      const f = this.el.querySelector('.photo-f');
+      if (f) f.textContent = this.t(FILTERS[this.filter][1]);
+    } else if (a === 'save') this.save();
+    else if (a === 'exit') this.close();
+  }
+
+  key(e) {
+    const map = { Equal: 'in', NumpadAdd: 'in', Minus: 'out', NumpadSubtract: 'out', KeyF: 'filter', Enter: 'save', NumpadEnter: 'save', Escape: 'exit', KeyP: 'exit' };
+    const a = map[e.code];
+    if (!a) return;
+    // Enter on a focused panel button is that button's own click
+    if (a === 'save' && e.target.closest?.('#photo button')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    this.act(a);
+  }
+
+  applyFilter() {
+    this.canvas.style.filter = FILTERS[this.filter][2] === 'none' ? '' : FILTERS[this.filter][2];
+  }
+
+  // Held arrows (or the stick) move the camera, within reach of Sami.
+  update(dt) {
+    const i = this.input;
+    const k = i.keys;
+    const dx = (i.held('right') ? 1 : 0) - (i.held('left') ? 1 : 0);
+    const dy = (k.has('ArrowDown') || k.has('KeyS') ? 1 : 0) - (k.has('ArrowUp') || k.has('KeyW') ? 1 : 0);
+    const w = this.want;
+    const p = this.game.player;
+    w.x = clamp(w.x + dx * dt * w.view * 0.5, p.x - 900, p.x + 900);
+    w.y = clamp(w.y + dy * dt * w.view * 0.35, -620, -90);
+    w.view = clamp(w.view, 520, 2400);
+    const s = 1 - Math.exp(-dt * 6);
+    for (const key of ['x', 'y', 'view']) this.cam[key] = lerp(this.cam[key], w[key], s);
+    Object.assign(this.game.cam, this.cam);
+    this.game.shake = 0;
+  }
+
+  // Draw one frame and read it straight back (the WebGL canvas keeps no
+  // copy after it's shown), through the filter, into a PNG.
+  save() {
+    this.render();
+    const src = this.canvas;
+    const c = document.createElement('canvas');
+    c.width = src.width;
+    c.height = src.height;
+    const ctx = c.getContext('2d');
+    const f = FILTERS[this.filter][2];
+    if (f !== 'none') ctx.filter = f;
+    ctx.drawImage(src, 0, 0);
+    this.last = c;
+    const toast = (msg) => {
+      const el = this.el.querySelector('.photo-toast');
+      if (!el) return;
+      el.textContent = msg;
+      clearTimeout(this.toastT);
+      this.toastT = setTimeout(() => (el.textContent = ''), 2200);
+    };
+    c.toBlob((blob) => {
+      if (!blob) return;
+      this.lastSize = blob.size;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `before-i-knew-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+      toast(this.t('photoSaved'));
+    }, 'image/png');
+  }
+}
+
+return { FILTERS, Photo };
+})();
+
 // ---- src/main.js
 const __src_main = (() => {
 const { Renderer } = __src_engine_renderer;
@@ -11427,6 +11969,8 @@ const { freshState, loadSave, writeSave, clearSave } = __src_engine_save;
 const { Game, TOOLS } = __src_game;
 const { ACT1 } = __src_story_act1;
 const { ACT2R } = __src_story_act2r;
+const { ITEMS, JOURNAL } = __src_story_items;
+const { Photo } = __src_engine_photo;
 // The chapters. A save names its act; old saves (act: 1) are Act One.
 const ACTS = { act1: ACT1, act2r: ACT2R };
 const actKey = (s) => (s && ACTS[s.act] ? s.act : 'act1');
@@ -11434,11 +11978,15 @@ const actKey = (s) => (s && ACTS[s.act] ? s.act : 'act1');
 // What the player has unlocked, and the state Act One ended with (carried
 // into Act Two from the Chapters page). Kept apart from the checkpoint save.
 const PROGRESS = 'before-i-knew:progress:v1';
+// Also: the state at each checkpoint reached (scenes), every choice ever
+// made (seen) and the last one (last), and what Sami stopped to look at
+// (noticed, with how many things each act holds in totals).
 function progress() {
+  const base = { unlocked: ['act1'], carry: null, scenes: {}, seen: {}, last: {}, noticed: {}, totals: {} };
   try {
-    return { unlocked: ['act1'], carry: null, ...JSON.parse(localStorage.getItem(PROGRESS) || '{}') };
+    return { ...base, ...JSON.parse(localStorage.getItem(PROGRESS) || '{}') };
   } catch {
-    return { unlocked: ['act1'], carry: null };
+    return base;
   }
 }
 function saveProgress(p) {
@@ -11451,7 +11999,7 @@ function saveProgress(p) {
 // Act Two (Retrieval) begins where Act One's «بدي شوفو» left Sami.
 function act2State(s) {
   const tools = [...new Set([...(s?.tools || []), 'torch', 'mirror', 'walkie'])];
-  return { ...freshState(), ...(s || {}), path: 'retrieval', act: 'act2r', checkpoint: 'south', completed: false, tools };
+  return { ...freshState(), ...(s || {}), path: 'retrieval', act: 'act2r', checkpoint: 'south', completed: false, tools, noticed: [] };
 }
 
 const $ = (id) => document.getElementById(id);
@@ -11472,6 +12020,50 @@ const sound = new Sound(settings);
 sound.score = new Score(sound);
 const text = new Text(settings);
 const game = new Game({ R, sound, text, input, settings });
+
+// Every checkpoint reached opens its scene in Chapters, from the state it
+// was reached with; and a small "Saved" shows in the corner.
+game.onCheckpoint = (id, state) => {
+  if (mode !== 'play') return;
+  const p = progress();
+  const key = actKey(state);
+  (p.scenes[key] ||= {})[id] = { ...state, completed: false };
+  saveProgress(p);
+  showSaved();
+};
+// Examine points: remembered for this run (the end card) and for good (the
+// Your story page).
+game.onNotice = (id, line) => {
+  if (mode !== 'play' || !line) return;
+  const s = game.state;
+  s.noticed ||= [];
+  if (!s.noticed.includes(id)) s.noticed.push(id);
+  const p = progress();
+  (p.noticed[actKey(s)] ||= {})[id] = line;
+  saveProgress(p);
+};
+function showSaved() {
+  const el = $('saved');
+  el.querySelector('.saved-t').textContent = t('saved');
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
+// Vibration: a phone buzz, and a gamepad's rumble, on blasts and shots.
+sound.onImpact = (k, dur, delay = 0) => {
+  if (!settings.get('vibration') || mode !== 'play') return;
+  setTimeout(() => {
+    try {
+      navigator.vibrate?.(Math.round(dur * 1000 * Math.min(1, k + 0.2)));
+    } catch {
+      /* not allowed here */
+    }
+    for (const pad of navigator.getGamepads?.() || []) {
+      pad?.vibrationActuator?.playEffect?.('dual-rumble', { duration: dur * 1000, strongMagnitude: k, weakMagnitude: k * 0.6 }).catch?.(() => {});
+    }
+  }, delay * 1000);
+};
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -11534,6 +12126,53 @@ function titleScene() {
 }
 titleScene();
 
+// Each decision, and every way it can go: [value, English, Arabic]. The end
+// card tells the one taken; Your story shows them all.
+const DECISIONS = [
+  {
+    act: 'act1',
+    key: 'helped_old_man',
+    title: 'decWater',
+    time: ['3:20', '٣:٢٠'],
+    options: [
+      [true, 'You carried the old man’s water to his daughter’s door.', 'حملتَ ماء الرجل العجوز إلى باب ابنته.'],
+      [false, 'You walked past the old man and his water.', 'مضيتَ وتركتَ الرجل العجوز وماءه.'],
+    ],
+  },
+  {
+    act: 'act1',
+    key: 'children_helped',
+    title: 'decMortar',
+    time: ['3:45', '٣:٤٥'],
+    options: [
+      [true, 'When the mortars came, you ran for Layla and the boy.', 'حين سقطت القذائف، ركضتَ نحو ليلى والطفل.'],
+      [false, 'When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'حين سقطت القذائف، احتميتَ. أوصلت ليلى الطفل إلى الدرج وحدها.'],
+    ],
+  },
+  {
+    act: 'act1',
+    key: 'path',
+    title: 'decNews',
+    time: ['4:10', '٤:١٠'],
+    options: [
+      ['retrieval', '“I need to see him.” You walked south, towards School Street.', '«أريد أن أراه.» مشيتَ جنوباً نحو شارع المدرسة.'],
+      ['witness', '“Who did this?” You asked for facts, because facts can be carried.', '«من فعل هذا؟» سألتَ عن الحقائق، لأن الحقائق يمكن حملها.'],
+      ['grief', 'You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'لم تقل شيئاً. جلستَ على الرصيف، وجلس أبو يزن إلى جانبك.'],
+    ],
+  },
+  {
+    act: 'act2r',
+    key: 'd_choice',
+    title: 'decWay',
+    time: ['5:00', '٥:٠٠'],
+    options: [
+      ['cloth', 'You wrapped a white sheet round a curtain rail, to go and talk to them.', 'لففتَ شرشفاً أبيض على سكّة ستارة، لتكلّمهم.'],
+      ['back', 'You looked at the ruined building, and saw a way.', 'نظرتَ إلى المبنى المدمّر، ورأيتَ طريقاً.'],
+    ],
+  },
+];
+const optionFor = (d, v) => d.options.find((o) => o[0] === v) || d.options[d.options.length - 1];
+
 // The end card: each choice as a moment in the afternoon.
 function summary2(s) {
   const ar = lang() === 'ar';
@@ -11542,36 +12181,14 @@ function summary2(s) {
     [ar ? '٤:٣٥' : '4:35', ar ? (n ? `عبرتَ الحارة الجنوبية تحت عين القنّاص، وردّتك رصاصة التحذير ${n} مرة.` : 'عبرتَ الحارة الجنوبية تحت عين القنّاص، ولم يرك.') : n ? `You crossed the southern quarter under the sniper's eye. A warning shot turned you back ${n} time${n > 1 ? 's' : ''}.` : "You crossed the southern quarter under the sniper's eye. He never saw you."],
     [ar ? '٤:٤٢' : '4:42', ar ? 'قال المسعف: ما قدرنا نوصلّو.' : 'The medic said: we couldn’t reach him.'],
     [ar ? '٤:٥٥' : '4:55', ar ? 'رأيتَ شكلاً مغطّى بحرام، وسط شارع المدرسة.' : 'You saw a shape under a blanket, in the middle of School Street.'],
-    [ar ? '٥:٠٠' : '5:00', s.d_choice === 'cloth' ? (ar ? 'لففتَ شرشفاً أبيض على سكّة ستارة، لتكلّمهم.' : 'You wrapped a white sheet round a curtain rail, to go and talk to them.') : ar ? 'نظرتَ إلى المبنى المدمّر، ورأيتَ طريقاً.' : 'You looked at the ruined building, and saw a way.'],
+    [ar ? '٥:٠٠' : '5:00', optionFor(DECISIONS[3], s.d_choice)[ar ? 2 : 1]],
     [ar ? '٥:١٠' : '5:10', ar ? 'أعطاك أبو يزن ولّاعة أحمد ودفتره.' : 'Abu Yazan gave you Ahmad’s lighter, and his journal.'],
   ];
 }
 
 function summary(s) {
   const ar = lang() === 'ar';
-  const rows = [
-    [
-      ar ? '٣:٢٠' : '3:20',
-      s.helped_old_man
-        ? ['You carried the old man’s water to his daughter’s door.', 'حملتَ ماء الرجل العجوز إلى باب ابنته.']
-        : ['You walked past the old man and his water.', 'مضيتَ وتركتَ الرجل العجوز وماءه.'],
-    ],
-    [
-      ar ? '٣:٤٥' : '3:45',
-      s.children_helped
-        ? ['When the mortars came, you ran for Layla and the boy.', 'حين سقطت القذائف، ركضتَ نحو ليلى والطفل.']
-        : ['When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'حين سقطت القذائف، احتميتَ. أوصلت ليلى الطفل إلى الدرج وحدها.'],
-    ],
-    [
-      ar ? '٤:١٠' : '4:10',
-      s.path === 'retrieval'
-        ? ['“I need to see him.” You walked south, towards School Street.', '«أريد أن أراه.» مشيتَ جنوباً نحو شارع المدرسة.']
-        : s.path === 'witness'
-          ? ['“Who did this?” You asked for facts, because facts can be carried.', '«من فعل هذا؟» سألتَ عن الحقائق، لأن الحقائق يمكن حملها.']
-          : ['You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'لم تقل شيئاً. جلستَ على الرصيف، وجلس أبو يزن إلى جانبك.'],
-    ],
-  ];
-  return rows.map(([time, [en, arText]]) => [time, ar ? arText : en]);
+  return DECISIONS.filter((d) => d.act === 'act1').map((d) => [d.time[ar ? 1 : 0], optionFor(d, s[d.key])[ar ? 2 : 1]]);
 }
 
 function startGame(state) {
@@ -11581,8 +12198,14 @@ function startGame(state) {
   $('end').hidden = true;
   stage.classList.add('playing');
   sound.start().then(() => {
-    game.start(ACTS[actKey(state)], state);
+    const key = actKey(state);
+    state.noticed ||= [];
+    game.start(ACTS[key], state);
     game.onEnd = showEnd;
+    // how many things this act has to look at
+    const p = progress();
+    p.totals[key] = game.level.things.filter((x) => x.look).length;
+    saveProgress(p);
   });
 }
 
@@ -11624,8 +12247,17 @@ function showEnd(s) {
   if (key === 'act1') {
     if (!p.unlocked.includes('act2r')) p.unlocked.push('act2r');
     p.carry = { ...s };
-    saveProgress(p);
   }
+  // every choice made, for Your story
+  for (const d of DECISIONS.filter((x) => x.act === key)) {
+    const v = optionFor(d, s[d.key])[0];
+    const seen = (p.seen[d.key] ||= []);
+    if (!seen.includes(v)) seen.push(v);
+    p.last[d.key] = v;
+  }
+  saveProgress(p);
+  const total = p.totals[key] || 0;
+  const looked = (s.noticed || []).length;
   const act1 = key === 'act1';
   const rows = act1 ? summary(s) : summary2(s);
   const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
@@ -11641,12 +12273,15 @@ function showEnd(s) {
       ${rows.map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`).join('')}
       <li class="tl-end"><time>${last[0]}</time><span>${esc(last[1])}</span></li>
     </ol>
+    ${total ? `<p class="end-noticed">${esc(t('noticed')(looked, total))}</p>` : ''}
     <p class="sheet-quiet">${esc(t(act1 ? (s.path === 'retrieval' ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
     <div class="sheet-btns">
       ${next ? `<button type="button" id="end-next" class="primary">${esc(t('continueAct2'))}</button>` : ''}
       <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : 'againAct2'))}</button>
       <button type="button" id="end-menu">${esc(t('mainMenu'))}</button>
-    </div>`;
+    </div>
+    <button type="button" class="end-after-link" id="end-after" aria-expanded="false">${esc(t('afterwordLink'))}</button>
+    <div class="end-after" id="end-after-body" hidden>${afterwordHtml()}</div>`;
   end.hidden = false;
   requestAnimationFrame(() => end.classList.add('show'));
   const close = () => {
@@ -11669,6 +12304,12 @@ function showEnd(s) {
     }
   });
   $('end-menu').addEventListener('click', () => toMainMenu());
+  $('end-after').addEventListener('click', () => {
+    const body = $('end-after-body');
+    body.hidden = !body.hidden;
+    $('end-after').setAttribute('aria-expanded', String(!body.hidden));
+    if (!body.hidden) body.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
   ($('end-next') || $('end-again')).focus();
 }
 
@@ -11719,6 +12360,10 @@ function pauseAside() {
     <p class="aside-v">${cp ? `${esc(t('checkpoints')[cp] || cp)} · ${esc(t('times')[cp] || '')}` : '·'}</p>`;
 }
 
+// The scenes of each act, in order: the first is the act's own start.
+const SCENES = { act1: ['walk', 'hour', 'school', 'news'], act2r: ['south', 'lanes', 'front'] };
+const sceneName = (cp) => String(t('checkpoints')[cp] || cp).split(' · ').pop();
+
 function chaptersPage(panel, m) {
   const h = document.createElement('h2');
   h.className = 'menu-title';
@@ -11727,10 +12372,10 @@ function chaptersPage(panel, m) {
   const p = progress();
   const list = document.createElement('div');
   list.className = 'menu-list chapter-list';
-  const item = (n, title, sub, locked, go) => {
+  const item = (n, title, sub, locked, go, cls = '') => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = `menu-btn${locked ? ' locked' : ''}`;
+    b.className = `menu-btn${locked ? ' locked' : ''}${cls}`;
     b.disabled = locked;
     b.innerHTML = `<span class="menu-btn-n">${n}</span><span class="menu-btn-text"><span class="menu-btn-label"></span><span class="menu-btn-sub"></span></span>`;
     b.querySelector('.menu-btn-label').textContent = title;
@@ -11738,15 +12383,148 @@ function chaptersPage(panel, m) {
     if (!locked) b.addEventListener('click', go);
     list.appendChild(b);
   };
+  // the later scenes of an act, each from the state it was last reached with
+  const scenes = (key, open) => {
+    for (const cp of SCENES[key].slice(1)) {
+      const st = p.scenes[key]?.[cp];
+      item(t('times')[cp], sceneName(cp), st ? '' : t('sceneLocked'), !open || !st, () => {
+        const n = { ...st, checkpoint: cp, completed: false };
+        writeSave(n);
+        startGame(n);
+      }, ' scene');
+    }
+  };
   item('I', t('chapter1'), t('chapter1Sub'), false, () => newGame());
+  scenes('act1', true);
   const open2 = p.unlocked.includes('act2r');
   item('II', t('chapter2'), open2 ? t('chapter2Sub') : t('chapter2Locked'), !open2, () => {
     const n = act2State(p.carry);
     writeSave(n);
     startGame(n);
   });
+  scenes('act2r', open2);
   panel.appendChild(list);
   m.backButton(panel);
+}
+
+// Your story: every decision, the way it went last time, the other ways it
+// has gone, and those not yet taken; then what Sami stopped to look at.
+function storyPage(panel, m) {
+  const ar = lang() === 'ar';
+  const p = progress();
+  panel.insertAdjacentHTML('beforeend', `<h2 class="menu-title">${esc(t('yourStory'))}</h2><p class="menu-sub">${esc(t('yourStorySub'))}</p>`);
+  const box = document.createElement('div');
+  box.className = 'menu-story';
+  box.tabIndex = 0;
+  let any = false;
+  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2']]) {
+    const ds = DECISIONS.filter((d) => d.act === key);
+    if (!ds.some((d) => p.seen[d.key]?.length)) continue;
+    any = true;
+    let html = `<h3 class="menu-group">${esc(t(title))}</h3>`;
+    for (const d of ds) {
+      const seen = p.seen[d.key] || [];
+      html += `<div class="story-dec"><p class="story-dec-t"><time>${esc(d.time[ar ? 1 : 0])}</time>${esc(t(d.title))}</p><ul>`;
+      for (const o of d.options) {
+        const was = seen.includes(o[0]);
+        const last = p.last[d.key] === o[0];
+        html += was
+          ? `<li class="${last ? 'last' : ''}"><span>${esc(o[ar ? 2 : 1])}</span>${last ? `<em>${esc(t('storyLast'))}</em>` : ''}</li>`
+          : `<li class="unseen" aria-label="${esc(t('storyUnseen'))}"><span aria-hidden="true">· · · · ·</span></li>`;
+      }
+      html += '</ul></div>';
+    }
+    box.insertAdjacentHTML('beforeend', html);
+  }
+  if (!any) box.insertAdjacentHTML('beforeend', `<p class="menu-sub">${esc(t('storyNone'))}</p>`);
+
+  // what you noticed
+  let notes = `<h3 class="menu-group">${esc(t('memories'))}</h3><p class="menu-sub">${esc(t('memoriesSub'))}</p>`;
+  let found = 0;
+  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2']]) {
+    const got = Object.values(p.noticed[key] || {});
+    const total = Math.max(p.totals[key] || 0, got.length);
+    if (!total) continue;
+    found += got.length;
+    notes += `<div class="story-notes"><p class="story-dec-t">${esc(t(title))}<span class="story-count">${esc(t('noticedAct')(got.length, total))}</span></p><ul>`;
+    for (const line of got) notes += `<li>${ar ? `<span class="ar" lang="ar" dir="rtl">${esc(line[0])}</span>` : `<span>${esc(line[1])}</span>`}</li>`;
+    notes += `</ul><p class="story-dots" aria-hidden="true">${'●'.repeat(got.length)}${'○'.repeat(total - got.length)}</p></div>`;
+  }
+  if (!found) notes += `<p class="menu-sub">${esc(t('memoriesNone'))}</p>`;
+  box.insertAdjacentHTML('beforeend', notes);
+  panel.appendChild(box);
+  m.backButton(panel);
+}
+
+// Belongings: what Sami carries, and what each thing is. Ahmad's journal
+// opens, page by page.
+function belongingsPage(panel, m) {
+  const ar = lang() === 'ar';
+  const subs = settings.get('subtitles');
+  panel.insertAdjacentHTML('beforeend', `<h2 class="menu-title">${esc(t('belongings'))}</h2>`);
+  const box = document.createElement('div');
+  box.className = 'menu-belongings';
+  const tools = game.state?.tools || [];
+  if (!tools.length) box.innerHTML = `<p class="menu-sub">${esc(t('belongingsNone'))}</p>`;
+  const lines = (L) => `${subs !== 'en' ? `<span class="ar" lang="ar" dir="rtl">${esc(L.ar)}</span>` : ''}${subs !== 'ar' ? `<span class="en" dir="ltr">${esc(L.en)}</span>` : ''}`;
+  for (const id of tools) {
+    const T = TOOLS[id];
+    const it = ITEMS[id];
+    if (!T) continue;
+    const row = document.createElement('div');
+    row.className = 'belong';
+    row.innerHTML = `<p class="belong-name">${esc(ar ? T.ar : T.en)}${it?.draft ? '<span class="log-draft">[draft]</span>' : ''}</p>${it ? `<p class="belong-desc">${lines(it)}</p>` : ''}`;
+    if (id === 'journal') {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'menu-link';
+      b.textContent = t('read');
+      b.addEventListener('click', () => m.push('journal'));
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+  }
+  panel.appendChild(box);
+  m.backButton(panel);
+}
+
+let journalAt = 0;
+function journalPage(panel, m) {
+  const subs = settings.get('subtitles');
+  const pg = JOURNAL[journalAt];
+  panel.insertAdjacentHTML(
+    'beforeend',
+    `<h2 class="menu-title">${esc(TOOLS.journal[lang() === 'ar' ? 'ar' : 'en'])}</h2>
+    <div class="journal-page">
+      <p class="journal-ar" lang="ar" dir="rtl">${esc(pg.ar).replace(/\n/g, '<br>')}</p>
+      ${subs !== 'ar' ? `<p class="journal-en" dir="ltr">${esc(pg.en).replace(/\n/g, '<br>')}</p>` : ''}
+      ${pg.draft ? '<span class="log-draft">[draft]</span>' : ''}
+    </div>
+    <div class="journal-nav">
+      <button type="button" class="menu-link" id="j-prev" ${journalAt ? '' : 'disabled'}>${esc(t('prevPage'))}</button>
+      <span class="journal-n">${esc(t('pageN')(journalAt + 1, JOURNAL.length))}</span>
+      <button type="button" class="menu-link" id="j-next" ${journalAt < JOURNAL.length - 1 ? '' : 'disabled'}>${esc(t('nextPage'))}</button>
+    </div>`,
+  );
+  const turn = (d) => {
+    journalAt = Math.max(0, Math.min(JOURNAL.length - 1, journalAt + d));
+    sound.cloth?.();
+    m.keepFocus = true;
+    m.render();
+  };
+  panel.querySelector('#j-prev').addEventListener('click', () => turn(-1));
+  panel.querySelector('#j-next').addEventListener('click', () => turn(1));
+  m.backButton(panel);
+}
+
+function afterwordHtml() {
+  return lang() === 'ar'
+    ? `<h3>${esc(t('afterword'))}</h3>
+    <p>حوصرت الغوطة الشرقية، ببلداتها وبساتينها شرقيّ دمشق، من عام ٢٠١٣ حتى نيسان ٢٠١٨. عاش فيها مئات الآلاف من الناس تحت القصف والجوع وشحّ الدواء، في واحد من أطول الحصارات في التاريخ الحديث.</p>
+    <p>سامي وأحمد وشارعهما من نسج الخيال. أمّا ما يعيشونه، من ستائر القنّاصة إلى المدارس في الأقبية والبطاريات التي تشحن هواتف حيّ كامل، فمستمَدّ من شهادات من كانوا هناك.</p>`
+    : `<h3>${esc(t('afterword'))}</h3>
+    <p>Eastern Ghouta, the towns and orchards east of Damascus, was besieged from 2013 until April 2018. Several hundred thousand people lived inside it, through shelling, hunger and shortages of medicine, in one of the longest sieges in modern history.</p>
+    <p>Sami, Ahmad and their street are invented. What they live through, from the sniper curtains to the schools in basements and the car batteries charging a whole neighbourhood’s phones, is drawn from the accounts of people who were there.</p>`;
 }
 
 function logPage(panel, m) {
@@ -11793,6 +12571,7 @@ const menu = new Menu($('menu'), {
     },
     { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
     { label: () => t('chapters'), action: (m) => m.push('chapters') },
+    { label: () => t('yourStory'), action: (m) => m.push('story') },
     { label: () => t('settings'), action: (m) => m.push('settings') },
     { label: () => t('controls'), action: (m) => m.push('controls') },
     { label: () => t('about'), action: (m) => m.push('about') },
@@ -11800,6 +12579,14 @@ const menu = new Menu($('menu'), {
   pause: [
     { label: () => t('resume'), action: (m) => m.close() },
     { label: () => t('log'), action: (m) => m.push('log') },
+    {
+      label: () => t('belongings'),
+      action: (m) => {
+        journalAt = 0;
+        m.push('belongings');
+      },
+    },
+    { label: () => t('photo'), action: () => openPhoto() },
     { label: () => t('settings'), action: (m) => m.push('settings') },
     { label: () => t('controls'), action: (m) => m.push('controls') },
     {
@@ -11812,7 +12599,7 @@ const menu = new Menu($('menu'), {
     { label: () => t('mainMenu'), action: () => toMainMenu() },
   ],
   pauseAside,
-  pages: { log: logPage, chapters: chaptersPage },
+  pages: { log: logPage, chapters: chaptersPage, story: storyPage, belongings: belongingsPage, journal: journalPage },
   onOpen: () => {
     game.paused = true;
     stage.classList.add('paused');
@@ -11840,28 +12627,35 @@ const menu = new Menu($('menu'), {
     { key: 'reduceFlashes', label: 'reduceFlashes', type: 'toggle' },
     { group: 'gPlay' },
     { key: 'hints', label: 'hints', type: 'toggle' },
+    { group: 'gAccess' },
+    { key: 'readSpeed', label: 'readSpeed', type: 'select', options: [[1.35, 'slow'], [1, 'normal'], [0.8, 'fast']] },
+    { key: 'crouchMode', label: 'crouchMode', type: 'select', options: [['toggle', 'crouchToggle'], ['hold', 'crouchHold']] },
+    { key: 'lanes', label: 'lanes', type: 'select', options: [['standard', 'lanesStandard'], ['forgiving', 'lanesForgiving']] },
+    { key: 'vibration', label: 'vibration', type: 'toggle' },
   ],
   controls: { input, actions: ACTIONS, label: keyLabel },
   about: () =>
     lang() === 'ar'
       ? `<h2 class="menu-title">عن القصة</h2>
     <p><strong>قبل ما عرفت</strong> قصة تفاعلية تدور أحداثها في بلدة محاصرة في الغوطة، قرب دمشق، في آب ٢٠١٤. سامي في السابعة والعشرين. يمشي مع أقرب أصدقائه، أحمد، ثم يفترقان عند مفترق الطرق. وبعد أقلّ من ساعة، يعلم أن أحمد قد استُشهد.</p>
-    <p>هذا هو الفصل الأول: المشوار، والفراق، وساعة ما قبل المعرفة. تحدّد خياراتك من يكون سامي حين يصله الخبر، وإلى أين تمضي الليلة.</p>
+    <p>الفصل الأول هو المشوار، والفراق، وساعة ما قبل المعرفة. تحدّد خياراتك من يكون سامي حين يصله الخبر، وإلى أين يمضي المساء. في الفصل الثاني، يتّجه سامي جنوباً نحو أحمد.</p>
     <h3>تنبيه حول المحتوى</h3>
     <p>الحياة تحت الحصار: القصف، والقنص، والجوع، وموت صديق، والحزن. يُسمَع العنف ويُفهَم، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.</p>
-    <p class="menu-sub">عمل متخيَّل مستند إلى شهادات موثّقة عن الحياة تحت الحصار. كل ما فيه مرسوم ومولَّد بالبرمجة، من دون صور أو تسجيلات.</p>`
+    <p class="menu-sub">عمل متخيَّل مستند إلى شهادات موثّقة عن الحياة تحت الحصار. كل ما فيه مرسوم ومولَّد بالبرمجة، من دون صور أو تسجيلات.</p>
+    ${afterwordHtml()}`
       : `<h2 class="menu-title">About</h2>
     <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Ahmad, and they part at a junction. Less than an hour later, he learns that Ahmad has been killed.</p>
-    <p>This is Act One: the walk, the parting, and the hour of not knowing. Your choices shape who Sami is when the news reaches him, and which way the night goes.</p>
+    <p>Act One is the walk, the parting, and the hour of not knowing. Your choices shape who Sami is when the news reaches him, and which way the evening goes. In Act Two, Sami heads south, to Ahmad.</p>
     <h3>Content note</h3>
     <p>Life under military siege: shelling, sniper fire, hunger, the death of a friend, grief. Violence is heard and implied, never shown. Recommended for ages 16 and over.</p>
-    <p class="menu-sub">A work of fiction drawing on documented accounts of siege life. Everything is drawn and synthesised in code. There are no images or recordings.</p>`,
+    <p class="menu-sub">A work of fiction drawing on documented accounts of siege life. Everything is drawn and synthesised in code. There are no images or recordings.</p>
+    ${afterwordHtml()}`,
 });
 menu.showMain();
 
 input.onKey((e) => {
   const acts = input.actionsFor(e.code);
-  if (!acts.includes('menu')) return;
+  if (!acts.includes('menu') || photo.active) return;
   if (!$('note').hidden) {
     $('note').hidden = true;
     return;
@@ -11870,7 +12664,7 @@ input.onKey((e) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && mode === 'play' && !menu.open) menu.showPause();
+  if (document.hidden && mode === 'play' && !menu.open && !photo.active) menu.showPause();
 });
 
 // ------------------------------------------------------- touch controls --
@@ -11903,7 +12697,25 @@ for (const [id, action] of touchMap) {
   b.addEventListener('pointercancel', up);
   b.addEventListener('pointerleave', up);
 }
-$('t-menu').addEventListener('click', () => mode === 'play' && menu.toggle());
+$('t-menu').addEventListener('click', () => mode === 'play' && !photo.active && menu.toggle());
+
+// ----------------------------------------------------------- photo mode --
+
+const photo = new Photo({
+  game,
+  stage,
+  canvas: $('view'),
+  input,
+  t,
+  render: () => game.render(time),
+  onExit: () => menu.showPause(),
+});
+function openPhoto() {
+  menu.close();
+  // the story stays stopped while the camera is free
+  game.paused = true;
+  photo.open();
+}
 
 // ------------------------------------------------------------------ loop --
 
@@ -11924,7 +12736,8 @@ function frame(now) {
   } else {
     // (testing can run several steps per frame and skip drawing)
     const steps = window.game?.speed || 1;
-    if (!menu.open) for (let i = 0; i < steps; i++) game.update(dt);
+    if (photo.active) photo.update(dt);
+    else if (!menu.open) for (let i = 0; i < steps; i++) game.update(dt);
     if (!window.game?.noRender) game.render(time);
   }
   input.endFrame();
@@ -11952,6 +12765,8 @@ window.game = {
   input,
   settings,
   text,
+  photo,
+  progress,
   start: (checkpoint = 'walk', extra = {}) => startGame({ ...freshState(), checkpoint, ...extra }),
   startAct2: (checkpoint = 'south', extra = {}) => startGame({ ...act2State(null), checkpoint, ...extra }),
   get mode() {

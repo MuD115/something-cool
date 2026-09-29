@@ -10,6 +10,8 @@ import { freshState, loadSave, writeSave, clearSave } from './engine/save.js';
 import { Game, TOOLS } from './game.js';
 import { ACT1 } from './story/act1.js';
 import { ACT2R } from './story/act2r.js';
+import { ITEMS, JOURNAL } from './story/items.js';
+import { Photo } from './engine/photo.js';
 
 // The chapters. A save names its act; old saves (act: 1) are Act One.
 const ACTS = { act1: ACT1, act2r: ACT2R };
@@ -18,11 +20,15 @@ const actKey = (s) => (s && ACTS[s.act] ? s.act : 'act1');
 // What the player has unlocked, and the state Act One ended with (carried
 // into Act Two from the Chapters page). Kept apart from the checkpoint save.
 const PROGRESS = 'before-i-knew:progress:v1';
+// Also: the state at each checkpoint reached (scenes), every choice ever
+// made (seen) and the last one (last), and what Sami stopped to look at
+// (noticed, with how many things each act holds in totals).
 function progress() {
+  const base = { unlocked: ['act1'], carry: null, scenes: {}, seen: {}, last: {}, noticed: {}, totals: {} };
   try {
-    return { unlocked: ['act1'], carry: null, ...JSON.parse(localStorage.getItem(PROGRESS) || '{}') };
+    return { ...base, ...JSON.parse(localStorage.getItem(PROGRESS) || '{}') };
   } catch {
-    return { unlocked: ['act1'], carry: null };
+    return base;
   }
 }
 function saveProgress(p) {
@@ -35,7 +41,7 @@ function saveProgress(p) {
 // Act Two (Retrieval) begins where Act One's «بدي شوفو» left Sami.
 function act2State(s) {
   const tools = [...new Set([...(s?.tools || []), 'torch', 'mirror', 'walkie'])];
-  return { ...freshState(), ...(s || {}), path: 'retrieval', act: 'act2r', checkpoint: 'south', completed: false, tools };
+  return { ...freshState(), ...(s || {}), path: 'retrieval', act: 'act2r', checkpoint: 'south', completed: false, tools, noticed: [] };
 }
 
 const $ = (id) => document.getElementById(id);
@@ -56,6 +62,50 @@ const sound = new Sound(settings);
 sound.score = new Score(sound);
 const text = new Text(settings);
 const game = new Game({ R, sound, text, input, settings });
+
+// Every checkpoint reached opens its scene in Chapters, from the state it
+// was reached with; and a small "Saved" shows in the corner.
+game.onCheckpoint = (id, state) => {
+  if (mode !== 'play') return;
+  const p = progress();
+  const key = actKey(state);
+  (p.scenes[key] ||= {})[id] = { ...state, completed: false };
+  saveProgress(p);
+  showSaved();
+};
+// Examine points: remembered for this run (the end card) and for good (the
+// Your story page).
+game.onNotice = (id, line) => {
+  if (mode !== 'play' || !line) return;
+  const s = game.state;
+  s.noticed ||= [];
+  if (!s.noticed.includes(id)) s.noticed.push(id);
+  const p = progress();
+  (p.noticed[actKey(s)] ||= {})[id] = line;
+  saveProgress(p);
+};
+function showSaved() {
+  const el = $('saved');
+  el.querySelector('.saved-t').textContent = t('saved');
+  el.classList.remove('show');
+  void el.offsetWidth;
+  el.classList.add('show');
+}
+
+// Vibration: a phone buzz, and a gamepad's rumble, on blasts and shots.
+sound.onImpact = (k, dur, delay = 0) => {
+  if (!settings.get('vibration') || mode !== 'play') return;
+  setTimeout(() => {
+    try {
+      navigator.vibrate?.(Math.round(dur * 1000 * Math.min(1, k + 0.2)));
+    } catch {
+      /* not allowed here */
+    }
+    for (const pad of navigator.getGamepads?.() || []) {
+      pad?.vibrationActuator?.playEffect?.('dual-rumble', { duration: dur * 1000, strongMagnitude: k, weakMagnitude: k * 0.6 }).catch?.(() => {});
+    }
+  }, delay * 1000);
+};
 
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
 
@@ -118,6 +168,53 @@ function titleScene() {
 }
 titleScene();
 
+// Each decision, and every way it can go: [value, English, Arabic]. The end
+// card tells the one taken; Your story shows them all.
+const DECISIONS = [
+  {
+    act: 'act1',
+    key: 'helped_old_man',
+    title: 'decWater',
+    time: ['3:20', '٣:٢٠'],
+    options: [
+      [true, 'You carried the old man’s water to his daughter’s door.', 'حملتَ ماء الرجل العجوز إلى باب ابنته.'],
+      [false, 'You walked past the old man and his water.', 'مضيتَ وتركتَ الرجل العجوز وماءه.'],
+    ],
+  },
+  {
+    act: 'act1',
+    key: 'children_helped',
+    title: 'decMortar',
+    time: ['3:45', '٣:٤٥'],
+    options: [
+      [true, 'When the mortars came, you ran for Layla and the boy.', 'حين سقطت القذائف، ركضتَ نحو ليلى والطفل.'],
+      [false, 'When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'حين سقطت القذائف، احتميتَ. أوصلت ليلى الطفل إلى الدرج وحدها.'],
+    ],
+  },
+  {
+    act: 'act1',
+    key: 'path',
+    title: 'decNews',
+    time: ['4:10', '٤:١٠'],
+    options: [
+      ['retrieval', '“I need to see him.” You walked south, towards School Street.', '«أريد أن أراه.» مشيتَ جنوباً نحو شارع المدرسة.'],
+      ['witness', '“Who did this?” You asked for facts, because facts can be carried.', '«من فعل هذا؟» سألتَ عن الحقائق، لأن الحقائق يمكن حملها.'],
+      ['grief', 'You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'لم تقل شيئاً. جلستَ على الرصيف، وجلس أبو يزن إلى جانبك.'],
+    ],
+  },
+  {
+    act: 'act2r',
+    key: 'd_choice',
+    title: 'decWay',
+    time: ['5:00', '٥:٠٠'],
+    options: [
+      ['cloth', 'You wrapped a white sheet round a curtain rail, to go and talk to them.', 'لففتَ شرشفاً أبيض على سكّة ستارة، لتكلّمهم.'],
+      ['back', 'You looked at the ruined building, and saw a way.', 'نظرتَ إلى المبنى المدمّر، ورأيتَ طريقاً.'],
+    ],
+  },
+];
+const optionFor = (d, v) => d.options.find((o) => o[0] === v) || d.options[d.options.length - 1];
+
 // The end card: each choice as a moment in the afternoon.
 function summary2(s) {
   const ar = lang() === 'ar';
@@ -126,36 +223,14 @@ function summary2(s) {
     [ar ? '٤:٣٥' : '4:35', ar ? (n ? `عبرتَ الحارة الجنوبية تحت عين القنّاص، وردّتك رصاصة التحذير ${n} مرة.` : 'عبرتَ الحارة الجنوبية تحت عين القنّاص، ولم يرك.') : n ? `You crossed the southern quarter under the sniper's eye. A warning shot turned you back ${n} time${n > 1 ? 's' : ''}.` : "You crossed the southern quarter under the sniper's eye. He never saw you."],
     [ar ? '٤:٤٢' : '4:42', ar ? 'قال المسعف: ما قدرنا نوصلّو.' : 'The medic said: we couldn’t reach him.'],
     [ar ? '٤:٥٥' : '4:55', ar ? 'رأيتَ شكلاً مغطّى بحرام، وسط شارع المدرسة.' : 'You saw a shape under a blanket, in the middle of School Street.'],
-    [ar ? '٥:٠٠' : '5:00', s.d_choice === 'cloth' ? (ar ? 'لففتَ شرشفاً أبيض على سكّة ستارة، لتكلّمهم.' : 'You wrapped a white sheet round a curtain rail, to go and talk to them.') : ar ? 'نظرتَ إلى المبنى المدمّر، ورأيتَ طريقاً.' : 'You looked at the ruined building, and saw a way.'],
+    [ar ? '٥:٠٠' : '5:00', optionFor(DECISIONS[3], s.d_choice)[ar ? 2 : 1]],
     [ar ? '٥:١٠' : '5:10', ar ? 'أعطاك أبو يزن ولّاعة أحمد ودفتره.' : 'Abu Yazan gave you Ahmad’s lighter, and his journal.'],
   ];
 }
 
 function summary(s) {
   const ar = lang() === 'ar';
-  const rows = [
-    [
-      ar ? '٣:٢٠' : '3:20',
-      s.helped_old_man
-        ? ['You carried the old man’s water to his daughter’s door.', 'حملتَ ماء الرجل العجوز إلى باب ابنته.']
-        : ['You walked past the old man and his water.', 'مضيتَ وتركتَ الرجل العجوز وماءه.'],
-    ],
-    [
-      ar ? '٣:٤٥' : '3:45',
-      s.children_helped
-        ? ['When the mortars came, you ran for Layla and the boy.', 'حين سقطت القذائف، ركضتَ نحو ليلى والطفل.']
-        : ['When the mortars came, you took cover. Layla got the boy to the stairs herself.', 'حين سقطت القذائف، احتميتَ. أوصلت ليلى الطفل إلى الدرج وحدها.'],
-    ],
-    [
-      ar ? '٤:١٠' : '4:10',
-      s.path === 'retrieval'
-        ? ['“I need to see him.” You walked south, towards School Street.', '«أريد أن أراه.» مشيتَ جنوباً نحو شارع المدرسة.']
-        : s.path === 'witness'
-          ? ['“Who did this?” You asked for facts, because facts can be carried.', '«من فعل هذا؟» سألتَ عن الحقائق، لأن الحقائق يمكن حملها.']
-          : ['You said nothing. You sat on the kerb, and Abu Yazan sat with you.', 'لم تقل شيئاً. جلستَ على الرصيف، وجلس أبو يزن إلى جانبك.'],
-    ],
-  ];
-  return rows.map(([time, [en, arText]]) => [time, ar ? arText : en]);
+  return DECISIONS.filter((d) => d.act === 'act1').map((d) => [d.time[ar ? 1 : 0], optionFor(d, s[d.key])[ar ? 2 : 1]]);
 }
 
 function startGame(state) {
@@ -165,8 +240,14 @@ function startGame(state) {
   $('end').hidden = true;
   stage.classList.add('playing');
   sound.start().then(() => {
-    game.start(ACTS[actKey(state)], state);
+    const key = actKey(state);
+    state.noticed ||= [];
+    game.start(ACTS[key], state);
     game.onEnd = showEnd;
+    // how many things this act has to look at
+    const p = progress();
+    p.totals[key] = game.level.things.filter((x) => x.look).length;
+    saveProgress(p);
   });
 }
 
@@ -208,8 +289,17 @@ function showEnd(s) {
   if (key === 'act1') {
     if (!p.unlocked.includes('act2r')) p.unlocked.push('act2r');
     p.carry = { ...s };
-    saveProgress(p);
   }
+  // every choice made, for Your story
+  for (const d of DECISIONS.filter((x) => x.act === key)) {
+    const v = optionFor(d, s[d.key])[0];
+    const seen = (p.seen[d.key] ||= []);
+    if (!seen.includes(v)) seen.push(v);
+    p.last[d.key] = v;
+  }
+  saveProgress(p);
+  const total = p.totals[key] || 0;
+  const looked = (s.noticed || []).length;
   const act1 = key === 'act1';
   const rows = act1 ? summary(s) : summary2(s);
   const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
@@ -225,12 +315,15 @@ function showEnd(s) {
       ${rows.map(([time, line]) => `<li><time>${esc(time)}</time><span>${esc(line)}</span></li>`).join('')}
       <li class="tl-end"><time>${last[0]}</time><span>${esc(last[1])}</span></li>
     </ol>
+    ${total ? `<p class="end-noticed">${esc(t('noticed')(looked, total))}</p>` : ''}
     <p class="sheet-quiet">${esc(t(act1 ? (s.path === 'retrieval' ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
     <div class="sheet-btns">
       ${next ? `<button type="button" id="end-next" class="primary">${esc(t('continueAct2'))}</button>` : ''}
       <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : 'againAct2'))}</button>
       <button type="button" id="end-menu">${esc(t('mainMenu'))}</button>
-    </div>`;
+    </div>
+    <button type="button" class="end-after-link" id="end-after" aria-expanded="false">${esc(t('afterwordLink'))}</button>
+    <div class="end-after" id="end-after-body" hidden>${afterwordHtml()}</div>`;
   end.hidden = false;
   requestAnimationFrame(() => end.classList.add('show'));
   const close = () => {
@@ -253,6 +346,12 @@ function showEnd(s) {
     }
   });
   $('end-menu').addEventListener('click', () => toMainMenu());
+  $('end-after').addEventListener('click', () => {
+    const body = $('end-after-body');
+    body.hidden = !body.hidden;
+    $('end-after').setAttribute('aria-expanded', String(!body.hidden));
+    if (!body.hidden) body.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  });
   ($('end-next') || $('end-again')).focus();
 }
 
@@ -303,6 +402,10 @@ function pauseAside() {
     <p class="aside-v">${cp ? `${esc(t('checkpoints')[cp] || cp)} · ${esc(t('times')[cp] || '')}` : '·'}</p>`;
 }
 
+// The scenes of each act, in order: the first is the act's own start.
+const SCENES = { act1: ['walk', 'hour', 'school', 'news'], act2r: ['south', 'lanes', 'front'] };
+const sceneName = (cp) => String(t('checkpoints')[cp] || cp).split(' · ').pop();
+
 function chaptersPage(panel, m) {
   const h = document.createElement('h2');
   h.className = 'menu-title';
@@ -311,10 +414,10 @@ function chaptersPage(panel, m) {
   const p = progress();
   const list = document.createElement('div');
   list.className = 'menu-list chapter-list';
-  const item = (n, title, sub, locked, go) => {
+  const item = (n, title, sub, locked, go, cls = '') => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = `menu-btn${locked ? ' locked' : ''}`;
+    b.className = `menu-btn${locked ? ' locked' : ''}${cls}`;
     b.disabled = locked;
     b.innerHTML = `<span class="menu-btn-n">${n}</span><span class="menu-btn-text"><span class="menu-btn-label"></span><span class="menu-btn-sub"></span></span>`;
     b.querySelector('.menu-btn-label').textContent = title;
@@ -322,15 +425,148 @@ function chaptersPage(panel, m) {
     if (!locked) b.addEventListener('click', go);
     list.appendChild(b);
   };
+  // the later scenes of an act, each from the state it was last reached with
+  const scenes = (key, open) => {
+    for (const cp of SCENES[key].slice(1)) {
+      const st = p.scenes[key]?.[cp];
+      item(t('times')[cp], sceneName(cp), st ? '' : t('sceneLocked'), !open || !st, () => {
+        const n = { ...st, checkpoint: cp, completed: false };
+        writeSave(n);
+        startGame(n);
+      }, ' scene');
+    }
+  };
   item('I', t('chapter1'), t('chapter1Sub'), false, () => newGame());
+  scenes('act1', true);
   const open2 = p.unlocked.includes('act2r');
   item('II', t('chapter2'), open2 ? t('chapter2Sub') : t('chapter2Locked'), !open2, () => {
     const n = act2State(p.carry);
     writeSave(n);
     startGame(n);
   });
+  scenes('act2r', open2);
   panel.appendChild(list);
   m.backButton(panel);
+}
+
+// Your story: every decision, the way it went last time, the other ways it
+// has gone, and those not yet taken; then what Sami stopped to look at.
+function storyPage(panel, m) {
+  const ar = lang() === 'ar';
+  const p = progress();
+  panel.insertAdjacentHTML('beforeend', `<h2 class="menu-title">${esc(t('yourStory'))}</h2><p class="menu-sub">${esc(t('yourStorySub'))}</p>`);
+  const box = document.createElement('div');
+  box.className = 'menu-story';
+  box.tabIndex = 0;
+  let any = false;
+  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2']]) {
+    const ds = DECISIONS.filter((d) => d.act === key);
+    if (!ds.some((d) => p.seen[d.key]?.length)) continue;
+    any = true;
+    let html = `<h3 class="menu-group">${esc(t(title))}</h3>`;
+    for (const d of ds) {
+      const seen = p.seen[d.key] || [];
+      html += `<div class="story-dec"><p class="story-dec-t"><time>${esc(d.time[ar ? 1 : 0])}</time>${esc(t(d.title))}</p><ul>`;
+      for (const o of d.options) {
+        const was = seen.includes(o[0]);
+        const last = p.last[d.key] === o[0];
+        html += was
+          ? `<li class="${last ? 'last' : ''}"><span>${esc(o[ar ? 2 : 1])}</span>${last ? `<em>${esc(t('storyLast'))}</em>` : ''}</li>`
+          : `<li class="unseen" aria-label="${esc(t('storyUnseen'))}"><span aria-hidden="true">· · · · ·</span></li>`;
+      }
+      html += '</ul></div>';
+    }
+    box.insertAdjacentHTML('beforeend', html);
+  }
+  if (!any) box.insertAdjacentHTML('beforeend', `<p class="menu-sub">${esc(t('storyNone'))}</p>`);
+
+  // what you noticed
+  let notes = `<h3 class="menu-group">${esc(t('memories'))}</h3><p class="menu-sub">${esc(t('memoriesSub'))}</p>`;
+  let found = 0;
+  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2']]) {
+    const got = Object.values(p.noticed[key] || {});
+    const total = Math.max(p.totals[key] || 0, got.length);
+    if (!total) continue;
+    found += got.length;
+    notes += `<div class="story-notes"><p class="story-dec-t">${esc(t(title))}<span class="story-count">${esc(t('noticedAct')(got.length, total))}</span></p><ul>`;
+    for (const line of got) notes += `<li>${ar ? `<span class="ar" lang="ar" dir="rtl">${esc(line[0])}</span>` : `<span>${esc(line[1])}</span>`}</li>`;
+    notes += `</ul><p class="story-dots" aria-hidden="true">${'●'.repeat(got.length)}${'○'.repeat(total - got.length)}</p></div>`;
+  }
+  if (!found) notes += `<p class="menu-sub">${esc(t('memoriesNone'))}</p>`;
+  box.insertAdjacentHTML('beforeend', notes);
+  panel.appendChild(box);
+  m.backButton(panel);
+}
+
+// Belongings: what Sami carries, and what each thing is. Ahmad's journal
+// opens, page by page.
+function belongingsPage(panel, m) {
+  const ar = lang() === 'ar';
+  const subs = settings.get('subtitles');
+  panel.insertAdjacentHTML('beforeend', `<h2 class="menu-title">${esc(t('belongings'))}</h2>`);
+  const box = document.createElement('div');
+  box.className = 'menu-belongings';
+  const tools = game.state?.tools || [];
+  if (!tools.length) box.innerHTML = `<p class="menu-sub">${esc(t('belongingsNone'))}</p>`;
+  const lines = (L) => `${subs !== 'en' ? `<span class="ar" lang="ar" dir="rtl">${esc(L.ar)}</span>` : ''}${subs !== 'ar' ? `<span class="en" dir="ltr">${esc(L.en)}</span>` : ''}`;
+  for (const id of tools) {
+    const T = TOOLS[id];
+    const it = ITEMS[id];
+    if (!T) continue;
+    const row = document.createElement('div');
+    row.className = 'belong';
+    row.innerHTML = `<p class="belong-name">${esc(ar ? T.ar : T.en)}${it?.draft ? '<span class="log-draft">[draft]</span>' : ''}</p>${it ? `<p class="belong-desc">${lines(it)}</p>` : ''}`;
+    if (id === 'journal') {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'menu-link';
+      b.textContent = t('read');
+      b.addEventListener('click', () => m.push('journal'));
+      row.appendChild(b);
+    }
+    box.appendChild(row);
+  }
+  panel.appendChild(box);
+  m.backButton(panel);
+}
+
+let journalAt = 0;
+function journalPage(panel, m) {
+  const subs = settings.get('subtitles');
+  const pg = JOURNAL[journalAt];
+  panel.insertAdjacentHTML(
+    'beforeend',
+    `<h2 class="menu-title">${esc(TOOLS.journal[lang() === 'ar' ? 'ar' : 'en'])}</h2>
+    <div class="journal-page">
+      <p class="journal-ar" lang="ar" dir="rtl">${esc(pg.ar).replace(/\n/g, '<br>')}</p>
+      ${subs !== 'ar' ? `<p class="journal-en" dir="ltr">${esc(pg.en).replace(/\n/g, '<br>')}</p>` : ''}
+      ${pg.draft ? '<span class="log-draft">[draft]</span>' : ''}
+    </div>
+    <div class="journal-nav">
+      <button type="button" class="menu-link" id="j-prev" ${journalAt ? '' : 'disabled'}>${esc(t('prevPage'))}</button>
+      <span class="journal-n">${esc(t('pageN')(journalAt + 1, JOURNAL.length))}</span>
+      <button type="button" class="menu-link" id="j-next" ${journalAt < JOURNAL.length - 1 ? '' : 'disabled'}>${esc(t('nextPage'))}</button>
+    </div>`,
+  );
+  const turn = (d) => {
+    journalAt = Math.max(0, Math.min(JOURNAL.length - 1, journalAt + d));
+    sound.cloth?.();
+    m.keepFocus = true;
+    m.render();
+  };
+  panel.querySelector('#j-prev').addEventListener('click', () => turn(-1));
+  panel.querySelector('#j-next').addEventListener('click', () => turn(1));
+  m.backButton(panel);
+}
+
+function afterwordHtml() {
+  return lang() === 'ar'
+    ? `<h3>${esc(t('afterword'))}</h3>
+    <p>حوصرت الغوطة الشرقية، ببلداتها وبساتينها شرقيّ دمشق، من عام ٢٠١٣ حتى نيسان ٢٠١٨. عاش فيها مئات الآلاف من الناس تحت القصف والجوع وشحّ الدواء، في واحد من أطول الحصارات في التاريخ الحديث.</p>
+    <p>سامي وأحمد وشارعهما من نسج الخيال. أمّا ما يعيشونه، من ستائر القنّاصة إلى المدارس في الأقبية والبطاريات التي تشحن هواتف حيّ كامل، فمستمَدّ من شهادات من كانوا هناك.</p>`
+    : `<h3>${esc(t('afterword'))}</h3>
+    <p>Eastern Ghouta, the towns and orchards east of Damascus, was besieged from 2013 until April 2018. Several hundred thousand people lived inside it, through shelling, hunger and shortages of medicine, in one of the longest sieges in modern history.</p>
+    <p>Sami, Ahmad and their street are invented. What they live through, from the sniper curtains to the schools in basements and the car batteries charging a whole neighbourhood’s phones, is drawn from the accounts of people who were there.</p>`;
 }
 
 function logPage(panel, m) {
@@ -377,6 +613,7 @@ const menu = new Menu($('menu'), {
     },
     { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
     { label: () => t('chapters'), action: (m) => m.push('chapters') },
+    { label: () => t('yourStory'), action: (m) => m.push('story') },
     { label: () => t('settings'), action: (m) => m.push('settings') },
     { label: () => t('controls'), action: (m) => m.push('controls') },
     { label: () => t('about'), action: (m) => m.push('about') },
@@ -384,6 +621,14 @@ const menu = new Menu($('menu'), {
   pause: [
     { label: () => t('resume'), action: (m) => m.close() },
     { label: () => t('log'), action: (m) => m.push('log') },
+    {
+      label: () => t('belongings'),
+      action: (m) => {
+        journalAt = 0;
+        m.push('belongings');
+      },
+    },
+    { label: () => t('photo'), action: () => openPhoto() },
     { label: () => t('settings'), action: (m) => m.push('settings') },
     { label: () => t('controls'), action: (m) => m.push('controls') },
     {
@@ -396,7 +641,7 @@ const menu = new Menu($('menu'), {
     { label: () => t('mainMenu'), action: () => toMainMenu() },
   ],
   pauseAside,
-  pages: { log: logPage, chapters: chaptersPage },
+  pages: { log: logPage, chapters: chaptersPage, story: storyPage, belongings: belongingsPage, journal: journalPage },
   onOpen: () => {
     game.paused = true;
     stage.classList.add('paused');
@@ -424,28 +669,35 @@ const menu = new Menu($('menu'), {
     { key: 'reduceFlashes', label: 'reduceFlashes', type: 'toggle' },
     { group: 'gPlay' },
     { key: 'hints', label: 'hints', type: 'toggle' },
+    { group: 'gAccess' },
+    { key: 'readSpeed', label: 'readSpeed', type: 'select', options: [[1.35, 'slow'], [1, 'normal'], [0.8, 'fast']] },
+    { key: 'crouchMode', label: 'crouchMode', type: 'select', options: [['toggle', 'crouchToggle'], ['hold', 'crouchHold']] },
+    { key: 'lanes', label: 'lanes', type: 'select', options: [['standard', 'lanesStandard'], ['forgiving', 'lanesForgiving']] },
+    { key: 'vibration', label: 'vibration', type: 'toggle' },
   ],
   controls: { input, actions: ACTIONS, label: keyLabel },
   about: () =>
     lang() === 'ar'
       ? `<h2 class="menu-title">عن القصة</h2>
     <p><strong>قبل ما عرفت</strong> قصة تفاعلية تدور أحداثها في بلدة محاصرة في الغوطة، قرب دمشق، في آب ٢٠١٤. سامي في السابعة والعشرين. يمشي مع أقرب أصدقائه، أحمد، ثم يفترقان عند مفترق الطرق. وبعد أقلّ من ساعة، يعلم أن أحمد قد استُشهد.</p>
-    <p>هذا هو الفصل الأول: المشوار، والفراق، وساعة ما قبل المعرفة. تحدّد خياراتك من يكون سامي حين يصله الخبر، وإلى أين تمضي الليلة.</p>
+    <p>الفصل الأول هو المشوار، والفراق، وساعة ما قبل المعرفة. تحدّد خياراتك من يكون سامي حين يصله الخبر، وإلى أين يمضي المساء. في الفصل الثاني، يتّجه سامي جنوباً نحو أحمد.</p>
     <h3>تنبيه حول المحتوى</h3>
     <p>الحياة تحت الحصار: القصف، والقنص، والجوع، وموت صديق، والحزن. يُسمَع العنف ويُفهَم، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.</p>
-    <p class="menu-sub">عمل متخيَّل مستند إلى شهادات موثّقة عن الحياة تحت الحصار. كل ما فيه مرسوم ومولَّد بالبرمجة، من دون صور أو تسجيلات.</p>`
+    <p class="menu-sub">عمل متخيَّل مستند إلى شهادات موثّقة عن الحياة تحت الحصار. كل ما فيه مرسوم ومولَّد بالبرمجة، من دون صور أو تسجيلات.</p>
+    ${afterwordHtml()}`
       : `<h2 class="menu-title">About</h2>
     <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Ahmad, and they part at a junction. Less than an hour later, he learns that Ahmad has been killed.</p>
-    <p>This is Act One: the walk, the parting, and the hour of not knowing. Your choices shape who Sami is when the news reaches him, and which way the night goes.</p>
+    <p>Act One is the walk, the parting, and the hour of not knowing. Your choices shape who Sami is when the news reaches him, and which way the evening goes. In Act Two, Sami heads south, to Ahmad.</p>
     <h3>Content note</h3>
     <p>Life under military siege: shelling, sniper fire, hunger, the death of a friend, grief. Violence is heard and implied, never shown. Recommended for ages 16 and over.</p>
-    <p class="menu-sub">A work of fiction drawing on documented accounts of siege life. Everything is drawn and synthesised in code. There are no images or recordings.</p>`,
+    <p class="menu-sub">A work of fiction drawing on documented accounts of siege life. Everything is drawn and synthesised in code. There are no images or recordings.</p>
+    ${afterwordHtml()}`,
 });
 menu.showMain();
 
 input.onKey((e) => {
   const acts = input.actionsFor(e.code);
-  if (!acts.includes('menu')) return;
+  if (!acts.includes('menu') || photo.active) return;
   if (!$('note').hidden) {
     $('note').hidden = true;
     return;
@@ -454,7 +706,7 @@ input.onKey((e) => {
 });
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && mode === 'play' && !menu.open) menu.showPause();
+  if (document.hidden && mode === 'play' && !menu.open && !photo.active) menu.showPause();
 });
 
 // ------------------------------------------------------- touch controls --
@@ -487,7 +739,25 @@ for (const [id, action] of touchMap) {
   b.addEventListener('pointercancel', up);
   b.addEventListener('pointerleave', up);
 }
-$('t-menu').addEventListener('click', () => mode === 'play' && menu.toggle());
+$('t-menu').addEventListener('click', () => mode === 'play' && !photo.active && menu.toggle());
+
+// ----------------------------------------------------------- photo mode --
+
+const photo = new Photo({
+  game,
+  stage,
+  canvas: $('view'),
+  input,
+  t,
+  render: () => game.render(time),
+  onExit: () => menu.showPause(),
+});
+function openPhoto() {
+  menu.close();
+  // the story stays stopped while the camera is free
+  game.paused = true;
+  photo.open();
+}
 
 // ------------------------------------------------------------------ loop --
 
@@ -508,7 +778,8 @@ function frame(now) {
   } else {
     // (testing can run several steps per frame and skip drawing)
     const steps = window.game?.speed || 1;
-    if (!menu.open) for (let i = 0; i < steps; i++) game.update(dt);
+    if (photo.active) photo.update(dt);
+    else if (!menu.open) for (let i = 0; i < steps; i++) game.update(dt);
     if (!window.game?.noRender) game.render(time);
   }
   input.endFrame();
@@ -536,6 +807,8 @@ window.game = {
   input,
   settings,
   text,
+  photo,
+  progress,
   start: (checkpoint = 'walk', extra = {}) => startGame({ ...freshState(), checkpoint, ...extra }),
   startAct2: (checkpoint = 'south', extra = {}) => startGame({ ...act2State(null), checkpoint, ...extra }),
   get mode() {

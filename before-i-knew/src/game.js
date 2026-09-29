@@ -108,6 +108,7 @@ export class Game {
   checkpoint(id) {
     this.state.checkpoint = id;
     writeSave(this.state);
+    this.onCheckpoint?.(id, this.state);
   }
 
   lock(on = true) {
@@ -127,11 +128,19 @@ export class Game {
   // How long a line stays up: long enough to read the longer of its two
   // languages (Arabic reads a little slower per letter).
   readTime(line) {
-    return Math.max(2.4, 1.2 + Math.max(line[1].length * 0.055, line[0].length * 0.065));
+    const k = this.settings.get('readSpeed') || 1;
+    return Math.max(2.4, 1.2 + Math.max(line[1].length * 0.055, line[0].length * 0.065)) * k;
+  }
+
+  // A scripted duration is stretched or shortened by the reading-time
+  // setting too, never below what the line needs at that setting.
+  dur(line, dur) {
+    const k = this.settings.get('readSpeed') || 1;
+    return dur == null ? this.readTime(line) : Math.max(dur * k, k < 1 ? this.readTime(line) : 0);
   }
 
   *say(who, line, dur = null, style = '') {
-    const d = dur ?? this.readTime(line);
+    const d = this.dur(line, dur);
     const id = this.text.say(who, line, d, style);
     this.sound.score?.speak(d);
     const end = this.time + d;
@@ -141,7 +150,7 @@ export class Game {
 
   // Show a line without waiting for it.
   line(who, line, dur = null, style = '') {
-    const d = dur ?? this.readTime(line);
+    const d = this.dur(line, dur);
     this.text.say(who, line, d, style);
     this.sound.score?.speak(d);
   }
@@ -254,14 +263,23 @@ export class Game {
       if (done) this.autoWalk = null;
     } else if (!this.locked && this.scene === 'street') {
       let stance;
-      if (input.hit('crouch')) stance = p.stance === 'crouch' ? 'stand' : 'crouch';
-      if (input.hit('prone')) stance = p.stance === 'prone' ? 'stand' : 'prone';
-      if (input.hit('jump') && p.stance !== 'stand') stance = 'stand';
+      let told = true;
+      if (this.settings.get('crouchMode') === 'hold') {
+        // held: down while the key is, up (when there's room) once it's let go
+        const want = input.held('prone') ? 'prone' : input.held('crouch') ? 'crouch' : 'stand';
+        told = want !== this.heldWant;
+        this.heldWant = want;
+        if (want !== p.stance && (want !== 'stand' || !p.override)) stance = want;
+      } else {
+        if (input.hit('crouch')) stance = p.stance === 'crouch' ? 'stand' : 'crouch';
+        if (input.hit('prone')) stance = p.stance === 'prone' ? 'stand' : 'prone';
+        if (input.hit('jump') && p.stance !== 'stand') stance = 'stand';
+      }
       const move = (input.held('right') ? 1 : 0) - (input.held('left') ? 1 : 0);
       p.update(dt, { move: this.gate ? this.gate(move) : move, run: input.held('run'), jump: input.hit('jump') && p.stance === 'stand', stance });
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
-      } else if (stance === 'stand' && p.stance !== 'stand') {
+      } else if (stance === 'stand' && p.stance !== 'stand' && told) {
         this.text.say(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
@@ -347,7 +365,11 @@ export class Game {
     const [u, v] = this.R.cam.toUv(t.x, t.y, this.R.W, this.R.H);
     const key = keyLabel(this.input.bindings().interact?.[0]);
     this.text.hint(u, v, key, t.label);
-    if (this.input.hit('interact')) t.use(this);
+    if (this.input.hit('interact')) {
+      t.use(this);
+      // an examine point: remember it, and what Sami made of it
+      if (t.look) this.onNotice?.(t.id, t.lookText || this.text.log[this.text.log.length - 1]?.line);
+    }
   }
 
   // Torch as a light source, for the act's look().

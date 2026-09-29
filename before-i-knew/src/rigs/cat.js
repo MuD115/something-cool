@@ -24,6 +24,7 @@ export class Cat {
     this.blink = 0;
     this.time = 0;
     this.headTurn = 0; // kept for the scene scripts
+    this.lean = 0; // 0 … 1: leaning its head into a hand
     this.hidden = false;
   }
 
@@ -42,12 +43,14 @@ export class Cat {
     const bob = walking ? Math.sin(this.phase * Math.PI * 4) * 1.2 : 0;
     const STAND = [[-34, -34], [-28, -41], [-6, -38], [14, -42], [22, -45], [30, -29], [21, -16], [-2, -20], [-17, -19], [-33, -23]];
     const SIT = [[-26, -6], [-27, -22], [-15, -38], [2, -50], [9, -55], [19, -37], [17, -14], [7, -5], [-6, -2], [-24, 0]];
-    const outline = STAND.map((q, k) => [lerp(q[0], SIT[k][0], s), lerp(q[1] + bob, SIT[k][1] + (k >= 2 && k <= 5 ? breathe * 0.4 : 0), s)]);
+    // leaning into a hand, standing: the back and rump rise to meet it
+    const arch = [0, 3, 4, 2, 0, 0, 0, 0, 0, 1];
+    const outline = STAND.map((q, k) => [lerp(q[0], SIT[k][0], s), lerp(q[1] + bob - arch[k] * this.lean, SIT[k][1] + (k >= 2 && k <= 5 ? breathe * 0.4 : 0), s)]);
     return {
       s,
       walking,
       outline,
-      head: mixp([35, -52 + bob], [17, -69 + breathe * 0.3], s),
+      head: mixp([35 + this.lean * 3, -52 + bob - this.lean * 2], [17 + this.lean * 4, -69 + breathe * 0.3 + this.lean * 3], s),
       shoulder: mixp([20, -30 + bob], [12, -28], s),
       hip: mixp([-24, -30 + bob], [-14, -12], s),
       breathe,
@@ -121,7 +124,7 @@ export class Cat {
   headDraw(ctx, h) {
     ctx.save();
     ctx.translate(h[0], h[1]);
-    ctx.rotate(noise1(this.time * 0.3) * 0.05);
+    ctx.rotate(noise1(this.time * 0.3) * 0.05 * (1 - this.lean) - this.lean * 0.32);
     ctx.scale(1.2, 1.2);
     // far ear, then the skull, muzzle and chin
     ctx.fillStyle = FAR;
@@ -279,7 +282,8 @@ export class Cat {
     if (s > 0.5) {
       // out behind the haunch and round the front of the paws
       ctx.bezierCurveTo(r[0] - 14, r[1] + 4, -20, 1, 2, -1.5);
-      ctx.quadraticCurveTo(20 + sway * 0.5, -2, 27 + flick, -7 - flick * 0.4);
+      const curl = this.lean * 9;
+      ctx.quadraticCurveTo(20 + sway * 0.5, -2 - curl * 0.3, 27 + flick - curl * 0.3, -7 - flick * 0.4 - curl);
     } else {
       ctx.bezierCurveTo(r[0] - 16, r[1] + 2, r[0] - 26 + sway, r[1] - 22, r[0] - 16 + sway, r[1] - 40 - flick);
     }

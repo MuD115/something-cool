@@ -96,7 +96,7 @@ export const ACT2R = {
     L.ceiling(X.crawl[0], X.crawl[1], -58);
 
     // --- examine points ---
-    const look = (id, x, y, key, range = 90) => L.add({ id, x, y, range, label: ['تفحّص', 'Examine'], use: () => line(g, key) });
+    const look = (id, x, y, key, range = 90) => L.add({ id, x, y, range, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key) });
     look('wall1', X.wall1[0] - 40, -120, 'lane1_wall');
     look('car', X.car[0] - 30, -110, 'lane2_car');
     look('crawl', X.crawl[0] - 50, -80, 'crawl', 70);
@@ -195,9 +195,14 @@ export const ACT2R = {
     g.fade = 0.55;
     yield 0.2;
     p.override = null;
-    p.place(lane.x0 - 70);
-    p.f = 1;
-    p.stance = 'crouch';
+    if (a.forgiving) {
+      // forgiving lanes: he drops flat where he is, out of the sniper's line
+      p.stance = 'prone';
+    } else {
+      p.place(lane.x0 - 70);
+      p.f = 1;
+      p.stance = 'crouch';
+    }
     g.fade = 0;
     g.state.lane_retries += 1;
     a.expose = 0;
@@ -499,9 +504,10 @@ export const ACT2R = {
     const k = clamp((p.x - X.start) / (X.stop - X.start)) * 0.5;
     a.duskK = a.duskEnd ? lerp(a.duskK, 0.8, 1 - Math.exp(-dt * 0.35)) : Math.max(a.duskK, k);
 
-    // lane 2: at the window 6.5 s, away 3.5 s
+    // lane 2: at the window 6.5 s, away 3.5 s (forgiving: 5 and 5)
+    a.forgiving = g.settings.get('lanes') === 'forgiving';
     const c2 = a.t2 ? (g.time - a.t2) % 10 : 0;
-    const w2 = c2 < 6.5 ? 1 : 0;
+    const w2 = c2 < (a.forgiving ? 5 : 6.5) ? 1 : 0;
     if (a.radio2 && (w2 > 0.5) !== (a.watch2 > 0.5)) {
       g.sound.radio(1.6);
       line(g, w2 ? 'radio_watch' : 'radio_away');
@@ -509,7 +515,7 @@ export const ACT2R = {
     a.watch2 = w2;
     // lane 3: the smoke thickens and thins on an 11 s cycle
     const c3 = a.t3 ? (g.time - a.t3) % 11 : 6;
-    a.smoke = lerp(a.smoke, c3 < 5.5 ? 1 : 0, 1 - Math.exp(-dt * 1.2));
+    a.smoke = lerp(a.smoke, c3 < (a.forgiving ? 7.5 : 5.5) ? 1 : 0, 1 - Math.exp(-dt * 1.2));
     a.watch3 = a.smoke < 0.55 ? 1 : 0;
 
     // exposure in a lane
@@ -520,7 +526,7 @@ export const ACT2R = {
       const safe = p.stance === 'prone' || covered || !watching;
       a.laneState = { id: lane.id, watching, safe };
       a.expose = safe ? Math.max(0, a.expose - dt * 2) : a.expose + dt;
-      if (a.expose > 0.4 && !a.shotBusy) {
+      if (a.expose > (a.forgiving ? 0.9 : 0.4) && !a.shotBusy) {
         a.expose = 0;
         g.runner.run(this.warningShot(g, lane));
       }

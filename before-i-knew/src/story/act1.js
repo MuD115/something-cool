@@ -28,6 +28,9 @@ const SPOT_SIT = { ...POSES.sitChair, head: 0.05, armN: 0.75, foreN: 2.95 };
 
 // Pause between lines so the dialogue breathes.
 const GAP = 0.45;
+const CAT_LINE = ['بسّة. مو جوعانة أكتر من أي حدا هون. وعم تستنى نفس الشي: إنو يخلص.', 'A cat. No hungrier than anyone else here. Waiting for the same thing: for it to end.'];
+// (not in the script: a placeholder for the stroke)
+const STROKE_LINE = ['خلّتني. للحظة، ما في غير شي دافي تحت إيدي.', 'It lets me. For a moment, there’s only something warm under my hand.'];
 
 function* talk(g, lines) {
   for (const [who, line, style] of lines) {
@@ -50,12 +53,12 @@ export const ACT1 = {
     L.ceiling(X.sag0, X.sag1, -150); // the sagged curtain: crouch under it
 
     // --- examine texts from the script ---
-    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
-    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
-    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
-    L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
-    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
+    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
+    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, look: true, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
+    L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, look: true, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
+    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
       id: 'shard',
       x: X.shard,
@@ -600,8 +603,23 @@ export const ACT1 = {
       y: -200,
       range: 110,
       label: ['القطة', 'The cat'],
+      look: true,
+      lookText: CAT_LINE,
       enabled: () => !cat.hidden && !g.a.catDone,
       use: () => g.runner.run(this.catScene(g)),
+    });
+    // for a few seconds after, it will let him reach out to it
+    L.add({
+      id: 'catStroke',
+      x: X.catWall,
+      y: -200,
+      range: 130,
+      urgent: true,
+      label: ['ملّس عليها', 'Stroke it'],
+      look: true,
+      lookText: STROKE_LINE,
+      enabled: () => g.a.catWait && !g.a.stroke,
+      use: () => (g.a.stroke = true),
     });
 
     L.at(6950, () => {
@@ -860,8 +878,21 @@ export const ACT1 = {
       cat.blink = Math.sin(clamp(k) * Math.PI);
       return k >= 1;
     };
-    yield* g.say(null, ['بسّة. مو جوعانة أكتر من أي حدا هون. وعم تستنى نفس الشي: إنو يخلص.', 'A cat. No hungrier than anyone else here. Waiting for the same thing: for it to end.'], 6, 'examine');
+    yield* g.say(null, CAT_LINE, 6, 'examine');
+    // it stays a moment, if he wants to reach out to it
+    g.a.catWait = true;
+    g.lock(false);
+    const t2 = g.time;
+    yield () => g.a.stroke || g.time - t2 > 5;
+    g.a.catWait = false;
+    if (g.a.stroke) {
+      yield* this.catStroke(g);
+      g.camOverride = null;
+      g.lock(false);
+      return;
+    }
     yield 1.2;
+    g.lock();
     // it turns, drops off the wall, and is gone into the rubble without a sound
     cat.f = 1;
     const t1 = g.time;
@@ -876,6 +907,83 @@ export const ACT1 = {
     };
     g.camOverride = null;
     g.lock(false);
+  },
+
+  // Sami crouches and holds out a hand. The cat drops off the wall, comes to
+  // him, turns its back to be stroked, arches into his hand with its eyes
+  // closed and purrs; then it has had enough, and goes into the rubble.
+  *catStroke(g) {
+    const cat = g.cat;
+    const p = g.player;
+    g.lock();
+    g.state.stroked_cat = true;
+    const f = p.x < cat.x ? 1 : -1;
+    // room for the cat between him and the foot of the wall
+    yield* g.walkPlayer(X.catWall - f * 150);
+    p.f = f;
+    g.camOverride = { x: X.catWall - f * 90, y: -150, view: 820 };
+    // his hand, low and forward, at the height of a standing cat's back
+    const backY = p.y - 34 * 0.9 - 2;
+    const reach = handTo(p, 'sami', 0, backY, f, { ...POSES.crouch, head: 0.3 });
+    const handX = p.x - reach.x;
+    const rest = { ...reach.pose, armN: 0.45, foreN: 1.0 };
+    p.override = rest;
+    g.sound.cloth();
+    yield 0.5;
+    p.override = reach.pose;
+    yield 0.6;
+
+    // down off the wall, landing where its back will be under his hand
+    const landX = handX + 5.4 * f;
+    const x0 = cat.x;
+    const y0 = cat.y;
+    cat.f = -f;
+    const t1 = g.time;
+    yield () => {
+      const k = clamp((g.time - t1) / 0.7);
+      cat.sit = 1 - clamp(k * 4);
+      cat.x = lerp(x0, landX, smooth(k));
+      cat.y = lerp(y0, p.y, k) - Math.sin(k * Math.PI) * 30;
+      cat.speed = k < 0.3 ? 0 : 50;
+      return k >= 1;
+    };
+    cat.speed = 0;
+    g.sound.step('grit', 0.05, { pan: g.sound.panFor(cat.x) });
+    yield 0.35;
+    // it turns, and offers its back
+    cat.f = f;
+    yield 0.3;
+
+    g.sound.purr(4.6, g.sound.panFor(cat.x));
+    const t0 = g.time;
+    yield () => {
+      const k = (g.time - t0) / 4.6;
+      // three slow strokes along its back, head to tail
+      const s = Math.sin(clamp(k) * Math.PI * 6 - Math.PI / 2);
+      p.override = { ...reach.pose, armN: reach.pose.armN + s * 0.12, foreN: reach.pose.foreN + s * 0.05 };
+      cat.lean = Math.sin(clamp(k * 1.4) * Math.PI * 0.5) * (1 - clamp((k - 0.88) * 8));
+      cat.blink = cat.lean * 0.9;
+      return k >= 1;
+    };
+    g.line(null, STROKE_LINE, 5, 'examine');
+    const e = g.text.log[g.text.log.length - 1];
+    if (e?.line === STROKE_LINE) e.draft = true; // "[draft]" in the log
+    cat.lean = 0;
+    cat.blink = 0;
+    p.override = rest;
+    yield 0.8;
+    // off, unhurried, towards the rubble, and gone
+    const t2 = g.time;
+    const x2 = cat.x;
+    yield () => {
+      const k = (g.time - t2) / 1.8;
+      cat.x = x2 + f * k * 130;
+      cat.speed = 60;
+      if (k >= 1) cat.hidden = true;
+      return k >= 1;
+    };
+    p.override = null;
+    yield 0.8;
   },
 
   *flashback(g) {
@@ -1233,20 +1341,26 @@ function handOnShoulder(who, to) {
   to.rig.solve();
   const [sx, sy] = to.rig.world('shoulder');
   const f = to.x < who.x ? -1 : 1;
-  const probe = new Person('abuyazan', who.rig.scale);
+  // the hand lands just on the near side of the shoulder
+  return handTo(who, 'abuyazan', sx - f * 2, sy - 4, f);
+}
+
+// The same for any point: the arm angle that brings the near hand to height
+// ty, and where to stand (facing f) so it lands at tx.
+function handTo(who, outfit, tx, ty, f, base = { ...POSES.stand, head: 0.12 }) {
+  const probe = new Person(outfit, who.rig.scale);
   let best = null;
-  for (let a = 0.9; a <= 1.9; a += 0.02) {
-    const pose = { ...POSES.stand, head: 0.12, armN: a, foreN: a + 0.12 };
+  for (let a = 0.6; a <= 2.4; a += 0.02) {
+    const pose = { ...base, armN: a, foreN: a + 0.12 };
     probe.setPose(pose);
     probe.x = 0;
     probe.y = who.y;
     probe.f = f;
     const [hx, hy] = probe.world('handN');
-    const err = Math.abs(hy - (sy - 4));
+    const err = Math.abs(hy - ty);
     if (!best || err < best.err) best = { err, pose, hx };
   }
-  // the hand lands just on the near side of the shoulder
-  return { pose: best.pose, x: sx - f * 2 - best.hx };
+  return { pose: best.pose, x: tx - best.hx };
 }
 
 // ------------------------------------------------------ depth and doors --

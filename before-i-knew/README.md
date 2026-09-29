@@ -91,18 +91,35 @@ the children and the path. It's saved in the browser.
 You can rebind every key under **Controls**. On phones and tablets, on-screen buttons appear.
 
 **Menus.** The main menu has Continue (from the last checkpoint, in whichever act), New game,
-Chapters, Settings, Controls and About. Finishing Act One, with any ending, unlocks Act Two:
+Chapters, Your story, Settings, Controls and About. Finishing Act One, with any ending, unlocks Act Two:
 the end card offers **Continue to Act Two**, carrying your choices and tools over, and so does
 Continue on the main menu. (The Witness and Grief evenings are still to come; for now Act Two
-follows Sami south, to Ahmad.) During play, `Esc` pauses the game and opens Resume, Dialogue log, Settings, Controls,
-Restart from checkpoint and Main menu. The pause screen also shows the current objective, what
-you're carrying and the checkpoint. Settings:
+follows Sami south, to Ahmad.)
+
+- **Chapters** lists each act's scenes. A scene opens once you've reached it in the story,
+  and it starts from the state you last reached it with.
+- **Your story** lists every decision in the acts you've finished. The one you took last time
+  is marked, other ways you've taken it are shown, and ways you haven't tried yet stay dotted
+  out. Below that is **What you noticed**: the things Sami stopped to look at, act by act. The
+  end card counts them too, and it has a short afterword on the siege.
+
+During play, `Esc` pauses the game and opens Resume, Dialogue log, Belongings, Photo mode,
+Settings, Controls, Restart from checkpoint and Main menu. The pause screen also shows the
+current objective, what you're carrying and the checkpoint. **Belongings** describes what Sami
+carries; Ahmad's journal opens page by page. **Photo mode** stops the story and hides the HUD:
+the arrows move the camera, + and − zoom, F changes the look (natural, warm, black and white,
+faded), Enter saves a PNG and Esc goes back. A small "Saved" shows in the corner at each
+checkpoint. Settings:
 
 - **Sound:** master, music and effects volume.
 - **Text:** the menu language (English or Arabic, with right-to-left menus), subtitles (Arabic
   and English, English only or Arabic only), text size and the subtitle backing.
 - **Display:** graphics quality (Auto, Low, Medium, High), camera shake and reduce flashes.
 - **Play:** control hints.
+- **Accessibility:** subtitle reading time (longer, normal, shorter), crouch and prone (press to
+  toggle, or hold), Act Two's sniper lanes (standard, or forgiving: longer gaps and more
+  smoke, and a warning shot drops Sami flat where he is instead of sending him back), and
+  vibration (a phone buzz, or a gamepad's rumble, on blasts and shots).
 
 Control prompts step aside once you've done what they ask, or after a few seconds. They come
 back if you stand idle while the story is still waiting on them.
