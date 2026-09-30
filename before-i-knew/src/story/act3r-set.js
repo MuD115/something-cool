@@ -302,6 +302,40 @@ function checkpoint(R, g, t) {
 }
 
 // A shape under a dark blanket on the ground. Nothing else is shown.
+// The blanket over the weight beneath it (a Shroud): its outline, the
+// cloth's grain and relief, a fold or two where it gathers, and the moon on
+// its top.
+function bodyBlanket(R, body, moonlit) {
+  R.cast((c) => {
+    c.beginPath();
+    body.drape(c);
+    c.fillStyle = '#3a342c';
+    c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.3)';
+    c.lineWidth = 1.2;
+    c.beginPath();
+    for (const i of [1, 3, 5]) {
+      const [x, y] = body.p[i];
+      c.moveTo(x - 4, y - 8);
+      c.quadraticCurveTo(x + 3, y, x - 2, y + 9);
+    }
+    c.stroke();
+  });
+  R.surface((c) => body.drape(c), 'cloth', { scale: 0.5, seed: 2, alpha: 0.7 });
+  if (moonlit)
+    R.glow((c) => {
+      c.strokeStyle = 'rgba(190,205,250,0.5)';
+      c.lineWidth = 2;
+      c.beginPath();
+      body.p.forEach(([x, y], i) => {
+        const ty = y - [9, 13, 12, 11, 9, 7, 6][i] + 2;
+        if (i === 0) c.moveTo(x, ty);
+        else c.lineTo(x, ty);
+      });
+      c.stroke();
+    });
+}
+
 export function blanketShape(R, x, y, s = 1, moonlit = false) {
   if (moonlit) {
     // the moon along its top: the only way to see it from far off
@@ -559,7 +593,8 @@ export function drawBuilding(R, g) {
     c.fillStyle = 'rgba(160,175,220,0.22)';
     c.fillRect(X2.shade, -34, 1400, 36);
   });
-  blanketShape(R, a.blanketX ?? X2.blanket, 0, 1, !a.inside);
+  if (a.body) bodyBlanket(R, a.body, !a.inside);
+  else blanketShape(R, a.blanketX ?? X2.blanket, 0, 1, !a.inside);
 
   // the people
   for (const w of [...g.npcs, g.player]) {

@@ -685,6 +685,22 @@ export const ACT1 = {
       g.a.flashAt = g.time;
       g.a.flashX = x;
       g.bump(dist < 1.5 ? 0.6 : 0.3);
+      if (!g.settings.get('physics')) return;
+      // the blast's push: Sami, near enough, is rocked back and rights
+      // himself; grown men caught close go down, and get up again (the
+      // children are never thrown)
+      const push = (w, k, fall) => {
+        const away = Math.sign(w.x - x) || 1;
+        if (fall) w.knockDown([away * 520 * k, -300 * k], { then: 'stand' });
+        else w.knockDown([away * 360 * k, -40 * k], { muscle: 0.7, pinFeet: true });
+      };
+      if (dist < 1.7 && !p.down) push(p, clamp(1.7 - dist, 0.3, 1), false);
+      const young = new Set([...(g.kids || []), ...(g.runnerKids || []), g.boy, g.layla].filter(Boolean));
+      for (const w of g.npcs) {
+        if (young.has(w) || w.down || !w.visible || w.hide) continue;
+        const d = Math.abs(w.x - x);
+        if (d < 260) push(w, 1 - d / 260, d < 180);
+      }
     };
     const kidsFreeze = () => {
       for (const k of [...g.kids]) {

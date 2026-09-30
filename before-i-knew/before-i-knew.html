@@ -3149,6 +3149,7 @@ const STR = {
     vibration: 'Vibration',
     focusCam: 'Camera eases towards things to use',
     outlines: 'Outline things to use',
+    physics: 'Falls and knockdowns',
     // the story so far
     yourStory: 'Your story',
     yourStorySub: 'The choices you have made, and those still ahead of you',
@@ -3291,6 +3292,7 @@ const STR = {
     vibration: 'الاهتزاز',
     focusCam: 'تقترب الكاميرا من الأشياء القابلة للتفاعل',
     outlines: 'إطار حول الأشياء القابلة للتفاعل',
+    physics: 'السقوط والارتماء',
     yourStory: 'قصّتك',
     yourStorySub: 'الخيارات التي اتخذتها، والخيارات التي لم تجرّبها بعد',
     storyLast: 'في المرة الأخيرة',
@@ -3915,6 +3917,7 @@ const DEFAULTS = {
   vibration: true,
   focusCam: true, // the camera leans towards things to interact with
   outlines: true, // and they get a thin outline
+  physics: true, // bodies knocked down by blasts and shots fall and get up (off: a flinch)
   dof: 'bokeh', // depth blur for things far down a street: 'bokeh' | 'soft' | 'off'
   lang: 'en', // menu language: 'en' | 'ar'
   backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
@@ -4857,6 +4860,18 @@ class Person {
   }
 
   tick(dt) {
+    // things that hang (a bag, a pouch, a scarf's end) swing as the body
+    // speeds up, slows down and bends, and settle: damped pendulums pushed
+    // by the body's acceleration (ax, set by the walker) and its lean
+    const lean = this.pose?.torso ?? 0;
+    const dLean = dt > 0 ? (lean - (this.lastLean ?? lean)) / dt : 0;
+    this.lastLean = lean;
+    const push = -(this.ax || 0) * (this.f || 1) * 0.0022 - dLean * 0.35;
+    for (const [s, k, c] of [['sw', 38, 5], ['sc', 22, 3.2]]) {
+      const p = (this[s] = this[s] || { a: 0, v: 0 });
+      p.v += (-k * p.a - c * p.v + push * k * 0.12) * dt;
+      p.a = clamp(p.a + p.v * dt, -0.7, 0.7);
+    }
     if (this.viewK < 1) this.viewK = Math.min(1, this.viewK + dt * 4);
     if (this.flipK < 1) this.flipK = Math.min(1, this.flipK + dt * 7);
     if (this.blink > 0) this.blink -= dt;
@@ -4990,10 +5005,14 @@ class Person {
     const longCoat = o.layer?.kind === 'coat';
 
     if (o.satchel) {
-      // bag hangs behind the hip on the far side
+      // bag hangs behind the hip on the far side, swinging from its strap
+      ctx.save();
+      ctx.translate(-12, -8);
+      ctx.rotate(this.sw?.a || 0);
       ctx.fillStyle = shade(o.satchel, 0.8);
-      roundRect(ctx, -21, -8, 18, 21, 3);
+      roundRect(ctx, -9, 0, 18, 21, 3);
       ctx.fill();
+      ctx.restore();
     }
     this.arm(ctx, j.shoulder, j.elbowF, j.handF, far(sleeveCol), o.skin, far(o.skin), false);
     this.leg(ctx, j.kneeF, j.footF, p.shinF, far(C.trousers), far(o.shoes), far(o.skin), true);
@@ -5079,8 +5098,12 @@ class Person {
       if (o.pouch) {
         ctx.fillStyle = shade(o.belt, 1.15);
         const q = at(0, -w + 1);
-        roundRect(ctx, q[0] - 5, q[1], 9, 10, 2);
+        ctx.save();
+        ctx.translate(q[0], q[1]);
+        ctx.rotate((this.sw?.a || 0) * 0.6);
+        roundRect(ctx, -5, 0, 9, 10, 2);
         ctx.fill();
+        ctx.restore();
       }
     }
     if (o.satchel) {
@@ -5209,7 +5232,12 @@ class Person {
     ctx.quadraticCurveTo(...at(L.torso - 3, 0), ...at(L.torso - 6, -8));
     ctx.closePath();
     ctx.fill();
-    // the end down the back
+    // the end down the back, lifting and swinging as he moves
+    const piv = at(L.torso - 1, -8);
+    ctx.save();
+    ctx.translate(piv[0], piv[1]);
+    ctx.rotate(-(this.sc?.a || 0) * 0.8);
+    ctx.translate(-piv[0], -piv[1]);
     ctx.beginPath();
     ctx.moveTo(...at(L.torso - 1, -8));
     ctx.quadraticCurveTo(...at(L.torso - 14, -14), ...at(L.torso - 30, -12));
@@ -5217,6 +5245,7 @@ class Person {
     ctx.quadraticCurveTo(...at(L.torso - 14, -7), ...at(L.torso - 6, -2));
     ctx.closePath();
     ctx.fill();
+    ctx.restore();
     // the end hanging in front
     ctx.beginPath();
     ctx.moveTo(...at(L.torso - 4, 7));
@@ -6158,6 +6187,350 @@ function mixPose(a, b, k) {
 return { LEG, MOTION, amplify, MOTION_SOURCES, mixPose };
 })();
 
+// ---- src/rigs/ragdoll.js
+const __src_rigs_ragdoll = (() => {
+// A ragdoll for the rig: Verlet points at the joints, held together by
+// bone lengths and joint limits, falling under gravity onto the level.
+//
+// It starts from the rig's current pose (and the body's velocity plus an
+// impulse), and each frame it is turned back into the rig's own angles, so
+// the character is drawn exactly as always. With some 'muscle' the body
+// is pulled back towards a pose (a stagger it recovers from); with none it
+// is limp (a fall). Position-based dynamics after Jakobsen, "Advanced
+// Character Physics" (GDC 2001): integrate, then relax constraints a few
+// times a step.
+
+const { L } = __src_rigs_person;
+const { clamp } = __src_engine_util;
+const GRAVITY = 2600;
+const STEP = 1 / 60;
+const ITER = 8;
+
+// joints and their bones (lengths from the rig, times its scale)
+const POINTS = ['hip', 'neck', 'head', 'kneeN', 'footN', 'kneeF', 'footF', 'elbowN', 'handN', 'elbowF', 'handF'];
+const BONES = [
+  ['hip', 'neck', L.torso],
+  ['neck', 'head', L.neck + L.head],
+  ['hip', 'kneeN', L.thigh],
+  ['kneeN', 'footN', L.shin],
+  ['hip', 'kneeF', L.thigh],
+  ['kneeF', 'footF', L.shin],
+  // the arms hang from the shoulder, a point on the torso (see shoulder())
+  ['elbowN', 'handN', L.fore],
+  ['elbowF', 'handF', L.fore],
+];
+const RADIUS = { head: 9, hip: 10, neck: 8, footN: 4, footF: 4, kneeN: 6, kneeF: 6, handN: 3, handF: 3, elbowN: 4, elbowF: 4 };
+
+// Rig angle conventions (src/rigs/person.js): limbs are measured from
+// straight down, the torso from straight up, positive towards where the
+// figure faces; the head is relative to the torso.
+const fromDown = (dx, dy, f) => Math.atan2(dx * f, dy);
+const fromUp = (dx, dy, f) => Math.atan2(dx * f, -dy);
+
+class Ragdoll {
+  // walker: the body; impulse: [vx, vy] world units/s added to every point
+  // (more to the upper body: a blast or a flinch moves the chest first).
+  constructor(walker, impulse = [0, 0], { muscle = 0, pinFeet = false } = {}) {
+    this.w = walker;
+    const r = walker.rig;
+    r.local = null;
+    r.solve();
+    this.s = r.scale;
+    this.f = r.f;
+    this.muscle = muscle;
+    this.pinFeet = pinFeet;
+    this.p = {};
+    this.q = {}; // previous positions
+    const [hx, hy] = r.hip();
+    const base = [walker.vx || 0, walker.vy || 0];
+    for (const n of POINTS) {
+      const [x, y] = n === 'hip' ? [hx, hy] : r.world(n);
+      const up = n === 'hip' || n.startsWith('knee') || n.startsWith('foot') ? 0.55 : 1.15;
+      const vx = base[0] + impulse[0] * up;
+      const vy = base[1] + impulse[1] * up;
+      this.p[n] = [x, y];
+      this.q[n] = [x - vx * STEP, y - vy * STEP];
+    }
+    this.pins = pinFeet ? { footN: [...this.p.footN], footF: [...this.p.footF] } : null;
+    this.target = null; // world positions the muscles pull towards
+    this.t = 0;
+    this.acc = 0;
+    this.still = 0;
+    this.extraPins = {};
+  }
+
+  // Hold a point where it is (a hand on a rail), or let go (null).
+  pin(name, at) {
+    if (at) this.extraPins[name] = [...at];
+    else delete this.extraPins[name];
+  }
+
+  shoulder() {
+    const h = this.p.hip;
+    const n = this.p.neck;
+    const k = (L.torso - 7) / L.torso;
+    return [h[0] + (n[0] - h[0]) * k, h[1] + (n[1] - h[1]) * k];
+  }
+
+  update(dt) {
+    this.t += dt;
+    this.acc += Math.min(dt, 0.1);
+    while (this.acc >= STEP) {
+      this.step(STEP);
+      this.acc -= STEP;
+    }
+    // settled: moving less than a little for a while
+    let e = 0;
+    for (const n of POINTS) e = Math.max(e, Math.hypot(this.p[n][0] - this.q[n][0], this.p[n][1] - this.q[n][1]));
+    this.still = e < 0.6 ? this.still + dt : 0;
+  }
+
+  get settled() {
+    return this.t > 0.7 && this.still > 0.35;
+  }
+
+  step(h) {
+    const P = this.p;
+    const Q = this.q;
+    const level = this.w.level;
+    // integrate
+    for (const n of POINTS) {
+      const p = P[n];
+      const q = Q[n];
+      const vx = (p[0] - q[0]) * 0.995;
+      const vy = (p[1] - q[1]) * 0.995;
+      q[0] = p[0];
+      q[1] = p[1];
+      p[0] += vx;
+      p[1] += vy + GRAVITY * h * h;
+    }
+    const s = this.s;
+    for (let it = 0; it < ITER; it++) {
+      // bones
+      for (const [a, b, len] of BONES) this.dist(P[a], P[b], len * s);
+      // the arms from the shoulder
+      const sh = this.shoulder();
+      for (const e of ['elbowN', 'elbowF']) {
+        const p = P[e];
+        const dx = p[0] - sh[0];
+        const dy = p[1] - sh[1];
+        const d = Math.hypot(dx, dy) || 1;
+        const k = (L.upper * s) / d;
+        p[0] = sh[0] + dx * k;
+        p[1] = sh[1] + dy * k;
+      }
+      this.limits();
+      // muscle: a pull back towards the pose it was knocked out of
+      if (this.muscle > 0 && this.target) {
+        const m = this.muscle * 0.08;
+        for (const n of POINTS) {
+          const t = this.target[n];
+          if (!t) continue;
+          P[n][0] += (t[0] - P[n][0]) * m;
+          P[n][1] += (t[1] - P[n][1]) * m;
+        }
+      }
+      // pins
+      if (this.pins) for (const n in this.pins) P[n] = [...this.pins[n]];
+      for (const n in this.extraPins) P[n] = [...this.extraPins[n]];
+      // the ground, and friction on it
+      for (const n of POINTS) {
+        const p = P[n];
+        const r = (RADIUS[n] || 4) * s;
+        const gy = level.groundAt(p[0], Q[n][1] - r - 4);
+        if (p[1] > gy - r) {
+          p[1] = gy - r;
+          const q = Q[n];
+          q[0] = p[0] - (p[0] - q[0]) * 0.55;
+        }
+      }
+    }
+  }
+
+  dist(a, b, len) {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const d = Math.hypot(dx, dy) || 1e-6;
+    const k = ((d - len) / d) * 0.5;
+    a[0] += dx * k;
+    a[1] += dy * k;
+    b[0] -= dx * k;
+    b[1] -= dy * k;
+  }
+
+  // Keep a child point within an angle range about its joint, relative to
+  // the parent bone's angle. Angles in the rig's convention (facing f).
+  clampJoint(parentA, joint, child, lo, hi, len) {
+    const f = this.f;
+    const dx = child[0] - joint[0];
+    const dy = child[1] - joint[1];
+    const a = fromDown(dx, dy, f);
+    let rel = a - parentA;
+    while (rel > Math.PI) rel -= 2 * Math.PI;
+    while (rel < -Math.PI) rel += 2 * Math.PI;
+    if (rel >= lo && rel <= hi) return;
+    const na = parentA + clamp(rel, lo, hi);
+    const d = len ?? Math.hypot(dx, dy);
+    child[0] = joint[0] + Math.sin(na) * d * f;
+    child[1] = joint[1] + Math.cos(na) * d;
+  }
+
+  limits() {
+    const P = this.p;
+    const f = this.f;
+    const torso = fromUp(P.neck[0] - P.hip[0], P.neck[1] - P.hip[1], f);
+    // hips: flexion is torso lean plus thigh lift (thigh + torso in rig
+    // angles), from a little behind the body to folded up at the chest
+    for (const s of ['N', 'F']) {
+      this.clampJoint(-torso, P.hip, P['knee' + s], -0.6, 2.5);
+      // knees bend one way: the shin swings back from the thigh
+      const th = fromDown(P['knee' + s][0] - P.hip[0], P['knee' + s][1] - P.hip[1], f);
+      this.clampJoint(th, P['knee' + s], P['foot' + s], -2.5, 0.02);
+    }
+    // the head nods and tips, within reason
+    this.clampJoint(torso + Math.PI, P.neck, P.head, -0.8, 0.8);
+    // elbows bend one way: the forearm swings forward from the upper arm
+    const sh = this.shoulder();
+    for (const s of ['N', 'F']) {
+      const ua = fromDown(P['elbow' + s][0] - sh[0], P['elbow' + s][1] - sh[1], f);
+      this.clampJoint(ua, P['elbow' + s], P['hand' + s], -0.02, 2.5);
+    }
+  }
+
+  // The rig's pose for where the points are now, and where its hip is.
+  pose() {
+    const P = this.p;
+    const f = this.f;
+    const sh = this.shoulder();
+    const d = (a, b) => fromDown(b[0] - a[0], b[1] - a[1], f);
+    const torso = fromUp(P.neck[0] - P.hip[0], P.neck[1] - P.hip[1], f);
+    return {
+      torso,
+      head: fromUp(P.head[0] - P.neck[0], P.head[1] - P.neck[1], f) - torso,
+      thighN: d(P.hip, P.kneeN),
+      shinN: d(P.kneeN, P.footN),
+      thighF: d(P.hip, P.kneeF),
+      shinF: d(P.kneeF, P.footF),
+      armN: d(sh, P.elbowN),
+      foreN: d(P.elbowN, P.handN),
+      armF: d(sh, P.elbowF),
+      foreF: d(P.elbowF, P.handF),
+    };
+  }
+
+  // Which way up it has come to rest: 'front' (face down) or 'back'.
+  get lying() {
+    const t = this.pose().torso;
+    return t >= 0 ? 'front' : 'back';
+  }
+}
+
+// ------------------------------------------------------------ the body --
+// What lies under a blanket: never drawn, only felt through the cloth. A
+// chain from head to feet, each point with the girth of that part of a
+// body, heavy and dragging on the ground. The blanket is drawn over it
+// (see drape()), so when it's pulled by the shoulders the weight comes after
+// a moment late, the hips and legs trailing and settling.
+const GIRTH = [9, 13, 12, 11, 9, 7, 6]; // head, shoulders, chest, hips, thighs, knees, feet
+const SEG = [22, 26, 26, 30, 26, 24]; // between them (a body of about 1.55 m)
+
+class Shroud {
+  // x: the head end; dir: +1 if the feet lie to the right of the head.
+  constructor(level, x, y = 0, dir = 1) {
+    this.level = level;
+    this.p = [];
+    this.q = [];
+    let at = x;
+    for (let i = 0; i < GIRTH.length; i++) {
+      this.p.push([at, y - GIRTH[i]]);
+      this.q.push([at, y - GIRTH[i]]);
+      if (i < SEG.length) at += SEG[i] * dir;
+    }
+    this.hold = null; // where the shoulders are being pulled to
+    this.acc = 0;
+  }
+
+  // Pull by the shoulders (point 1) towards [x, y], or let go (null).
+  pull(at) {
+    this.hold = at ? [...at] : null;
+  }
+
+  update(dt) {
+    this.acc += Math.min(dt, 0.1);
+    while (this.acc >= STEP) {
+      this.step(STEP);
+      this.acc -= STEP;
+    }
+  }
+
+  step(h) {
+    const P = this.p;
+    const Q = this.q;
+    for (let i = 0; i < P.length; i++) {
+      const vx = (P[i][0] - Q[i][0]) * 0.97;
+      const vy = (P[i][1] - Q[i][1]) * 0.97;
+      Q[i][0] = P[i][0];
+      Q[i][1] = P[i][1];
+      P[i][0] += vx;
+      P[i][1] += vy + GRAVITY * h * h;
+    }
+    for (let it = 0; it < ITER; it++) {
+      if (this.hold) {
+        // the pull: firm on the shoulders, the head coming with them
+        const s = P[1];
+        s[0] += (this.hold[0] - s[0]) * 0.5;
+        s[1] += (this.hold[1] - s[1]) * 0.5;
+      }
+      for (let i = 0; i < SEG.length; i++) this.link(P[i], P[i + 1], SEG[i], 1);
+      // a body doesn't fold like a rope: resist bending
+      for (let i = 0; i + 2 < P.length; i++) this.link(P[i], P[i + 2], SEG[i] + SEG[i + 1], 0.08);
+      for (let i = 0; i < P.length; i++) {
+        const gy = this.level.groundAt(P[i][0], Q[i][1] - GIRTH[i] - 4) - GIRTH[i];
+        if (P[i][1] > gy) {
+          P[i][1] = gy;
+          // heavy on the ground: most of the slide is lost to friction
+          Q[i][0] = P[i][0] - (P[i][0] - Q[i][0]) * 0.35;
+        }
+      }
+    }
+  }
+
+  link(a, b, len, k) {
+    const dx = b[0] - a[0];
+    const dy = b[1] - a[1];
+    const d = Math.hypot(dx, dy) || 1e-6;
+    const m = ((d - len) / d) * 0.5 * k;
+    a[0] += dx * m;
+    a[1] += dy * m;
+    b[0] -= dx * m;
+    b[1] -= dy * m;
+  }
+
+  // The blanket's outline over the body: its top edge follows the girth of
+  // each part, and it falls to the ground a little past the head and feet.
+  drape(c) {
+    const P = this.p;
+    const n = P.length;
+    const top = P.map((p, i) => [p[0], p[1] - GIRTH[i] + 2]);
+    const dir = Math.sign(P[n - 1][0] - P[0][0]) || 1;
+    const gy0 = this.level.groundAt(P[0][0], P[0][1]);
+    const gy1 = this.level.groundAt(P[n - 1][0], P[n - 1][1]);
+    c.moveTo(P[0][0] - dir * 16, gy0 + 1);
+    c.quadraticCurveTo(top[0][0] - dir * 8, top[0][1] + 2, top[0][0], top[0][1]);
+    for (let i = 1; i < n; i++) {
+      const mx = (top[i - 1][0] + top[i][0]) / 2;
+      const my = (top[i - 1][1] + top[i][1]) / 2;
+      c.quadraticCurveTo(top[i - 1][0], top[i - 1][1], mx, my);
+    }
+    c.quadraticCurveTo(top[n - 1][0], top[n - 1][1], top[n - 1][0] + dir * 10, top[n - 1][1] + 4);
+    c.quadraticCurveTo(P[n - 1][0] + dir * 16, gy1 - 2, P[n - 1][0] + dir * 14, gy1 + 1);
+    c.closePath();
+  }
+}
+
+return { Ragdoll, Shroud };
+})();
+
 // ---- src/world/walker.js
 const __src_world_walker = (() => {
 // A body that walks the level: the player and every NPC share this.
@@ -6168,8 +6541,13 @@ const __src_world_walker = (() => {
 const { Person, POSES, crawlPose, blendPose, L: LIMB, footDrop } = __src_rigs_person;
 const { clamp, lerp, smooth } = __src_engine_util;
 const { MOTION, LEG, amplify } = __src_rigs_motion;
+const { Ragdoll } = __src_rigs_ragdoll;
 const HEIGHT = { stand: 170, crouch: 122, prone: 48 };
 // halfway to the ground: on one knee, leaning forward onto the hands
+// Getting up off the back after a fall: sit up, onto a knee, up.
+const SIT_UP = { torso: 0.1, head: 0.15, thighN: 1.5, shinN: 1.1, thighF: 1.45, shinF: 0.9, armN: -0.55, foreN: -0.3, armF: -0.5, foreF: -0.25 };
+const RISE_KNEE = { ...POSES.kneel, torso: 0.45, head: -0.1, armN: 0.9, foreN: 1.1, armF: 0.7, foreF: 0.9 };
+
 // Motion-captured gaits (CMU mocap, see tools/mocap.mjs), with the speed
 // each clip reads most naturally at: faster than that the stride lengthens
 // a little, slower it shortens, and past it the next gait takes over.
@@ -6308,6 +6686,8 @@ class Walker {
     this.mantle = null;
     this.onGround = true;
     this.locks = null;
+    this.ragdoll = null;
+    this.getUp = null;
   }
 
   height(stance = this.stance) {
@@ -6346,10 +6726,116 @@ class Walker {
   }
 
   // intent: { move: −1…1, run, jump, stance }
+  // Knocked off his feet (a blast, a dive from a shot): the body goes to a
+  // ragdoll with this push, and later gets up. muscle > 0 with pinFeet is a
+  // stagger that rights itself without falling. then: 'stand' | 'prone' |
+  // null (stay down until told).
+  knockDown(impulse, { muscle = 0, pinFeet = false, then = 'stand', onUp = null } = {}) {
+    this.ragdoll = new Ragdoll(this, impulse, { muscle, pinFeet });
+    if (muscle > 0) {
+      // the pose to be pulled back to: where the joints are now
+      const t = {};
+      for (const n of Object.keys(this.ragdoll.p)) t[n] = [...this.ragdoll.p[n]];
+      this.ragdoll.target = t;
+    }
+    this.getUp = null;
+    this.downThen = then;
+    this.onUp = onUp;
+    this.vx = 0;
+    this.vy = 0;
+    this.locks = null;
+  }
+
+  get down() {
+    return !!(this.ragdoll || this.getUp);
+  }
+
+  // The ragdoll's frame: physics, then the rig follows its points. Once it
+  // lies still, getting up begins (or it waits, with 'then' null).
+  ragdollUpdate(dt) {
+    const rd = this.ragdoll;
+    rd.update(dt);
+    const r = this.rig;
+    const pose = rd.pose();
+    r.tick(dt);
+    r.setPose(pose);
+    r.x = rd.p.hip[0];
+    r.y = rd.p.hip[1];
+    r.f = this.f;
+    r.grounded = false;
+    this.x = rd.p.hip[0];
+    this.y = this.level.groundAt(this.x, rd.p.hip[1]);
+    this.cur = pose;
+    const stagger = rd.muscle > 0 && rd.pinFeet;
+    if (stagger ? rd.t > 0.55 : rd.settled && this.downThen) {
+      this.ragdoll = null;
+      this.getUp = { t: 0, from: pose, lying: stagger ? 'feet' : rd.lying };
+      r.grounded = true;
+    }
+  }
+
+  // Up again: from the belly, through the stance system (prone, then a
+  // kneel, then standing); off the back, sitting up first.
+  getUpUpdate(dt) {
+    const gu = this.getUp;
+    gu.t += dt;
+    const then = this.downThen;
+    let pose;
+    if (gu.lying === 'feet') {
+      pose = blendPose(gu.from, POSES.stand, smooth(0, 0.35, gu.t));
+      if (gu.t >= 0.35) this.finishGetUp('stand');
+    } else if (gu.lying === 'front' || then === 'prone') {
+      this.stance = 'prone';
+      this.lastStance = 'prone';
+      pose = blendPose(gu.from, POSES.prone, smooth(0, 0.4, gu.t));
+      if (gu.t >= 0.45) {
+        this.finishGetUp('prone');
+        if (then === 'stand') this.setStance('stand');
+      }
+    } else {
+      const k = gu.t;
+      pose =
+        k < 0.5
+          ? blendPose(gu.from, SIT_UP, smooth(0, 0.5, k))
+          : k < 0.95
+            ? blendPose(SIT_UP, RISE_KNEE, smooth(0.5, 0.95, k))
+            : blendPose(RISE_KNEE, POSES.stand, smooth(0.95, 1.35, k));
+      if (k >= 1.35) this.finishGetUp('stand');
+    }
+    if (this.getUp) {
+      this.cur = pose;
+      const r = this.rig;
+      r.tick(dt);
+      r.setPose(pose);
+      r.x = this.x;
+      r.y = this.y;
+      r.f = this.f;
+      r.grounded = true;
+    }
+  }
+
+  finishGetUp(stance) {
+    this.getUp = null;
+    this.stance = stance;
+    this.lastStance = stance;
+    this.stanceT = 0;
+    const cb = this.onUp;
+    this.onUp = null;
+    cb?.();
+  }
+
   update(dt, intent = {}) {
     this.time += dt;
     const L = this.level;
     this.blocked = null;
+    if (this.ragdoll) {
+      this.ragdollUpdate(dt);
+      return;
+    }
+    if (this.getUp) {
+      this.getUpUpdate(dt);
+      return;
+    }
     // moved by a script along a path (a stair flight, a drainpipe): no
     // physics, just the pose for the speed it's being moved at
     if (this.scripted) {
@@ -6450,6 +6936,8 @@ class Walker {
         this.onGround = true;
         this.landing = Math.max(this.landing, clamp(hard / 1300));
         this.onLand?.(clamp(hard / 1400));
+        // a real drop (four metres and more) takes him off his feet
+        if (hard > 1550 && this.fallsHard) this.knockDown([this.vx * 0.5, 0], { then: 'stand' });
       }
     } else {
       this.y = ground;
@@ -6620,6 +7108,9 @@ class Walker {
     else this.locks = null;
     // any change of facing is a quick turn, never a flip (scripts too)
     if (r.f !== undefined && r.f !== this.f && r.flipK >= 1) r.pivot();
+    // the body's acceleration, for what hangs from it
+    r.ax = (this.vx - (this.swingVx ?? this.vx)) / Math.max(dt, 1e-4);
+    this.swingVx = this.vx;
     r.tick(dt);
     r.setPose(final);
     r.x = this.x;
@@ -6874,6 +7365,7 @@ const { keyLabel } = __src_engine_input;
 const { clamp, lerp, smooth } = __src_engine_util;
 const { writeSave } = __src_engine_save;
 const { POSES } = __src_rigs_person;
+const { MOTION } = __src_rigs_motion;
 const TOOLS = {
   torch: { id: 'torch', ar: 'مصباح يدوي', en: 'Hand-crank torch' },
   mirror: { id: 'mirror', ar: 'شظية مرآة', en: 'Mirror shard' },
@@ -7079,19 +7571,29 @@ class Game {
     const f = x >= p.x ? 1 : -1;
     if (f !== p.f) p.rig.pivot?.();
     p.f = f;
-    const pose =
-      y > -70
-        ? { ...POSES.squat, torso: 0.6, head: 0.4, armN: 1.2, foreN: 1.3, armF: 0.85, foreF: 1.15 }
-        : y < -190
-          ? { ...POSES.reachUp, head: -0.45, armF: 0.35, foreF: 0.55 }
-          : { ...POSES.stand, torso: 0.18, head: 0.15, armN: 1.45, foreN: 1.5 };
-    p.override = pose;
-    yield 0.42;
-    onGrab?.();
-    this.sound.cloth();
-    yield 0.16;
-    p.override = null;
-    yield 0.3;
+    if (y > -70) {
+      // low: the captured bend and lift (CMU mocap), down to it, hand to
+      // it, and up, the thing coming up with him
+      const clip = MOTION.pickup;
+      const t0 = p.time;
+      const span = [0.25, 2.65];
+      const dur = 1.25;
+      p.override = (t) => clip.time(span[0] + clamp((t - t0) / dur) * (span[1] - span[0]));
+      yield dur * 0.46;
+      onGrab?.();
+      this.sound.cloth();
+      yield dur * 0.54;
+      p.override = null;
+      yield 0.15;
+    } else {
+      p.override = y < -190 ? { ...POSES.reachUp, head: -0.45, armF: 0.35, foreF: 0.55 } : { ...POSES.stand, torso: 0.18, head: 0.15, armN: 1.45, foreN: 1.5 };
+      yield 0.42;
+      onGrab?.();
+      this.sound.cloth();
+      yield 0.16;
+      p.override = null;
+      yield 0.3;
+    }
     if (!was) this.lock(false);
   }
 
@@ -7282,6 +7784,7 @@ class Game {
     if (this.paused) return;
     this.time += dt;
     this.text.tick(dt);
+    this.player.fallsHard = this.settings.get('physics');
     const input = this.input;
     const p = this.player;
 
@@ -11403,6 +11906,22 @@ const ACT1 = {
       g.a.flashAt = g.time;
       g.a.flashX = x;
       g.bump(dist < 1.5 ? 0.6 : 0.3);
+      if (!g.settings.get('physics')) return;
+      // the blast's push: Sami, near enough, is rocked back and rights
+      // himself; grown men caught close go down, and get up again (the
+      // children are never thrown)
+      const push = (w, k, fall) => {
+        const away = Math.sign(w.x - x) || 1;
+        if (fall) w.knockDown([away * 520 * k, -300 * k], { then: 'stand' });
+        else w.knockDown([away * 360 * k, -40 * k], { muscle: 0.7, pinFeet: true });
+      };
+      if (dist < 1.7 && !p.down) push(p, clamp(1.7 - dist, 0.3, 1), false);
+      const young = new Set([...(g.kids || []), ...(g.runnerKids || []), g.boy, g.layla].filter(Boolean));
+      for (const w of g.npcs) {
+        if (young.has(w) || w.down || !w.visible || w.hide) continue;
+        const d = Math.abs(w.x - x);
+        if (d < 260) push(w, 1 - d / 260, d < 180);
+      }
     };
     const kidsFreeze = () => {
       for (const k of [...g.kids]) {
@@ -13539,14 +14058,22 @@ const ACT2R = {
     g.effects.puff(hx, hy);
     Object.assign(a, { shotAt: g.time, shotX: hx, shotY: hy });
     g.bump(0.25);
-    p.override = P_FLINCH;
-    yield 0.4;
+    const dive = g.settings.get('physics');
+    if (dive) {
+      // he throws himself down, away from where the round struck
+      const away = -(Math.sign(hx - p.x) || p.f);
+      p.knockDown([away * 320, -220], { then: a.forgiving ? 'prone' : null });
+      yield 0.9;
+    } else {
+      p.override = P_FLINCH;
+      yield 0.4;
+    }
     g.fade = 0.55;
     yield 0.2;
     p.override = null;
     if (a.forgiving) {
-      // forgiving lanes: he drops flat where he is, out of the sniper's line
-      p.stance = 'prone';
+      // forgiving lanes: he stays flat where he is, out of the sniper's line
+      if (!p.down) p.stance = 'prone';
     } else {
       p.place(lane.x0 - 70);
       p.f = 1;
@@ -13870,7 +14397,7 @@ const ACT2R = {
     if (lane && !g.locked && g.scene === 'street') {
       const watching = lane.id === 1 ? true : lane.id === 2 ? a.watch2 > 0.5 : a.watch3 > 0.5;
       const covered = p.stance !== 'stand' && lane.cover.some(([c0, c1]) => p.x > c0 && p.x < c1);
-      const safe = p.stance === 'prone' || covered || !watching;
+      const safe = p.stance === 'prone' || p.down || covered || !watching;
       a.laneState = { id: lane.id, watching, safe };
       a.expose = safe ? Math.max(0, a.expose - dt * 2) : a.expose + dt;
       if (a.expose > (a.forgiving ? 0.9 : 0.4) && !a.shotBusy) {
@@ -14294,6 +14821,40 @@ function checkpoint(R, g, t) {
 }
 
 // A shape under a dark blanket on the ground. Nothing else is shown.
+// The blanket over the weight beneath it (a Shroud): its outline, the
+// cloth's grain and relief, a fold or two where it gathers, and the moon on
+// its top.
+function bodyBlanket(R, body, moonlit) {
+  R.cast((c) => {
+    c.beginPath();
+    body.drape(c);
+    c.fillStyle = '#3a342c';
+    c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.3)';
+    c.lineWidth = 1.2;
+    c.beginPath();
+    for (const i of [1, 3, 5]) {
+      const [x, y] = body.p[i];
+      c.moveTo(x - 4, y - 8);
+      c.quadraticCurveTo(x + 3, y, x - 2, y + 9);
+    }
+    c.stroke();
+  });
+  R.surface((c) => body.drape(c), 'cloth', { scale: 0.5, seed: 2, alpha: 0.7 });
+  if (moonlit)
+    R.glow((c) => {
+      c.strokeStyle = 'rgba(190,205,250,0.5)';
+      c.lineWidth = 2;
+      c.beginPath();
+      body.p.forEach(([x, y], i) => {
+        const ty = y - [9, 13, 12, 11, 9, 7, 6][i] + 2;
+        if (i === 0) c.moveTo(x, ty);
+        else c.lineTo(x, ty);
+      });
+      c.stroke();
+    });
+}
+
 function blanketShape(R, x, y, s = 1, moonlit = false) {
   if (moonlit) {
     // the moon along its top: the only way to see it from far off
@@ -14551,7 +15112,8 @@ function drawBuilding(R, g) {
     c.fillStyle = 'rgba(160,175,220,0.22)';
     c.fillRect(X2.shade, -34, 1400, 36);
   });
-  blanketShape(R, a.blanketX ?? X2.blanket, 0, 1, !a.inside);
+  if (a.body) bodyBlanket(R, a.body, !a.inside);
+  else blanketShape(R, a.blanketX ?? X2.blanket, 0, 1, !a.inside);
 
   // the people
   for (const w of [...g.npcs, g.player]) {
@@ -14900,6 +15462,7 @@ const __src_story_act3r = (() => {
 
 const { lerp, clamp } = __src_engine_util;
 const { POSES, crawlPose, stairPose } = __src_rigs_person;
+const { Shroud } = __src_rigs_ragdoll;
 const { writeSave } = __src_engine_save;
 const { X1, X2, floorY, nightLook, surfaceAt, drawApproach, drawBuilding, buildBuilding } = __src_story_act3r_set;
 const { LINES, WHO, CARDS } = __src_story_act3r_lines;
@@ -14961,8 +15524,9 @@ function rifle(c, hand) {
 }
 
 // Move a walker along a path of [x, y] points at a speed, with a pose
-// for the gait (the walker's own, or a function of the distance so far).
-function* along(g, w, pts, speed, pose = null) {
+// for the gait (the walker's own, or a function of the distance so far),
+// turned the way it goes unless told which way to face.
+function* along(g, w, pts, speed, pose = null, face = null) {
   const before = w.override;
   w.scripted = true;
   let seg = 0;
@@ -14989,7 +15553,8 @@ function* along(g, w, pts, speed, pose = null) {
     const [bx, by] = pts[i + 1];
     w.x = lerp(ax, bx, seg >= pts.length - 1 ? 1 : u);
     w.y = lerp(ay, by, seg >= pts.length - 1 ? 1 : u);
-    if (bx !== ax) w.f = bx > ax ? 1 : -1;
+    if (face) w.f = face;
+    else if (bx !== ax) w.f = bx > ax ? 1 : -1;
     w.stride += speed * dt;
     w.scriptedSpeed = speed;
     w.override = pose ? pose(dist) : null;
@@ -15485,6 +16050,8 @@ const ACT3R = {
     g.text.objective(null);
     yield* say(g, 'blanket');
     a.blanketX = X2.blanket;
+    // the weight under the blanket, head towards him
+    a.body = new Shroud(g.level, X2.blanket - 62, 0, 1);
     p.f = 1;
     const x0 = p.x;
     const tx = X2.shade - 40;
@@ -15499,9 +16066,15 @@ const ACT3R = {
         g.sound.noise({ dur: 0.3, freq: 300, type: 'lowpass', vol: 0.12, buf: g.sound.brownBuf });
       }
       a.blanketX = p.x + 64;
+      // his hands on its edges at the shoulders: each pull a surge, then the
+      // weight comes after
+      const surge = Math.max(0, Math.sin((dist / 38) * Math.PI * 2)) * 6;
+      a.body.pull([p.x + 44 - surge, -16]);
       return crawlPose(-dist * 0.083);
     };
-    yield* along(g, p, [[x0, 0], [tx, 0]], 24, pull);
+    // (facing the body the whole way: he goes backwards)
+    yield* along(g, p, [[x0, 0], [tx, 0]], 24, pull, 1);
+    a.body.pull(null);
     p.f = 1;
     yield 0.2;
     g.line(null, [LINES.drag.ar, LINES.drag.en], LINES.drag.dur, 'examine');
@@ -15529,7 +16102,11 @@ const ACT3R = {
     g.effects.puff(hx, hy);
     Object.assign(a, { shotAt: g.time, shotX: hx, shotY: hy });
     g.bump(0.25);
-    yield 0.5;
+    if (g.settings.get('physics')) {
+      // he throws himself down, away from the shot
+      p.knockDown([-p.f * 300, -200], { then: null });
+      yield 0.9;
+    } else yield 0.5;
     g.fade = 0.5;
     yield 0.2;
     p.place(back.x, back.y);
@@ -15562,6 +16139,7 @@ const ACT3R = {
   // ============================================== per-frame extras ==
 
   update(g, dt) {
+    g.a.body?.update(dt);
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;
@@ -15615,7 +16193,7 @@ const ACT3R = {
     // the balconies are in the open: stay low
     const onBalcony = p.x > X2.b1 && p.y < floorY(3);
     // (standing still up there is seen too, only a little more slowly)
-    if (onBalcony && p.stance === 'stand' && !g.locked) {
+    if (onBalcony && p.stance === 'stand' && !g.locked && !p.down) {
       a.expose = (a.expose || 0) + dt * (Math.abs(p.vx) > 5 ? 1 : g.time > (a.stillGrace || 0) ? 0.6 : 0);
       if (a.expose > 0.8) {
         a.expose = 0;
@@ -15626,7 +16204,7 @@ const ACT3R = {
     // the moonlit street: only on his belly
     if (a.down && !a.dragged && p.x > X2.shade && p.y > -5) {
       once('moon', true);
-      if (p.stance !== 'prone') {
+      if (p.stance !== 'prone' && !p.down) {
         a.expose2 = (a.expose2 || 0) + dt;
         if (a.expose2 > 0.5) {
           a.expose2 = 0;
@@ -16601,6 +17179,7 @@ const menu = new Menu($('menu'), {
     { key: 'lanes', label: 'lanes', type: 'select', options: [['standard', 'lanesStandard'], ['forgiving', 'lanesForgiving']] },
     { key: 'focusCam', label: 'focusCam', type: 'toggle' },
     { key: 'outlines', label: 'outlines', type: 'toggle' },
+    { key: 'physics', label: 'physics', type: 'toggle' },
     { key: 'vibration', label: 'vibration', type: 'toggle' },
   ],
   controls: { input, actions: ACTIONS, label: keyLabel },
@@ -16612,6 +17191,7 @@ const menu = new Menu($('menu'), {
     <h3>تنبيه حول المحتوى</h3>
     <p>الحياة تحت الحصار: القصف، والقنص، والجوع، وموت صديق، والحزن. يُسمَع العنف ويُفهَم، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.</p>
     <p class="menu-sub">عمل متخيَّل مستند إلى شهادات موثّقة عن الحياة تحت الحصار. كل ما فيه مرسوم ومولَّد بالبرمجة، من دون صور أو تسجيلات.</p>
+    <p class="menu-sub">حركة المشي والركض والانحناء مأخوذة من قاعدة بيانات التقاط الحركة في جامعة كارنيغي ميلون (mocap.cs.cmu.edu)، التي أُنشئت بتمويل من المؤسسة الوطنية للعلوم NSF EIA-0196217.</p>
     ${afterwordHtml()}`
       : `<h2 class="menu-title">About</h2>
     <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Ahmad, and they part at a junction. Less than an hour later, he learns that Ahmad has been killed.</p>
@@ -16619,6 +17199,7 @@ const menu = new Menu($('menu'), {
     <h3>Content note</h3>
     <p>Life under military siege: shelling, sniper fire, hunger, the death of a friend, grief. Violence is heard and implied, never shown. Recommended for ages 16 and over.</p>
     <p class="menu-sub">A work of fiction drawing on documented accounts of siege life. Everything is drawn and synthesised in code. There are no images or recordings.</p>
+    <p class="menu-sub">Walking, running, crouching and bending are motion-captured: the data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.</p>
     ${afterwordHtml()}`,
 });
 menu.showMain();

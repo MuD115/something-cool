@@ -8,6 +8,7 @@ import { keyLabel } from './engine/input.js';
 import { clamp, lerp, smooth } from './engine/util.js';
 import { writeSave } from './engine/save.js';
 import { POSES } from './rigs/person.js';
+import { MOTION } from './rigs/motion.js';
 
 export const TOOLS = {
   torch: { id: 'torch', ar: 'مصباح يدوي', en: 'Hand-crank torch' },
@@ -214,19 +215,29 @@ export class Game {
     const f = x >= p.x ? 1 : -1;
     if (f !== p.f) p.rig.pivot?.();
     p.f = f;
-    const pose =
-      y > -70
-        ? { ...POSES.squat, torso: 0.6, head: 0.4, armN: 1.2, foreN: 1.3, armF: 0.85, foreF: 1.15 }
-        : y < -190
-          ? { ...POSES.reachUp, head: -0.45, armF: 0.35, foreF: 0.55 }
-          : { ...POSES.stand, torso: 0.18, head: 0.15, armN: 1.45, foreN: 1.5 };
-    p.override = pose;
-    yield 0.42;
-    onGrab?.();
-    this.sound.cloth();
-    yield 0.16;
-    p.override = null;
-    yield 0.3;
+    if (y > -70) {
+      // low: the captured bend and lift (CMU mocap), down to it, hand to
+      // it, and up, the thing coming up with him
+      const clip = MOTION.pickup;
+      const t0 = p.time;
+      const span = [0.25, 2.65];
+      const dur = 1.25;
+      p.override = (t) => clip.time(span[0] + clamp((t - t0) / dur) * (span[1] - span[0]));
+      yield dur * 0.46;
+      onGrab?.();
+      this.sound.cloth();
+      yield dur * 0.54;
+      p.override = null;
+      yield 0.15;
+    } else {
+      p.override = y < -190 ? { ...POSES.reachUp, head: -0.45, armF: 0.35, foreF: 0.55 } : { ...POSES.stand, torso: 0.18, head: 0.15, armN: 1.45, foreN: 1.5 };
+      yield 0.42;
+      onGrab?.();
+      this.sound.cloth();
+      yield 0.16;
+      p.override = null;
+      yield 0.3;
+    }
     if (!was) this.lock(false);
   }
 
@@ -417,6 +428,7 @@ export class Game {
     if (this.paused) return;
     this.time += dt;
     this.text.tick(dt);
+    this.player.fallsHard = this.settings.get('physics');
     const input = this.input;
     const p = this.player;
 

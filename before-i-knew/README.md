@@ -175,12 +175,52 @@ back if you stand idle while the story is still waiting on them.
 
 ## How it's made
 
-Everything is drawn and synthesised in code. There are no images or recordings.
+Everything is drawn and synthesised in code. There are no images or recordings. The way
+people walk, run, crouch and bend is motion-captured (below).
 
 - **Light** ([`src/engine/renderer.js`](src/engine/renderer.js)) uses the lighting engine
-  from *A Suit for Burying*, extended with two things:
+  from *A Suit for Burying*, extended with:
   - a cone light, used for the torch in the stairwell;
-  - a colour grade, which is warm in the 2010 flashback and drained when the news comes.
+  - a colour grade, which is warm in the 2010 flashback and drained when the news comes, with
+    a split tone (a colour for the shadows and one for the highlights) per scene;
+  - a **height layer**: surfaces carry relief, which the lights rake across (the low sun picks
+    out mortar joints and bullet pocks, the torch every crack);
+  - **form** for anything that casts a shadow: people, poles and cars are rounded from their
+    silhouettes, lit on the side towards a light and turning away on the other;
+  - contact shading where things stand against a wall, ground fog that thins with height and
+    drifts, and lens dirt on High.
+- **Materials** ([`src/engine/materials.js`](src/engine/materials.js)): tileable textures
+  baked at load from seeded noise, each with a height map: cut limestone, *ablaq* (limestone
+  banded with black basalt, as on the old houses of Damascus), cement render (blotched, with
+  flakes fallen away to the blocks beneath, and hairline cracks), poured concrete, rusted
+  corrugated sheet, old wood, asphalt, paving slabs and cloth. Big walls use two passes at
+  unrelated scales so the tile never shows. Each building's face is baked once with its
+  material, floor slabs, window reveals, weathering and holes, which is also faster per frame
+  than drawing it every time; rooftops carry black water tanks and solar water heaters. Low
+  quality skips the relief and bakes smaller textures.
+- **Motion capture** ([`tools/mocap.mjs`](tools/mocap.mjs),
+  [`src/rigs/motion.js`](src/rigs/motion.js)): walking, a sad walk, jogging, running, a
+  crouched walk, creeping, picking something up, squatting and a standing wait come from the
+  [CMU Graphics Lab Motion Capture Database](http://mocap.cs.cmu.edu/) (the BVH conversion by
+  Bruce Hahne), free for commercial use. The tool reads the BVH files, runs forward kinematics,
+  projects each take onto the body's own side-on plane and turns it into the rig's joint
+  angles; loops are cut to one clean stride and closed. In the game a gait's phase is carried by
+  the distance covered, walk blending into jog and run with speed, and a planted foot is locked
+  where it lands, the leg solved with two-bone IK so it neither slides nor sinks, and stands on
+  kerbs and rubble. To regenerate: download the takes listed in the tool into a folder and run
+  `node tools/mocap.mjs build <folder>`. *The data used in this project was obtained from
+  mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.* (The CMU
+  get-up-from-the-floor takes roll sideways and don't read side-on, so getting up after a fall
+  is keyed by hand.)
+- **Ragdolls** ([`src/rigs/ragdoll.js`](src/rigs/ragdoll.js)): Verlet points on the rig's
+  joints, with bone lengths, knee, elbow, hip and neck limits and ground friction (after
+  Jakobsen's *Advanced Character Physics*). A near miss sends Sami diving away from the
+  shot; a mortar close by rocks him back, and throws grown men near it off their feet (never
+  the children); a long drop takes him down. Then he gets up: off his back by sitting up and
+  kneeling, off his front through the crawl. The body under the blanket in Act Three is a
+  heavy chain the blanket drapes over, never drawn itself: pulled by the shoulders, its weight
+  comes after. A bag, a pouch and a scarf's end swing on damped springs as the body moves.
+  **Falls and knockdowns** can be switched off under Accessibility (a flinch instead).
 - **Movement** ([`src/world/`](src/world)): a walker with walk, run, crouch, prone, jump and
   mantle; ceilings you can only pass under crouched; and walls you climb. Stance changes take
   half a second, and getting down to the ground (or up from it) passes through a kneel. The

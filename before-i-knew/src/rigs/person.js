@@ -328,6 +328,18 @@ export class Person {
   }
 
   tick(dt) {
+    // things that hang (a bag, a pouch, a scarf's end) swing as the body
+    // speeds up, slows down and bends, and settle: damped pendulums pushed
+    // by the body's acceleration (ax, set by the walker) and its lean
+    const lean = this.pose?.torso ?? 0;
+    const dLean = dt > 0 ? (lean - (this.lastLean ?? lean)) / dt : 0;
+    this.lastLean = lean;
+    const push = -(this.ax || 0) * (this.f || 1) * 0.0022 - dLean * 0.35;
+    for (const [s, k, c] of [['sw', 38, 5], ['sc', 22, 3.2]]) {
+      const p = (this[s] = this[s] || { a: 0, v: 0 });
+      p.v += (-k * p.a - c * p.v + push * k * 0.12) * dt;
+      p.a = clamp(p.a + p.v * dt, -0.7, 0.7);
+    }
     if (this.viewK < 1) this.viewK = Math.min(1, this.viewK + dt * 4);
     if (this.flipK < 1) this.flipK = Math.min(1, this.flipK + dt * 7);
     if (this.blink > 0) this.blink -= dt;
@@ -461,10 +473,14 @@ export class Person {
     const longCoat = o.layer?.kind === 'coat';
 
     if (o.satchel) {
-      // bag hangs behind the hip on the far side
+      // bag hangs behind the hip on the far side, swinging from its strap
+      ctx.save();
+      ctx.translate(-12, -8);
+      ctx.rotate(this.sw?.a || 0);
       ctx.fillStyle = shade(o.satchel, 0.8);
-      roundRect(ctx, -21, -8, 18, 21, 3);
+      roundRect(ctx, -9, 0, 18, 21, 3);
       ctx.fill();
+      ctx.restore();
     }
     this.arm(ctx, j.shoulder, j.elbowF, j.handF, far(sleeveCol), o.skin, far(o.skin), false);
     this.leg(ctx, j.kneeF, j.footF, p.shinF, far(C.trousers), far(o.shoes), far(o.skin), true);
@@ -550,8 +566,12 @@ export class Person {
       if (o.pouch) {
         ctx.fillStyle = shade(o.belt, 1.15);
         const q = at(0, -w + 1);
-        roundRect(ctx, q[0] - 5, q[1], 9, 10, 2);
+        ctx.save();
+        ctx.translate(q[0], q[1]);
+        ctx.rotate((this.sw?.a || 0) * 0.6);
+        roundRect(ctx, -5, 0, 9, 10, 2);
         ctx.fill();
+        ctx.restore();
       }
     }
     if (o.satchel) {
@@ -680,7 +700,12 @@ export class Person {
     ctx.quadraticCurveTo(...at(L.torso - 3, 0), ...at(L.torso - 6, -8));
     ctx.closePath();
     ctx.fill();
-    // the end down the back
+    // the end down the back, lifting and swinging as he moves
+    const piv = at(L.torso - 1, -8);
+    ctx.save();
+    ctx.translate(piv[0], piv[1]);
+    ctx.rotate(-(this.sc?.a || 0) * 0.8);
+    ctx.translate(-piv[0], -piv[1]);
     ctx.beginPath();
     ctx.moveTo(...at(L.torso - 1, -8));
     ctx.quadraticCurveTo(...at(L.torso - 14, -14), ...at(L.torso - 30, -12));
@@ -688,6 +713,7 @@ export class Person {
     ctx.quadraticCurveTo(...at(L.torso - 14, -7), ...at(L.torso - 6, -2));
     ctx.closePath();
     ctx.fill();
+    ctx.restore();
     // the end hanging in front
     ctx.beginPath();
     ctx.moveTo(...at(L.torso - 4, 7));

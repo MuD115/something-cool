@@ -735,6 +735,7 @@ const menu = new Menu($('menu'), {
     { key: 'lanes', label: 'lanes', type: 'select', options: [['standard', 'lanesStandard'], ['forgiving', 'lanesForgiving']] },
     { key: 'focusCam', label: 'focusCam', type: 'toggle' },
     { key: 'outlines', label: 'outlines', type: 'toggle' },
+    { key: 'physics', label: 'physics', type: 'toggle' },
     { key: 'vibration', label: 'vibration', type: 'toggle' },
   ],
   controls: { input, actions: ACTIONS, label: keyLabel },
@@ -746,6 +747,7 @@ const menu = new Menu($('menu'), {
     <h3>تنبيه حول المحتوى</h3>
     <p>الحياة تحت الحصار: القصف، والقنص، والجوع، وموت صديق، والحزن. يُسمَع العنف ويُفهَم، لكنه لا يُعرَض. يُنصح بها لمن هم في السادسة عشرة فما فوق.</p>
     <p class="menu-sub">عمل متخيَّل مستند إلى شهادات موثّقة عن الحياة تحت الحصار. كل ما فيه مرسوم ومولَّد بالبرمجة، من دون صور أو تسجيلات.</p>
+    <p class="menu-sub">حركة المشي والركض والانحناء مأخوذة من قاعدة بيانات التقاط الحركة في جامعة كارنيغي ميلون (mocap.cs.cmu.edu)، التي أُنشئت بتمويل من المؤسسة الوطنية للعلوم NSF EIA-0196217.</p>
     ${afterwordHtml()}`
       : `<h2 class="menu-title">About</h2>
     <p><strong>Before I Knew · قبل ما عرفت</strong> is an interactive story set in a besieged town in Ghouta, outside Damascus, in August 2014. Sami is 27. He walks with his closest friend, Ahmad, and they part at a junction. Less than an hour later, he learns that Ahmad has been killed.</p>
@@ -753,6 +755,7 @@ const menu = new Menu($('menu'), {
     <h3>Content note</h3>
     <p>Life under military siege: shelling, sniper fire, hunger, the death of a friend, grief. Violence is heard and implied, never shown. Recommended for ages 16 and over.</p>
     <p class="menu-sub">A work of fiction drawing on documented accounts of siege life. Everything is drawn and synthesised in code. There are no images or recordings.</p>
+    <p class="menu-sub">Walking, running, crouching and bending are motion-captured: the data used in this project was obtained from mocap.cs.cmu.edu. The database was created with funding from NSF EIA-0196217.</p>
     ${afterwordHtml()}`,
 });
 menu.showMain();

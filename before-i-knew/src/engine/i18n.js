@@ -112,6 +112,7 @@ const STR = {
     vibration: 'Vibration',
     focusCam: 'Camera eases towards things to use',
     outlines: 'Outline things to use',
+    physics: 'Falls and knockdowns',
     // the story so far
     yourStory: 'Your story',
     yourStorySub: 'The choices you have made, and those still ahead of you',
@@ -254,6 +255,7 @@ const STR = {
     vibration: 'الاهتزاز',
     focusCam: 'تقترب الكاميرا من الأشياء القابلة للتفاعل',
     outlines: 'إطار حول الأشياء القابلة للتفاعل',
+    physics: 'السقوط والارتماء',
     yourStory: 'قصّتك',
     yourStorySub: 'الخيارات التي اتخذتها، والخيارات التي لم تجرّبها بعد',
     storyLast: 'في المرة الأخيرة',

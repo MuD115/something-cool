@@ -15,6 +15,7 @@
 
 import { lerp, clamp } from '../engine/util.js';
 import { POSES, crawlPose, stairPose } from '../rigs/person.js';
+import { Shroud } from '../rigs/ragdoll.js';
 import { writeSave } from '../engine/save.js';
 import { X1, X2, floorY, nightLook, surfaceAt, drawApproach, drawBuilding, buildBuilding } from './act3r-set.js';
 import { LINES, WHO, CARDS } from './act3r-lines.js';
@@ -77,8 +78,9 @@ function rifle(c, hand) {
 }
 
 // Move a walker along a path of [x, y] points at a speed, with a pose
-// for the gait (the walker's own, or a function of the distance so far).
-function* along(g, w, pts, speed, pose = null) {
+// for the gait (the walker's own, or a function of the distance so far),
+// turned the way it goes unless told which way to face.
+function* along(g, w, pts, speed, pose = null, face = null) {
   const before = w.override;
   w.scripted = true;
   let seg = 0;
@@ -105,7 +107,8 @@ function* along(g, w, pts, speed, pose = null) {
     const [bx, by] = pts[i + 1];
     w.x = lerp(ax, bx, seg >= pts.length - 1 ? 1 : u);
     w.y = lerp(ay, by, seg >= pts.length - 1 ? 1 : u);
-    if (bx !== ax) w.f = bx > ax ? 1 : -1;
+    if (face) w.f = face;
+    else if (bx !== ax) w.f = bx > ax ? 1 : -1;
     w.stride += speed * dt;
     w.scriptedSpeed = speed;
     w.override = pose ? pose(dist) : null;
@@ -601,6 +604,8 @@ export const ACT3R = {
     g.text.objective(null);
     yield* say(g, 'blanket');
     a.blanketX = X2.blanket;
+    // the weight under the blanket, head towards him
+    a.body = new Shroud(g.level, X2.blanket - 62, 0, 1);
     p.f = 1;
     const x0 = p.x;
     const tx = X2.shade - 40;
@@ -615,9 +620,15 @@ export const ACT3R = {
         g.sound.noise({ dur: 0.3, freq: 300, type: 'lowpass', vol: 0.12, buf: g.sound.brownBuf });
       }
       a.blanketX = p.x + 64;
+      // his hands on its edges at the shoulders: each pull a surge, then the
+      // weight comes after
+      const surge = Math.max(0, Math.sin((dist / 38) * Math.PI * 2)) * 6;
+      a.body.pull([p.x + 44 - surge, -16]);
       return crawlPose(-dist * 0.083);
     };
-    yield* along(g, p, [[x0, 0], [tx, 0]], 24, pull);
+    // (facing the body the whole way: he goes backwards)
+    yield* along(g, p, [[x0, 0], [tx, 0]], 24, pull, 1);
+    a.body.pull(null);
     p.f = 1;
     yield 0.2;
     g.line(null, [LINES.drag.ar, LINES.drag.en], LINES.drag.dur, 'examine');
@@ -645,7 +656,11 @@ export const ACT3R = {
     g.effects.puff(hx, hy);
     Object.assign(a, { shotAt: g.time, shotX: hx, shotY: hy });
     g.bump(0.25);
-    yield 0.5;
+    if (g.settings.get('physics')) {
+      // he throws himself down, away from the shot
+      p.knockDown([-p.f * 300, -200], { then: null });
+      yield 0.9;
+    } else yield 0.5;
     g.fade = 0.5;
     yield 0.2;
     p.place(back.x, back.y);
@@ -678,6 +693,7 @@ export const ACT3R = {
   // ============================================== per-frame extras ==
 
   update(g, dt) {
+    g.a.body?.update(dt);
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;
@@ -731,7 +747,7 @@ export const ACT3R = {
     // the balconies are in the open: stay low
     const onBalcony = p.x > X2.b1 && p.y < floorY(3);
     // (standing still up there is seen too, only a little more slowly)
-    if (onBalcony && p.stance === 'stand' && !g.locked) {
+    if (onBalcony && p.stance === 'stand' && !g.locked && !p.down) {
       a.expose = (a.expose || 0) + dt * (Math.abs(p.vx) > 5 ? 1 : g.time > (a.stillGrace || 0) ? 0.6 : 0);
       if (a.expose > 0.8) {
         a.expose = 0;
@@ -742,7 +758,7 @@ export const ACT3R = {
     // the moonlit street: only on his belly
     if (a.down && !a.dragged && p.x > X2.shade && p.y > -5) {
       once('moon', true);
-      if (p.stance !== 'prone') {
+      if (p.stance !== 'prone' && !p.down) {
         a.expose2 = (a.expose2 || 0) + dt;
         if (a.expose2 > 0.5) {
           a.expose2 = 0;

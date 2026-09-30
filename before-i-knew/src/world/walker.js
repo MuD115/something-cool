@@ -6,9 +6,14 @@
 import { Person, POSES, crawlPose, blendPose, L as LIMB, footDrop } from '../rigs/person.js';
 import { clamp, lerp, smooth } from '../engine/util.js';
 import { MOTION, LEG, amplify } from '../rigs/motion.js';
+import { Ragdoll } from '../rigs/ragdoll.js';
 
 export const HEIGHT = { stand: 170, crouch: 122, prone: 48 };
 // halfway to the ground: on one knee, leaning forward onto the hands
+// Getting up off the back after a fall: sit up, onto a knee, up.
+const SIT_UP = { torso: 0.1, head: 0.15, thighN: 1.5, shinN: 1.1, thighF: 1.45, shinF: 0.9, armN: -0.55, foreN: -0.3, armF: -0.5, foreF: -0.25 };
+const RISE_KNEE = { ...POSES.kneel, torso: 0.45, head: -0.1, armN: 0.9, foreN: 1.1, armF: 0.7, foreF: 0.9 };
+
 // Motion-captured gaits (CMU mocap, see tools/mocap.mjs), with the speed
 // each clip reads most naturally at: faster than that the stride lengthens
 // a little, slower it shortens, and past it the next gait takes over.
@@ -147,6 +152,8 @@ export class Walker {
     this.mantle = null;
     this.onGround = true;
     this.locks = null;
+    this.ragdoll = null;
+    this.getUp = null;
   }
 
   height(stance = this.stance) {
@@ -185,10 +192,116 @@ export class Walker {
   }
 
   // intent: { move: −1…1, run, jump, stance }
+  // Knocked off his feet (a blast, a dive from a shot): the body goes to a
+  // ragdoll with this push, and later gets up. muscle > 0 with pinFeet is a
+  // stagger that rights itself without falling. then: 'stand' | 'prone' |
+  // null (stay down until told).
+  knockDown(impulse, { muscle = 0, pinFeet = false, then = 'stand', onUp = null } = {}) {
+    this.ragdoll = new Ragdoll(this, impulse, { muscle, pinFeet });
+    if (muscle > 0) {
+      // the pose to be pulled back to: where the joints are now
+      const t = {};
+      for (const n of Object.keys(this.ragdoll.p)) t[n] = [...this.ragdoll.p[n]];
+      this.ragdoll.target = t;
+    }
+    this.getUp = null;
+    this.downThen = then;
+    this.onUp = onUp;
+    this.vx = 0;
+    this.vy = 0;
+    this.locks = null;
+  }
+
+  get down() {
+    return !!(this.ragdoll || this.getUp);
+  }
+
+  // The ragdoll's frame: physics, then the rig follows its points. Once it
+  // lies still, getting up begins (or it waits, with 'then' null).
+  ragdollUpdate(dt) {
+    const rd = this.ragdoll;
+    rd.update(dt);
+    const r = this.rig;
+    const pose = rd.pose();
+    r.tick(dt);
+    r.setPose(pose);
+    r.x = rd.p.hip[0];
+    r.y = rd.p.hip[1];
+    r.f = this.f;
+    r.grounded = false;
+    this.x = rd.p.hip[0];
+    this.y = this.level.groundAt(this.x, rd.p.hip[1]);
+    this.cur = pose;
+    const stagger = rd.muscle > 0 && rd.pinFeet;
+    if (stagger ? rd.t > 0.55 : rd.settled && this.downThen) {
+      this.ragdoll = null;
+      this.getUp = { t: 0, from: pose, lying: stagger ? 'feet' : rd.lying };
+      r.grounded = true;
+    }
+  }
+
+  // Up again: from the belly, through the stance system (prone, then a
+  // kneel, then standing); off the back, sitting up first.
+  getUpUpdate(dt) {
+    const gu = this.getUp;
+    gu.t += dt;
+    const then = this.downThen;
+    let pose;
+    if (gu.lying === 'feet') {
+      pose = blendPose(gu.from, POSES.stand, smooth(0, 0.35, gu.t));
+      if (gu.t >= 0.35) this.finishGetUp('stand');
+    } else if (gu.lying === 'front' || then === 'prone') {
+      this.stance = 'prone';
+      this.lastStance = 'prone';
+      pose = blendPose(gu.from, POSES.prone, smooth(0, 0.4, gu.t));
+      if (gu.t >= 0.45) {
+        this.finishGetUp('prone');
+        if (then === 'stand') this.setStance('stand');
+      }
+    } else {
+      const k = gu.t;
+      pose =
+        k < 0.5
+          ? blendPose(gu.from, SIT_UP, smooth(0, 0.5, k))
+          : k < 0.95
+            ? blendPose(SIT_UP, RISE_KNEE, smooth(0.5, 0.95, k))
+            : blendPose(RISE_KNEE, POSES.stand, smooth(0.95, 1.35, k));
+      if (k >= 1.35) this.finishGetUp('stand');
+    }
+    if (this.getUp) {
+      this.cur = pose;
+      const r = this.rig;
+      r.tick(dt);
+      r.setPose(pose);
+      r.x = this.x;
+      r.y = this.y;
+      r.f = this.f;
+      r.grounded = true;
+    }
+  }
+
+  finishGetUp(stance) {
+    this.getUp = null;
+    this.stance = stance;
+    this.lastStance = stance;
+    this.stanceT = 0;
+    const cb = this.onUp;
+    this.onUp = null;
+    cb?.();
+  }
+
   update(dt, intent = {}) {
     this.time += dt;
     const L = this.level;
     this.blocked = null;
+    if (this.ragdoll) {
+      this.ragdollUpdate(dt);
+      return;
+    }
+    if (this.getUp) {
+      this.getUpUpdate(dt);
+      return;
+    }
     // moved by a script along a path (a stair flight, a drainpipe): no
     // physics, just the pose for the speed it's being moved at
     if (this.scripted) {
@@ -289,6 +402,8 @@ export class Walker {
         this.onGround = true;
         this.landing = Math.max(this.landing, clamp(hard / 1300));
         this.onLand?.(clamp(hard / 1400));
+        // a real drop (four metres and more) takes him off his feet
+        if (hard > 1550 && this.fallsHard) this.knockDown([this.vx * 0.5, 0], { then: 'stand' });
       }
     } else {
       this.y = ground;
@@ -459,6 +574,9 @@ export class Walker {
     else this.locks = null;
     // any change of facing is a quick turn, never a flip (scripts too)
     if (r.f !== undefined && r.f !== this.f && r.flipK >= 1) r.pivot();
+    // the body's acceleration, for what hangs from it
+    r.ax = (this.vx - (this.swingVx ?? this.vx)) / Math.max(dt, 1e-4);
+    this.swingVx = this.vx;
     r.tick(dt);
     r.setPose(final);
     r.x = this.x;

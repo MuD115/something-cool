@@ -191,14 +191,22 @@ export const ACT2R = {
     g.effects.puff(hx, hy);
     Object.assign(a, { shotAt: g.time, shotX: hx, shotY: hy });
     g.bump(0.25);
-    p.override = P_FLINCH;
-    yield 0.4;
+    const dive = g.settings.get('physics');
+    if (dive) {
+      // he throws himself down, away from where the round struck
+      const away = -(Math.sign(hx - p.x) || p.f);
+      p.knockDown([away * 320, -220], { then: a.forgiving ? 'prone' : null });
+      yield 0.9;
+    } else {
+      p.override = P_FLINCH;
+      yield 0.4;
+    }
     g.fade = 0.55;
     yield 0.2;
     p.override = null;
     if (a.forgiving) {
-      // forgiving lanes: he drops flat where he is, out of the sniper's line
-      p.stance = 'prone';
+      // forgiving lanes: he stays flat where he is, out of the sniper's line
+      if (!p.down) p.stance = 'prone';
     } else {
       p.place(lane.x0 - 70);
       p.f = 1;
@@ -522,7 +530,7 @@ export const ACT2R = {
     if (lane && !g.locked && g.scene === 'street') {
       const watching = lane.id === 1 ? true : lane.id === 2 ? a.watch2 > 0.5 : a.watch3 > 0.5;
       const covered = p.stance !== 'stand' && lane.cover.some(([c0, c1]) => p.x > c0 && p.x < c1);
-      const safe = p.stance === 'prone' || covered || !watching;
+      const safe = p.stance === 'prone' || p.down || covered || !watching;
       a.laneState = { id: lane.id, watching, safe };
       a.expose = safe ? Math.max(0, a.expose - dt * 2) : a.expose + dt;
       if (a.expose > (a.forgiving ? 0.9 : 0.4) && !a.shotBusy) {
