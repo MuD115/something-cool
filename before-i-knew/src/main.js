@@ -673,6 +673,8 @@ const menu = new Menu($('menu'), {
     { key: 'readSpeed', label: 'readSpeed', type: 'select', options: [[1.35, 'slow'], [1, 'normal'], [0.8, 'fast']] },
     { key: 'crouchMode', label: 'crouchMode', type: 'select', options: [['toggle', 'crouchToggle'], ['hold', 'crouchHold']] },
     { key: 'lanes', label: 'lanes', type: 'select', options: [['standard', 'lanesStandard'], ['forgiving', 'lanesForgiving']] },
+    { key: 'focusCam', label: 'focusCam', type: 'toggle' },
+    { key: 'outlines', label: 'outlines', type: 'toggle' },
     { key: 'vibration', label: 'vibration', type: 'toggle' },
   ],
   controls: { input, actions: ACTIONS, label: keyLabel },

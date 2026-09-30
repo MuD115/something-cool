@@ -96,12 +96,13 @@ export const ACT2R = {
     L.ceiling(X.crawl[0], X.crawl[1], -58);
 
     // --- examine points ---
-    const look = (id, x, y, key, range = 90) => L.add({ id, x, y, range, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key) });
-    look('wall1', X.wall1[0] - 40, -120, 'lane1_wall');
-    look('car', X.car[0] - 30, -110, 'lane2_car');
-    look('crawl', X.crawl[0] - 50, -80, 'crawl', 70);
-    look('smoke', X.lane3[0] - 60, -160, 'lane3_smoke');
-    look('hospital', X.hosp[0] + 300, -130, 'hospital', 110);
+    // (box: the outline round the thing, fitted to its art, offset by bx, by)
+    const look = (id, x, y, key, range = 90, box = {}) => L.add({ id, x, y, range, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key), ...box });
+    look('wall1', X.wall1[0] - 40, -120, 'lane1_wall', 90, { box: [425, 110], bx: 248, by: 68 });
+    look('car', X.car[0] - 30, -110, 'lane2_car', 90, { box: [240, 120], bx: 151, by: 55 });
+    look('crawl', X.crawl[0] - 50, -80, 'crawl', 70, { box: [185, 74], bx: 136, by: 48 });
+    look('smoke', X.lane3[0] - 60, -160, 'lane3_smoke', 90, { box: [64, 44], bx: 260, by: 103 });
+    look('hospital', X.hosp[0] + 300, -130, 'hospital', 110, { box: [318, 204], by: 35 });
 
     // --- the way south ---
     // (only what's still ahead of a restarted checkpoint)
@@ -336,7 +337,7 @@ export const ACT2R = {
     gd.override = { ...POSES.kneel, head: -0.15 };
     g.lock(false);
     g.text.objective(OBJ.sheet);
-    L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
+    L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, box: [112, 112], bx: -3, by: 7, label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
     yield () => a.pull;
     g.lock();
     p.f = 1;
@@ -349,7 +350,7 @@ export const ACT2R = {
     g.lock(false);
     g.text.objective(OBJ.rod);
     a.rebarGlint = true;
-    L.add({ id: 'rail', x: X.rebar, y: -60, range: 80, urgent: true, label: ['التقط', 'Pick up'], enabled: () => a.hasSheet && !a.hasRod, use: () => (a.hasRod = true) });
+    L.add({ id: 'rail', x: X.rebar, y: -60, range: 80, urgent: true, box: [160, 60], bx: 5, by: 35, label: ['التقط', 'Pick up'], enabled: () => a.hasSheet && !a.hasRod, use: () => (a.hasRod = true) });
     yield () => a.hasRod;
     a.rebarGlint = false;
     g.lock();
@@ -410,7 +411,7 @@ export const ACT2R = {
     const p = g.player;
     g.lock(false);
     g.text.objective(OBJ.ruin);
-    L.add({ id: 'ruinDoor', x: X.ruinDoor, y: -120, range: 80, urgent: true, label: ['ادخل', 'Go in'], enabled: () => !a.enter, use: () => (a.enter = true) });
+    L.add({ id: 'ruinDoor', x: X.ruinDoor, y: -120, range: 80, urgent: true, box: [80, 168], by: 40, label: ['ادخل', 'Go in'], enabled: () => !a.enter, use: () => (a.enter = true) });
     yield () => a.enter;
     g.lock();
     g.text.objective(null);

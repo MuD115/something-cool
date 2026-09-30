@@ -2526,6 +2526,8 @@ const STR = {
     lanesStandard: 'Standard',
     lanesForgiving: 'Forgiving',
     vibration: 'Vibration',
+    focusCam: 'Camera eases towards things to use',
+    outlines: 'Outline things to use',
     // the story so far
     yourStory: 'Your story',
     yourStorySub: 'The choices you have made, and those still ahead of you',
@@ -2654,6 +2656,8 @@ const STR = {
     lanesStandard: 'عادية',
     lanesForgiving: 'متسامحة',
     vibration: 'الاهتزاز',
+    focusCam: 'تقترب الكاميرا من الأشياء القابلة للتفاعل',
+    outlines: 'إطار حول الأشياء القابلة للتفاعل',
     yourStory: 'قصّتك',
     yourStorySub: 'الخيارات التي اتخذتها، والخيارات التي لم تجرّبها بعد',
     storyLast: 'في المرة الأخيرة',
@@ -3156,6 +3160,8 @@ const DEFAULTS = {
   crouchMode: 'toggle', // 'toggle' | 'hold'
   lanes: 'standard', // Act Two sniper lanes: 'standard' | 'forgiving'
   vibration: true,
+  focusCam: true, // the camera leans towards things to interact with
+  outlines: true, // and they get a thin outline
   lang: 'en', // menu language: 'en' | 'ar'
   backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
   quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'
@@ -5614,7 +5620,7 @@ const { Level, Runner } = __src_world_level;
 const { Walker } = __src_world_walker;
 const { Effects } = __src_sets_effects;
 const { keyLabel } = __src_engine_input;
-const { clamp, lerp } = __src_engine_util;
+const { clamp, lerp, smooth } = __src_engine_util;
 const { writeSave } = __src_engine_save;
 const TOOLS = {
   torch: { id: 'torch', ar: 'مصباح يدوي', en: 'Hand-crank torch' },
@@ -5667,6 +5673,8 @@ class Game {
     this.flashActors = null;
     this.cat = null;
     this.camOverride = null;
+    this.focus = null;
+    this.focusK = 0;
     this.cam = { x: 0, y: -250, view: 1500 };
     this.shake = 0;
     this.torch = { on: false, charge: 0.8, cranking: 0 };
@@ -5841,7 +5849,59 @@ class Game {
   cameraTarget() {
     if (this.camOverride) return typeof this.camOverride === 'function' ? this.camOverride(this) : this.camOverride;
     const p = this.player;
-    return { x: p.x + p.f * 110, y: -205, view: 1300 };
+    const cam = { x: p.x + p.f * 110, y: -205, view: 1300 };
+    // near something to interact with, the camera leans towards it and closes in
+    const f = this.focus;
+    const k = f && this.settings.get('focusCam') !== false ? smooth(0, 1, this.focusK) : 0;
+    if (k > 0) {
+      const fx = f.x + (f.bx || 0);
+      const fy = f.y + (f.by || 0);
+      cam.x = lerp(cam.x, (p.x + fx) / 2, 0.8 * k);
+      cam.y = lerp(cam.y, clamp((fy - 205) / 2, -290, -160), 0.5 * k);
+      cam.view = lerp(cam.view, 1040, k);
+    }
+    return cam;
+  }
+
+  // The nearest thing to interact with, within reach or nearly: the camera
+  // leans towards it and it gets a thin outline, so it isn't missed.
+  updateFocus(dt) {
+    const p = this.player;
+    let best = null;
+    if (this.scene === 'street' && !this.locked && !this.text.choiceOpen && !this.autoWalk) {
+      for (const t of this.level.things) {
+        if (!t.enabled()) continue;
+        const d = Math.abs(t.x - p.x);
+        const r = t.range * 1.9;
+        if (d < r && (!best || d < best.d)) best = { t, d, r };
+      }
+    }
+    const want = best ? clamp((best.r - best.d) / (best.r * 0.55)) : 0;
+    if (best) this.focus = best.t;
+    this.focusK = lerp(this.focusK, want, 1 - Math.exp(-dt * 2.4));
+    if (!best && this.focusK < 0.01) this.focus = null;
+  }
+
+  // A thin, softly breathing outline round the thing in focus.
+  drawOutline(R) {
+    const t = this.focus;
+    const k = this.focusK;
+    if (!t || k < 0.02 || this.scene !== 'street' || this.settings.get('outlines') === false || !t.enabled()) return;
+    const [w, h] = t.box || [90, 90];
+    const cx = t.x + (t.bx || 0);
+    const cy = t.y + (t.by || 0);
+    const a = k * (0.8 + 0.2 * Math.sin(this.time * 3));
+    R.layer(1);
+    R.glow((c) => {
+      c.beginPath();
+      c.roundRect(cx - w / 2, cy - h / 2, w, h, Math.min(14, w / 4, h / 4));
+      c.strokeStyle = `rgba(255, 244, 214, ${0.1 * a})`;
+      c.lineWidth = 6;
+      c.stroke();
+      c.strokeStyle = `rgba(255, 246, 222, ${0.55 * a})`;
+      c.lineWidth = 1.6;
+      c.stroke();
+    });
   }
 
   // --------------------------------------------------------------- frame --
@@ -5903,6 +5963,7 @@ class Game {
     }
 
     this.tools(dt);
+    this.updateFocus(dt);
     this.interact();
     this.level.check(p.x);
     this.runner.update(dt);
@@ -6010,7 +6071,10 @@ class Game {
       document.getElementById('stage')?.classList.toggle('blackout', black);
     }
     if (this.settings.get('reduceFlashes') && look.flash) look.flash = look.flash.map((v) => v * 0.25);
-    R.frame((r) => this.act.draw(r, this), { ...look, time, fade });
+    R.frame((r) => {
+      this.act.draw(r, this);
+      this.drawOutline(r);
+    }, { ...look, time, fade });
   }
 }
 
@@ -8624,18 +8688,21 @@ const ACT1 = {
     L.ceiling(X.sag0, X.sag1, -150); // the sagged curtain: crouch under it
 
     // --- examine texts from the script ---
-    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
-    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
-    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, look: true, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
-    L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, look: true, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
-    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
+    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, box: [118, 184], bx: 2, by: 64, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
+    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, box: [362, 164], bx: 133, by: 46, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, box: [228, 214], bx: -1, by: 67, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, look: true, box: [100, 60], bx: 2, by: 68, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
+    L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, look: true, box: [190, 76], bx: -15, by: 26, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
+    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, box: [320, 270], bx: 29, by: 102, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
       id: 'shard',
       x: X.shard,
       y: -60,
       range: 60,
       label: ['التقط', 'Pick up'],
+      box: [140, 52],
+      bx: 5,
+      by: 40,
       enabled: () => !g.hasTool('mirror'),
       use: () => {
         g.giveTool('mirror');
@@ -9154,6 +9221,8 @@ const ACT1 = {
       y: -130,
       range: 80,
       label: ['تحدّث إلى ليلى', 'Talk to Layla'],
+      box: [70, 182],
+      by: 40,
       enabled: () => !g.a.laylaTalked && !g.a.shelling,
       use: () => {
         g.a.laylaTalked = true;
@@ -9175,6 +9244,9 @@ const ACT1 = {
       range: 110,
       label: ['القطة', 'The cat'],
       look: true,
+      box: [74, 84],
+      bx: 2,
+      by: 19,
       lookText: CAT_LINE,
       enabled: () => !cat.hidden && !g.a.catDone,
       use: () => g.runner.run(this.catScene(g)),
@@ -9187,6 +9259,9 @@ const ACT1 = {
       range: 130,
       urgent: true,
       label: ['ملّس عليها', 'Stroke it'],
+      box: [74, 84],
+      bx: 2,
+      by: 19,
       look: true,
       lookText: STROKE_LINE,
       enabled: () => g.a.catWait && !g.a.stroke,
@@ -9505,7 +9580,7 @@ const ACT1 = {
     yield 0.6;
 
     // down off the wall, landing where its back will be under his hand
-    const landX = handX + 5.4 * f;
+    const landX = handX + 18 * f; // his hand on its lower back, its rump clear of his knees
     const x0 = cat.x;
     const y0 = cat.y;
     cat.f = -f;
@@ -9513,7 +9588,7 @@ const ACT1 = {
     yield () => {
       const k = clamp((g.time - t1) / 0.7);
       cat.sit = 1 - clamp(k * 4);
-      cat.x = lerp(x0, landX, smooth(k));
+      cat.x = lerp(x0, landX, smooth(0, 1, k));
       cat.y = lerp(y0, p.y, k) - Math.sin(k * Math.PI) * 30;
       cat.speed = k < 0.3 ? 0 : 50;
       return k >= 1;
@@ -11217,12 +11292,13 @@ const ACT2R = {
     L.ceiling(X.crawl[0], X.crawl[1], -58);
 
     // --- examine points ---
-    const look = (id, x, y, key, range = 90) => L.add({ id, x, y, range, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key) });
-    look('wall1', X.wall1[0] - 40, -120, 'lane1_wall');
-    look('car', X.car[0] - 30, -110, 'lane2_car');
-    look('crawl', X.crawl[0] - 50, -80, 'crawl', 70);
-    look('smoke', X.lane3[0] - 60, -160, 'lane3_smoke');
-    look('hospital', X.hosp[0] + 300, -130, 'hospital', 110);
+    // (box: the outline round the thing, fitted to its art, offset by bx, by)
+    const look = (id, x, y, key, range = 90, box = {}) => L.add({ id, x, y, range, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key), ...box });
+    look('wall1', X.wall1[0] - 40, -120, 'lane1_wall', 90, { box: [425, 110], bx: 248, by: 68 });
+    look('car', X.car[0] - 30, -110, 'lane2_car', 90, { box: [240, 120], bx: 151, by: 55 });
+    look('crawl', X.crawl[0] - 50, -80, 'crawl', 70, { box: [185, 74], bx: 136, by: 48 });
+    look('smoke', X.lane3[0] - 60, -160, 'lane3_smoke', 90, { box: [64, 44], bx: 260, by: 103 });
+    look('hospital', X.hosp[0] + 300, -130, 'hospital', 110, { box: [318, 204], by: 35 });
 
     // --- the way south ---
     // (only what's still ahead of a restarted checkpoint)
@@ -11457,7 +11533,7 @@ const ACT2R = {
     gd.override = { ...POSES.kneel, head: -0.15 };
     g.lock(false);
     g.text.objective(OBJ.sheet);
-    L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
+    L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, box: [112, 112], bx: -3, by: 7, label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
     yield () => a.pull;
     g.lock();
     p.f = 1;
@@ -11470,7 +11546,7 @@ const ACT2R = {
     g.lock(false);
     g.text.objective(OBJ.rod);
     a.rebarGlint = true;
-    L.add({ id: 'rail', x: X.rebar, y: -60, range: 80, urgent: true, label: ['التقط', 'Pick up'], enabled: () => a.hasSheet && !a.hasRod, use: () => (a.hasRod = true) });
+    L.add({ id: 'rail', x: X.rebar, y: -60, range: 80, urgent: true, box: [160, 60], bx: 5, by: 35, label: ['التقط', 'Pick up'], enabled: () => a.hasSheet && !a.hasRod, use: () => (a.hasRod = true) });
     yield () => a.hasRod;
     a.rebarGlint = false;
     g.lock();
@@ -11531,7 +11607,7 @@ const ACT2R = {
     const p = g.player;
     g.lock(false);
     g.text.objective(OBJ.ruin);
-    L.add({ id: 'ruinDoor', x: X.ruinDoor, y: -120, range: 80, urgent: true, label: ['ادخل', 'Go in'], enabled: () => !a.enter, use: () => (a.enter = true) });
+    L.add({ id: 'ruinDoor', x: X.ruinDoor, y: -120, range: 80, urgent: true, box: [80, 168], by: 40, label: ['ادخل', 'Go in'], enabled: () => !a.enter, use: () => (a.enter = true) });
     yield () => a.enter;
     g.lock();
     g.text.objective(null);
@@ -12631,6 +12707,8 @@ const menu = new Menu($('menu'), {
     { key: 'readSpeed', label: 'readSpeed', type: 'select', options: [[1.35, 'slow'], [1, 'normal'], [0.8, 'fast']] },
     { key: 'crouchMode', label: 'crouchMode', type: 'select', options: [['toggle', 'crouchToggle'], ['hold', 'crouchHold']] },
     { key: 'lanes', label: 'lanes', type: 'select', options: [['standard', 'lanesStandard'], ['forgiving', 'lanesForgiving']] },
+    { key: 'focusCam', label: 'focusCam', type: 'toggle' },
+    { key: 'outlines', label: 'outlines', type: 'toggle' },
     { key: 'vibration', label: 'vibration', type: 'toggle' },
   ],
   controls: { input, actions: ACTIONS, label: keyLabel },

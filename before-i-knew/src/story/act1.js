@@ -53,18 +53,21 @@ export const ACT1 = {
     L.ceiling(X.sag0, X.sag1, -150); // the sagged curtain: crouch under it
 
     // --- examine texts from the script ---
-    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
-    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
-    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, look: true, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
-    L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, look: true, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
-    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
+    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, box: [118, 184], bx: 2, by: 64, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
+    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, box: [362, 164], bx: 133, by: 46, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, box: [228, 214], bx: -1, by: 67, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, look: true, box: [100, 60], bx: 2, by: 68, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
+    L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, look: true, box: [190, 76], bx: -15, by: 26, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
+    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, box: [320, 270], bx: 29, by: 102, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
       id: 'shard',
       x: X.shard,
       y: -60,
       range: 60,
       label: ['التقط', 'Pick up'],
+      box: [140, 52],
+      bx: 5,
+      by: 40,
       enabled: () => !g.hasTool('mirror'),
       use: () => {
         g.giveTool('mirror');
@@ -583,6 +586,8 @@ export const ACT1 = {
       y: -130,
       range: 80,
       label: ['تحدّث إلى ليلى', 'Talk to Layla'],
+      box: [70, 182],
+      by: 40,
       enabled: () => !g.a.laylaTalked && !g.a.shelling,
       use: () => {
         g.a.laylaTalked = true;
@@ -604,6 +609,9 @@ export const ACT1 = {
       range: 110,
       label: ['القطة', 'The cat'],
       look: true,
+      box: [74, 84],
+      bx: 2,
+      by: 19,
       lookText: CAT_LINE,
       enabled: () => !cat.hidden && !g.a.catDone,
       use: () => g.runner.run(this.catScene(g)),
@@ -616,6 +624,9 @@ export const ACT1 = {
       range: 130,
       urgent: true,
       label: ['ملّس عليها', 'Stroke it'],
+      box: [74, 84],
+      bx: 2,
+      by: 19,
       look: true,
       lookText: STROKE_LINE,
       enabled: () => g.a.catWait && !g.a.stroke,
@@ -934,7 +945,7 @@ export const ACT1 = {
     yield 0.6;
 
     // down off the wall, landing where its back will be under his hand
-    const landX = handX + 5.4 * f;
+    const landX = handX + 18 * f; // his hand on its lower back, its rump clear of his knees
     const x0 = cat.x;
     const y0 = cat.y;
     cat.f = -f;
@@ -942,7 +953,7 @@ export const ACT1 = {
     yield () => {
       const k = clamp((g.time - t1) / 0.7);
       cat.sit = 1 - clamp(k * 4);
-      cat.x = lerp(x0, landX, smooth(k));
+      cat.x = lerp(x0, landX, smooth(0, 1, k));
       cat.y = lerp(y0, p.y, k) - Math.sin(k * Math.PI) * 30;
       cat.speed = k < 0.3 ? 0 : 50;
       return k >= 1;

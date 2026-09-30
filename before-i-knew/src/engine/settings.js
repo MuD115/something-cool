@@ -19,6 +19,8 @@ export const DEFAULTS = {
   crouchMode: 'toggle', // 'toggle' | 'hold'
   lanes: 'standard', // Act Two sniper lanes: 'standard' | 'forgiving'
   vibration: true,
+  focusCam: true, // the camera leans towards things to interact with
+  outlines: true, // and they get a thin outline
   lang: 'en', // menu language: 'en' | 'ar'
   backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
   quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'

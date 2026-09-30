@@ -5,7 +5,7 @@ import { Level, Runner } from './world/level.js';
 import { Walker } from './world/walker.js';
 import { Effects } from './sets/effects.js';
 import { keyLabel } from './engine/input.js';
-import { clamp, lerp } from './engine/util.js';
+import { clamp, lerp, smooth } from './engine/util.js';
 import { writeSave } from './engine/save.js';
 
 export const TOOLS = {
@@ -59,6 +59,8 @@ export class Game {
     this.flashActors = null;
     this.cat = null;
     this.camOverride = null;
+    this.focus = null;
+    this.focusK = 0;
     this.cam = { x: 0, y: -250, view: 1500 };
     this.shake = 0;
     this.torch = { on: false, charge: 0.8, cranking: 0 };
@@ -233,7 +235,59 @@ export class Game {
   cameraTarget() {
     if (this.camOverride) return typeof this.camOverride === 'function' ? this.camOverride(this) : this.camOverride;
     const p = this.player;
-    return { x: p.x + p.f * 110, y: -205, view: 1300 };
+    const cam = { x: p.x + p.f * 110, y: -205, view: 1300 };
+    // near something to interact with, the camera leans towards it and closes in
+    const f = this.focus;
+    const k = f && this.settings.get('focusCam') !== false ? smooth(0, 1, this.focusK) : 0;
+    if (k > 0) {
+      const fx = f.x + (f.bx || 0);
+      const fy = f.y + (f.by || 0);
+      cam.x = lerp(cam.x, (p.x + fx) / 2, 0.8 * k);
+      cam.y = lerp(cam.y, clamp((fy - 205) / 2, -290, -160), 0.5 * k);
+      cam.view = lerp(cam.view, 1040, k);
+    }
+    return cam;
+  }
+
+  // The nearest thing to interact with, within reach or nearly: the camera
+  // leans towards it and it gets a thin outline, so it isn't missed.
+  updateFocus(dt) {
+    const p = this.player;
+    let best = null;
+    if (this.scene === 'street' && !this.locked && !this.text.choiceOpen && !this.autoWalk) {
+      for (const t of this.level.things) {
+        if (!t.enabled()) continue;
+        const d = Math.abs(t.x - p.x);
+        const r = t.range * 1.9;
+        if (d < r && (!best || d < best.d)) best = { t, d, r };
+      }
+    }
+    const want = best ? clamp((best.r - best.d) / (best.r * 0.55)) : 0;
+    if (best) this.focus = best.t;
+    this.focusK = lerp(this.focusK, want, 1 - Math.exp(-dt * 2.4));
+    if (!best && this.focusK < 0.01) this.focus = null;
+  }
+
+  // A thin, softly breathing outline round the thing in focus.
+  drawOutline(R) {
+    const t = this.focus;
+    const k = this.focusK;
+    if (!t || k < 0.02 || this.scene !== 'street' || this.settings.get('outlines') === false || !t.enabled()) return;
+    const [w, h] = t.box || [90, 90];
+    const cx = t.x + (t.bx || 0);
+    const cy = t.y + (t.by || 0);
+    const a = k * (0.8 + 0.2 * Math.sin(this.time * 3));
+    R.layer(1);
+    R.glow((c) => {
+      c.beginPath();
+      c.roundRect(cx - w / 2, cy - h / 2, w, h, Math.min(14, w / 4, h / 4));
+      c.strokeStyle = `rgba(255, 244, 214, ${0.1 * a})`;
+      c.lineWidth = 6;
+      c.stroke();
+      c.strokeStyle = `rgba(255, 246, 222, ${0.55 * a})`;
+      c.lineWidth = 1.6;
+      c.stroke();
+    });
   }
 
   // --------------------------------------------------------------- frame --
@@ -295,6 +349,7 @@ export class Game {
     }
 
     this.tools(dt);
+    this.updateFocus(dt);
     this.interact();
     this.level.check(p.x);
     this.runner.update(dt);
@@ -402,6 +457,9 @@ export class Game {
       document.getElementById('stage')?.classList.toggle('blackout', black);
     }
     if (this.settings.get('reduceFlashes') && look.flash) look.flash = look.flash.map((v) => v * 0.25);
-    R.frame((r) => this.act.draw(r, this), { ...look, time, fade });
+    R.frame((r) => {
+      this.act.draw(r, this);
+      this.drawOutline(r);
+    }, { ...look, time, fade });
   }
 }

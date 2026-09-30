@@ -98,6 +98,8 @@ const STR = {
     lanesStandard: 'Standard',
     lanesForgiving: 'Forgiving',
     vibration: 'Vibration',
+    focusCam: 'Camera eases towards things to use',
+    outlines: 'Outline things to use',
     // the story so far
     yourStory: 'Your story',
     yourStorySub: 'The choices you have made, and those still ahead of you',
@@ -226,6 +228,8 @@ const STR = {
     lanesStandard: 'عادية',
     lanesForgiving: 'متسامحة',
     vibration: 'الاهتزاز',
+    focusCam: 'تقترب الكاميرا من الأشياء القابلة للتفاعل',
+    outlines: 'إطار حول الأشياء القابلة للتفاعل',
     yourStory: 'قصّتك',
     yourStorySub: 'الخيارات التي اتخذتها، والخيارات التي لم تجرّبها بعد',
     storyLast: 'في المرة الأخيرة',

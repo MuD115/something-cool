@@ -118,8 +118,13 @@ checkpoint. Settings:
 - **Play:** control hints.
 - **Accessibility:** subtitle reading time (longer, normal, shorter), crouch and prone (press to
   toggle, or hold), Act Two's sniper lanes (standard, or forgiving: longer gaps and more
-  smoke, and a warning shot drops Sami flat where he is instead of sending him back), and
-  vibration (a phone buzz, or a gamepad's rumble, on blasts and shots).
+  smoke, and a warning shot drops Sami flat where he is instead of sending him back), the
+  camera easing towards things to use, their outlines, and vibration (a phone buzz, or a
+  gamepad's rumble, on blasts and shots).
+
+As Sami nears something he can look at, pick up or talk to, the camera leans towards it and
+closes in a little, and a thin, softly breathing outline marks it, fitted to its shape, so it
+isn't walked past. Both can be switched off under Accessibility.
 
 Control prompts step aside once you've done what they ask, or after a few seconds. They come
 back if you stand idle while the story is still waiting on them.
