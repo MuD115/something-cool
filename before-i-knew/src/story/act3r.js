@@ -113,7 +113,9 @@ function* along(g, w, pts, speed, pose = null) {
   };
   w.scripted = false;
   w.scriptedSpeed = 0;
-  w.override = before;
+  // the others keep the pose they held (a soldier his rifle); the player is
+  // handed back his own body
+  w.override = w === g.player ? null : before;
   w.vx = 0;
   w.vy = 0;
   w.onGround = true;
@@ -502,6 +504,7 @@ export const ACT3R = {
     yield* along(g, p, [[mid[0] + 80, mid[1] - 60], [xb, yb]], 80, (d) => stairPose(d * 0.1));
     yield* along(g, p, [[xb, yb], [xb + 30, yb]], 90);
     p.place(xb + 30, yb);
+    p.override = null;
     a.climbing = false;
     g.lock(false);
   },
@@ -531,6 +534,7 @@ export const ACT3R = {
     yield* along(g, p, [[mid[0], mid[1] + 16], [mid[0] + 20, mid[1] - 20], [xb, yb]], 60, (d) => stairPose(d * 0.1));
     yield* along(g, p, [[xb, yb], [xb + 30, yb]], 90);
     p.place(xb + 30, yb);
+    p.override = null;
     a.climbing = false;
     g.lock(false);
     g.text.objective(OBJ.hole);
@@ -580,6 +584,7 @@ export const ACT3R = {
     }
     yield* along(g, p, [[X2.pipe - 14, -40], [X2.pipe - 20, 0]], 90);
     p.place(X2.pipe - 20, 0);
+    p.override = null;
     g.lock(false);
     yield* say(g, 'alley');
     g.text.objective(OBJ.crawl);
