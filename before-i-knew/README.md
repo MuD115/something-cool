@@ -65,6 +65,33 @@ play.
    rail), or look for another way, through the half-collapsed building.
 4. **Abu Yazan** has followed you south. He gives you Ahmad's lighter and his journal.
 
+## Act Three: The Night (Retrieval), Parts One and Two
+
+From 8 pm, whichever way Choice D went. Each route is about 8 minutes to play.
+
+- **The white cloth.** Crank the torch to see the ground, then switch it off: light draws fire.
+  Then sixty metres of open, moonlit ground to the regime checkpoint, upright, the sheet held
+  above your head. The game won't let you crouch or run. A shout; hands up; two soldiers pat
+  you down and take the walkie-talkie and Ahmad's lighter. At a camp table under a battery lamp,
+  **Officer Maher** hears you out, then names his terms: *nothing here is free, not flour, not
+  medicine, not bodies.*
+  ◆ **Choice G:** answer with dignity (he pockets Ahmad's lighter as the price, and sells you
+  twenty minutes before dawn), with anger (a rifle butt, heard and not shown, then his
+  conditions: two men, five minutes, and the sniper is "not his"), or with a deal (you draw
+  him the valves that control the southern quarter's water).
+- **The back route.** Up through the ruined building in the dark, torch in hand. A flight of
+  stairs, then a table still set for dinner and a child's drawing. A ceiling slab has fallen
+  across the next flight. A wardrobe on its side has a crawl space under it, and part of the
+  ceiling has come down to knee height. Where the stairs are gone, you jump from the rubble
+  and pull yourself up. There are height marks on a door frame (2009, 2010, 2011, and no
+  2012), and a step gives way. From the fifth floor you see what the sniper saw. Then out: a
+  balcony (stay low), a drop, a drainpipe, the alley, and a belly crawl across the moonlit
+  street to the blanket. You take its edges and pull him back into the shadow.
+
+Officer Maher is written as the regime's checkpoints were: he trades in what he controls, and
+the game doesn't ask you to understand him. The night walk, the visions, the flashbacks and
+the rooftop (Parts Three to Six) are still to come.
+
 Your choices set the story state that later acts build on: compassion, courage, isolation,
 the children and the path. It's saved in the browser.
 
@@ -187,7 +214,7 @@ Everything is drawn and synthesised in code. There are no images or recordings.
 
 ## Acts and dialogue
 
-- **Acts.** Each act is a module in [`src/story/`](src/story) (`act1.js`, `act2r.js`), with
+- **Acts.** Each act is a module in [`src/story/`](src/story) (`act1.js`, `act2r.js`, `act3r.js`), with
   its set beside it (`act1-set.js`, `act2r-set.js`). [`src/main.js`](src/main.js) keeps a
   registry of them. The save names the act and its checkpoint.
 - **Act Two's dialogue** is data, in [`src/story/act2r-lines.js`](src/story/act2r-lines.js),

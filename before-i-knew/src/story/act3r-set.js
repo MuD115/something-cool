@@ -63,7 +63,7 @@ export const X2 = {
   street: 1420,
   blanket: 1640,
   shade: 1360, // where the buildings' shadow ends
-  lamp: 2450,
+  lamp: 2150,
 };
 
 // ------------------------------------------------------------ the sky --
@@ -299,7 +299,23 @@ function checkpoint(R, g, t) {
 }
 
 // A shape under a dark blanket on the ground. Nothing else is shown.
-export function blanketShape(R, x, y, s = 1) {
+export function blanketShape(R, x, y, s = 1, moonlit = false) {
+  if (moonlit) {
+    // the moon along its top: the only way to see it from far off
+    R.glow((c) => {
+      c.save();
+      c.translate(x, y);
+      c.scale(s, s);
+      c.strokeStyle = 'rgba(190,205,250,0.55)';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(-66, -12);
+      c.quadraticCurveTo(-40, -20, -10, -23);
+      c.quadraticCurveTo(30, -22, 60, -13);
+      c.stroke();
+      c.restore();
+    });
+  }
   R.cast((c) => {
     c.save();
     c.translate(x, y);
@@ -492,10 +508,16 @@ export function drawBuilding(R, g) {
       c.lineTo(hx + 150, hy + 150);
       c.lineTo(hx + 30, hy + 150);
       c.fill();
-      c.fillStyle = 'rgba(200,210,240,0.25)';
+      // the hole's broken edge, catching the moon
+      c.strokeStyle = 'rgba(190,205,245,0.28)';
+      c.lineWidth = 2;
       c.beginPath();
-      c.ellipse(hx, hy, 50, 34, 0.2, 0, Math.PI * 2);
-      c.fill();
+      for (let i = 0; i <= 14; i++) {
+        const ang = (i / 14) * Math.PI * 2;
+        const rr = 1 + 0.18 * Math.sin(i * 2.7 + hx);
+        c.lineTo(hx + Math.cos(ang) * 50 * rr, hy + Math.sin(ang) * 34 * rr);
+      }
+      c.stroke();
     }
   });
 
@@ -510,11 +532,10 @@ export function drawBuilding(R, g) {
     c.fillRect(X2.b1, -6, X2.shade - X2.b1, 10);
   });
   R.glow((c) => {
-    c.fillStyle = 'rgba(160,175,220,0.12)';
-    c.fillRect(X2.shade, -30, 1400, 30);
+    c.fillStyle = 'rgba(160,175,220,0.22)';
+    c.fillRect(X2.shade, -34, 1400, 36);
   });
-  if (!a.dragged) blanketShape(R, a.blanketX ?? X2.blanket, 0, 1);
-  else blanketShape(R, a.blanketX, 0, 1);
+  blanketShape(R, a.blanketX ?? X2.blanket, 0, 1, !a.inside);
 
   // the people
   for (const w of [...g.npcs, g.player]) {

@@ -531,7 +531,7 @@ export const ACT3R = {
     g.text.objective(null);
     yield* g.walkPlayer(X2.hole - 40);
     g.player.f = 1;
-    g.camOverride = { x: 1500, y: -420, view: 2300 };
+    g.camOverride = { x: 1560, y: -260, view: 1500 };
     g.sound.ambience({ wind: 0.45 }, 2);
     yield 2;
     yield* say(g, 'view');
