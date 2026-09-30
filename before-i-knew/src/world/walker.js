@@ -3,11 +3,22 @@
 // ones, can't stand under low ceilings, and falls under gravity.
 // Feet are at (x, y); up is negative y.
 
-import { Person, POSES, walkPose, crouchWalkPose, crawlPose, blendPose } from '../rigs/person.js';
+import { Person, POSES, crawlPose, blendPose, L as LIMB, footDrop } from '../rigs/person.js';
 import { clamp, lerp, smooth } from '../engine/util.js';
+import { MOTION, LEG, amplify } from '../rigs/motion.js';
 
 export const HEIGHT = { stand: 170, crouch: 122, prone: 48 };
 // halfway to the ground: on one knee, leaning forward onto the hands
+// Motion-captured gaits (CMU mocap, see tools/mocap.mjs), with the speed
+// each clip reads most naturally at: faster than that the stride lengthens
+// a little, slower it shortens, and past it the next gait takes over.
+const GAITS = {
+  walk: { clip: MOTION.walk, natural: 125 },
+  jog: { clip: MOTION.jog, natural: 250 },
+  run: { clip: MOTION.run, natural: 320 },
+  crouch: { clip: MOTION.crouchWalk, natural: 78 },
+};
+
 const KNEEL_DOWN = { ...POSES.kneel, torso: 0.62, head: -0.2, armN: 1.25, foreN: 1.35, armF: 1.1, foreF: 1.25 };
 const SPEED = { stand: 162, run: 310, crouch: 84, prone: 42, carry: 98 };
 const GRAVITY = 2600;
@@ -35,6 +46,54 @@ const IDLES = [
   { dur: 2.0, pose: { head: -0.25, torso: -0.06, armN: 0.1, armF: -0.1 } },
   { dur: 1.6, pose: { head: 0.35, torso: 0.08, armN: -0.35, foreN: 0.75 } },
 ];
+
+// How far the planted foot sweeps back under the body over one stride of a
+// gait, measured on the rig itself (so the ground can move at exactly that
+// rate and the feet never slide). Cached per gait and stride scale.
+const STRIDES = new Map();
+function footStride(g, k) {
+  const key = `${g.clip.name}:${k}`;
+  let v = STRIDES.get(key);
+  if (v) return v;
+  const probe = new Person('sami', 1);
+  const N = 96;
+  let back = 0;
+  let prev = null;
+  for (let i = 0; i <= N; i++) {
+    probe.setPose(amplify(g.clip, g.clip.at(i / N), k));
+    probe.local = null;
+    const j = probe.solve();
+    const n = j.footN[1] > j.footF[1] ? 'footN' : 'footF';
+    const x = j[n][0];
+    if (prev && prev.n === n && x < prev.x) back += prev.x - x;
+    prev = { n, x };
+  }
+  // (double support counts the sweep twice for a moment: take a little off)
+  v = Math.max(20, (back || g.clip.stride * LEG * k) * 0.9);
+  STRIDES.set(key, v);
+  return v;
+}
+
+// Standing: a captured wait (weight shifting, a lean, settling), looped by
+// easing its end into its start. Kept gentle: mostly the legs and torso.
+function idlePose(t) {
+  const c = MOTION.idle;
+  const T = c.duration;
+  const u = ((t % T) + T) % T;
+  let p = c.time(u);
+  const fadeT = 0.8;
+  if (u > T - fadeT) p = blendPose(p, c.time(0), smooth(T - fadeT, T, u));
+  // arms mostly at rest: take a little of the capture's arm movement
+  const s = POSES.stand;
+  return {
+    ...p,
+    torso: p.torso * 0.8 + s.torso * 0.2,
+    armN: lerp(s.armN, p.armN, 0.4),
+    foreN: lerp(s.foreN, p.foreN, 0.4),
+    armF: lerp(s.armF, p.armF, 0.4),
+    foreF: lerp(s.foreF, p.foreF, 0.4),
+  };
+}
 
 export class Walker {
   constructor(level, outfit = 'sami', scale = 1) {
@@ -87,6 +146,7 @@ export class Walker {
     this.vy = 0;
     this.mantle = null;
     this.onGround = true;
+    this.locks = null;
   }
 
   height(stance = this.stance) {
@@ -254,6 +314,32 @@ export class Walker {
     return false;
   }
 
+  // One gait (or a blend of two or three) at the current speed, its phase
+  // carried forward by the distance covered, so the feet keep pace with the
+  // ground and don't slide.
+  gait(dt, speed, parts) {
+    let eff = 0;
+    let wsum = 0;
+    const poses = [];
+    for (const [g, w] of parts) {
+      if (w <= 0.001) continue;
+      const k = Math.round(clamp(speed / g.natural, 0.6, 1.35) * 20) / 20;
+      eff += footStride(g, k) * this.rig.scale * w;
+      wsum += w;
+      poses.push([g, k, w]);
+    }
+    eff /= wsum || 1;
+    this.gphase = (this.gphase || 0) + (speed * dt) / Math.max(eff, 1);
+    let out = null;
+    let acc = 0;
+    for (const [g, k, w] of poses) {
+      const p = amplify(g.clip, g.clip.at(this.gphase), k);
+      acc += w;
+      out = out ? blendPose(out, p, w / acc) : p;
+    }
+    return out;
+  }
+
   pose(dt, speed, run = false) {
     let target;
     const phase = (this.stride / (this.stance === 'stand' ? 74 : this.stance === 'crouch' ? 34 : 52)) * Math.PI;
@@ -273,7 +359,7 @@ export class Walker {
     } else if (this.stance === 'prone') {
       target = speed > 4 ? crawlPose(phase * 0.8) : POSES.prone;
     } else if (this.stance === 'crouch') {
-      if (speed > 4) target = crouchWalkPose(phase);
+      if (speed > 4) target = this.gait(dt, speed, [[GAITS.crouch, 1]]);
       else {
         // holding still, low: breathing, and a look round now and then
         const tt = this.time + this.seed;
@@ -281,11 +367,12 @@ export class Walker {
         target = { ...c, torso: c.torso + 0.015 * Math.sin(tt * 2.1), head: c.head + Math.max(0, Math.sin(tt * 0.3) - 0.7) * 0.6 * Math.sin(tt * 1.1), armN: c.armN + 0.02 * Math.sin(tt * 2.1) };
       }
     } else if (speed > 4) {
-      const runK = clamp((speed - 180) / 110);
-      target = walkPose(phase, clamp(speed / 160, 0.35, 1.2), runK);
+      const wj = smooth(175, 255, speed);
+      const wr = smooth(255, 320, speed);
+      target = this.gait(dt, speed, [[GAITS.walk, 1 - wj], [GAITS.jog, wj * (1 - wr)], [GAITS.run, wr]]);
       if (this.carry) target = { ...target, ...POSES.carry, thighN: target.thighN, shinN: target.shinN, thighF: target.thighF, shinF: target.shinF, torso: -0.08 };
     } else {
-      target = this.carry ? POSES.carry : POSES.stand;
+      target = this.carry ? POSES.carry : idlePose(this.time + this.seed * 7);
       // idle life: breathing, and a glance around now and then
       const tt = this.time + this.seed;
       const glance = Math.max(0, Math.sin(tt * 0.23) - 0.6) * 0.5 * Math.sin(tt * 0.9);
@@ -335,7 +422,8 @@ export class Walker {
 
     // footsteps
     if (this.onGround && speed > 4 && this.stance !== 'prone') {
-      const n = Math.floor(this.stride / (this.stance === 'stand' ? 74 : this.stance === 'crouch' ? 34 : 52));
+      // two footfalls a stride
+      const n = Math.floor((this.gphase || 0) * 2);
       if (n !== this.lastStep) {
         this.lastStep = n;
         this.onStep?.(this.stance);
@@ -366,6 +454,9 @@ export class Walker {
     } else this.overrideBlend = 0;
 
     const r = this.rig;
+    // feet that are down stay where they landed, and stand on what's there
+    if (this.onGround && !this.mantle && !this.override && this.stance !== 'prone' && this.visible) final = this.plantFeet(final, dt, speed);
+    else this.locks = null;
     // any change of facing is a quick turn, never a flip (scripts too)
     if (r.f !== undefined && r.f !== this.f && r.flipK >= 1) r.pivot();
     r.tick(dt);
@@ -374,6 +465,81 @@ export class Walker {
     r.y = this.y;
     r.f = this.f;
     r.grounded = true;
+  }
+
+  // Foot planting. A foot the clip puts on the ground is locked to the
+  // spot where it came down, and the leg is solved (two-bone IK, knee
+  // forward) to keep reaching it while the body moves over it; the ground
+  // under each foot is looked up, so feet stand on a kerb or a lump of
+  // rubble rather than in it. When the clip lifts the foot, the lock lets go
+  // and the leg eases back to the animation.
+  plantFeet(pose, dt, speed) {
+    const r = this.rig;
+    r.setPose(pose);
+    r.local = null;
+    const j = r.solve();
+    const h = r.hipHeight();
+    const sc = r.scale;
+    this.locks = this.locks || { N: null, F: null, kN: 0, kF: 0 };
+    const out = { ...pose };
+    for (const s of ['N', 'F']) {
+      const foot = j['foot' + s];
+      const shin = pose['shin' + s];
+      // down: at the ground (the rig stands 4 above its lowest point) and,
+      // in the clip, travelling back under the body or still; a foot the
+      // clip carries forward is swinging, however low it skims
+      const lift = h - (foot[1] + footDrop(shin));
+      const ax = this.locks['ax' + s];
+      this.locks['ax' + s] = foot[0];
+      const back = ax == null || foot[0] - ax <= 0.02;
+      const down = lift <= 6.5 && back;
+      const wx = this.x + foot[0] * this.f * sc;
+      // the ground under this foot, relative to where the body stands
+      const gy = this.level.groundAt(wx, this.y - 60);
+      const dG = clamp((gy - this.y) / sc, -30, 12);
+      let tx = foot[0];
+      let ty = foot[1] + (down ? dG : Math.min(0, dG));
+      const lock = this.locks[s];
+      if (down && speed > 4) {
+        if (lock == null) this.locks[s] = wx;
+        else tx = (lock - this.x) / (this.f * sc);
+        this.locks['k' + s] = Math.min(1, this.locks['k' + s] + dt * 20);
+      } else {
+        this.locks[s] = null;
+        this.locks['k' + s] = Math.max(0, this.locks['k' + s] - dt * 10);
+        // the foot comes off the ground from where it really was
+        const last = this.locks['last' + s];
+        if (last && this.locks['k' + s] > 0) {
+          tx = lerp(tx, last.tx, this.locks['k' + s]);
+          ty = lerp(ty, last.ty, this.locks['k' + s]);
+        }
+      }
+      const k = speed > 4 ? this.locks['k' + s] : 1;
+      if (k <= 0.001 && Math.abs(ty - foot[1]) < 0.01) continue;
+      // two bones, hip at the origin, the knee bending forward
+      const a1 = LIMB.thigh;
+      const a2 = LIMB.shin;
+      let d = Math.hypot(tx, ty);
+      const max = (a1 + a2) * 0.999;
+      if (d > max) {
+        // can't reach: the foot drags along a touch rather than the leg
+        // stretching (or the foot jumping to a new spot)
+        tx *= max / d;
+        ty *= max / d;
+        d = max;
+        if (this.locks[s] != null) this.locks[s] = this.x + tx * this.f * sc;
+      }
+      this.locks['last' + s] = { tx, ty };
+      const phi = Math.atan2(tx, ty);
+      const cosA = clamp((a1 * a1 + d * d - a2 * a2) / (2 * a1 * d), -1, 1);
+      const th = phi + Math.acos(cosA);
+      const kx = Math.sin(th) * a1;
+      const ky = Math.cos(th) * a1;
+      const sh = Math.atan2(tx - kx, ty - ky);
+      out['thigh' + s] = lerp(pose['thigh' + s], th, k);
+      out['shin' + s] = lerp(shin, sh, k);
+    }
+    return out;
   }
 
   draw(ctx) {

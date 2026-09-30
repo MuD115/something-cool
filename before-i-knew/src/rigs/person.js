@@ -7,7 +7,7 @@ import { clamp, lerp, smooth } from '../engine/util.js';
 import { limb, shade } from './shapes.js';
 
 // Segment lengths. Adults stand about 170 units tall.
-const L = { thigh: 41, shin: 40, torso: 54, neck: 6, head: 10.4, upper: 28, fore: 26 };
+export const L = { thigh: 41, shin: 40, torso: 54, neck: 6, head: 10.4, upper: 28, fore: 26 };
 
 // Outfits. Fields:
 //   top, sleeve ('long' | 'short'), rolled (sleeves rolled to the elbow),
@@ -228,7 +228,7 @@ function footRoll(shinA) {
   if (shinA > 0.2) return -Math.min(0.3, (shinA - 0.2) * 0.6);
   return 0;
 }
-function footDrop(shinA) {
+export function footDrop(shinA) {
   const r = footRoll(shinA);
   return r > 0 ? 13 * Math.sin(r) : 6 * Math.sin(-r);
 }
