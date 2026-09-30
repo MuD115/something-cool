@@ -120,7 +120,7 @@ function moon(R, u, v) {
 }
 
 function nightSky(R, g, { moonUv = [0.12, 0.26] } = {}) {
-  T.sky(R, NIGHT, { sun: moonUv, warmth: 0 });
+  T.sky(R, NIGHT, { sun: moonUv, warmth: 0, clouds: 0.35, cloudLit: [70, 80, 110], cloudShade: [14, 16, 26] });
   stars(R, g.time);
   moon(R, moonUv[0], moonUv[1]);
   horizon(R, {
@@ -162,7 +162,9 @@ export function nightLook(g) {
     bloom: 0.7,
     exposure: 0.98,
     grain: 0.07,
-    grade: { sat: 0.62, contrast: 1.1, lift: 0.01, tint: [0.92, 0.97, 1.08] },
+    grade: { sat: 0.62, contrast: 1.1, lift: 0.01, tint: [0.92, 0.97, 1.08], shadows: [0.9, 0.97, 1.12], highs: [1.06, 1.0, 0.92] },
+    // cold mist lying in the street, thicker in the open
+    fog: a.inside ? { density: 0.08, height: 90, color: [0.2, 0.24, 0.34] } : { density: 0.22, height: 110, color: [0.3, 0.36, 0.5] },
     fade: Math.max(a.endFade || 0, a.blackout || 0),
     flash: a.hitAt && g.time - a.hitAt < 0.15 ? [0.3, 0.05, 0.02] : null,
   };
@@ -386,7 +388,24 @@ export function drawBuilding(R, g) {
       c.fillStyle = `rgba(${r() < 0.5 ? '90,84,76' : '15,12,10'},0.25)`;
       c.fillRect(X2.b0 + r() * (X2.b1 - X2.b0), floorY(6) + r() * -floorY(6), 20 + r() * 60, 10 + r() * 40);
     }
+    // the tide line: damp that rose a hand's height off every floor
+    for (let f = 1; f <= 5; f++) {
+      const td = c.createLinearGradient(0, floorY(f) - 60, 0, floorY(f));
+      td.addColorStop(0, 'rgba(20,18,15,0)');
+      td.addColorStop(0.8, 'rgba(20,18,15,0.35)');
+      td.addColorStop(1, 'rgba(20,18,15,0.1)');
+      c.fillStyle = td;
+      c.fillRect(X2.b0, floorY(f) - 60, X2.b1 - X2.b0, 60);
+    }
   });
+  // plaster, where it hasn't fallen, and the blocks where it has
+  R.surface((c) => {
+    c.rect(X2.b0, floorY(6) - 20, X2.b1 - X2.b0, -floorY(6) + 20);
+    for (const [hx, hy] of MOON_HOLES) {
+      c.moveTo(hx + 50, hy);
+      c.ellipse(hx, hy, 50, 34, 0.2, 0, Math.PI * 2);
+    }
+  }, 'plaster', { scale: 1.2, seed: 3, rule: 'evenodd' });
 
   // the flights in the stairwell, behind
   if (near(X2.stairs1[0], X2.stairs1[1])) stairFlight(R, X2.stairs1[0], floorY(1), X2.stairs1[1], floorY(2));
@@ -412,6 +431,9 @@ export function drawBuilding(R, g) {
       } else if (s.kind === 'floor') {
         c.fillStyle = '#6a655c';
         c.fillRect(s.x0, s.y0, s.x1 - s.x0, 16);
+        // floor tiles along the top edge, the slab's section below
+        c.fillStyle = 'rgba(200,190,170,0.18)';
+        for (let tx = s.x0; tx < s.x1; tx += 30) c.fillRect(tx + 1, s.y0, 28, 3);
         c.fillStyle = 'rgba(0,0,0,0.3)';
         c.fillRect(s.x0, s.y0 + 12, s.x1 - s.x0, 4);
         // broken ends show their rebar

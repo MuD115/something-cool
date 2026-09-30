@@ -943,6 +943,469 @@ class Camera {
 return { BASE_VIEW, Camera };
 })();
 
+// ---- src/engine/materials.js
+const __src_engine_materials = (() => {
+// Materials: tileable surface textures, baked once at load from seeded
+// noise. Each material has two maps, the same size and tiling:
+//   detail – a grey detail map centred on mid-grey, laid over a base colour
+//            with 'overlay' so the set's own colour survives (or, for the
+//            few materials with colour of their own, a full-colour map)
+//   height – relief, black low to white high; the renderer turns it into
+//            surface normals so lights rake across mortar, pocks and cracks
+//
+// Everything is deterministic: the same seed gives the same wall on every
+// visit and every machine.
+
+const { rng, clamp, lerp } = __src_engine_util;
+let SIZE = 256;
+const BAKED = new Map();
+
+// Low quality bakes smaller maps (and the renderer skips relief anyway).
+function setMaterialSize(s) {
+  if (s === SIZE) return;
+  SIZE = s;
+  BAKED.clear();
+}
+
+// Tileable value noise: lattice of period p, smooth interpolation, wrapped.
+function lattice(p, seed) {
+  const r = rng(seed);
+  const g = new Float32Array(p * p);
+  for (let i = 0; i < g.length; i++) g[i] = r();
+  return (x, y) => {
+    const xi = Math.floor(x);
+    const yi = Math.floor(y);
+    const fx = x - xi;
+    const fy = y - yi;
+    const ux = fx * fx * (3 - 2 * fx);
+    const uy = fy * fy * (3 - 2 * fy);
+    const i0 = ((xi % p) + p) % p;
+    const j0 = ((yi % p) + p) % p;
+    const i1 = (i0 + 1) % p;
+    const j1 = (j0 + 1) % p;
+    const a = g[j0 * p + i0];
+    const b = g[j0 * p + i1];
+    const c = g[j1 * p + i0];
+    const d = g[j1 * p + i1];
+    return lerp(lerp(a, b, ux), lerp(c, d, ux), uy);
+  };
+}
+
+// Fractal noise over the tile, in [0, 1]: octaves double the lattice so
+// every octave still tiles.
+function fbm(n, seed, base = 4, octaves = 5, gain = 0.5) {
+  const out = new Float32Array(n * n);
+  let amp = 1;
+  let norm = 0;
+  for (let o = 0; o < octaves; o++) {
+    const p = base << o;
+    const f = lattice(p, seed + o * 101);
+    const k = p / n;
+    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) out[y * n + x] += f(x * k, y * k) * amp;
+    norm += amp;
+    amp *= gain;
+  }
+  for (let i = 0; i < out.length; i++) out[i] /= norm;
+  return out;
+}
+
+// Stretch a field to fill [0, 1].
+function normalise(a) {
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const v of a) {
+    if (v < lo) lo = v;
+    if (v > hi) hi = v;
+  }
+  const s = hi > lo ? 1 / (hi - lo) : 1;
+  for (let i = 0; i < a.length; i++) a[i] = (a[i] - lo) * s;
+  return a;
+}
+
+const wrap = (v, n) => ((v % n) + n) % n;
+
+// Stamp a small soft dip (a pock, a chip) into a height field, wrapping.
+function dip(h, n, cx, cy, rad, depth) {
+  const r2 = rad * rad;
+  for (let y = -Math.ceil(rad); y <= rad; y++) {
+    for (let x = -Math.ceil(rad); x <= rad; x++) {
+      const d2 = x * x + y * y;
+      if (d2 > r2) continue;
+      const i = wrap(cy + y, n) * n + wrap(cx + x, n);
+      h[i] -= depth * (1 - d2 / r2);
+    }
+  }
+}
+
+// A wandering crack, carved as a thin groove.
+function crack(h, n, r, x, y, len, depth) {
+  let a = Math.PI / 2 + (r() - 0.5) * 1.2;
+  for (let i = 0; i < len; i++) {
+    a += (r() - 0.5) * 0.7;
+    x += Math.cos(a);
+    y += Math.sin(a);
+    const i0 = wrap(Math.round(y), n) * n + wrap(Math.round(x), n);
+    h[i0] -= depth;
+    if (r() < 0.04) crack(h, n, r, x, y, len * 0.3, depth * 0.7);
+  }
+}
+
+// Courses of cut stone: a height field of blocks with sunken joints, and
+// each block's id (for per-stone tone).
+function courses(n, r, rowH, minW, maxW, joint) {
+  const h = new Float32Array(n * n);
+  const id = new Float32Array(n * n);
+  const rows = Math.round(n / rowH);
+  const rh = n / rows;
+  for (let row = 0; row < rows; row++) {
+    const y0 = Math.round(row * rh);
+    const y1 = Math.round((row + 1) * rh);
+    // widths that sum exactly to the tile, so the courses wrap
+    const ws = [];
+    let sum = 0;
+    while (sum < n - minW) {
+      const w = Math.min(n - sum, minW + r() * (maxW - minW));
+      ws.push(w);
+      sum += w;
+    }
+    ws[ws.length - 1] += n - sum;
+    const shift = Math.floor(r() * n);
+    let xs = 0;
+    for (const w of ws) {
+      const tone = r();
+      const bulge = 0.5 + r() * 0.5;
+      for (let y = y0; y < y1; y++) {
+        for (let x = Math.round(xs); x < Math.round(xs + w); x++) {
+          const i = y * n + wrap(x + shift, n);
+          const ex = Math.min(x - xs, xs + w - 1 - x);
+          const ey = Math.min(y - y0, y1 - 1 - y);
+          const e = Math.min(ex, ey);
+          // a soft pillow of stone, dropping into the joint
+          h[i] = e < joint ? 0.15 + 0.15 * (e / joint) : 0.55 + 0.25 * bulge * Math.min(1, (e - joint) / 6);
+          id[i] = tone;
+        }
+      }
+      xs += w;
+    }
+  }
+  return { h, id };
+}
+
+// ------------------------------------------------------------- recipes --
+// Each returns { detail: Float32Array(n*n) in [0, 1] (0.5 neutral) or
+// colour: Uint8ClampedArray rgba, height: Float32Array in [0, 1] }.
+
+const RECIPES = {
+  // Cut limestone in courses, the stone of old Damascus.
+  limestone(n, seed) {
+    const r = rng(seed);
+    const { h, id } = courses(n, r, n / 8, n / 6, n / 3, 2);
+    const grain = fbm(n, seed + 3, 16, 4);
+    const blot = fbm(n, seed + 9, 4, 3);
+    const detail = new Float32Array(n * n);
+    for (let i = 0; i < h.length; i++) {
+      h[i] += (grain[i] - 0.5) * 0.18;
+      detail[i] = 0.5 + (id[i] - 0.5) * 0.12 + (grain[i] - 0.5) * 0.22 + (blot[i] - 0.5) * 0.16 + (h[i] < 0.32 ? -0.14 : 0);
+    }
+    for (let k = 0; k < n / 10; k++) dip(h, n, Math.floor(r() * n), Math.floor(r() * n), 1 + r() * 2.2, 0.25);
+    return { detail, height: h };
+  },
+
+  // Ablaq: limestone with courses of black basalt, as on the old houses and
+  // mosques. Full colour; the wall's own tint is ignored.
+  ablaq(n, seed) {
+    const r = rng(seed);
+    const rows = 8;
+    const { h, id } = courses(n, r, n / rows, n / 5, n / 2.6, 2);
+    const grain = fbm(n, seed + 5, 16, 4);
+    const colour = new Uint8ClampedArray(n * n * 4);
+    const rh = n / rows;
+    const dark = new Set([1, 2, 5, 6]);
+    for (let y = 0; y < n; y++) {
+      const basalt = dark.has(Math.floor(y / rh));
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        h[i] += (grain[i] - 0.5) * (basalt ? 0.28 : 0.16);
+        const g = (grain[i] - 0.5) * 0.25 + (id[i] - 0.5) * 0.12 + (h[i] < 0.32 ? -0.25 : 0);
+        const c = basalt ? [62, 58, 54] : [205, 188, 158];
+        const k = 1 + g;
+        colour[i * 4] = c[0] * k;
+        colour[i * 4 + 1] = c[1] * k;
+        colour[i * 4 + 2] = c[2] * k;
+        colour[i * 4 + 3] = 255;
+      }
+    }
+    return { colour, height: h };
+  },
+
+  // Cement render over block: blotched, patched, with flakes fallen away to
+  // show the blocks beneath, and hairline cracks.
+  plaster(n, seed) {
+    const r = rng(seed);
+    const blot = fbm(n, seed, 4, 5, 0.55);
+    const fine = fbm(n, seed + 2, 32, 3);
+    const flake = normalise(fbm(n, seed + 7, 4, 4, 0.6));
+    const blocks = courses(n, r, n / 6, n / 4, n / 4 + 1, 1.5).h;
+    const h = new Float32Array(n * n);
+    const detail = new Float32Array(n * n);
+    for (let i = 0; i < h.length; i++) {
+      const bare = flake[i] > 0.83; // where the render has come off
+      h[i] = bare ? 0.2 + blocks[i] * 0.25 : 0.62 + (fine[i] - 0.5) * 0.14 + (blot[i] - 0.5) * 0.1;
+      detail[i] = bare ? 0.36 + blocks[i] * 0.1 : 0.5 + (blot[i] - 0.5) * 0.3 + (fine[i] - 0.5) * 0.12;
+    }
+    for (let k = 0; k < 3; k++) crack(h, n, r, r() * n, r() * n, n * 0.5, 0.35);
+    for (let k = 0; k < n / 16; k++) dip(h, n, Math.floor(r() * n), Math.floor(r() * n), 1 + r() * 1.5, 0.3);
+    // cracks and pocks read darker too
+    for (let i = 0; i < h.length; i++) if (h[i] < 0.4 && flake[i] <= 0.83) detail[i] -= 0.12;
+    return { detail, height: h };
+  },
+
+  // Poured concrete: aggregate, formwork seams, blowholes.
+  concrete(n, seed) {
+    const r = rng(seed);
+    const grain = fbm(n, seed, 32, 3);
+    const blot = fbm(n, seed + 4, 4, 4);
+    const h = new Float32Array(n * n);
+    const detail = new Float32Array(n * n);
+    const seam = n / 4;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const s = Math.abs((y % seam) - 0.5) < 1 ? -0.18 : 0; // a board line
+        h[i] = 0.55 + (grain[i] - 0.5) * 0.22 + s;
+        detail[i] = 0.5 + (grain[i] - 0.5) * 0.3 + (blot[i] - 0.5) * 0.22 + s * 0.5;
+      }
+    }
+    for (let k = 0; k < n / 3; k++) {
+      const x = Math.floor(r() * n);
+      const y = Math.floor(r() * n);
+      dip(h, n, x, y, 0.8 + r() * 1.4, 0.3);
+      detail[y * n + x] -= 0.25;
+    }
+    crack(h, n, r, r() * n, 0, n * 0.7, 0.3);
+    return { detail, height: h };
+  },
+
+  // Corrugated sheet and shutters: ridges, dents, rust.
+  rust(n, seed) {
+    const r = rng(seed);
+    const blot = normalise(fbm(n, seed, 4, 5, 0.6));
+    const fine = fbm(n, seed + 3, 32, 3);
+    const h = new Float32Array(n * n);
+    const colour = new Uint8ClampedArray(n * n * 4);
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const ridge = 0.5 + 0.5 * Math.sin((y / n) * Math.PI * 2 * 24);
+        h[i] = 0.35 + ridge * 0.4 + (fine[i] - 0.5) * 0.1;
+        const rusty = smoothstepJS(0.45, 0.75, blot[i]);
+        const paint = [118, 112, 100];
+        const ox = [124, 64, 34];
+        const k = 0.85 + ridge * 0.25 + (fine[i] - 0.5) * 0.3;
+        colour[i * 4] = lerp(paint[0], ox[0], rusty) * k;
+        colour[i * 4 + 1] = lerp(paint[1], ox[1], rusty) * k;
+        colour[i * 4 + 2] = lerp(paint[2], ox[2], rusty) * k;
+        colour[i * 4 + 3] = 255;
+      }
+    }
+    for (let k = 0; k < 6; k++) dip(h, n, Math.floor(r() * n), Math.floor(r() * n), 4 + r() * 8, 0.2);
+    return { colour, height: h };
+  },
+
+  // Old painted wood: grain along the board, planks, flaking paint.
+  wood(n, seed) {
+    const warp = fbm(n, seed, 4, 3);
+    const fine = fbm(n, seed + 1, 32, 2);
+    const h = new Float32Array(n * n);
+    const detail = new Float32Array(n * n);
+    const plank = n / 6;
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const g = Math.sin((x / n) * Math.PI * 2 * 9 + warp[i] * 5);
+        const edge = Math.abs((x % plank) - 0.5) < 1.2;
+        h[i] = edge ? 0.15 : 0.55 + g * 0.08 + (fine[i] - 0.5) * 0.08;
+        detail[i] = edge ? 0.25 : 0.5 + g * 0.1 + (fine[i] - 0.5) * 0.15;
+      }
+    }
+    return { detail, height: h };
+  },
+
+  // Asphalt: fine stone chip, patches, cracks.
+  asphalt(n, seed) {
+    const r = rng(seed);
+    const chip = fbm(n, seed, 64, 2);
+    const blot = fbm(n, seed + 6, 4, 4);
+    const h = new Float32Array(n * n);
+    const detail = new Float32Array(n * n);
+    for (let i = 0; i < h.length; i++) {
+      h[i] = 0.5 + (chip[i] - 0.5) * 0.35;
+      detail[i] = 0.5 + (chip[i] - 0.5) * 0.35 + (blot[i] - 0.5) * 0.25;
+    }
+    for (let k = 0; k < 4; k++) crack(h, n, r, r() * n, r() * n, n * 0.4, 0.35);
+    for (let i = 0; i < h.length; i++) if (h[i] < 0.3) detail[i] -= 0.2;
+    return { detail, height: h };
+  },
+
+  // Pavement slabs.
+  pavers(n, seed) {
+    const r = rng(seed);
+    const { h, id } = courses(n, r, n / 4, n / 4, n / 4 + 1, 1.5);
+    const grain = fbm(n, seed + 2, 32, 3);
+    const detail = new Float32Array(n * n);
+    for (let i = 0; i < h.length; i++) {
+      h[i] += (grain[i] - 0.5) * 0.15;
+      detail[i] = 0.5 + (id[i] - 0.5) * 0.18 + (grain[i] - 0.5) * 0.2 + (h[i] < 0.32 ? -0.18 : 0);
+    }
+    return { detail, height: h };
+  },
+
+  // Woven cloth, for blankets, sheets and awnings.
+  cloth(n, seed) {
+    const fold = fbm(n, seed, 4, 3);
+    const h = new Float32Array(n * n);
+    const detail = new Float32Array(n * n);
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const weave = ((x >> 1) + (y >> 1)) & 1 ? 0.04 : -0.04;
+        h[i] = 0.3 + fold[i] * 0.5 + weave;
+        detail[i] = 0.5 + (fold[i] - 0.5) * 0.3 + weave;
+      }
+    }
+    return { detail, height: h };
+  },
+};
+
+function smoothstepJS(a, b, v) {
+  const t = clamp((v - a) / (b - a));
+  return t * t * (3 - 2 * t);
+}
+
+function toCanvas(n, fill) {
+  const c = document.createElement('canvas');
+  c.width = n;
+  c.height = n;
+  const x = c.getContext('2d');
+  const img = x.createImageData(n, n);
+  fill(img.data);
+  x.putImageData(img, 0, 0);
+  return c;
+}
+
+// The baked maps for a material: { detail|colour canvas, height canvas }.
+function bake(name, seed = 1) {
+  const key = `${name}:${seed}:${SIZE}`;
+  let m = BAKED.get(key);
+  if (m) return m;
+  const n = SIZE;
+  const res = RECIPES[name](n, seed * 7919 + name.length);
+  const hgt = normalise(res.height);
+  m = {
+    full: !!res.colour,
+    tex: toCanvas(n, (d) => {
+      if (res.colour) d.set(res.colour);
+      else
+        for (let i = 0; i < n * n; i++) {
+          const v = clamp(res.detail[i]) * 255;
+          d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v;
+          d[i * 4 + 3] = 255;
+        }
+    }),
+    height: toCanvas(n, (d) => {
+      for (let i = 0; i < n * n; i++) {
+        const v = hgt[i] * 255;
+        d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = v;
+        d[i * 4 + 3] = 255;
+      }
+    }),
+  };
+  BAKED.set(key, m);
+  return m;
+}
+
+const MATERIALS = Object.keys(RECIPES);
+
+// How many world units one texel covers, per material: stone courses are
+// cut to a person's scale, render and concrete read best a little larger.
+const MAT_SCALE = { limestone: 0.62, ablaq: 0.62, plaster: 1.5, concrete: 1.25, rust: 0.7, wood: 0.6, asphalt: 1.1, pavers: 0.9, cloth: 0.7 };
+
+// Two passes at unrelated scales and offsets, so a big wall never shows the
+// tile repeating (a second, fainter pass of a different seed breaks it up).
+function textureWall(ctx, name, { seed = 1, alpha = 1 } = {}) {
+  const k = MAT_SCALE[name] || 1;
+  texturePath(ctx, name, { seed, scale: k, alpha });
+  if (!bake(name, seed).full) texturePath(ctx, name, { seed: seed + 11, scale: k * 1.73, ox: 97, oy: 41, alpha: alpha * 0.45 });
+}
+function heightWall(ctx, name, { seed = 1 } = {}) {
+  const k = MAT_SCALE[name] || 1;
+  heightPath(ctx, name, { seed, scale: k });
+  heightPath(ctx, name, { seed: seed + 11, scale: k * 1.73, ox: 97, oy: 41, alpha: 0.35 });
+}
+
+// Patterns are cached per material and map; a CanvasPattern can be used on
+// any 2D context.
+const PATTERNS = new Map();
+function pattern(ctx, name, map = 'tex', seed = 1) {
+  const key = `${name}:${seed}:${SIZE}:${map}`;
+  let p = PATTERNS.get(key);
+  if (!p) {
+    p = ctx.createPattern(bake(name, seed)[map], 'repeat');
+    PATTERNS.set(key, p);
+  }
+  return p;
+}
+
+// Fill the current path with a material over whatever colour is already
+// there: detail maps blend with 'overlay', full-colour maps replace it.
+// scale: world units per texel (1 = one texel per unit).
+function texturePath(ctx, name, { alpha = 1, scale = 1, seed = 1, ox = 0, oy = 0, rule = 'nonzero' } = {}) {
+  const m = bake(name, seed);
+  const p = pattern(ctx, name, 'tex', seed);
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  if (!m.full) ctx.globalCompositeOperation = 'overlay';
+  p.setTransform?.(new DOMMatrix([scale, 0, 0, scale, ox, oy]));
+  ctx.fillStyle = p;
+  ctx.fill(rule);
+  ctx.restore();
+}
+
+// The same path's relief into a height layer.
+function heightPath(ctx, name, { alpha = 1, scale = 1, seed = 1, ox = 0, oy = 0, rule = 'nonzero' } = {}) {
+  const p = pattern(ctx, name, 'height', seed);
+  ctx.save();
+  ctx.globalAlpha *= alpha;
+  p.setTransform?.(new DOMMatrix([scale, 0, 0, scale, ox, oy]));
+  ctx.fillStyle = p;
+  ctx.fill(rule);
+  ctx.restore();
+}
+
+// Wisps of high cloud: a wide, tiling alpha map, stretched out along the
+// wind, soft-edged, with holes. White; the sky tints it.
+let CLOUDS = null;
+function cloudCanvas() {
+  if (CLOUDS) return CLOUDS;
+  const n = 256;
+  const a = fbm(n, 4242, 4, 6, 0.55);
+  const b = fbm(n, 999, 2, 3, 0.5);
+  CLOUDS = toCanvas(n, (d) => {
+    for (let y = 0; y < n; y++) {
+      for (let x = 0; x < n; x++) {
+        const i = y * n + x;
+        const v = smoothstepJS(0.5, 0.78, a[i] * 0.75 + b[i] * 0.35);
+        d[i * 4] = d[i * 4 + 1] = d[i * 4 + 2] = 255;
+        d[i * 4 + 3] = v * 255;
+      }
+    }
+  });
+  return CLOUDS;
+}
+
+return { setMaterialSize, bake, MATERIALS, MAT_SCALE, textureWall, heightWall, pattern, texturePath, heightPath, cloudCanvas };
+})();
+
 // ---- src/engine/renderer.js
 const __src_engine_renderer = (() => {
 // Deferred 2D lighting.
@@ -952,12 +1415,20 @@ const __src_engine_renderer = (() => {
 //   occluders – alpha of anything that casts a shadow
 //   emissive  – light sources and sky (not lit, but glowing)
 //   ground    – contact/cast shadows projected onto the ground plane
+//   height    – surface relief (materials, and the characters' rounded
+//               forms): the red channel is height; a pixel marked blue with
+//               no green is an object's own relief, which is lit even where
+//               it casts a shadow, while walls' relief only shows where
+//               nothing stands in front of them
 // A WebGL2 pass then lights the albedo with up to four point or directional
 // lights: projected shadows on backdrops (so a lantern throws giant shadows
-// on a barn wall), rim light on silhouettes from the occluder gradient,
-// god rays, bloom, lightning flashes, film grain and a vignette.
+// on a barn wall), relief from the height layer (light rakes across mortar
+// and cracks), contact shading where things meet a wall, rim light on
+// silhouettes from the occluder gradient, god rays, bloom, ground fog, a
+// split-tone grade, lens dirt, lightning flashes, film grain and a vignette.
 
 const { Camera } = __src_engine_camera;
+const { texturePath, heightPath } = __src_engine_materials;
 const MAX_LIGHTS = 4;
 
 const VERT = `#version 300 es
@@ -977,6 +1448,12 @@ uniform sampler2D uAlb;
 uniform sampler2D uOcc;
 uniform sampler2D uEmit;
 uniform sampler2D uShd;
+uniform sampler2D uHgt;
+uniform vec4 uRelief;              // strength, object strength, contact AO, dirt
+uniform vec4 uFog;                 // density, height (world units), world y at top, at bottom
+uniform vec3 uFogCol;
+uniform vec3 uShadowTint;
+uniform vec3 uHighTint;
 uniform vec2 uRes;
 uniform vec3 uAmbient;
 uniform int uCount;
@@ -1008,6 +1485,13 @@ float hash(vec2 p) {
   return fract(p.x * p.y);
 }
 
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
 void main() {
   vec2 uv = vUv;
   float aspect = uRes.x / uRes.y;
@@ -1026,7 +1510,42 @@ void main() {
   float edge = clamp(length(grad) * 0.7, 0.0, 1.0);
   vec2 nrm = edge > 0.001 ? -normalize(grad) : vec2(0.0);
 
-  vec3 light = uAmbient + uFlash;
+  // Relief: a surface normal from the height layer's slope. Walls only show
+  // it where nothing stands in front; objects carry their own everywhere.
+  vec4 hs = texture(uHgt, uv);
+  float isObj = step(0.9, hs.b) * step(hs.g, 0.1);
+  float hw = hs.a * mix(1.0 - occ, 1.0, isObj) * mix(uRelief.x, uRelief.y, isObj);
+  vec3 N = vec3(0.0, 0.0, 1.0);
+  float cavity = 1.0;
+  if (hw > 0.002) {
+    vec2 hp = px * 1.5;
+    vec4 h1 = texture(uHgt, uv + vec2(hp.x, 0.0));
+    vec4 h2 = texture(uHgt, uv - vec2(hp.x, 0.0));
+    vec4 h3 = texture(uHgt, uv + vec2(0.0, hp.y));
+    vec4 h4 = texture(uHgt, uv - vec2(0.0, hp.y));
+    // at the edge of a surface the slope means nothing: fade it out
+    float inside = min(min(h1.a, h2.a), min(h3.a, h4.a));
+    float hr = hs.r / max(hs.a, 0.001);
+    vec2 slope = vec2(h1.r / max(h1.a, 0.001) - h2.r / max(h2.a, 0.001), h3.r / max(h3.a, 0.001) - h4.r / max(h4.a, 0.001));
+    N = normalize(vec3(-slope * 2.2 * hw * inside, 1.0));
+    // mortar joints, cracks and pocks hold less light
+    cavity = mix(1.0, 0.55 + 0.45 * smoothstep(0.1, 0.6, hr), hw * inside * 0.8);
+  }
+
+  // Form: things that cast shadows (people, poles, cars) are rounded from
+  // their silhouette, so the side towards a light is lit and the far side
+  // turns away into shade.
+  vec2 fp = px * 4.0;
+  vec2 og = vec2(textureLod(uOcc, uv + vec2(fp.x, 0.0), 2.0).a - textureLod(uOcc, uv - vec2(fp.x, 0.0), 2.0).a,
+                 textureLod(uOcc, uv + vec2(0.0, fp.y), 2.0).a - textureLod(uOcc, uv - vec2(0.0, fp.y), 2.0).a);
+  vec2 formN = -og;
+
+  // Contact shading: a wall darkens softly where something stands in front
+  // of it, most of all just below (feet, bases, the foot of a car).
+  float contact = textureLod(uOcc, uv + vec2(0.0, px.y * 6.0), 4.0).a;
+  float aoK = 1.0 - contact * (1.0 - occ) * uRelief.z;
+
+  vec3 light = (uAmbient * cavity * aoK) + uFlash;
   vec3 rim = vec3(0.0);
 
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
@@ -1059,12 +1578,27 @@ void main() {
       vec2 sd = normalize(sp.xy); // world and aspect-corrected uv share directions
       att *= smoothstep(sp.z, sp.w, dot(fromL, sd));
     }
-    light += uLC[i] * att * sh;
+    vec2 ld0 = dist > 0.0001 ? da / dist : vec2(0.0);
+    // relief: how squarely this bit of surface faces the light, against how
+    // squarely a flat one would (lights sit a little in front of the scene)
+    vec2 tilt = N.xy / max(N.z, 0.3);
+    float bump = clamp(1.0 + dot(tilt, ld0) * 1.3 * smoothstep(0.0, 0.06, dist), 0.0, 2.2);
+    float form = clamp(1.0 + dot(formN, ld0) * 1.1 * occ * uRelief.y * smoothstep(0.0, 0.06, dist), 0.3, 1.9);
+    light += uLC[i] * att * sh * bump * form * cavity * mix(1.0, aoK, 0.6);
     vec2 ld = dist > 0.0001 ? da / dist : vec2(0.0);
     rim += uLC[i] * min(att * 1.6, 1.0) * k.w * edge * max(dot(nrm, ld), 0.0);
   }
 
   vec3 col = base * light + rim * occ + emit;
+
+  // Ground fog: thickest at street level, thinning with height, drifting.
+  if (uFog.x > 0.0) {
+    float wy = mix(uFog.z, uFog.w, uv.y);
+    float drift = 0.75 + 0.5 * vnoise(vec2(uv.x * 5.0 + uTime * 0.03, uv.y * 11.0 - uTime * 0.01));
+    float fk = uFog.x * exp(min(wy, 0.0) / uFog.y) * drift;
+    fk = clamp(fk, 0.0, 0.85);
+    col = mix(col, toLin(uFogCol) * (uAmbient * 2.2 + 0.08), fk);
+  }
 
   // Light shafts: march toward the sun through the emissive sky, blocked by occluders.
   if (uGod > 0.0) {
@@ -1083,7 +1617,9 @@ void main() {
 
   // Bloom from the emissive layer's mip chain.
   vec3 glow = toLin(textureLod(uEmit, uv, 3.0).rgb) * 0.5 + toLin(textureLod(uEmit, uv, 5.0).rgb) * 0.8;
-  col += max(glow - 0.05, 0.0) * uBloom;
+  // lens dirt: bloom catches on a smudged lens
+  float dirt = 1.0 + uRelief.w * (vnoise(uv * vec2(7.0, 4.0)) * 1.4 + vnoise(uv * 23.0) * 0.6 - 0.5);
+  col += max(glow - 0.05, 0.0) * uBloom * dirt;
 
   col = aces(col * uExposure);
   col = pow(col, vec3(1.0 / 2.2));
@@ -1093,6 +1629,8 @@ void main() {
   col = mix(vec3(luma), col, uGrade.x);
   col = (col - 0.5) * uGrade.y + 0.5 + uGrade.z;
   col *= uTint;
+  // split tone: shadows and highlights each take a colour
+  col *= mix(uShadowTint, uHighTint, smoothstep(0.05, 0.85, luma));
   col = clamp(col, 0.0, 1.0);
 
   vec2 q = uv - 0.5;
@@ -1114,7 +1652,7 @@ class Renderer {
       const c = document.createElement('canvas');
       return { c, x: c.getContext('2d') };
     };
-    this.layers = { alb: mk(), occ: mk(), emit: mk(), shd: mk() };
+    this.layers = { alb: mk(), occ: mk(), emit: mk(), shd: mk(), hgt: mk() };
 
     this.prog = this.program(VERT, FRAG);
     this.u = {};
@@ -1132,11 +1670,11 @@ class Renderer {
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
     this.tex = {};
-    ['alb', 'occ', 'emit', 'shd'].forEach((k, i) => {
+    ['alb', 'occ', 'emit', 'shd', 'hgt'].forEach((k, i) => {
       const t = gl.createTexture();
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, t);
-      const mip = k === 'emit' || k === 'shd';
+      const mip = k === 'emit' || k === 'shd' || k === 'occ';
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -1151,6 +1689,9 @@ class Renderer {
     gl.uniform1i(this.u.uOcc, 1);
     gl.uniform1i(this.u.uEmit, 2);
     gl.uniform1i(this.u.uShd, 3);
+    gl.uniform1i(this.u.uHgt, 4);
+    // quality: relief and the rest switch off on Low
+    this.fx = { relief: true, dirt: false };
   }
 
   program(vs, fs) {
@@ -1228,6 +1769,32 @@ class Renderer {
     o.globalCompositeOperation = 'destination-out';
     fn(o);
     o.restore();
+  }
+
+  // A textured surface: path(ctx) builds a path, which is filled with the
+  // material over the colour already painted there, and its relief goes
+  // into the height layer. (Paint the base colour first, with paint/cast.)
+  surface(path, mat, opts = {}) {
+    const a = this.layers.alb.x;
+    a.save();
+    a.beginPath();
+    path(a);
+    texturePath(a, mat, opts);
+    a.restore();
+    if (!this.fx.relief) return;
+    const h = this.layers.hgt.x;
+    h.save();
+    h.beginPath();
+    path(h);
+    heightPath(h, mat, opts);
+    h.restore();
+  }
+
+  // Draw straight into the height layer (a character's rounded forms, a
+  // baked façade's relief).
+  height(fn) {
+    if (!this.fx.relief) return;
+    fn(this.layers.hgt.x);
   }
 
   // Additive light on top: flames, windows, glints, lightning.
@@ -1326,6 +1893,16 @@ class Renderer {
     gl.uniform1f(u.uFade, look.fade || 0);
     gl.uniform1f(u.uGrain, look.grain ?? 0.05);
     gl.uniform1f(u.uExposure, look.exposure ?? 1);
+    const rel = look.relief ?? 1;
+    gl.uniform4f(u.uRelief, this.fx.relief ? 0.9 * rel : 0, this.fx.relief ? 1.0 : 0, 0.22 * (look.contact ?? 1), this.fx.dirt ? (look.dirt ?? 0.35) : 0);
+    const fog = look.fog;
+    if (fog) {
+      const f = this.cam.frame(W, H, 1);
+      gl.uniform4f(u.uFog, fog.density ?? 0.25, fog.height ?? 120, (0 - f.oy) / f.s, (H - f.oy) / f.s);
+      gl.uniform3fv(u.uFogCol, fog.color || [0.6, 0.58, 0.55]);
+    } else gl.uniform4f(u.uFog, 0, 1, 0, 0);
+    gl.uniform3fv(u.uShadowTint, gr.shadows || [1, 1, 1]);
+    gl.uniform3fv(u.uHighTint, gr.highs || [1, 1, 1]);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }
@@ -4197,6 +4774,54 @@ function seg(ctx, x0, y0, x1, y1, w, color) {
   ctx.stroke();
 }
 
+// A tapered limb: wide at the root, narrower at the end, rounded at both
+// joints, with the back of it in shade and a thin light edge at the front
+// (the figure faces +x in its own space).
+function taper(ctx, x0, y0, x1, y1, w0, w1, color, shadeK = 0.16) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const len = Math.hypot(dx, dy) || 1;
+  let nx = -dy / len;
+  let ny = dx / len;
+  if (nx > 0 || (nx === 0 && ny < 0)) {
+    nx = -nx;
+    ny = -ny;
+  }
+  const r0 = w0 / 2;
+  const r1 = w1 / 2;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x0 + nx * r0, y0 + ny * r0);
+  ctx.lineTo(x1 + nx * r1, y1 + ny * r1);
+  ctx.lineTo(x1 - nx * r1, y1 - ny * r1);
+  ctx.lineTo(x0 - nx * r0, y0 - ny * r0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x0, y0, r0, 0, Math.PI * 2);
+  ctx.arc(x1, y1, r1, 0, Math.PI * 2);
+  ctx.fill();
+  if (shadeK <= 0) return;
+  // the back of the limb, turned from the light
+  ctx.fillStyle = `rgba(0,0,0,${shadeK})`;
+  ctx.beginPath();
+  ctx.moveTo(x0 + nx * r0, y0 + ny * r0);
+  ctx.lineTo(x1 + nx * r1, y1 + ny * r1);
+  ctx.lineTo(x1 + nx * r1 * 0.2, y1 + ny * r1 * 0.2);
+  ctx.lineTo(x0 + nx * r0 * 0.2, y0 + ny * r0 * 0.2);
+  ctx.closePath();
+  ctx.fill();
+  // and the front edge catching it
+  ctx.fillStyle = `rgba(255,255,255,${shadeK * 0.35})`;
+  ctx.beginPath();
+  ctx.moveTo(x0 - nx * r0, y0 - ny * r0);
+  ctx.lineTo(x1 - nx * r1, y1 - ny * r1);
+  ctx.lineTo(x1 - nx * r1 * 0.6, y1 - ny * r1 * 0.6);
+  ctx.lineTo(x0 - nx * r0 * 0.6, y0 - ny * r0 * 0.6);
+  ctx.closePath();
+  ctx.fill();
+}
+
 class Person {
   constructor(outfit = 'sami', scale = 1) {
     this.o = OUTFITS[outfit] || OUTFITS.man;
@@ -5266,8 +5891,8 @@ class Person {
 
   leg(ctx, knee, foot, shinA, cloth, shoe, skin, far) {
     const o = this.o;
-    seg(ctx, 0, 0, knee[0], knee[1], 13.5, cloth);
-    seg(ctx, knee[0], knee[1], foot[0], foot[1], 11, cloth);
+    taper(ctx, 0, 0, knee[0], knee[1], 15, 11.5, cloth, far ? 0.1 : 0.16);
+    taper(ctx, knee[0], knee[1], foot[0], foot[1], 11.5, 9, cloth, far ? 0.1 : 0.16);
     // a crease behind a bent knee
     const bend = Math.abs(Math.atan2(knee[0], knee[1]) - Math.atan2(foot[0] - knee[0], foot[1] - knee[1]));
     if (bend > 0.35) {
@@ -5325,15 +5950,15 @@ class Person {
       seg(ctx, lerp(s[0], e[0], 0.5), lerp(s[1], e[1], 0.5), e[0], e[1], 7, skinShade);
       seg(ctx, s[0], s[1], lerp(s[0], e[0], 0.55), lerp(s[1], e[1], 0.55), 10, cloth);
     } else if (o.rolled) {
-      seg(ctx, s[0], s[1], e[0], e[1], 9.8, cloth);
-      seg(ctx, e[0], e[1], h[0], h[1], 7, skinShade);
+      taper(ctx, s[0], s[1], e[0], e[1], 10.5, 8.8, cloth, near ? 0.16 : 0.08);
+      taper(ctx, e[0], e[1], h[0], h[1], 7.4, 5.8, skinShade, near ? 0.14 : 0.06);
       ctx.fillStyle = cloth; // the rolled cuff
       ctx.beginPath();
       ctx.arc(e[0], e[1], 5.4, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      seg(ctx, s[0], s[1], e[0], e[1], 9.8, cloth);
-      seg(ctx, e[0], e[1], h[0], h[1], 8.4, cloth);
+      taper(ctx, s[0], s[1], e[0], e[1], 10.5, 8.8, cloth, near ? 0.16 : 0.08);
+      taper(ctx, e[0], e[1], h[0], h[1], 8.8, 7.2, cloth, near ? 0.16 : 0.08);
       // a fold at the elbow
       ctx.strokeStyle = 'rgba(0,0,0,0.15)';
       ctx.lineWidth = 1;
@@ -6901,11 +7526,33 @@ const __src_sets_town = (() => {
 
 const { rng, lerp, noise1 } = __src_engine_util;
 const { smoothPath } = __src_rigs_shapes;
+const { textureWall, heightWall, cloudCanvas } = __src_engine_materials;
 const CONCRETE = ['#a99d89', '#9f9480', '#948874', '#ada390', '#91857a', '#a2977f'];
 
 // ------------------------------------------------------------ sky & far --
 
-function sky(R, stops, { sun = [0.78, 0.16], warmth = 0 } = {}) {
+// The wisp map in one colour (cached per colour, rounded so a slowly
+// warming sky doesn't make a new one every frame).
+const TINTED = new Map();
+function tintedClouds(cv, col) {
+  const q = col.map((v) => Math.round(v / 8) * 8);
+  const key = q.join(',');
+  let t = TINTED.get(key);
+  if (t) return t;
+  t = document.createElement('canvas');
+  t.width = cv.width;
+  t.height = cv.height;
+  const x = t.getContext('2d');
+  x.drawImage(cv, 0, 0);
+  x.globalCompositeOperation = 'source-atop';
+  x.fillStyle = `rgb(${q.join(',')})`;
+  x.fillRect(0, 0, t.width, t.height);
+  if (TINTED.size > 64) TINTED.clear();
+  TINTED.set(key, t);
+  return t;
+}
+
+function sky(R, stops, { sun = [0.78, 0.16], warmth = 0, clouds = 0.5, cloudLit = null, cloudShade = null } = {}) {
   R.sky((c) => {
     c.save();
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -6922,6 +7569,27 @@ function sky(R, stops, { sun = [0.78, 0.16], warmth = 0 } = {}) {
     glow.addColorStop(1, 'rgba(255,220,180,0)');
     c.fillStyle = glow;
     c.fillRect(0, 0, R.W, R.H);
+    // high cloud, drifting: each band a stretched, tiled wisp map drawn
+    // twice, a shaded underside and a lit top towards the sun
+    if (clouds > 0) {
+      const cv = cloudCanvas();
+      const t = R.cam.time || 0;
+      const lit = cloudLit || [255, 246 - warmth * 40, 226 - warmth * 80];
+      const shd = cloudShade || [150, 140, 150];
+      for (const [yk, sx, sy, spd, al] of [[0.06, 5.2, 0.55, 3, 0.55], [0.2, 3.4, 0.4, 6, 0.4]]) {
+        const w = cv.width * sx;
+        const h = cv.height * sy;
+        const off = -((R.cam.x * 0.02 + t * spd) % w) - w;
+        const y0 = R.H * yk;
+        for (const [dy, col, a] of [[5, shd, 0.55], [0, lit, 1]]) {
+          const tinted = tintedClouds(cv, col);
+          c.save();
+          c.globalAlpha = clouds * al * a;
+          for (let x = off; x < R.W; x += w) c.drawImage(tinted, x, y0 + dy, w, h);
+          c.restore();
+        }
+      }
+    }
     // high thin haze streaks
     c.fillStyle = 'rgba(255,250,240,0.06)';
     for (let i = 0; i < 5; i++) {
@@ -7094,6 +7762,171 @@ function weathering(w, H, seed) {
   return cv;
 }
 
+// ------------------------------------------------------------ façades --
+// A building's face is drawn once, at a little over screen resolution, into
+// two canvases: its colour (with the wall's material and all its windows,
+// doors, holes and weathering) and its relief (the material's height, with
+// windows and holes sunk in and the floor slabs standing proud).
+const FACADES = new Map();
+const FACADE_RES = 1.25;
+function facade(spec, H, draw, mat, matSeed) {
+  const key = JSON.stringify(spec) + mat;
+  let F = FACADES.get(key);
+  if (F) return F;
+  const pad = 40;
+  const x0 = spec.x - pad;
+  const y0 = -H - pad;
+  const w = spec.w + pad * 2;
+  const h = H + pad * 2;
+  const k = Math.min(FACADE_RES, 2048 / w, 2048 / h);
+  const mk = () => {
+    const cv = document.createElement('canvas');
+    cv.width = Math.ceil(w * k);
+    cv.height = Math.ceil(h * k);
+    const c = cv.getContext('2d');
+    c.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
+    return [cv, c];
+  };
+  const [alb, ca] = mk();
+  const recess = [];
+  draw(ca, recess);
+  // relief: the material everywhere the wall is, then the openings sunk in
+  const [hgt, ch] = mk();
+  ch.drawImage(alb, x0, y0, w, h);
+  ch.globalCompositeOperation = 'source-in';
+  ch.fillStyle = 'rgb(128,128,128)';
+  ch.fillRect(x0, y0, w, h);
+  ch.globalCompositeOperation = 'source-atop';
+  ch.beginPath();
+  ch.rect(x0, y0, w, h);
+  heightWall(ch, mat, { seed: matSeed });
+  const fh = spec.fh || 140;
+  for (let f = 0; f <= spec.floors; f++) {
+    // the slab edge stands out of the wall
+    ch.fillStyle = 'rgb(225,225,225)';
+    ch.fillRect(spec.x, -f * fh - 6, spec.w, 8);
+  }
+  for (const q of recess) {
+    ch.fillStyle = 'rgb(18,18,18)';
+    if (q.rect) {
+      const [rx, ry, rw, rh] = q.rect;
+      ch.fillRect(rx, ry, rw, rh);
+      if (q.sill) {
+        ch.fillStyle = 'rgb(235,235,235)';
+        ch.fillRect(rx - 5, ry + rh - 1, rw + 10, 4);
+      }
+    } else if (q.poly) {
+      if (q.ring) {
+        // the render blown back from the hole
+        const [hx, hy, hr] = q.ring;
+        ch.fillStyle = 'rgb(70,70,70)';
+        ch.beginPath();
+        ch.arc(hx, hy, hr * 1.35, 0, Math.PI * 2);
+        ch.fill();
+        ch.fillStyle = 'rgb(18,18,18)';
+      }
+      ch.beginPath();
+      ch.moveTo(...q.poly[0]);
+      for (const p of q.poly.slice(1)) ch.lineTo(...p);
+      ch.closePath();
+      ch.fill();
+    }
+  }
+  F = { alb, hgt, x0, y0, w, h };
+  FACADES.set(key, F);
+  return F;
+}
+
+// What stands on a flat roof in Ghouta: black water tanks, solar water
+// heaters tilted to the south, an aerial, a dish.
+function roofTop(R, spec, H, t) {
+  const r = rng(spec.seed * 13 + 5);
+  const { x, w } = spec;
+  const top = -H;
+  const items = [];
+  const n = Math.max(1, Math.round(w / 170));
+  for (let i = 0; i < n; i++) {
+    const kind = r();
+    const ix = x + 20 + ((i + 0.5) / n) * (w - 40) + (r() - 0.5) * 30;
+    items.push([kind, ix, r()]);
+  }
+  R.paint((c) => {
+    // the parapet
+    c.fillStyle = shade(spec.color || CONCRETE[0], 0.82);
+    c.fillRect(x - 4, top - 12, w + 8, 12);
+    for (const [kind, ix, v] of items) {
+      if (kind < 0.55) {
+        // a black plastic water tank on a steel stand
+        const tw = 34 + v * 10;
+        const th = 30 + v * 8;
+        c.fillStyle = '#2a2a2c';
+        c.fillRect(ix - tw / 2 + 3, top - 20, 3, 8);
+        c.fillRect(ix + tw / 2 - 6, top - 20, 3, 8);
+        c.fillStyle = '#1d1d1f';
+        c.beginPath();
+        c.moveTo(ix - tw / 2, top - 20);
+        c.lineTo(ix - tw / 2 + 2, top - 20 - th);
+        c.quadraticCurveTo(ix, top - 26 - th, ix + tw / 2 - 2, top - 20 - th);
+        c.lineTo(ix + tw / 2, top - 20);
+        c.closePath();
+        c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.08)';
+        for (let k = 1; k < 4; k++) c.fillRect(ix - tw / 2 + 1, top - 20 - (th * k) / 4, tw - 2, 1.5);
+        if (v < 0.35) {
+          // a shrapnel hole, and the stain where it bled dry
+          c.fillStyle = '#0c0c0d';
+          c.beginPath();
+          c.arc(ix + tw * 0.15, top - 20 - th * 0.4, 2.5, 0, Math.PI * 2);
+          c.fill();
+        }
+      } else if (kind < 0.85) {
+        // a solar water heater: tilted panel, tank on top
+        c.save();
+        c.translate(ix, top - 12);
+        c.fillStyle = '#3c3a38';
+        c.fillRect(-26, -4, 3, 4);
+        c.fillRect(18, -26, 3, 26);
+        c.fillStyle = '#20303c';
+        c.beginPath();
+        c.moveTo(-28, -4);
+        c.lineTo(20, -30);
+        c.lineTo(24, -24);
+        c.lineTo(-24, 2);
+        c.closePath();
+        c.fill();
+        c.strokeStyle = 'rgba(200,210,220,0.25)';
+        c.lineWidth = 1;
+        for (let k = 1; k < 5; k++) {
+          c.beginPath();
+          c.moveTo(-28 + k * 9.6, -4 - k * 5.2);
+          c.lineTo(-24 + k * 9.6, 2 - k * 5.2);
+          c.stroke();
+        }
+        c.fillStyle = '#b8b2a6';
+        c.beginPath();
+        c.ellipse(14, -38, 17, 7, -0.5, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      } else {
+        // an aerial, bent
+        c.strokeStyle = '#4a4440';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(ix, top - 12);
+        c.lineTo(ix + 2, top - 70);
+        c.stroke();
+        c.lineWidth = 1.5;
+        for (let k = 0; k < 4; k++) {
+          c.beginPath();
+          c.moveTo(ix - 12 + k * 2, top - 50 - k * 6);
+          c.lineTo(ix + 14 - k * 2, top - 52 - k * 6 + (k === 2 ? 6 : 0));
+          c.stroke();
+        }
+      }
+    }
+  });
+}
+
 function block(R, spec, t = 0) {
   const { x, w, floors, fh = 140, color = CONCRETE[0], seed = 1 } = spec;
   const H = floors * fh;
@@ -7101,228 +7934,271 @@ function block(R, spec, t = 0) {
   const torn = spec.torn || 0;
   const tornLeft = spec.tornLeft ?? rng(seed + 7)() < 0.5;
 
-  // paint() draws twice (once per layer), so the random stream restarts here
-  R.paint((c) => {
-    const r = rng(seed);
-    c.save();
-    // outline with a torn corner
-    c.beginPath();
-    if (torn > 0) {
-      const tw = w * (0.3 + torn * 0.4);
-      const th = H * (0.25 + torn * 0.45);
-      if (tornLeft) {
-        c.moveTo(x, 0);
-        c.lineTo(x, top + th);
-        const n = 7;
-        for (let i = 1; i < n; i++) c.lineTo(x + (tw * i) / n + (r() - 0.5) * 20, top + th - (th * i) / n + (r() - 0.5) * 30);
-        c.lineTo(x + tw, top);
-        c.lineTo(x + w, top);
-        c.lineTo(x + w, 0);
-      } else {
-        c.moveTo(x, 0);
-        c.lineTo(x, top);
-        c.lineTo(x + w - tw, top);
-        const n = 7;
-        for (let i = 1; i < n; i++) c.lineTo(x + w - tw + (tw * i) / n + (r() - 0.5) * 20, top + (th * i) / n + (r() - 0.5) * 30);
-        c.lineTo(x + w, top + th);
-        c.lineTo(x + w, 0);
-      }
-    } else {
-      c.rect(x, top, w, H);
-    }
-    c.closePath();
-    c.fillStyle = color;
-    c.fill();
-    c.clip();
-
-    // weathering: sun-bleached and dirty render, patched repairs, cracks
-    c.fillStyle = 'rgba(60,50,40,0.08)';
-    for (let i = 0; i < 12; i++) c.fillRect(x + r() * w, top, 2 + r() * 10, H);
-    // (the fine texture is drawn once per building and reused every frame)
-    c.drawImage(weathering(w, H, seed), x, top);
-    for (let f = 0; f <= floors; f++) {
-      c.fillStyle = 'rgba(40,32,26,0.22)';
-      c.fillRect(x, -f * fh - 6, w, 8);
-    }
-
-    // windows (and on the ground floor, a door or two)
-    const cols = Math.max(2, Math.round(w / 110));
-    const doorCols = spec.shopFront || spec.noDoors ? new Map() : pickDoors(cols, seed);
-    const ww = Math.min(58, (w / cols) * 0.5);
-    const wh = fh * 0.46;
-    for (let f = 0; f < floors; f++) {
-      for (let k = 0; k < cols; k++) {
-        const wx = x + ((k + 0.5) * w) / cols - ww / 2;
-        const wy = -f * fh - fh * 0.72;
-        const kind = r();
-        if (f === 0 && spec.shopFront) continue;
-        if (f === 0 && doorCols.has(k)) {
-          const dw = Math.min(74, (w / cols) * 0.62);
-          syrianDoor(c, x + ((k + 0.5) * w) / cols, dw, fh * 0.8, doorCols.get(k), seed * 7 + k);
-          continue;
-        }
-        if (kind < 0.12) {
-          // blown out: ragged dark hole
-          c.fillStyle = '#1b1612';
-          c.beginPath();
-          const jag = [[wx - 6, wy - 3], [wx + ww * 0.3, wy - 9], [wx + ww * 0.55, wy - 2], [wx + ww + 7, wy - 6], [wx + ww + 3, wy + wh * 0.5], [wx + ww + 8, wy + wh + 6], [wx + ww * 0.5, wy + wh + 3], [wx - 5, wy + wh + 9], [wx - 2, wy + wh * 0.4]];
-          c.moveTo(...jag[0]);
-          for (const q of jag.slice(1)) c.lineTo(q[0] + (r() - 0.5) * 5, q[1] + (r() - 0.5) * 5);
-          c.closePath();
-          c.fill();
-        } else {
-          c.fillStyle = kind < 0.55 ? '#211b17' : '#2b241f';
-          c.fillRect(wx, wy, ww, wh);
-          // a pale frame and a stone sill
-          c.strokeStyle = 'rgba(235,225,205,0.28)';
-          c.lineWidth = 2;
-          c.strokeRect(wx - 1, wy - 1, ww + 2, wh + 2);
-          c.fillStyle = 'rgba(0,0,0,0.25)';
-          c.fillRect(wx - 3, wy + wh, ww + 6, 4); // sill shadow
-          c.fillStyle = 'rgba(230,220,200,0.35)';
-          c.fillRect(wx - 5, wy + wh - 1, ww + 10, 3);
-          // rain has run down from the sill for years
-          const st = c.createLinearGradient(0, wy + wh, 0, wy + wh + 50);
-          st.addColorStop(0, 'rgba(60,50,40,0.16)');
-          st.addColorStop(1, 'rgba(60,50,40,0)');
-          c.fillStyle = st;
-          c.fillRect(wx + ww * 0.15, wy + wh + 2, ww * 0.7, 50);
-          const extra = r();
-          if (kind <= 0.55 && extra < 0.3) {
-            // a curtain still hanging, drawn half across
-            c.fillStyle = ['#7a5a48', '#5a6a6e', '#8a7a5a', '#6a4a5a'][Math.floor(r() * 4)];
-            c.globalAlpha = 0.8;
-            c.fillRect(wx + 2, wy + 2, ww * (0.3 + r() * 0.3), wh - 4);
-            c.globalAlpha = 1;
-          } else if (kind <= 0.55 && extra < 0.5) {
-            // the last of the glass, catching the sky
-            c.fillStyle = 'rgba(160,180,200,0.18)';
-            c.beginPath();
-            c.moveTo(wx, wy);
-            c.lineTo(wx + ww * 0.6, wy);
-            c.lineTo(wx, wy + wh * 0.7);
-            c.fill();
-          } else if (f === 0 && extra < 0.75) {
-            // ground-floor grille
-            c.strokeStyle = 'rgba(30,26,22,0.8)';
-            c.lineWidth = 1.5;
-            c.beginPath();
-            for (let gx = wx + 6; gx < wx + ww; gx += 8) {
-              c.moveTo(gx, wy);
-              c.lineTo(gx, wy + wh);
-            }
-            c.stroke();
-          }
-          if (kind > 0.7) {
-            // closed shutter, some slats missing
-            c.fillStyle = spec.shutter || '#7a6a55';
-            c.fillRect(wx, wy, ww, wh * (0.4 + r() * 0.6));
-            c.fillStyle = 'rgba(0,0,0,0.2)';
-            for (let s = wy + 4; s < wy + wh * 0.9; s += 6) c.fillRect(wx, s, ww, 1.5);
-          } else if (kind > 0.55) {
-            // plastic sheet over the window, sagging
-            c.fillStyle = 'rgba(180,190,200,0.35)';
-            c.beginPath();
-            c.moveTo(wx, wy);
-            c.lineTo(wx + ww, wy);
-            c.lineTo(wx + ww, wy + wh);
-            c.quadraticCurveTo(wx + ww / 2, wy + wh - 10, wx, wy + wh);
-            c.fill();
-          }
-        }
-      }
-    }
-
-    // shell holes with rebar
-    for (const [fx, fy, hr] of spec.holes || []) {
-      const hx = x + fx * w;
-      const hy = top + fy * H;
-      c.fillStyle = '#16120f';
-      c.beginPath();
-      const pts = [];
-      for (let i = 0; i < 11; i++) {
-        const a = (i / 11) * Math.PI * 2;
-        const rr = hr * (0.7 + r() * 0.5);
-        pts.push([hx + Math.cos(a) * rr, hy + Math.sin(a) * rr * 0.85]);
-      }
-      c.moveTo(...pts[0]);
-      for (const q of pts.slice(1)) c.lineTo(...q);
-      c.closePath();
-      c.fill();
-      // broken render ring around the hole
-      c.fillStyle = 'rgba(120,108,92,0.5)';
-      c.beginPath();
-      c.arc(hx, hy, hr * 1.35, 0, Math.PI * 2);
-      c.arc(hx, hy, hr * 1.02, 0, Math.PI * 2, true);
-      c.fill();
-      c.strokeStyle = '#4a3a2c';
-      c.lineWidth = 2;
-      for (let i = 0; i < 6; i++) {
-        const a = r() * Math.PI * 2;
-        c.beginPath();
-        c.moveTo(hx + Math.cos(a) * hr * 0.9, hy + Math.sin(a) * hr * 0.8);
-        c.quadraticCurveTo(hx + Math.cos(a) * hr * 0.5, hy + Math.sin(a) * hr * 0.4 + 8, hx + Math.cos(a) * hr * 0.2, hy + Math.sin(a) * hr * 0.3 + 18);
-        c.stroke();
-      }
-    }
-
-    // bullet pocks in clusters
-    c.fillStyle = 'rgba(40,32,26,0.55)';
-    for (let k = 0; k < (spec.pocks ?? 3); k++) {
-      const cx = x + r() * w;
-      const cy = top + r() * H;
-      for (let i = 0; i < 14; i++) {
-        c.beginPath();
-        c.arc(cx + (r() - 0.5) * 70, cy + (r() - 0.5) * 50, 1.5 + r() * 2, 0, Math.PI * 2);
-        c.fill();
-      }
-    }
-
-    // exposed interiors where the corner is torn
-    if (torn > 0) {
-      c.fillStyle = 'rgba(30,24,20,0.0)';
-    }
-
-    // the base of the wall: grime, splash, and the dark where it meets the street
-    const ao = c.createLinearGradient(0, -60, 0, 0);
-    ao.addColorStop(0, 'rgba(30,24,18,0)');
-    ao.addColorStop(1, 'rgba(30,24,18,0.38)');
-    c.fillStyle = ao;
-    c.fillRect(x, -60, w, 60);
-
-    // graffiti
-    for (const [text, gx, gy, size, gc, rot] of spec.graffiti || []) {
+  const mat = spec.mat || ['plaster', 'plaster', 'plaster', 'concrete', 'concrete', 'limestone'][seed % 6];
+  const matSeed = 1 + (seed % 3);
+  const F = facade(spec, H, (c, recess) => {
+      const r = rng(seed);
       c.save();
-      c.translate(x + gx * w, gy);
-      c.rotate(rot || -0.03);
-      c.font = `${size}px "Aref Ruqaa", "IBM Plex Sans Arabic", serif`;
-      c.fillStyle = gc || 'rgba(40,40,44,0.8)';
-      c.textAlign = 'center';
-      c.direction = 'rtl';
-      c.fillText(text, 0, 0);
-      c.restore();
-    }
-    c.restore();
+      // outline with a torn corner
+      c.beginPath();
+      if (torn > 0) {
+        const tw = w * (0.3 + torn * 0.4);
+        const th = H * (0.25 + torn * 0.45);
+        if (tornLeft) {
+          c.moveTo(x, 0);
+          c.lineTo(x, top + th);
+          const n = 7;
+          for (let i = 1; i < n; i++) c.lineTo(x + (tw * i) / n + (r() - 0.5) * 20, top + th - (th * i) / n + (r() - 0.5) * 30);
+          c.lineTo(x + tw, top);
+          c.lineTo(x + w, top);
+          c.lineTo(x + w, 0);
+        } else {
+          c.moveTo(x, 0);
+          c.lineTo(x, top);
+          c.lineTo(x + w - tw, top);
+          const n = 7;
+          for (let i = 1; i < n; i++) c.lineTo(x + w - tw + (tw * i) / n + (r() - 0.5) * 20, top + (th * i) / n + (r() - 0.5) * 30);
+          c.lineTo(x + w, top + th);
+          c.lineTo(x + w, 0);
+        }
+      } else {
+        c.rect(x, top, w, H);
+      }
+      c.closePath();
+      c.fillStyle = color;
+      c.fill();
+      c.clip();
+      // flats re-rendered in other colours over the years, one patch each
+      for (let i = 0; i < Math.round(w / 160); i++) {
+        c.fillStyle = r() < 0.5 ? 'rgba(255,244,225,0.10)' : 'rgba(120,96,80,0.10)';
+        const pf = Math.floor(r() * floors);
+        c.fillRect(x + r() * w * 0.8, -pf * fh - fh, w * (0.15 + r() * 0.25), fh);
+      }
+      // the wall's material, over its colour
+      textureWall(c, mat, { seed: matSeed });
+      // bleached by sun at the top, dirtier towards the street
+      const bleach = c.createLinearGradient(0, top, 0, 0);
+      bleach.addColorStop(0, 'rgba(255,248,236,0.10)');
+      bleach.addColorStop(0.6, 'rgba(255,248,236,0)');
+      bleach.addColorStop(1, 'rgba(50,38,28,0.14)');
+      c.fillStyle = bleach;
+      c.fillRect(x, top, w, H);
 
-    // torn edge: slab ends and dangling rebar
-    if (torn > 0) {
-      c.strokeStyle = '#5a4a3a';
-      c.lineWidth = 2;
-      for (let f = 1; f < floors; f++) {
-        const sy = -f * fh;
-        if (sy > top + H * (0.25 + torn * 0.45)) continue;
-        const sx = tornLeft ? x + r() * w * 0.4 : x + w - r() * w * 0.4;
-        c.fillStyle = color;
-        c.fillRect(sx - 30, sy - 8, 60, 10);
-        for (let i = 0; i < 4; i++) {
+      // weathering: sun-bleached and dirty render, patched repairs, cracks
+      c.fillStyle = 'rgba(60,50,40,0.08)';
+      for (let i = 0; i < 12; i++) c.fillRect(x + r() * w, top, 2 + r() * 10, H);
+      // (the fine texture is drawn once per building and reused every frame)
+      c.drawImage(weathering(w, H, seed), x, top);
+      for (let f = 0; f <= floors; f++) {
+        const sy = -f * fh - 6;
+        c.fillStyle = 'rgba(40,32,26,0.22)';
+        c.fillRect(x, sy, w, 8);
+        c.fillStyle = 'rgba(255,246,230,0.16)';
+        c.fillRect(x, sy, w, 1.5);
+        const under = c.createLinearGradient(0, sy + 8, 0, sy + 22);
+        under.addColorStop(0, 'rgba(30,22,16,0.22)');
+        under.addColorStop(1, 'rgba(30,22,16,0)');
+        c.fillStyle = under;
+        c.fillRect(x, sy + 8, w, 14);
+      }
+
+      // windows (and on the ground floor, a door or two)
+      const cols = Math.max(2, Math.round(w / 110));
+      const doorCols = spec.shopFront || spec.noDoors ? new Map() : pickDoors(cols, seed);
+      const ww = Math.min(58, (w / cols) * 0.5);
+      const wh = fh * 0.46;
+      for (let f = 0; f < floors; f++) {
+        for (let k = 0; k < cols; k++) {
+          const wx = x + ((k + 0.5) * w) / cols - ww / 2;
+          const wy = -f * fh - fh * 0.72;
+          const kind = r();
+          if (f === 0 && spec.shopFront) continue;
+          if (f === 0 && doorCols.has(k)) {
+            const dw = Math.min(74, (w / cols) * 0.62);
+            syrianDoor(c, x + ((k + 0.5) * w) / cols, dw, fh * 0.8, doorCols.get(k), seed * 7 + k);
+            recess.push({ rect: [x + ((k + 0.5) * w) / cols - dw / 2, -fh * 0.8, dw, fh * 0.8], door: true });
+            continue;
+          }
+          if (kind < 0.12) {
+            // blown out: ragged dark hole
+            c.fillStyle = '#1b1612';
+            c.beginPath();
+            const jag = [[wx - 6, wy - 3], [wx + ww * 0.3, wy - 9], [wx + ww * 0.55, wy - 2], [wx + ww + 7, wy - 6], [wx + ww + 3, wy + wh * 0.5], [wx + ww + 8, wy + wh + 6], [wx + ww * 0.5, wy + wh + 3], [wx - 5, wy + wh + 9], [wx - 2, wy + wh * 0.4]];
+            c.moveTo(...jag[0]);
+            const poly = [jag[0]];
+            for (const q of jag.slice(1)) {
+              const pt = [q[0] + (r() - 0.5) * 5, q[1] + (r() - 0.5) * 5];
+              poly.push(pt);
+              c.lineTo(...pt);
+            }
+            c.closePath();
+            c.fill();
+            recess.push({ poly });
+          } else {
+            c.fillStyle = kind < 0.55 ? '#211b17' : '#2b241f';
+            c.fillRect(wx, wy, ww, wh);
+            recess.push({ rect: [wx, wy, ww, wh], sill: true });
+            // the depth of the wall: a lit jamb, a shadowed one, the lintel's shade
+            c.fillStyle = 'rgba(190,176,152,0.55)';
+            c.fillRect(wx, wy, 4, wh);
+            c.fillStyle = 'rgba(12,9,7,0.5)';
+            c.fillRect(wx + ww - 5, wy, 5, wh);
+            c.fillRect(wx, wy, ww, 6);
+            // a pale frame and a stone sill
+            c.strokeStyle = 'rgba(235,225,205,0.28)';
+            c.lineWidth = 2;
+            c.strokeRect(wx - 1, wy - 1, ww + 2, wh + 2);
+            c.fillStyle = 'rgba(0,0,0,0.25)';
+            c.fillRect(wx - 3, wy + wh, ww + 6, 4); // sill shadow
+            c.fillStyle = 'rgba(230,220,200,0.35)';
+            c.fillRect(wx - 5, wy + wh - 1, ww + 10, 3);
+            // rain has run down from the sill for years
+            const st = c.createLinearGradient(0, wy + wh, 0, wy + wh + 50);
+            st.addColorStop(0, 'rgba(60,50,40,0.16)');
+            st.addColorStop(1, 'rgba(60,50,40,0)');
+            c.fillStyle = st;
+            c.fillRect(wx + ww * 0.15, wy + wh + 2, ww * 0.7, 50);
+            const extra = r();
+            if (kind <= 0.55 && extra < 0.3) {
+              // a curtain still hanging, drawn half across
+              c.fillStyle = ['#7a5a48', '#5a6a6e', '#8a7a5a', '#6a4a5a'][Math.floor(r() * 4)];
+              c.globalAlpha = 0.8;
+              c.fillRect(wx + 2, wy + 2, ww * (0.3 + r() * 0.3), wh - 4);
+              c.globalAlpha = 1;
+            } else if (kind <= 0.55 && extra < 0.5) {
+              // the last of the glass, catching the sky
+              c.fillStyle = 'rgba(160,180,200,0.18)';
+              c.beginPath();
+              c.moveTo(wx, wy);
+              c.lineTo(wx + ww * 0.6, wy);
+              c.lineTo(wx, wy + wh * 0.7);
+              c.fill();
+            } else if (f === 0 && extra < 0.75) {
+              // ground-floor grille
+              c.strokeStyle = 'rgba(30,26,22,0.8)';
+              c.lineWidth = 1.5;
+              c.beginPath();
+              for (let gx = wx + 6; gx < wx + ww; gx += 8) {
+                c.moveTo(gx, wy);
+                c.lineTo(gx, wy + wh);
+              }
+              c.stroke();
+            }
+            if (kind > 0.7) {
+              // closed shutter, some slats missing
+              c.fillStyle = spec.shutter || '#7a6a55';
+              c.fillRect(wx, wy, ww, wh * (0.4 + r() * 0.6));
+              c.fillStyle = 'rgba(0,0,0,0.2)';
+              for (let s = wy + 4; s < wy + wh * 0.9; s += 6) c.fillRect(wx, s, ww, 1.5);
+            } else if (kind > 0.55) {
+              // plastic sheet over the window, sagging
+              c.fillStyle = 'rgba(180,190,200,0.35)';
+              c.beginPath();
+              c.moveTo(wx, wy);
+              c.lineTo(wx + ww, wy);
+              c.lineTo(wx + ww, wy + wh);
+              c.quadraticCurveTo(wx + ww / 2, wy + wh - 10, wx, wy + wh);
+              c.fill();
+            }
+          }
+        }
+      }
+
+      // shell holes with rebar
+      for (const [fx, fy, hr] of spec.holes || []) {
+        const hx = x + fx * w;
+        const hy = top + fy * H;
+        c.fillStyle = '#16120f';
+        c.beginPath();
+        const pts = [];
+        for (let i = 0; i < 11; i++) {
+          const a = (i / 11) * Math.PI * 2;
+          const rr = hr * (0.7 + r() * 0.5);
+          pts.push([hx + Math.cos(a) * rr, hy + Math.sin(a) * rr * 0.85]);
+        }
+        c.moveTo(...pts[0]);
+        for (const q of pts.slice(1)) c.lineTo(...q);
+        c.closePath();
+        c.fill();
+        recess.push({ poly: pts, ring: [hx, hy, hr] });
+        // broken render ring around the hole
+        c.fillStyle = 'rgba(120,108,92,0.5)';
+        c.beginPath();
+        c.arc(hx, hy, hr * 1.35, 0, Math.PI * 2);
+        c.arc(hx, hy, hr * 1.02, 0, Math.PI * 2, true);
+        c.fill();
+        c.strokeStyle = '#4a3a2c';
+        c.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          const a = r() * Math.PI * 2;
           c.beginPath();
-          c.moveTo(sx + (i - 2) * 10, sy);
-          c.quadraticCurveTo(sx + (i - 2) * 12, sy + 20, sx + (i - 2) * 14 + (r() - 0.5) * 20, sy + 30 + r() * 30);
+          c.moveTo(hx + Math.cos(a) * hr * 0.9, hy + Math.sin(a) * hr * 0.8);
+          c.quadraticCurveTo(hx + Math.cos(a) * hr * 0.5, hy + Math.sin(a) * hr * 0.4 + 8, hx + Math.cos(a) * hr * 0.2, hy + Math.sin(a) * hr * 0.3 + 18);
           c.stroke();
         }
       }
-    }
-  });
+
+      // bullet pocks in clusters
+      c.fillStyle = 'rgba(40,32,26,0.55)';
+      for (let k = 0; k < (spec.pocks ?? 3); k++) {
+        const cx = x + r() * w;
+        const cy = top + r() * H;
+        for (let i = 0; i < 14; i++) {
+          c.beginPath();
+          c.arc(cx + (r() - 0.5) * 70, cy + (r() - 0.5) * 50, 1.5 + r() * 2, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+
+      // exposed interiors where the corner is torn
+      if (torn > 0) {
+        c.fillStyle = 'rgba(30,24,20,0.0)';
+      }
+
+      // the base of the wall: grime, splash, and the dark where it meets the street
+      const ao = c.createLinearGradient(0, -60, 0, 0);
+      ao.addColorStop(0, 'rgba(30,24,18,0)');
+      ao.addColorStop(1, 'rgba(30,24,18,0.38)');
+      c.fillStyle = ao;
+      c.fillRect(x, -60, w, 60);
+
+      // graffiti
+      for (const [text, gx, gy, size, gc, rot] of spec.graffiti || []) {
+        c.save();
+        c.translate(x + gx * w, gy);
+        c.rotate(rot || -0.03);
+        c.font = `${size}px "Aref Ruqaa", "IBM Plex Sans Arabic", serif`;
+        c.fillStyle = gc || 'rgba(40,40,44,0.8)';
+        c.textAlign = 'center';
+        c.direction = 'rtl';
+        c.fillText(text, 0, 0);
+        c.restore();
+      }
+      c.restore();
+
+      // torn edge: slab ends and dangling rebar
+      if (torn > 0) {
+        c.strokeStyle = '#5a4a3a';
+        c.lineWidth = 2;
+        for (let f = 1; f < floors; f++) {
+          const sy = -f * fh;
+          if (sy > top + H * (0.25 + torn * 0.45)) continue;
+          const sx = tornLeft ? x + r() * w * 0.4 : x + w - r() * w * 0.4;
+          c.fillStyle = color;
+          c.fillRect(sx - 30, sy - 8, 60, 10);
+          for (let i = 0; i < 4; i++) {
+            c.beginPath();
+            c.moveTo(sx + (i - 2) * 10, sy);
+            c.quadraticCurveTo(sx + (i - 2) * 12, sy + 20, sx + (i - 2) * 14 + (r() - 0.5) * 20, sy + 30 + r() * 30);
+            c.stroke();
+          }
+        }
+      }
+  }, mat, matSeed);
+  // the façade is baked once; each frame just places it
+  R.paint((c) => c.drawImage(F.alb, F.x0, F.y0, F.w, F.h));
+  R.height((h) => h.drawImage(F.hgt, F.x0, F.y0, F.w, F.h));
+  if (!spec.noRoof && !torn) roofTop(R, spec, H, t);
 
   // balconies and laundry cast shadows onto the façade
   if (spec.balcony) {
@@ -7434,6 +8310,16 @@ function street(R, x0, x1, { color = '#6e6559', pave = '#8a8072' } = {}) {
     road.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = road;
     c.fillRect(x0, 8, x1 - x0, 112);
+  });
+  // the road's surface and the pavement slabs, with their relief (only what
+  // the camera can see)
+  const vx0 = Math.max(x0, R.cam.x - 1600);
+  const vx1 = Math.min(x1, R.cam.x + 1600);
+  if (vx1 > vx0) {
+    R.surface((c) => c.rect(vx0, 8, vx1 - vx0, 500), 'asphalt', { scale: 1.1, seed: 2 });
+    R.surface((c) => c.rect(vx0, -4, vx1 - vx0, 7), 'pavers', { scale: 0.5, seed: 1, alpha: 0.8 });
+  }
+  R.paint((c) => {
     // patches of newer tarmac, and cracks (each strip seeded by its own x,
     // so what's drawn doesn't depend on what's on screen)
     for (let x = x0; x < x1; x += 60) {
@@ -7691,6 +8577,19 @@ function rubble(R, x, w, h, { seed = 5, color = '#a89b86', rebar = true, cast = 
   };
   if (cast) R.cast(draw);
   else R.paint(draw);
+  // the broken concrete's grain and relief over the whole heap
+  const q = rng(seed);
+  const pts = [[x - 10, 2]];
+  for (let i = 1; i < 9; i++) {
+    const k = i / 9;
+    pts.push([x + k * w + (q() - 0.5) * 16, -h * Math.sin(k * Math.PI) * (0.75 + q() * 0.35)]);
+  }
+  pts.push([x + w + 10, 2]);
+  R.surface((c) => {
+    c.moveTo(...pts[0]);
+    for (const p of pts.slice(1)) c.lineTo(...p);
+    c.closePath();
+  }, 'concrete', { scale: 0.8, seed: 3, alpha: 0.9 });
 }
 
 // The sniper curtain: sheets and blankets on a wire across the gap. The
@@ -8848,7 +9747,9 @@ function sunLook(g) {
     bloom: 0.55,
     exposure: 0.86 - drain * 0.1,
     grain: 0.045,
-    grade: { sat: lerp(0.9, 0.18, drain), contrast: lerp(1.07, 0.92, drain), lift: -0.01 * drain, tint: [1, 1 - 0.02 * drain, 1 - 0.04 * drain] },
+    grade: { sat: lerp(0.9, 0.18, drain), contrast: lerp(1.07, 0.92, drain), lift: -0.01 * drain, tint: [1, 1 - 0.02 * drain, 1 - 0.04 * drain], shadows: mixc([0.96, 0.98, 1.05], [0.98, 0.98, 1], drain), highs: mixc([1.05, 1.01, 0.93], [1, 1, 1], drain) },
+    // a thin summer haze of dust at street level
+    fog: { density: 0.07 + 0.25 * fog, height: 160, color: mixc([0.92, 0.86, 0.74], [0.95, 0.75, 0.55], k) },
   };
 }
 
@@ -11192,7 +12093,9 @@ function eveLook(g) {
     bloom: 0.6,
     exposure: lerp(0.86, 0.8, k),
     grain: 0.05,
-    grade: { sat: lerp(0.95, 0.72, k), contrast: lerp(1.08, 1.02, k), lift: 0.005 * k, tint: [1, lerp(0.99, 0.95, k), lerp(0.96, 1.04, k)] },
+    grade: { sat: lerp(0.95, 0.72, k), contrast: lerp(1.08, 1.02, k), lift: 0.005 * k, tint: [1, lerp(0.99, 0.95, k), lerp(0.96, 1.04, k)], shadows: mixc([0.95, 0.96, 1.06], [0.9, 0.9, 1.12], k), highs: mixc([1.06, 1.0, 0.9], [1.08, 0.96, 0.9], k) },
+    // dust and smoke hanging low in the evening air
+    fog: { density: 0.12 + 0.12 * k + 0.2 * fog, height: 140, color: mixc([0.85, 0.66, 0.5], [0.5, 0.42, 0.55], k) },
     fade: g.a.endFade || 0,
   };
 }
@@ -11712,6 +12615,16 @@ function ruin(R, t, cut) {
     c.fillStyle = '#0b0908';
     c.fillRect(X.ruinDoor - 36, -160, 72, 160);
   });
+  R.surface((c) => {
+    c.moveTo(x0, 4);
+    c.lineTo(x0, -520);
+    c.lineTo(x0 + w * 0.45, -520);
+    c.lineTo(x0 + w * 0.6, -430);
+    c.lineTo(x0 + w * 0.8, -300);
+    c.lineTo(x1, -220);
+    c.lineTo(x1, 4);
+    c.closePath();
+  }, 'concrete', { scale: 1.25, seed: 2 });
   if (cut > 0)
     R.paint((c) => {
       // inside: a dark room and the slab that fell into it, a ramp up to the
@@ -11856,7 +12769,7 @@ function drawStreet(R, g) {
   const cx = R.cam.x;
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
 
-  T.sky(R, skyStops(k), { sun: [0.08, lerp(0.42, 0.72, k)], warmth: clamp(0.8 + k * 0.4) });
+  T.sky(R, skyStops(k), { sun: [0.08, lerp(0.42, 0.72, k)], warmth: clamp(0.8 + k * 0.4), clouds: 0.6, cloudLit: mixc([255, 190, 140], [230, 130, 110], k), cloudShade: mixc([120, 100, 120], [70, 60, 90], k) });
   const stops = skyStops(k);
   horizon(R, {
     haze: rgbOf(stops[stops.length - 1][1]),
@@ -12904,7 +13817,7 @@ function moon(R, u, v) {
 }
 
 function nightSky(R, g, { moonUv = [0.12, 0.26] } = {}) {
-  T.sky(R, NIGHT, { sun: moonUv, warmth: 0 });
+  T.sky(R, NIGHT, { sun: moonUv, warmth: 0, clouds: 0.35, cloudLit: [70, 80, 110], cloudShade: [14, 16, 26] });
   stars(R, g.time);
   moon(R, moonUv[0], moonUv[1]);
   horizon(R, {
@@ -12946,7 +13859,9 @@ function nightLook(g) {
     bloom: 0.7,
     exposure: 0.98,
     grain: 0.07,
-    grade: { sat: 0.62, contrast: 1.1, lift: 0.01, tint: [0.92, 0.97, 1.08] },
+    grade: { sat: 0.62, contrast: 1.1, lift: 0.01, tint: [0.92, 0.97, 1.08], shadows: [0.9, 0.97, 1.12], highs: [1.06, 1.0, 0.92] },
+    // cold mist lying in the street, thicker in the open
+    fog: a.inside ? { density: 0.08, height: 90, color: [0.2, 0.24, 0.34] } : { density: 0.22, height: 110, color: [0.3, 0.36, 0.5] },
     fade: Math.max(a.endFade || 0, a.blackout || 0),
     flash: a.hitAt && g.time - a.hitAt < 0.15 ? [0.3, 0.05, 0.02] : null,
   };
@@ -13170,7 +14085,24 @@ function drawBuilding(R, g) {
       c.fillStyle = `rgba(${r() < 0.5 ? '90,84,76' : '15,12,10'},0.25)`;
       c.fillRect(X2.b0 + r() * (X2.b1 - X2.b0), floorY(6) + r() * -floorY(6), 20 + r() * 60, 10 + r() * 40);
     }
+    // the tide line: damp that rose a hand's height off every floor
+    for (let f = 1; f <= 5; f++) {
+      const td = c.createLinearGradient(0, floorY(f) - 60, 0, floorY(f));
+      td.addColorStop(0, 'rgba(20,18,15,0)');
+      td.addColorStop(0.8, 'rgba(20,18,15,0.35)');
+      td.addColorStop(1, 'rgba(20,18,15,0.1)');
+      c.fillStyle = td;
+      c.fillRect(X2.b0, floorY(f) - 60, X2.b1 - X2.b0, 60);
+    }
   });
+  // plaster, where it hasn't fallen, and the blocks where it has
+  R.surface((c) => {
+    c.rect(X2.b0, floorY(6) - 20, X2.b1 - X2.b0, -floorY(6) + 20);
+    for (const [hx, hy] of MOON_HOLES) {
+      c.moveTo(hx + 50, hy);
+      c.ellipse(hx, hy, 50, 34, 0.2, 0, Math.PI * 2);
+    }
+  }, 'plaster', { scale: 1.2, seed: 3, rule: 'evenodd' });
 
   // the flights in the stairwell, behind
   if (near(X2.stairs1[0], X2.stairs1[1])) stairFlight(R, X2.stairs1[0], floorY(1), X2.stairs1[1], floorY(2));
@@ -13196,6 +14128,9 @@ function drawBuilding(R, g) {
       } else if (s.kind === 'floor') {
         c.fillStyle = '#6a655c';
         c.fillRect(s.x0, s.y0, s.x1 - s.x0, 16);
+        // floor tiles along the top edge, the slab's section below
+        c.fillStyle = 'rgba(200,190,170,0.18)';
+        for (let tx = s.x0; tx < s.x1; tx += 30) c.fillRect(tx + 1, s.y0, 28, 3);
         c.fillStyle = 'rgba(0,0,0,0.3)';
         c.fillRect(s.x0, s.y0 + 12, s.x1 - s.x0, 4);
         // broken ends show their rebar
@@ -14650,6 +15585,7 @@ const { ACT2R } = __src_story_act2r;
 const { ACT3R } = __src_story_act3r;
 const { ITEMS, JOURNAL } = __src_story_items;
 const { Photo } = __src_engine_photo;
+const { setMaterialSize } = __src_engine_materials;
 // The chapters. A save names its act; old saves (act: 1) are Act One.
 const ACTS = { act1: ACT1, act2r: ACT2R, act3r: ACT3R };
 const actKey = (s) => (s && ACTS[s.act] ? s.act : 'act1');
@@ -14777,6 +15713,10 @@ function resize() {
   const px = Math.round(Math.min(cap, Math.max(560, w * dpr)) * scale * (q === 'auto' ? autoScale : 1));
   const py = Math.round(px / aspect);
   if (px !== R.W || py !== R.H) R.resize(px, py);
+  // Low skips surface relief and bakes smaller textures; High adds lens dirt
+  R.fx.relief = q !== 'low';
+  R.fx.dirt = q === 'high';
+  setMaterialSize(q === 'low' ? 128 : 256);
 }
 window.addEventListener('resize', resize);
 resize();

@@ -92,7 +92,9 @@ export function eveLook(g) {
     bloom: 0.6,
     exposure: lerp(0.86, 0.8, k),
     grain: 0.05,
-    grade: { sat: lerp(0.95, 0.72, k), contrast: lerp(1.08, 1.02, k), lift: 0.005 * k, tint: [1, lerp(0.99, 0.95, k), lerp(0.96, 1.04, k)] },
+    grade: { sat: lerp(0.95, 0.72, k), contrast: lerp(1.08, 1.02, k), lift: 0.005 * k, tint: [1, lerp(0.99, 0.95, k), lerp(0.96, 1.04, k)], shadows: mixc([0.95, 0.96, 1.06], [0.9, 0.9, 1.12], k), highs: mixc([1.06, 1.0, 0.9], [1.08, 0.96, 0.9], k) },
+    // dust and smoke hanging low in the evening air
+    fog: { density: 0.12 + 0.12 * k + 0.2 * fog, height: 140, color: mixc([0.85, 0.66, 0.5], [0.5, 0.42, 0.55], k) },
     fade: g.a.endFade || 0,
   };
 }
@@ -612,6 +614,16 @@ function ruin(R, t, cut) {
     c.fillStyle = '#0b0908';
     c.fillRect(X.ruinDoor - 36, -160, 72, 160);
   });
+  R.surface((c) => {
+    c.moveTo(x0, 4);
+    c.lineTo(x0, -520);
+    c.lineTo(x0 + w * 0.45, -520);
+    c.lineTo(x0 + w * 0.6, -430);
+    c.lineTo(x0 + w * 0.8, -300);
+    c.lineTo(x1, -220);
+    c.lineTo(x1, 4);
+    c.closePath();
+  }, 'concrete', { scale: 1.25, seed: 2 });
   if (cut > 0)
     R.paint((c) => {
       // inside: a dark room and the slab that fell into it, a ramp up to the
@@ -756,7 +768,7 @@ export function drawStreet(R, g) {
   const cx = R.cam.x;
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
 
-  T.sky(R, skyStops(k), { sun: [0.08, lerp(0.42, 0.72, k)], warmth: clamp(0.8 + k * 0.4) });
+  T.sky(R, skyStops(k), { sun: [0.08, lerp(0.42, 0.72, k)], warmth: clamp(0.8 + k * 0.4), clouds: 0.6, cloudLit: mixc([255, 190, 140], [230, 130, 110], k), cloudShade: mixc([120, 100, 120], [70, 60, 90], k) });
   const stops = skyStops(k);
   horizon(R, {
     haze: rgbOf(stops[stops.length - 1][1]),

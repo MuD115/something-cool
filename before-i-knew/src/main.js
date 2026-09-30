@@ -13,6 +13,7 @@ import { ACT2R } from './story/act2r.js';
 import { ACT3R } from './story/act3r.js';
 import { ITEMS, JOURNAL } from './story/items.js';
 import { Photo } from './engine/photo.js';
+import { setMaterialSize } from './engine/materials.js';
 
 // The chapters. A save names its act; old saves (act: 1) are Act One.
 const ACTS = { act1: ACT1, act2r: ACT2R, act3r: ACT3R };
@@ -141,6 +142,10 @@ function resize() {
   const px = Math.round(Math.min(cap, Math.max(560, w * dpr)) * scale * (q === 'auto' ? autoScale : 1));
   const py = Math.round(px / aspect);
   if (px !== R.W || py !== R.H) R.resize(px, py);
+  // Low skips surface relief and bakes smaller textures; High adds lens dirt
+  R.fx.relief = q !== 'low';
+  R.fx.dirt = q === 'high';
+  setMaterialSize(q === 'low' ? 128 : 256);
 }
 window.addEventListener('resize', resize);
 resize();

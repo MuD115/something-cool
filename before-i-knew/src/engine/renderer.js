@@ -5,12 +5,20 @@
 //   occluders – alpha of anything that casts a shadow
 //   emissive  – light sources and sky (not lit, but glowing)
 //   ground    – contact/cast shadows projected onto the ground plane
+//   height    – surface relief (materials, and the characters' rounded
+//               forms): the red channel is height; a pixel marked blue with
+//               no green is an object's own relief, which is lit even where
+//               it casts a shadow, while walls' relief only shows where
+//               nothing stands in front of them
 // A WebGL2 pass then lights the albedo with up to four point or directional
 // lights: projected shadows on backdrops (so a lantern throws giant shadows
-// on a barn wall), rim light on silhouettes from the occluder gradient,
-// god rays, bloom, lightning flashes, film grain and a vignette.
+// on a barn wall), relief from the height layer (light rakes across mortar
+// and cracks), contact shading where things meet a wall, rim light on
+// silhouettes from the occluder gradient, god rays, bloom, ground fog, a
+// split-tone grade, lens dirt, lightning flashes, film grain and a vignette.
 
 import { Camera } from './camera.js';
+import { texturePath, heightPath } from './materials.js';
 
 const MAX_LIGHTS = 4;
 
@@ -31,6 +39,12 @@ uniform sampler2D uAlb;
 uniform sampler2D uOcc;
 uniform sampler2D uEmit;
 uniform sampler2D uShd;
+uniform sampler2D uHgt;
+uniform vec4 uRelief;              // strength, object strength, contact AO, dirt
+uniform vec4 uFog;                 // density, height (world units), world y at top, at bottom
+uniform vec3 uFogCol;
+uniform vec3 uShadowTint;
+uniform vec3 uHighTint;
 uniform vec2 uRes;
 uniform vec3 uAmbient;
 uniform int uCount;
@@ -62,6 +76,13 @@ float hash(vec2 p) {
   return fract(p.x * p.y);
 }
 
+float vnoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y);
+}
+
 void main() {
   vec2 uv = vUv;
   float aspect = uRes.x / uRes.y;
@@ -80,7 +101,42 @@ void main() {
   float edge = clamp(length(grad) * 0.7, 0.0, 1.0);
   vec2 nrm = edge > 0.001 ? -normalize(grad) : vec2(0.0);
 
-  vec3 light = uAmbient + uFlash;
+  // Relief: a surface normal from the height layer's slope. Walls only show
+  // it where nothing stands in front; objects carry their own everywhere.
+  vec4 hs = texture(uHgt, uv);
+  float isObj = step(0.9, hs.b) * step(hs.g, 0.1);
+  float hw = hs.a * mix(1.0 - occ, 1.0, isObj) * mix(uRelief.x, uRelief.y, isObj);
+  vec3 N = vec3(0.0, 0.0, 1.0);
+  float cavity = 1.0;
+  if (hw > 0.002) {
+    vec2 hp = px * 1.5;
+    vec4 h1 = texture(uHgt, uv + vec2(hp.x, 0.0));
+    vec4 h2 = texture(uHgt, uv - vec2(hp.x, 0.0));
+    vec4 h3 = texture(uHgt, uv + vec2(0.0, hp.y));
+    vec4 h4 = texture(uHgt, uv - vec2(0.0, hp.y));
+    // at the edge of a surface the slope means nothing: fade it out
+    float inside = min(min(h1.a, h2.a), min(h3.a, h4.a));
+    float hr = hs.r / max(hs.a, 0.001);
+    vec2 slope = vec2(h1.r / max(h1.a, 0.001) - h2.r / max(h2.a, 0.001), h3.r / max(h3.a, 0.001) - h4.r / max(h4.a, 0.001));
+    N = normalize(vec3(-slope * 2.2 * hw * inside, 1.0));
+    // mortar joints, cracks and pocks hold less light
+    cavity = mix(1.0, 0.55 + 0.45 * smoothstep(0.1, 0.6, hr), hw * inside * 0.8);
+  }
+
+  // Form: things that cast shadows (people, poles, cars) are rounded from
+  // their silhouette, so the side towards a light is lit and the far side
+  // turns away into shade.
+  vec2 fp = px * 4.0;
+  vec2 og = vec2(textureLod(uOcc, uv + vec2(fp.x, 0.0), 2.0).a - textureLod(uOcc, uv - vec2(fp.x, 0.0), 2.0).a,
+                 textureLod(uOcc, uv + vec2(0.0, fp.y), 2.0).a - textureLod(uOcc, uv - vec2(0.0, fp.y), 2.0).a);
+  vec2 formN = -og;
+
+  // Contact shading: a wall darkens softly where something stands in front
+  // of it, most of all just below (feet, bases, the foot of a car).
+  float contact = textureLod(uOcc, uv + vec2(0.0, px.y * 6.0), 4.0).a;
+  float aoK = 1.0 - contact * (1.0 - occ) * uRelief.z;
+
+  vec3 light = (uAmbient * cavity * aoK) + uFlash;
   vec3 rim = vec3(0.0);
 
   for (int i = 0; i < ${MAX_LIGHTS}; i++) {
@@ -113,12 +169,27 @@ void main() {
       vec2 sd = normalize(sp.xy); // world and aspect-corrected uv share directions
       att *= smoothstep(sp.z, sp.w, dot(fromL, sd));
     }
-    light += uLC[i] * att * sh;
+    vec2 ld0 = dist > 0.0001 ? da / dist : vec2(0.0);
+    // relief: how squarely this bit of surface faces the light, against how
+    // squarely a flat one would (lights sit a little in front of the scene)
+    vec2 tilt = N.xy / max(N.z, 0.3);
+    float bump = clamp(1.0 + dot(tilt, ld0) * 1.3 * smoothstep(0.0, 0.06, dist), 0.0, 2.2);
+    float form = clamp(1.0 + dot(formN, ld0) * 1.1 * occ * uRelief.y * smoothstep(0.0, 0.06, dist), 0.3, 1.9);
+    light += uLC[i] * att * sh * bump * form * cavity * mix(1.0, aoK, 0.6);
     vec2 ld = dist > 0.0001 ? da / dist : vec2(0.0);
     rim += uLC[i] * min(att * 1.6, 1.0) * k.w * edge * max(dot(nrm, ld), 0.0);
   }
 
   vec3 col = base * light + rim * occ + emit;
+
+  // Ground fog: thickest at street level, thinning with height, drifting.
+  if (uFog.x > 0.0) {
+    float wy = mix(uFog.z, uFog.w, uv.y);
+    float drift = 0.75 + 0.5 * vnoise(vec2(uv.x * 5.0 + uTime * 0.03, uv.y * 11.0 - uTime * 0.01));
+    float fk = uFog.x * exp(min(wy, 0.0) / uFog.y) * drift;
+    fk = clamp(fk, 0.0, 0.85);
+    col = mix(col, toLin(uFogCol) * (uAmbient * 2.2 + 0.08), fk);
+  }
 
   // Light shafts: march toward the sun through the emissive sky, blocked by occluders.
   if (uGod > 0.0) {
@@ -137,7 +208,9 @@ void main() {
 
   // Bloom from the emissive layer's mip chain.
   vec3 glow = toLin(textureLod(uEmit, uv, 3.0).rgb) * 0.5 + toLin(textureLod(uEmit, uv, 5.0).rgb) * 0.8;
-  col += max(glow - 0.05, 0.0) * uBloom;
+  // lens dirt: bloom catches on a smudged lens
+  float dirt = 1.0 + uRelief.w * (vnoise(uv * vec2(7.0, 4.0)) * 1.4 + vnoise(uv * 23.0) * 0.6 - 0.5);
+  col += max(glow - 0.05, 0.0) * uBloom * dirt;
 
   col = aces(col * uExposure);
   col = pow(col, vec3(1.0 / 2.2));
@@ -147,6 +220,8 @@ void main() {
   col = mix(vec3(luma), col, uGrade.x);
   col = (col - 0.5) * uGrade.y + 0.5 + uGrade.z;
   col *= uTint;
+  // split tone: shadows and highlights each take a colour
+  col *= mix(uShadowTint, uHighTint, smoothstep(0.05, 0.85, luma));
   col = clamp(col, 0.0, 1.0);
 
   vec2 q = uv - 0.5;
@@ -168,7 +243,7 @@ export class Renderer {
       const c = document.createElement('canvas');
       return { c, x: c.getContext('2d') };
     };
-    this.layers = { alb: mk(), occ: mk(), emit: mk(), shd: mk() };
+    this.layers = { alb: mk(), occ: mk(), emit: mk(), shd: mk(), hgt: mk() };
 
     this.prog = this.program(VERT, FRAG);
     this.u = {};
@@ -186,11 +261,11 @@ export class Renderer {
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
 
     this.tex = {};
-    ['alb', 'occ', 'emit', 'shd'].forEach((k, i) => {
+    ['alb', 'occ', 'emit', 'shd', 'hgt'].forEach((k, i) => {
       const t = gl.createTexture();
       gl.activeTexture(gl.TEXTURE0 + i);
       gl.bindTexture(gl.TEXTURE_2D, t);
-      const mip = k === 'emit' || k === 'shd';
+      const mip = k === 'emit' || k === 'shd' || k === 'occ';
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, mip ? gl.LINEAR_MIPMAP_LINEAR : gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -205,6 +280,9 @@ export class Renderer {
     gl.uniform1i(this.u.uOcc, 1);
     gl.uniform1i(this.u.uEmit, 2);
     gl.uniform1i(this.u.uShd, 3);
+    gl.uniform1i(this.u.uHgt, 4);
+    // quality: relief and the rest switch off on Low
+    this.fx = { relief: true, dirt: false };
   }
 
   program(vs, fs) {
@@ -282,6 +360,32 @@ export class Renderer {
     o.globalCompositeOperation = 'destination-out';
     fn(o);
     o.restore();
+  }
+
+  // A textured surface: path(ctx) builds a path, which is filled with the
+  // material over the colour already painted there, and its relief goes
+  // into the height layer. (Paint the base colour first, with paint/cast.)
+  surface(path, mat, opts = {}) {
+    const a = this.layers.alb.x;
+    a.save();
+    a.beginPath();
+    path(a);
+    texturePath(a, mat, opts);
+    a.restore();
+    if (!this.fx.relief) return;
+    const h = this.layers.hgt.x;
+    h.save();
+    h.beginPath();
+    path(h);
+    heightPath(h, mat, opts);
+    h.restore();
+  }
+
+  // Draw straight into the height layer (a character's rounded forms, a
+  // baked façade's relief).
+  height(fn) {
+    if (!this.fx.relief) return;
+    fn(this.layers.hgt.x);
   }
 
   // Additive light on top: flames, windows, glints, lightning.
@@ -380,6 +484,16 @@ export class Renderer {
     gl.uniform1f(u.uFade, look.fade || 0);
     gl.uniform1f(u.uGrain, look.grain ?? 0.05);
     gl.uniform1f(u.uExposure, look.exposure ?? 1);
+    const rel = look.relief ?? 1;
+    gl.uniform4f(u.uRelief, this.fx.relief ? 0.9 * rel : 0, this.fx.relief ? 1.0 : 0, 0.22 * (look.contact ?? 1), this.fx.dirt ? (look.dirt ?? 0.35) : 0);
+    const fog = look.fog;
+    if (fog) {
+      const f = this.cam.frame(W, H, 1);
+      gl.uniform4f(u.uFog, fog.density ?? 0.25, fog.height ?? 120, (0 - f.oy) / f.s, (H - f.oy) / f.s);
+      gl.uniform3fv(u.uFogCol, fog.color || [0.6, 0.58, 0.55]);
+    } else gl.uniform4f(u.uFog, 0, 1, 0, 0);
+    gl.uniform3fv(u.uShadowTint, gr.shadows || [1, 1, 1]);
+    gl.uniform3fv(u.uHighTint, gr.highs || [1, 1, 1]);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
   }
 }

@@ -100,7 +100,9 @@ export function sunLook(g) {
     bloom: 0.55,
     exposure: 0.86 - drain * 0.1,
     grain: 0.045,
-    grade: { sat: lerp(0.9, 0.18, drain), contrast: lerp(1.07, 0.92, drain), lift: -0.01 * drain, tint: [1, 1 - 0.02 * drain, 1 - 0.04 * drain] },
+    grade: { sat: lerp(0.9, 0.18, drain), contrast: lerp(1.07, 0.92, drain), lift: -0.01 * drain, tint: [1, 1 - 0.02 * drain, 1 - 0.04 * drain], shadows: mixc([0.96, 0.98, 1.05], [0.98, 0.98, 1], drain), highs: mixc([1.05, 1.01, 0.93], [1, 1, 1], drain) },
+    // a thin summer haze of dust at street level
+    fog: { density: 0.07 + 0.25 * fog, height: 160, color: mixc([0.92, 0.86, 0.74], [0.95, 0.75, 0.55], k) },
   };
 }
 

@@ -5,12 +5,34 @@
 
 import { rng, lerp, noise1 } from '../engine/util.js';
 import { smoothPath } from '../rigs/shapes.js';
+import { textureWall, heightWall, cloudCanvas } from '../engine/materials.js';
 
 export const CONCRETE = ['#a99d89', '#9f9480', '#948874', '#ada390', '#91857a', '#a2977f'];
 
 // ------------------------------------------------------------ sky & far --
 
-export function sky(R, stops, { sun = [0.78, 0.16], warmth = 0 } = {}) {
+// The wisp map in one colour (cached per colour, rounded so a slowly
+// warming sky doesn't make a new one every frame).
+const TINTED = new Map();
+function tintedClouds(cv, col) {
+  const q = col.map((v) => Math.round(v / 8) * 8);
+  const key = q.join(',');
+  let t = TINTED.get(key);
+  if (t) return t;
+  t = document.createElement('canvas');
+  t.width = cv.width;
+  t.height = cv.height;
+  const x = t.getContext('2d');
+  x.drawImage(cv, 0, 0);
+  x.globalCompositeOperation = 'source-atop';
+  x.fillStyle = `rgb(${q.join(',')})`;
+  x.fillRect(0, 0, t.width, t.height);
+  if (TINTED.size > 64) TINTED.clear();
+  TINTED.set(key, t);
+  return t;
+}
+
+export function sky(R, stops, { sun = [0.78, 0.16], warmth = 0, clouds = 0.5, cloudLit = null, cloudShade = null } = {}) {
   R.sky((c) => {
     c.save();
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -27,6 +49,27 @@ export function sky(R, stops, { sun = [0.78, 0.16], warmth = 0 } = {}) {
     glow.addColorStop(1, 'rgba(255,220,180,0)');
     c.fillStyle = glow;
     c.fillRect(0, 0, R.W, R.H);
+    // high cloud, drifting: each band a stretched, tiled wisp map drawn
+    // twice, a shaded underside and a lit top towards the sun
+    if (clouds > 0) {
+      const cv = cloudCanvas();
+      const t = R.cam.time || 0;
+      const lit = cloudLit || [255, 246 - warmth * 40, 226 - warmth * 80];
+      const shd = cloudShade || [150, 140, 150];
+      for (const [yk, sx, sy, spd, al] of [[0.06, 5.2, 0.55, 3, 0.55], [0.2, 3.4, 0.4, 6, 0.4]]) {
+        const w = cv.width * sx;
+        const h = cv.height * sy;
+        const off = -((R.cam.x * 0.02 + t * spd) % w) - w;
+        const y0 = R.H * yk;
+        for (const [dy, col, a] of [[5, shd, 0.55], [0, lit, 1]]) {
+          const tinted = tintedClouds(cv, col);
+          c.save();
+          c.globalAlpha = clouds * al * a;
+          for (let x = off; x < R.W; x += w) c.drawImage(tinted, x, y0 + dy, w, h);
+          c.restore();
+        }
+      }
+    }
     // high thin haze streaks
     c.fillStyle = 'rgba(255,250,240,0.06)';
     for (let i = 0; i < 5; i++) {
@@ -199,6 +242,171 @@ function weathering(w, H, seed) {
   return cv;
 }
 
+// ------------------------------------------------------------ façades --
+// A building's face is drawn once, at a little over screen resolution, into
+// two canvases: its colour (with the wall's material and all its windows,
+// doors, holes and weathering) and its relief (the material's height, with
+// windows and holes sunk in and the floor slabs standing proud).
+const FACADES = new Map();
+const FACADE_RES = 1.25;
+function facade(spec, H, draw, mat, matSeed) {
+  const key = JSON.stringify(spec) + mat;
+  let F = FACADES.get(key);
+  if (F) return F;
+  const pad = 40;
+  const x0 = spec.x - pad;
+  const y0 = -H - pad;
+  const w = spec.w + pad * 2;
+  const h = H + pad * 2;
+  const k = Math.min(FACADE_RES, 2048 / w, 2048 / h);
+  const mk = () => {
+    const cv = document.createElement('canvas');
+    cv.width = Math.ceil(w * k);
+    cv.height = Math.ceil(h * k);
+    const c = cv.getContext('2d');
+    c.setTransform(k, 0, 0, k, -x0 * k, -y0 * k);
+    return [cv, c];
+  };
+  const [alb, ca] = mk();
+  const recess = [];
+  draw(ca, recess);
+  // relief: the material everywhere the wall is, then the openings sunk in
+  const [hgt, ch] = mk();
+  ch.drawImage(alb, x0, y0, w, h);
+  ch.globalCompositeOperation = 'source-in';
+  ch.fillStyle = 'rgb(128,128,128)';
+  ch.fillRect(x0, y0, w, h);
+  ch.globalCompositeOperation = 'source-atop';
+  ch.beginPath();
+  ch.rect(x0, y0, w, h);
+  heightWall(ch, mat, { seed: matSeed });
+  const fh = spec.fh || 140;
+  for (let f = 0; f <= spec.floors; f++) {
+    // the slab edge stands out of the wall
+    ch.fillStyle = 'rgb(225,225,225)';
+    ch.fillRect(spec.x, -f * fh - 6, spec.w, 8);
+  }
+  for (const q of recess) {
+    ch.fillStyle = 'rgb(18,18,18)';
+    if (q.rect) {
+      const [rx, ry, rw, rh] = q.rect;
+      ch.fillRect(rx, ry, rw, rh);
+      if (q.sill) {
+        ch.fillStyle = 'rgb(235,235,235)';
+        ch.fillRect(rx - 5, ry + rh - 1, rw + 10, 4);
+      }
+    } else if (q.poly) {
+      if (q.ring) {
+        // the render blown back from the hole
+        const [hx, hy, hr] = q.ring;
+        ch.fillStyle = 'rgb(70,70,70)';
+        ch.beginPath();
+        ch.arc(hx, hy, hr * 1.35, 0, Math.PI * 2);
+        ch.fill();
+        ch.fillStyle = 'rgb(18,18,18)';
+      }
+      ch.beginPath();
+      ch.moveTo(...q.poly[0]);
+      for (const p of q.poly.slice(1)) ch.lineTo(...p);
+      ch.closePath();
+      ch.fill();
+    }
+  }
+  F = { alb, hgt, x0, y0, w, h };
+  FACADES.set(key, F);
+  return F;
+}
+
+// What stands on a flat roof in Ghouta: black water tanks, solar water
+// heaters tilted to the south, an aerial, a dish.
+function roofTop(R, spec, H, t) {
+  const r = rng(spec.seed * 13 + 5);
+  const { x, w } = spec;
+  const top = -H;
+  const items = [];
+  const n = Math.max(1, Math.round(w / 170));
+  for (let i = 0; i < n; i++) {
+    const kind = r();
+    const ix = x + 20 + ((i + 0.5) / n) * (w - 40) + (r() - 0.5) * 30;
+    items.push([kind, ix, r()]);
+  }
+  R.paint((c) => {
+    // the parapet
+    c.fillStyle = shade(spec.color || CONCRETE[0], 0.82);
+    c.fillRect(x - 4, top - 12, w + 8, 12);
+    for (const [kind, ix, v] of items) {
+      if (kind < 0.55) {
+        // a black plastic water tank on a steel stand
+        const tw = 34 + v * 10;
+        const th = 30 + v * 8;
+        c.fillStyle = '#2a2a2c';
+        c.fillRect(ix - tw / 2 + 3, top - 20, 3, 8);
+        c.fillRect(ix + tw / 2 - 6, top - 20, 3, 8);
+        c.fillStyle = '#1d1d1f';
+        c.beginPath();
+        c.moveTo(ix - tw / 2, top - 20);
+        c.lineTo(ix - tw / 2 + 2, top - 20 - th);
+        c.quadraticCurveTo(ix, top - 26 - th, ix + tw / 2 - 2, top - 20 - th);
+        c.lineTo(ix + tw / 2, top - 20);
+        c.closePath();
+        c.fill();
+        c.fillStyle = 'rgba(255,255,255,0.08)';
+        for (let k = 1; k < 4; k++) c.fillRect(ix - tw / 2 + 1, top - 20 - (th * k) / 4, tw - 2, 1.5);
+        if (v < 0.35) {
+          // a shrapnel hole, and the stain where it bled dry
+          c.fillStyle = '#0c0c0d';
+          c.beginPath();
+          c.arc(ix + tw * 0.15, top - 20 - th * 0.4, 2.5, 0, Math.PI * 2);
+          c.fill();
+        }
+      } else if (kind < 0.85) {
+        // a solar water heater: tilted panel, tank on top
+        c.save();
+        c.translate(ix, top - 12);
+        c.fillStyle = '#3c3a38';
+        c.fillRect(-26, -4, 3, 4);
+        c.fillRect(18, -26, 3, 26);
+        c.fillStyle = '#20303c';
+        c.beginPath();
+        c.moveTo(-28, -4);
+        c.lineTo(20, -30);
+        c.lineTo(24, -24);
+        c.lineTo(-24, 2);
+        c.closePath();
+        c.fill();
+        c.strokeStyle = 'rgba(200,210,220,0.25)';
+        c.lineWidth = 1;
+        for (let k = 1; k < 5; k++) {
+          c.beginPath();
+          c.moveTo(-28 + k * 9.6, -4 - k * 5.2);
+          c.lineTo(-24 + k * 9.6, 2 - k * 5.2);
+          c.stroke();
+        }
+        c.fillStyle = '#b8b2a6';
+        c.beginPath();
+        c.ellipse(14, -38, 17, 7, -0.5, 0, Math.PI * 2);
+        c.fill();
+        c.restore();
+      } else {
+        // an aerial, bent
+        c.strokeStyle = '#4a4440';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(ix, top - 12);
+        c.lineTo(ix + 2, top - 70);
+        c.stroke();
+        c.lineWidth = 1.5;
+        for (let k = 0; k < 4; k++) {
+          c.beginPath();
+          c.moveTo(ix - 12 + k * 2, top - 50 - k * 6);
+          c.lineTo(ix + 14 - k * 2, top - 52 - k * 6 + (k === 2 ? 6 : 0));
+          c.stroke();
+        }
+      }
+    }
+  });
+}
+
 export function block(R, spec, t = 0) {
   const { x, w, floors, fh = 140, color = CONCRETE[0], seed = 1 } = spec;
   const H = floors * fh;
@@ -206,228 +414,271 @@ export function block(R, spec, t = 0) {
   const torn = spec.torn || 0;
   const tornLeft = spec.tornLeft ?? rng(seed + 7)() < 0.5;
 
-  // paint() draws twice (once per layer), so the random stream restarts here
-  R.paint((c) => {
-    const r = rng(seed);
-    c.save();
-    // outline with a torn corner
-    c.beginPath();
-    if (torn > 0) {
-      const tw = w * (0.3 + torn * 0.4);
-      const th = H * (0.25 + torn * 0.45);
-      if (tornLeft) {
-        c.moveTo(x, 0);
-        c.lineTo(x, top + th);
-        const n = 7;
-        for (let i = 1; i < n; i++) c.lineTo(x + (tw * i) / n + (r() - 0.5) * 20, top + th - (th * i) / n + (r() - 0.5) * 30);
-        c.lineTo(x + tw, top);
-        c.lineTo(x + w, top);
-        c.lineTo(x + w, 0);
-      } else {
-        c.moveTo(x, 0);
-        c.lineTo(x, top);
-        c.lineTo(x + w - tw, top);
-        const n = 7;
-        for (let i = 1; i < n; i++) c.lineTo(x + w - tw + (tw * i) / n + (r() - 0.5) * 20, top + (th * i) / n + (r() - 0.5) * 30);
-        c.lineTo(x + w, top + th);
-        c.lineTo(x + w, 0);
-      }
-    } else {
-      c.rect(x, top, w, H);
-    }
-    c.closePath();
-    c.fillStyle = color;
-    c.fill();
-    c.clip();
-
-    // weathering: sun-bleached and dirty render, patched repairs, cracks
-    c.fillStyle = 'rgba(60,50,40,0.08)';
-    for (let i = 0; i < 12; i++) c.fillRect(x + r() * w, top, 2 + r() * 10, H);
-    // (the fine texture is drawn once per building and reused every frame)
-    c.drawImage(weathering(w, H, seed), x, top);
-    for (let f = 0; f <= floors; f++) {
-      c.fillStyle = 'rgba(40,32,26,0.22)';
-      c.fillRect(x, -f * fh - 6, w, 8);
-    }
-
-    // windows (and on the ground floor, a door or two)
-    const cols = Math.max(2, Math.round(w / 110));
-    const doorCols = spec.shopFront || spec.noDoors ? new Map() : pickDoors(cols, seed);
-    const ww = Math.min(58, (w / cols) * 0.5);
-    const wh = fh * 0.46;
-    for (let f = 0; f < floors; f++) {
-      for (let k = 0; k < cols; k++) {
-        const wx = x + ((k + 0.5) * w) / cols - ww / 2;
-        const wy = -f * fh - fh * 0.72;
-        const kind = r();
-        if (f === 0 && spec.shopFront) continue;
-        if (f === 0 && doorCols.has(k)) {
-          const dw = Math.min(74, (w / cols) * 0.62);
-          syrianDoor(c, x + ((k + 0.5) * w) / cols, dw, fh * 0.8, doorCols.get(k), seed * 7 + k);
-          continue;
-        }
-        if (kind < 0.12) {
-          // blown out: ragged dark hole
-          c.fillStyle = '#1b1612';
-          c.beginPath();
-          const jag = [[wx - 6, wy - 3], [wx + ww * 0.3, wy - 9], [wx + ww * 0.55, wy - 2], [wx + ww + 7, wy - 6], [wx + ww + 3, wy + wh * 0.5], [wx + ww + 8, wy + wh + 6], [wx + ww * 0.5, wy + wh + 3], [wx - 5, wy + wh + 9], [wx - 2, wy + wh * 0.4]];
-          c.moveTo(...jag[0]);
-          for (const q of jag.slice(1)) c.lineTo(q[0] + (r() - 0.5) * 5, q[1] + (r() - 0.5) * 5);
-          c.closePath();
-          c.fill();
-        } else {
-          c.fillStyle = kind < 0.55 ? '#211b17' : '#2b241f';
-          c.fillRect(wx, wy, ww, wh);
-          // a pale frame and a stone sill
-          c.strokeStyle = 'rgba(235,225,205,0.28)';
-          c.lineWidth = 2;
-          c.strokeRect(wx - 1, wy - 1, ww + 2, wh + 2);
-          c.fillStyle = 'rgba(0,0,0,0.25)';
-          c.fillRect(wx - 3, wy + wh, ww + 6, 4); // sill shadow
-          c.fillStyle = 'rgba(230,220,200,0.35)';
-          c.fillRect(wx - 5, wy + wh - 1, ww + 10, 3);
-          // rain has run down from the sill for years
-          const st = c.createLinearGradient(0, wy + wh, 0, wy + wh + 50);
-          st.addColorStop(0, 'rgba(60,50,40,0.16)');
-          st.addColorStop(1, 'rgba(60,50,40,0)');
-          c.fillStyle = st;
-          c.fillRect(wx + ww * 0.15, wy + wh + 2, ww * 0.7, 50);
-          const extra = r();
-          if (kind <= 0.55 && extra < 0.3) {
-            // a curtain still hanging, drawn half across
-            c.fillStyle = ['#7a5a48', '#5a6a6e', '#8a7a5a', '#6a4a5a'][Math.floor(r() * 4)];
-            c.globalAlpha = 0.8;
-            c.fillRect(wx + 2, wy + 2, ww * (0.3 + r() * 0.3), wh - 4);
-            c.globalAlpha = 1;
-          } else if (kind <= 0.55 && extra < 0.5) {
-            // the last of the glass, catching the sky
-            c.fillStyle = 'rgba(160,180,200,0.18)';
-            c.beginPath();
-            c.moveTo(wx, wy);
-            c.lineTo(wx + ww * 0.6, wy);
-            c.lineTo(wx, wy + wh * 0.7);
-            c.fill();
-          } else if (f === 0 && extra < 0.75) {
-            // ground-floor grille
-            c.strokeStyle = 'rgba(30,26,22,0.8)';
-            c.lineWidth = 1.5;
-            c.beginPath();
-            for (let gx = wx + 6; gx < wx + ww; gx += 8) {
-              c.moveTo(gx, wy);
-              c.lineTo(gx, wy + wh);
-            }
-            c.stroke();
-          }
-          if (kind > 0.7) {
-            // closed shutter, some slats missing
-            c.fillStyle = spec.shutter || '#7a6a55';
-            c.fillRect(wx, wy, ww, wh * (0.4 + r() * 0.6));
-            c.fillStyle = 'rgba(0,0,0,0.2)';
-            for (let s = wy + 4; s < wy + wh * 0.9; s += 6) c.fillRect(wx, s, ww, 1.5);
-          } else if (kind > 0.55) {
-            // plastic sheet over the window, sagging
-            c.fillStyle = 'rgba(180,190,200,0.35)';
-            c.beginPath();
-            c.moveTo(wx, wy);
-            c.lineTo(wx + ww, wy);
-            c.lineTo(wx + ww, wy + wh);
-            c.quadraticCurveTo(wx + ww / 2, wy + wh - 10, wx, wy + wh);
-            c.fill();
-          }
-        }
-      }
-    }
-
-    // shell holes with rebar
-    for (const [fx, fy, hr] of spec.holes || []) {
-      const hx = x + fx * w;
-      const hy = top + fy * H;
-      c.fillStyle = '#16120f';
-      c.beginPath();
-      const pts = [];
-      for (let i = 0; i < 11; i++) {
-        const a = (i / 11) * Math.PI * 2;
-        const rr = hr * (0.7 + r() * 0.5);
-        pts.push([hx + Math.cos(a) * rr, hy + Math.sin(a) * rr * 0.85]);
-      }
-      c.moveTo(...pts[0]);
-      for (const q of pts.slice(1)) c.lineTo(...q);
-      c.closePath();
-      c.fill();
-      // broken render ring around the hole
-      c.fillStyle = 'rgba(120,108,92,0.5)';
-      c.beginPath();
-      c.arc(hx, hy, hr * 1.35, 0, Math.PI * 2);
-      c.arc(hx, hy, hr * 1.02, 0, Math.PI * 2, true);
-      c.fill();
-      c.strokeStyle = '#4a3a2c';
-      c.lineWidth = 2;
-      for (let i = 0; i < 6; i++) {
-        const a = r() * Math.PI * 2;
-        c.beginPath();
-        c.moveTo(hx + Math.cos(a) * hr * 0.9, hy + Math.sin(a) * hr * 0.8);
-        c.quadraticCurveTo(hx + Math.cos(a) * hr * 0.5, hy + Math.sin(a) * hr * 0.4 + 8, hx + Math.cos(a) * hr * 0.2, hy + Math.sin(a) * hr * 0.3 + 18);
-        c.stroke();
-      }
-    }
-
-    // bullet pocks in clusters
-    c.fillStyle = 'rgba(40,32,26,0.55)';
-    for (let k = 0; k < (spec.pocks ?? 3); k++) {
-      const cx = x + r() * w;
-      const cy = top + r() * H;
-      for (let i = 0; i < 14; i++) {
-        c.beginPath();
-        c.arc(cx + (r() - 0.5) * 70, cy + (r() - 0.5) * 50, 1.5 + r() * 2, 0, Math.PI * 2);
-        c.fill();
-      }
-    }
-
-    // exposed interiors where the corner is torn
-    if (torn > 0) {
-      c.fillStyle = 'rgba(30,24,20,0.0)';
-    }
-
-    // the base of the wall: grime, splash, and the dark where it meets the street
-    const ao = c.createLinearGradient(0, -60, 0, 0);
-    ao.addColorStop(0, 'rgba(30,24,18,0)');
-    ao.addColorStop(1, 'rgba(30,24,18,0.38)');
-    c.fillStyle = ao;
-    c.fillRect(x, -60, w, 60);
-
-    // graffiti
-    for (const [text, gx, gy, size, gc, rot] of spec.graffiti || []) {
+  const mat = spec.mat || ['plaster', 'plaster', 'plaster', 'concrete', 'concrete', 'limestone'][seed % 6];
+  const matSeed = 1 + (seed % 3);
+  const F = facade(spec, H, (c, recess) => {
+      const r = rng(seed);
       c.save();
-      c.translate(x + gx * w, gy);
-      c.rotate(rot || -0.03);
-      c.font = `${size}px "Aref Ruqaa", "IBM Plex Sans Arabic", serif`;
-      c.fillStyle = gc || 'rgba(40,40,44,0.8)';
-      c.textAlign = 'center';
-      c.direction = 'rtl';
-      c.fillText(text, 0, 0);
-      c.restore();
-    }
-    c.restore();
+      // outline with a torn corner
+      c.beginPath();
+      if (torn > 0) {
+        const tw = w * (0.3 + torn * 0.4);
+        const th = H * (0.25 + torn * 0.45);
+        if (tornLeft) {
+          c.moveTo(x, 0);
+          c.lineTo(x, top + th);
+          const n = 7;
+          for (let i = 1; i < n; i++) c.lineTo(x + (tw * i) / n + (r() - 0.5) * 20, top + th - (th * i) / n + (r() - 0.5) * 30);
+          c.lineTo(x + tw, top);
+          c.lineTo(x + w, top);
+          c.lineTo(x + w, 0);
+        } else {
+          c.moveTo(x, 0);
+          c.lineTo(x, top);
+          c.lineTo(x + w - tw, top);
+          const n = 7;
+          for (let i = 1; i < n; i++) c.lineTo(x + w - tw + (tw * i) / n + (r() - 0.5) * 20, top + (th * i) / n + (r() - 0.5) * 30);
+          c.lineTo(x + w, top + th);
+          c.lineTo(x + w, 0);
+        }
+      } else {
+        c.rect(x, top, w, H);
+      }
+      c.closePath();
+      c.fillStyle = color;
+      c.fill();
+      c.clip();
+      // flats re-rendered in other colours over the years, one patch each
+      for (let i = 0; i < Math.round(w / 160); i++) {
+        c.fillStyle = r() < 0.5 ? 'rgba(255,244,225,0.10)' : 'rgba(120,96,80,0.10)';
+        const pf = Math.floor(r() * floors);
+        c.fillRect(x + r() * w * 0.8, -pf * fh - fh, w * (0.15 + r() * 0.25), fh);
+      }
+      // the wall's material, over its colour
+      textureWall(c, mat, { seed: matSeed });
+      // bleached by sun at the top, dirtier towards the street
+      const bleach = c.createLinearGradient(0, top, 0, 0);
+      bleach.addColorStop(0, 'rgba(255,248,236,0.10)');
+      bleach.addColorStop(0.6, 'rgba(255,248,236,0)');
+      bleach.addColorStop(1, 'rgba(50,38,28,0.14)');
+      c.fillStyle = bleach;
+      c.fillRect(x, top, w, H);
 
-    // torn edge: slab ends and dangling rebar
-    if (torn > 0) {
-      c.strokeStyle = '#5a4a3a';
-      c.lineWidth = 2;
-      for (let f = 1; f < floors; f++) {
-        const sy = -f * fh;
-        if (sy > top + H * (0.25 + torn * 0.45)) continue;
-        const sx = tornLeft ? x + r() * w * 0.4 : x + w - r() * w * 0.4;
-        c.fillStyle = color;
-        c.fillRect(sx - 30, sy - 8, 60, 10);
-        for (let i = 0; i < 4; i++) {
+      // weathering: sun-bleached and dirty render, patched repairs, cracks
+      c.fillStyle = 'rgba(60,50,40,0.08)';
+      for (let i = 0; i < 12; i++) c.fillRect(x + r() * w, top, 2 + r() * 10, H);
+      // (the fine texture is drawn once per building and reused every frame)
+      c.drawImage(weathering(w, H, seed), x, top);
+      for (let f = 0; f <= floors; f++) {
+        const sy = -f * fh - 6;
+        c.fillStyle = 'rgba(40,32,26,0.22)';
+        c.fillRect(x, sy, w, 8);
+        c.fillStyle = 'rgba(255,246,230,0.16)';
+        c.fillRect(x, sy, w, 1.5);
+        const under = c.createLinearGradient(0, sy + 8, 0, sy + 22);
+        under.addColorStop(0, 'rgba(30,22,16,0.22)');
+        under.addColorStop(1, 'rgba(30,22,16,0)');
+        c.fillStyle = under;
+        c.fillRect(x, sy + 8, w, 14);
+      }
+
+      // windows (and on the ground floor, a door or two)
+      const cols = Math.max(2, Math.round(w / 110));
+      const doorCols = spec.shopFront || spec.noDoors ? new Map() : pickDoors(cols, seed);
+      const ww = Math.min(58, (w / cols) * 0.5);
+      const wh = fh * 0.46;
+      for (let f = 0; f < floors; f++) {
+        for (let k = 0; k < cols; k++) {
+          const wx = x + ((k + 0.5) * w) / cols - ww / 2;
+          const wy = -f * fh - fh * 0.72;
+          const kind = r();
+          if (f === 0 && spec.shopFront) continue;
+          if (f === 0 && doorCols.has(k)) {
+            const dw = Math.min(74, (w / cols) * 0.62);
+            syrianDoor(c, x + ((k + 0.5) * w) / cols, dw, fh * 0.8, doorCols.get(k), seed * 7 + k);
+            recess.push({ rect: [x + ((k + 0.5) * w) / cols - dw / 2, -fh * 0.8, dw, fh * 0.8], door: true });
+            continue;
+          }
+          if (kind < 0.12) {
+            // blown out: ragged dark hole
+            c.fillStyle = '#1b1612';
+            c.beginPath();
+            const jag = [[wx - 6, wy - 3], [wx + ww * 0.3, wy - 9], [wx + ww * 0.55, wy - 2], [wx + ww + 7, wy - 6], [wx + ww + 3, wy + wh * 0.5], [wx + ww + 8, wy + wh + 6], [wx + ww * 0.5, wy + wh + 3], [wx - 5, wy + wh + 9], [wx - 2, wy + wh * 0.4]];
+            c.moveTo(...jag[0]);
+            const poly = [jag[0]];
+            for (const q of jag.slice(1)) {
+              const pt = [q[0] + (r() - 0.5) * 5, q[1] + (r() - 0.5) * 5];
+              poly.push(pt);
+              c.lineTo(...pt);
+            }
+            c.closePath();
+            c.fill();
+            recess.push({ poly });
+          } else {
+            c.fillStyle = kind < 0.55 ? '#211b17' : '#2b241f';
+            c.fillRect(wx, wy, ww, wh);
+            recess.push({ rect: [wx, wy, ww, wh], sill: true });
+            // the depth of the wall: a lit jamb, a shadowed one, the lintel's shade
+            c.fillStyle = 'rgba(190,176,152,0.55)';
+            c.fillRect(wx, wy, 4, wh);
+            c.fillStyle = 'rgba(12,9,7,0.5)';
+            c.fillRect(wx + ww - 5, wy, 5, wh);
+            c.fillRect(wx, wy, ww, 6);
+            // a pale frame and a stone sill
+            c.strokeStyle = 'rgba(235,225,205,0.28)';
+            c.lineWidth = 2;
+            c.strokeRect(wx - 1, wy - 1, ww + 2, wh + 2);
+            c.fillStyle = 'rgba(0,0,0,0.25)';
+            c.fillRect(wx - 3, wy + wh, ww + 6, 4); // sill shadow
+            c.fillStyle = 'rgba(230,220,200,0.35)';
+            c.fillRect(wx - 5, wy + wh - 1, ww + 10, 3);
+            // rain has run down from the sill for years
+            const st = c.createLinearGradient(0, wy + wh, 0, wy + wh + 50);
+            st.addColorStop(0, 'rgba(60,50,40,0.16)');
+            st.addColorStop(1, 'rgba(60,50,40,0)');
+            c.fillStyle = st;
+            c.fillRect(wx + ww * 0.15, wy + wh + 2, ww * 0.7, 50);
+            const extra = r();
+            if (kind <= 0.55 && extra < 0.3) {
+              // a curtain still hanging, drawn half across
+              c.fillStyle = ['#7a5a48', '#5a6a6e', '#8a7a5a', '#6a4a5a'][Math.floor(r() * 4)];
+              c.globalAlpha = 0.8;
+              c.fillRect(wx + 2, wy + 2, ww * (0.3 + r() * 0.3), wh - 4);
+              c.globalAlpha = 1;
+            } else if (kind <= 0.55 && extra < 0.5) {
+              // the last of the glass, catching the sky
+              c.fillStyle = 'rgba(160,180,200,0.18)';
+              c.beginPath();
+              c.moveTo(wx, wy);
+              c.lineTo(wx + ww * 0.6, wy);
+              c.lineTo(wx, wy + wh * 0.7);
+              c.fill();
+            } else if (f === 0 && extra < 0.75) {
+              // ground-floor grille
+              c.strokeStyle = 'rgba(30,26,22,0.8)';
+              c.lineWidth = 1.5;
+              c.beginPath();
+              for (let gx = wx + 6; gx < wx + ww; gx += 8) {
+                c.moveTo(gx, wy);
+                c.lineTo(gx, wy + wh);
+              }
+              c.stroke();
+            }
+            if (kind > 0.7) {
+              // closed shutter, some slats missing
+              c.fillStyle = spec.shutter || '#7a6a55';
+              c.fillRect(wx, wy, ww, wh * (0.4 + r() * 0.6));
+              c.fillStyle = 'rgba(0,0,0,0.2)';
+              for (let s = wy + 4; s < wy + wh * 0.9; s += 6) c.fillRect(wx, s, ww, 1.5);
+            } else if (kind > 0.55) {
+              // plastic sheet over the window, sagging
+              c.fillStyle = 'rgba(180,190,200,0.35)';
+              c.beginPath();
+              c.moveTo(wx, wy);
+              c.lineTo(wx + ww, wy);
+              c.lineTo(wx + ww, wy + wh);
+              c.quadraticCurveTo(wx + ww / 2, wy + wh - 10, wx, wy + wh);
+              c.fill();
+            }
+          }
+        }
+      }
+
+      // shell holes with rebar
+      for (const [fx, fy, hr] of spec.holes || []) {
+        const hx = x + fx * w;
+        const hy = top + fy * H;
+        c.fillStyle = '#16120f';
+        c.beginPath();
+        const pts = [];
+        for (let i = 0; i < 11; i++) {
+          const a = (i / 11) * Math.PI * 2;
+          const rr = hr * (0.7 + r() * 0.5);
+          pts.push([hx + Math.cos(a) * rr, hy + Math.sin(a) * rr * 0.85]);
+        }
+        c.moveTo(...pts[0]);
+        for (const q of pts.slice(1)) c.lineTo(...q);
+        c.closePath();
+        c.fill();
+        recess.push({ poly: pts, ring: [hx, hy, hr] });
+        // broken render ring around the hole
+        c.fillStyle = 'rgba(120,108,92,0.5)';
+        c.beginPath();
+        c.arc(hx, hy, hr * 1.35, 0, Math.PI * 2);
+        c.arc(hx, hy, hr * 1.02, 0, Math.PI * 2, true);
+        c.fill();
+        c.strokeStyle = '#4a3a2c';
+        c.lineWidth = 2;
+        for (let i = 0; i < 6; i++) {
+          const a = r() * Math.PI * 2;
           c.beginPath();
-          c.moveTo(sx + (i - 2) * 10, sy);
-          c.quadraticCurveTo(sx + (i - 2) * 12, sy + 20, sx + (i - 2) * 14 + (r() - 0.5) * 20, sy + 30 + r() * 30);
+          c.moveTo(hx + Math.cos(a) * hr * 0.9, hy + Math.sin(a) * hr * 0.8);
+          c.quadraticCurveTo(hx + Math.cos(a) * hr * 0.5, hy + Math.sin(a) * hr * 0.4 + 8, hx + Math.cos(a) * hr * 0.2, hy + Math.sin(a) * hr * 0.3 + 18);
           c.stroke();
         }
       }
-    }
-  });
+
+      // bullet pocks in clusters
+      c.fillStyle = 'rgba(40,32,26,0.55)';
+      for (let k = 0; k < (spec.pocks ?? 3); k++) {
+        const cx = x + r() * w;
+        const cy = top + r() * H;
+        for (let i = 0; i < 14; i++) {
+          c.beginPath();
+          c.arc(cx + (r() - 0.5) * 70, cy + (r() - 0.5) * 50, 1.5 + r() * 2, 0, Math.PI * 2);
+          c.fill();
+        }
+      }
+
+      // exposed interiors where the corner is torn
+      if (torn > 0) {
+        c.fillStyle = 'rgba(30,24,20,0.0)';
+      }
+
+      // the base of the wall: grime, splash, and the dark where it meets the street
+      const ao = c.createLinearGradient(0, -60, 0, 0);
+      ao.addColorStop(0, 'rgba(30,24,18,0)');
+      ao.addColorStop(1, 'rgba(30,24,18,0.38)');
+      c.fillStyle = ao;
+      c.fillRect(x, -60, w, 60);
+
+      // graffiti
+      for (const [text, gx, gy, size, gc, rot] of spec.graffiti || []) {
+        c.save();
+        c.translate(x + gx * w, gy);
+        c.rotate(rot || -0.03);
+        c.font = `${size}px "Aref Ruqaa", "IBM Plex Sans Arabic", serif`;
+        c.fillStyle = gc || 'rgba(40,40,44,0.8)';
+        c.textAlign = 'center';
+        c.direction = 'rtl';
+        c.fillText(text, 0, 0);
+        c.restore();
+      }
+      c.restore();
+
+      // torn edge: slab ends and dangling rebar
+      if (torn > 0) {
+        c.strokeStyle = '#5a4a3a';
+        c.lineWidth = 2;
+        for (let f = 1; f < floors; f++) {
+          const sy = -f * fh;
+          if (sy > top + H * (0.25 + torn * 0.45)) continue;
+          const sx = tornLeft ? x + r() * w * 0.4 : x + w - r() * w * 0.4;
+          c.fillStyle = color;
+          c.fillRect(sx - 30, sy - 8, 60, 10);
+          for (let i = 0; i < 4; i++) {
+            c.beginPath();
+            c.moveTo(sx + (i - 2) * 10, sy);
+            c.quadraticCurveTo(sx + (i - 2) * 12, sy + 20, sx + (i - 2) * 14 + (r() - 0.5) * 20, sy + 30 + r() * 30);
+            c.stroke();
+          }
+        }
+      }
+  }, mat, matSeed);
+  // the façade is baked once; each frame just places it
+  R.paint((c) => c.drawImage(F.alb, F.x0, F.y0, F.w, F.h));
+  R.height((h) => h.drawImage(F.hgt, F.x0, F.y0, F.w, F.h));
+  if (!spec.noRoof && !torn) roofTop(R, spec, H, t);
 
   // balconies and laundry cast shadows onto the façade
   if (spec.balcony) {
@@ -539,6 +790,16 @@ export function street(R, x0, x1, { color = '#6e6559', pave = '#8a8072' } = {}) 
     road.addColorStop(1, 'rgba(0,0,0,0)');
     c.fillStyle = road;
     c.fillRect(x0, 8, x1 - x0, 112);
+  });
+  // the road's surface and the pavement slabs, with their relief (only what
+  // the camera can see)
+  const vx0 = Math.max(x0, R.cam.x - 1600);
+  const vx1 = Math.min(x1, R.cam.x + 1600);
+  if (vx1 > vx0) {
+    R.surface((c) => c.rect(vx0, 8, vx1 - vx0, 500), 'asphalt', { scale: 1.1, seed: 2 });
+    R.surface((c) => c.rect(vx0, -4, vx1 - vx0, 7), 'pavers', { scale: 0.5, seed: 1, alpha: 0.8 });
+  }
+  R.paint((c) => {
     // patches of newer tarmac, and cracks (each strip seeded by its own x,
     // so what's drawn doesn't depend on what's on screen)
     for (let x = x0; x < x1; x += 60) {
@@ -796,6 +1057,19 @@ export function rubble(R, x, w, h, { seed = 5, color = '#a89b86', rebar = true, 
   };
   if (cast) R.cast(draw);
   else R.paint(draw);
+  // the broken concrete's grain and relief over the whole heap
+  const q = rng(seed);
+  const pts = [[x - 10, 2]];
+  for (let i = 1; i < 9; i++) {
+    const k = i / 9;
+    pts.push([x + k * w + (q() - 0.5) * 16, -h * Math.sin(k * Math.PI) * (0.75 + q() * 0.35)]);
+  }
+  pts.push([x + w + 10, 2]);
+  R.surface((c) => {
+    c.moveTo(...pts[0]);
+    for (const p of pts.slice(1)) c.lineTo(...p);
+    c.closePath();
+  }, 'concrete', { scale: 0.8, seed: 3, alpha: 0.9 });
 }
 
 // The sniper curtain: sheets and blankets on a wire across the gap. The

@@ -245,6 +245,54 @@ function seg(ctx, x0, y0, x1, y1, w, color) {
   ctx.stroke();
 }
 
+// A tapered limb: wide at the root, narrower at the end, rounded at both
+// joints, with the back of it in shade and a thin light edge at the front
+// (the figure faces +x in its own space).
+function taper(ctx, x0, y0, x1, y1, w0, w1, color, shadeK = 0.16) {
+  const dx = x1 - x0;
+  const dy = y1 - y0;
+  const len = Math.hypot(dx, dy) || 1;
+  let nx = -dy / len;
+  let ny = dx / len;
+  if (nx > 0 || (nx === 0 && ny < 0)) {
+    nx = -nx;
+    ny = -ny;
+  }
+  const r0 = w0 / 2;
+  const r1 = w1 / 2;
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  ctx.moveTo(x0 + nx * r0, y0 + ny * r0);
+  ctx.lineTo(x1 + nx * r1, y1 + ny * r1);
+  ctx.lineTo(x1 - nx * r1, y1 - ny * r1);
+  ctx.lineTo(x0 - nx * r0, y0 - ny * r0);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(x0, y0, r0, 0, Math.PI * 2);
+  ctx.arc(x1, y1, r1, 0, Math.PI * 2);
+  ctx.fill();
+  if (shadeK <= 0) return;
+  // the back of the limb, turned from the light
+  ctx.fillStyle = `rgba(0,0,0,${shadeK})`;
+  ctx.beginPath();
+  ctx.moveTo(x0 + nx * r0, y0 + ny * r0);
+  ctx.lineTo(x1 + nx * r1, y1 + ny * r1);
+  ctx.lineTo(x1 + nx * r1 * 0.2, y1 + ny * r1 * 0.2);
+  ctx.lineTo(x0 + nx * r0 * 0.2, y0 + ny * r0 * 0.2);
+  ctx.closePath();
+  ctx.fill();
+  // and the front edge catching it
+  ctx.fillStyle = `rgba(255,255,255,${shadeK * 0.35})`;
+  ctx.beginPath();
+  ctx.moveTo(x0 - nx * r0, y0 - ny * r0);
+  ctx.lineTo(x1 - nx * r1, y1 - ny * r1);
+  ctx.lineTo(x1 - nx * r1 * 0.6, y1 - ny * r1 * 0.6);
+  ctx.lineTo(x0 - nx * r0 * 0.6, y0 - ny * r0 * 0.6);
+  ctx.closePath();
+  ctx.fill();
+}
+
 export class Person {
   constructor(outfit = 'sami', scale = 1) {
     this.o = OUTFITS[outfit] || OUTFITS.man;
@@ -1314,8 +1362,8 @@ export class Person {
 
   leg(ctx, knee, foot, shinA, cloth, shoe, skin, far) {
     const o = this.o;
-    seg(ctx, 0, 0, knee[0], knee[1], 13.5, cloth);
-    seg(ctx, knee[0], knee[1], foot[0], foot[1], 11, cloth);
+    taper(ctx, 0, 0, knee[0], knee[1], 15, 11.5, cloth, far ? 0.1 : 0.16);
+    taper(ctx, knee[0], knee[1], foot[0], foot[1], 11.5, 9, cloth, far ? 0.1 : 0.16);
     // a crease behind a bent knee
     const bend = Math.abs(Math.atan2(knee[0], knee[1]) - Math.atan2(foot[0] - knee[0], foot[1] - knee[1]));
     if (bend > 0.35) {
@@ -1373,15 +1421,15 @@ export class Person {
       seg(ctx, lerp(s[0], e[0], 0.5), lerp(s[1], e[1], 0.5), e[0], e[1], 7, skinShade);
       seg(ctx, s[0], s[1], lerp(s[0], e[0], 0.55), lerp(s[1], e[1], 0.55), 10, cloth);
     } else if (o.rolled) {
-      seg(ctx, s[0], s[1], e[0], e[1], 9.8, cloth);
-      seg(ctx, e[0], e[1], h[0], h[1], 7, skinShade);
+      taper(ctx, s[0], s[1], e[0], e[1], 10.5, 8.8, cloth, near ? 0.16 : 0.08);
+      taper(ctx, e[0], e[1], h[0], h[1], 7.4, 5.8, skinShade, near ? 0.14 : 0.06);
       ctx.fillStyle = cloth; // the rolled cuff
       ctx.beginPath();
       ctx.arc(e[0], e[1], 5.4, 0, Math.PI * 2);
       ctx.fill();
     } else {
-      seg(ctx, s[0], s[1], e[0], e[1], 9.8, cloth);
-      seg(ctx, e[0], e[1], h[0], h[1], 8.4, cloth);
+      taper(ctx, s[0], s[1], e[0], e[1], 10.5, 8.8, cloth, near ? 0.16 : 0.08);
+      taper(ctx, e[0], e[1], h[0], h[1], 8.8, 7.2, cloth, near ? 0.16 : 0.08);
       // a fold at the elbow
       ctx.strokeStyle = 'rgba(0,0,0,0.15)';
       ctx.lineWidth = 1;
