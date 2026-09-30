@@ -126,12 +126,24 @@ export class Photo {
       clearTimeout(this.toastT);
       this.toastT = setTimeout(() => (el.textContent = ''), 2200);
     };
-    c.toBlob((blob) => {
+    c.toBlob(async (blob) => {
       if (!blob) return;
       this.lastSize = blob.size;
+      const filename = `before-i-knew-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+      // inside the claude.ai viewer, files go through its save prompt
+      const dl = window.claude?.use ? await window.claude.use('downloads').catch(() => null) : null;
+      if (dl) {
+        try {
+          await dl.save({ filename, data: blob });
+          toast(this.t('photoSaved'));
+        } catch {
+          /* declined, or not available here: nothing to say */
+        }
+        return;
+      }
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `before-i-knew-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`;
+      a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
