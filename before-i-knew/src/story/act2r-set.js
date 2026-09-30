@@ -10,9 +10,10 @@
 // eye. Ahmad lies in School Street under the blanket Um Said put over him:
 // a covered shape, far off. No detail of him is ever drawn.
 
-import { lerp, clamp, rng, mixc } from '../engine/util.js';
+import { lerp, clamp, rng, mixc, smooth } from '../engine/util.js';
 import * as T from '../sets/town.js';
 import { horizon, rgbOf } from '../sets/horizon.js';
+import { depthCast, deepScenery, figureBox } from '../engine/dof.js';
 
 export const X = {
   start: 150,
@@ -638,7 +639,7 @@ function schoolStreet(R, g, t) {
   const xc = (x0 + x1) / 2;
   const vy = -86;
   const at = (k) => ({ s: 1 / (1 + 3.4 * k), x: xc, y: lerp(4, vy, 1 - 1 / (1 + 3.4 * k)) });
-  R.paint((c) => {
+  const road = (c) => {
     // far end: the checkpoint in the last of the light
     c.fillStyle = '#5a5058';
     c.fillRect(x0 + 60, vy - 140, x1 - x0 - 120, 150);
@@ -722,7 +723,8 @@ function schoolStreet(R, g, t) {
     c.fillRect(30, -96, 20, 34);
     c.restore();
     void e;
-  });
+  };
+  deepScenery(R, road, [x0, vy - 160, x1, 4], xc, vy, x1 - x0, g.settings.get('dof') || 'bokeh');
   // Ahmad, halfway, under the blanket Um Said put over him: a dark shape
   // at a distance, and nothing more.
   const m = at(0.3);
@@ -897,7 +899,7 @@ export function drawStreet(R, g) {
       R.shadow((c) => p.draw(c), p.x, p.y, shear, 0.1);
     }
   }
-  for (const w of [p, ...g.npcs]) if (w.visible && w.depthK) R.cast((c) => w.draw(c));
+  for (const w of [p, ...g.npcs]) if (w.visible && w.depthK) depthCast(R, (c) => w.draw(c), figureBox(w), w.depthK, { mode: g.settings.get('dof') || 'bokeh', alpha: 1 - smooth(0.85, 1, w.depthK) });
 
   // --- in front: the cover, the smoke, the bags ---
   if (near(X.wall1[0], X.wall1[1])) T.lowWall(R, X.wall1[0], X.wall1[1] - X.wall1[0], 104, '#a3957c');

@@ -66,8 +66,8 @@
   }
 
   /* subtitle language modes (the menus follow the menu language instead) */
-  #stage[data-subs='en'] :is(#sub, #card, #choice) .ar:not(.ui) { display: none !important; }
-  #stage[data-subs='ar'] :is(#sub, #card, #choice) .en:not(.ui) { display: none !important; }
+  #stage[data-subs='en'] :is(#sub, #card, #choice, #float) .ar:not(.ui) { display: none !important; }
+  #stage[data-subs='ar'] :is(#sub, #card, #choice, #float) .en:not(.ui) { display: none !important; }
   #stage[data-hints='off'] #hint, #stage[data-hints='off'] #prompt kbd { display: none !important; }
   /* HUD only while playing, and never behind a menu or the end */
   #stage:not(.playing) :is(#prompt, #hint, #tools, #objective, #sub, #choice),
@@ -75,6 +75,37 @@
   #stage.ended :is(#prompt, #hint, #tools, #objective, #card) { visibility: hidden; }
   #stage:has(#choice:not([hidden])) :is(#sub, #prompt) { visibility: hidden; }
   #stage.blackout :is(#tools, #objective, #hint, #prompt) { opacity: 0; transition: opacity 0.6s; }
+
+  /* ------------------ what Sami makes of a thing, floating above it -- */
+  #float {
+    position: absolute;
+    z-index: 7;
+    left: 50%;
+    top: 30%;
+    transform: translate(-50%, -100%);
+    width: max-content;
+    max-width: min(40ch, 46%);
+    display: grid;
+    gap: 0.25em;
+    padding: 0.55em 0.9em 0.6em;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 238, 205, 0.28);
+    background: rgba(24, 20, 16, 0.72);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+    text-align: center;
+    animation: floatIn 0.35s ease both;
+  }
+  #float::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg); background: rgba(24, 20, 16, 0.72); border-right: 1px solid rgba(255, 238, 205, 0.28); border-bottom: 1px solid rgba(255, 238, 205, 0.28); }
+  #float p { margin: 0; text-wrap: balance; }
+  #float p.ar { font: 400 max(13px, calc(var(--t) * 1.12)) / 1.6 var(--arabic); color: #f6efe2; }
+  #float p.en { font: italic 400 max(12px, calc(var(--t) * 0.9)) / 1.4 var(--serif); color: #e6dccb; }
+  #float[data-style='item'] { border-color: rgba(174, 193, 120, 0.55); }
+  #float[data-style='item']::before { content: attr(data-kicker); font: 500 max(9px, calc(var(--t) * 0.62)) / 1 var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--leaf); }
+  #float.out { animation: floatOut 0.3s ease both; }
+  @keyframes floatIn { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+  @keyframes floatOut { to { opacity: 0; translate: 0 -4px; } }
+  #stage:not(.playing) #float, #stage.photo #float, #stage:has(#choice:not([hidden])) #float { visibility: hidden; }
 
   /* ------------------------------------------------------ subtitles -- */
   #sub {
@@ -109,17 +140,17 @@
     gap: 0.55em;
     margin-bottom: 0.3em;
     padding: 0.18em 0.75em 0.22em;
-    border: 2px solid #fff;
+    border: 2px solid var(--who, #fff);
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.6);
     text-shadow: none;
   }
-  #sub .who .ar { font: 700 max(12px, calc(var(--t) * 1.02)) / 1.4 var(--arabic); color: #fff; }
-  #sub .who .en { font: 600 max(11px, calc(var(--t) * 0.84)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; }
+  #sub .who .ar { font: 700 max(11px, calc(var(--t) * 0.92)) / 1.4 var(--arabic); color: var(--who, #fff); }
+  #sub .who .en { font: 600 max(10px, calc(var(--t) * 0.76)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--who, #fff); }
   #sub p { margin: 0; text-wrap: balance; color: #fff; }
-  #sub p.ar { font-size: max(17px, calc(var(--t) * 1.75)); line-height: 1.6; font-weight: 500; }
-  #sub p.en { font: 500 max(14px, calc(var(--t) * 1.28)) / 1.4 var(--sans); }
-  #stage[data-subs='en'] #sub p.en { font-size: max(16px, calc(var(--t) * 1.55)); }
+  #sub p.ar { font-size: max(15px, calc(var(--t) * 1.42)); line-height: 1.55; font-weight: 500; }
+  #sub p.en { font: 500 max(13px, calc(var(--t) * 1.06)) / 1.4 var(--sans); }
+  #stage[data-subs='en'] #sub p.en { font-size: max(14px, calc(var(--t) * 1.26)); }
   /* examine and item notes: centred like speech, set apart by italic English */
   #sub[data-style='examine'] p.ar, #sub[data-style='item'] p.ar { font-weight: 400; }
   #sub[data-style='examine'] p.en, #sub[data-style='item'] p.en { font-style: italic; font-family: var(--serif); font-weight: 400; }
@@ -725,6 +756,7 @@
   <div id="card" role="status" aria-live="polite"></div>
   <div id="prompt" hidden></div>
   <div id="hint" hidden></div>
+  <div id="float" hidden aria-live="polite"></div>
   <div id="sub" hidden aria-live="polite"></div>
   <div id="choice" hidden role="group" aria-label="Choice"></div>
 

@@ -12,7 +12,7 @@ export const ACTIONS = [
   ['interact', 'Interact / examine', 'تفاعل / تفحّص'],
   ['tool', 'Next tool', 'الأداة التالية'],
   ['use', 'Use tool (hold to crank the torch)', 'استخدم الأداة (اضغط مطوّلاً لشحن المصباح)'],
-  ['skip', 'Skip line (hold)', 'تخطَّ الحوار (مع الضغط المستمر)'],
+  ['skip', 'Next line (hold to keep skipping)', 'السطر التالي (اضغط باستمرار لمتابعة التخطّي)'],
   ['menu', 'Menu', 'القائمة'],
 ];
 

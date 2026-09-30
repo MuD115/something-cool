@@ -99,7 +99,7 @@ export const ACT2R = {
     // (box: the outline round the thing, fitted to its art, offset by bx, by)
     const look = (id, x, y, key, range = 90, box = {}) => L.add({ id, x, y, range, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key), ...box });
     look('wall1', X.wall1[0] - 40, -120, 'lane1_wall', 90, { box: [425, 110], bx: 248, by: 68 });
-    look('car', X.car[0] - 30, -110, 'lane2_car', 90, { box: [240, 120], bx: 151, by: 55 });
+    look('car', X.car[0] - 30, -110, 'lane2_car', 90, { box: [240, 120], bx: 151, by: 55, outline: [[-117,57],[-119,-19],[-96,-50],[-11,-62],[49,-60],[85,-33],[119,-19],[121,57]] });
     look('crawl', X.crawl[0] - 50, -80, 'crawl', 70, { box: [185, 74], bx: 136, by: 48 });
     look('smoke', X.lane3[0] - 60, -160, 'lane3_smoke', 90, { box: [64, 44], bx: 260, by: 103 });
     look('hospital', X.hosp[0] + 300, -130, 'hospital', 110, { box: [318, 204], by: 35 });
@@ -178,9 +178,9 @@ export const ACT2R = {
     if (lane.id === 3) g.sound.score?.mood('dusk', 6);
   },
 
-  // A warning shot: the round cracks into the wall ahead of him, and he
-  // throws himself back to where the lane began.
-  *warningShot(g, lane) {
+  // A near miss: he fires to kill, and the round cracks into the wall a hand's
+  // width from Sami's head, and he throws himself back to where the lane began.
+  *nearMiss(g, lane) {
     const p = g.player;
     const a = g.a;
     a.shotBusy = true;
@@ -337,7 +337,7 @@ export const ACT2R = {
     gd.override = { ...POSES.kneel, head: -0.15 };
     g.lock(false);
     g.text.objective(OBJ.sheet);
-    L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, box: [112, 112], bx: -3, by: 7, label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
+    L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, box: [112, 112], bx: -3, by: 7, outline: [[-47,-49],[43,-49],[45,47],[23,39],[-7,49],[-45,43]], label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
     yield () => a.pull;
     g.lock();
     p.f = 1;
@@ -529,7 +529,7 @@ export const ACT2R = {
       a.expose = safe ? Math.max(0, a.expose - dt * 2) : a.expose + dt;
       if (a.expose > (a.forgiving ? 0.9 : 0.4) && !a.shotBusy) {
         a.expose = 0;
-        g.runner.run(this.warningShot(g, lane));
+        g.runner.run(this.nearMiss(g, lane));
       }
     } else {
       a.laneState = lane ? a.laneState : null;

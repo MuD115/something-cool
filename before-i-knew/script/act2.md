@@ -123,10 +123,10 @@ Sami reaches the edge of the no-man's-land. He is behind the last intact wall be
 > *Yeah.*
 
 **الرجل:**
-> أم سعيد هيي يلي غطّتو. طلعت عليه وهي عارفة إنو القنّاص عم يرصدها. حطّت الحرام وبعدين رجعت. ما رماها. ما بعرف ليش.
-> *Um Said is the one who covered him. She went out knowing the sniper was watching. She put the blanket over him and came back. He didn't shoot her. I don't know why.*
+> أم سعيد هيي يلي غطّتو. طلعت عليه وهي عارفة إنو القنّاص عم يرصدها. حطّت الحرام وبعدين رجعت. ما رماها هالمرة. الله أعلم ليش، رمى غيرها قبلها.
+> *Um Said is the one who covered him. She went out knowing the sniper was watching. She put the blanket over him and came back. He didn't shoot her, that time. God knows why. He's shot others who tried.*
 
-*[ACTING NOTE: The sniper didn't shoot Um Said. Maybe respect. Maybe his scope was elsewhere for a moment. Maybe he doesn't shoot women. Maybe he just didn't feel like it. The arbitrariness is part of the horror — life and death decided by a stranger's whim.]*
+*[ACTING NOTE: The sniper didn't shoot Um Said. Not mercy: the same sniper killed Ahmad, and others who went out for the dead before her. Maybe his scope was elsewhere for a moment; maybe he was reloading. The regime's snipers shot to kill, civilians included. The arbitrariness is part of the horror — life and death decided by a stranger's whim.]*
 
 **الرجل:**
 > ما فينا نجيبو. الشارع مكشوف. القنّاص بالمبنى يلي فيه العلم — عالتلّة. بيشوف كل شي.
@@ -136,7 +136,7 @@ Sami stares at the shape. The light is golden on it. The blanket ripples slightl
 
 ### CHOICE D
 
-> **D1:** خود القماشة البيضا / Take the white cloth — *[Sami looks around. On a nearby balcony rail, a sheet hangs. White, or near enough. He can signal a truce.]*
+> **D1:** خود القماشة البيضا / Take the white cloth — *[Sami looks around. On a nearby balcony rail, a sheet hangs. White, or near enough. He can raise it and hope.]*
 
 > **D2:** في طريق تاني / There's another way — *[Sami looks at the building to his left — six storeys, damaged but standing. Its upper floors overlook the street. A climbing route through the ruins might let him reach Ahmad from above, without crossing the open.]*
 
@@ -146,8 +146,8 @@ Sami pulls the sheet from the rail. It tears at one edge — it was already sun-
 
 **[TOOL ACQUIRED: WHITE CLOTH]**
 
-> قماشة بيضا — علامة هدنة. ما بتحمي من الرصاص، بس بتحمي من القرار إنو يرمي.
-> *White cloth — a truce signal. It doesn't stop bullets, but it stops the decision to fire.*
+> قماشة بيضا. الرصاصة ما بتسأل شو رافع. بس ما في غيرها.
+> *White cloth. A bullet doesn't ask what you're holding up. But it's all there is.*
 
 **الرجل:**
 > *(alarmed)* شو عم تساوي؟

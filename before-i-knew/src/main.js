@@ -220,7 +220,7 @@ function summary2(s) {
   const ar = lang() === 'ar';
   const n = s.lane_retries || 0;
   return [
-    [ar ? '٤:٣٥' : '4:35', ar ? (n ? `عبرتَ الحارة الجنوبية تحت عين القنّاص، وردّتك رصاصة التحذير ${n} مرة.` : 'عبرتَ الحارة الجنوبية تحت عين القنّاص، ولم يرك.') : n ? `You crossed the southern quarter under the sniper's eye. A warning shot turned you back ${n} time${n > 1 ? 's' : ''}.` : "You crossed the southern quarter under the sniper's eye. He never saw you."],
+    [ar ? '٤:٣٥' : '4:35', ar ? (n ? `عبرتَ الحارة الجنوبية تحت عين القنّاص، وأخطأتك رصاصاته بشبر ${n} مرة.` : 'عبرتَ الحارة الجنوبية تحت عين القنّاص، ولم يرك.') : n ? `You crossed the southern quarter under the sniper's eye. His rounds missed you by a hand’s width ${n} time${n > 1 ? 's' : ''}.` : "You crossed the southern quarter under the sniper's eye. He never saw you."],
     [ar ? '٤:٤٢' : '4:42', ar ? 'قال المسعف: ما قدرنا نوصلّو.' : 'The medic said: we couldn’t reach him.'],
     [ar ? '٤:٥٥' : '4:55', ar ? 'رأيتَ شكلاً مغطّى بحرام، وسط شارع المدرسة.' : 'You saw a shape under a blanket, in the middle of School Street.'],
     [ar ? '٥:٠٠' : '5:00', optionFor(DECISIONS[3], s.d_choice)[ar ? 2 : 1]],
@@ -665,6 +665,7 @@ const menu = new Menu($('menu'), {
     { key: 'backing', label: 'backing', type: 'select', options: [['off', 'off'], ['light', 'light'], ['dark', 'dark']] },
     { group: 'gDisplay' },
     { key: 'quality', label: 'quality', type: 'select', options: [['auto', 'auto'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']] },
+    { key: 'dof', label: 'dof', type: 'select', options: [['bokeh', 'dofBokeh'], ['soft', 'dofSoft'], ['off', 'off']] },
     { key: 'shake', label: 'shake', type: 'toggle' },
     { key: 'reduceFlashes', label: 'reduceFlashes', type: 'toggle' },
     { group: 'gPlay' },

@@ -7,6 +7,8 @@ import { Person, POSES, walkPose, crouchWalkPose, crawlPose, blendPose } from '.
 import { clamp, lerp, smooth } from '../engine/util.js';
 
 export const HEIGHT = { stand: 170, crouch: 122, prone: 48 };
+// halfway to the ground: on one knee, leaning forward onto the hands
+const KNEEL_DOWN = { ...POSES.kneel, torso: 0.62, head: -0.2, armN: 1.25, foreN: 1.35, armF: 1.1, foreF: 1.25 };
 const SPEED = { stand: 162, run: 310, crouch: 84, prone: 42, carry: 98 };
 const GRAVITY = 2600;
 const JUMP_V = 640;
@@ -264,8 +266,19 @@ export class Walker {
       }
     }
 
-    // smooth stance changes
-    this.cur = this.cur ? blendPose(this.cur, target, clamp(dt * 14)) : { ...target };
+    // Stance changes take their time (about half a second), and going
+    // between standing and lying passes through a kneel, hands going down
+    // first, as a body really drops to the ground and gets up again.
+    if (this.stance !== this.lastStance) {
+      this.stanceFrom = this.lastStance;
+      this.lastStance = this.stance;
+      this.stanceT = this.cur ? 0.55 : 0;
+    }
+    this.stanceT = Math.max(0, (this.stanceT || 0) - dt);
+    const deep = (this.stanceFrom === 'stand' && this.stance === 'prone') || (this.stanceFrom === 'prone' && this.stance === 'stand');
+    if (deep && this.stanceT > 0.27 && this.onGround && !this.override) target = KNEEL_DOWN;
+    const rate = this.stanceT > 0 ? 7 : 14;
+    this.cur = this.cur ? blendPose(this.cur, target, clamp(dt * rate)) : { ...target };
     let final = this.cur;
     if (this.override) {
       this.overrideBlend = Math.min(this.overrideBlend + dt * 4, 1);

@@ -6,6 +6,7 @@
 import { lerp, clamp, rng, noise1, mixc, smooth } from '../engine/util.js';
 import * as T from '../sets/town.js';
 import { horizon, rgbOf } from '../sets/horizon.js';
+import { depthCast, deepScenery, figureBox } from '../engine/dof.js';
 import { Person, POSES } from '../rigs/person.js';
 
 export const X = {
@@ -120,10 +121,10 @@ function skyStops(k) {
 // ------------------------------------------------------------ side street --
 
 // A street running away from us, into the gap between two blocks.
-function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false } = {}) {
+function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false, mode = 'bokeh' } = {}) {
   const xc = (x0 + x1) / 2;
   const vy = -70;
-  R.paint((c) => {
+  const fn = (c) => {
     // road narrowing to the vanishing point
     c.fillStyle = '#7a7064';
     c.beginPath();
@@ -172,7 +173,8 @@ function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false }
       c.lineTo(xc - 25, vy - 86);
       c.fill();
     }
-  });
+  };
+  deepScenery(R, fn, [x0, -520, x1, 4], xc, vy, x1 - x0, mode);
 }
 
 // --------------------------------------------------------------- scenes --
@@ -185,6 +187,7 @@ export function drawStreet(R, g) {
   const a = g.a;
   const cx = R.cam.x;
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
+  const dof = g.settings.get('dof') || 'bokeh';
 
   T.sky(R, skyStops(a.sunK), { warmth: clamp(a.sunK || 0) });
   const stops = skyStops(a.sunK);
@@ -258,9 +261,9 @@ export function drawStreet(R, g) {
       c.fillRect(1450, -60, 350, 64); // rubble in the gap, far off
     });
   }
-  if (near(2890, 3320)) sideStreet(R, 2890, 3320, { minaret: true, t });
-  if (near(4930, 5330)) sideStreet(R, 4930, 5330, { curtainWindow: true, t });
-  if (near(9880, 10160)) sideStreet(R, 9880, 10160, { t });
+  if (near(2890, 3320)) sideStreet(R, 2890, 3320, { minaret: true, t, mode: dof });
+  if (near(4930, 5330)) sideStreet(R, 4930, 5330, { curtainWindow: true, t, mode: dof });
+  if (near(9880, 10160)) sideStreet(R, 9880, 10160, { t, mode: dof });
 
   T.street(R, -500, 10800);
   T.cables(R, cx);
@@ -459,7 +462,12 @@ export function drawStreet(R, g) {
   });
   // passers-by far down the side streets, behind everyone
   for (const w of g.passers || []) {
-    if (w.depth > 0 && near(w.x - 100, w.x + 100)) R.cast((c) => w.draw(c));
+    if (w.depth > 0 && near(w.x - 100, w.x + 100)) depthCast(R, (c) => w.draw(c), figureBox(w), w.depth, { mode: dof, alpha: 1 - smooth(0.8, 1, w.depth) });
+  }
+  // those walking away into depth, behind the street's people: softer as they go
+  for (const w of g.npcs) {
+    if (!w.visible || !w.depthK) continue;
+    depthCast(R, (c) => w.draw(c), figureBox(w), w.depthK, { mode: dof, alpha: 1 - smooth(0.82, 1, w.depthK) });
   }
   for (const w of g.npcs) {
     if (!w.visible || !near(w.x - 100, w.x + 100)) continue;
@@ -487,14 +495,10 @@ export function drawStreet(R, g) {
     }
   }
   const p = g.player;
-  if (p.visible) {
+  if (p.visible && a.samiDepth) depthCast(R, (c) => p.draw(c), figureBox(p), a.samiDepth, { mode: dof, alpha: 1 - smooth(0.85, 1, a.samiDepth) });
+  else if (p.visible) {
     R.cast((c) => p.draw(c));
     R.shadow((c) => p.draw(c), p.x, p.y, shear, 0.12);
-  }
-  // those walking away into depth
-  for (const w of g.npcs) {
-    if (!w.visible || !w.depthK) continue;
-    R.cast((c) => w.draw(c));
   }
   // the wall around the spotter's window, over him: only his upper body shows
   if (near(X.spotter - 300, X.spotter + 300)) {
@@ -524,13 +528,6 @@ export function drawStreet(R, g) {
       c.strokeStyle = '#5a4a38';
       c.lineWidth = 3;
       c.strokeRect(W.x0, W.top, W.x1 - W.x0, W.sill - W.top);
-    });
-  }
-  // a building corner the walker passes behind
-  if (a.occluder) {
-    R.paint((c) => {
-      c.fillStyle = '#a5987f';
-      c.fillRect(a.occluder[0], -300, a.occluder[1], 304);
     });
   }
 

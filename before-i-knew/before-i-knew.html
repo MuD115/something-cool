@@ -66,8 +66,8 @@
   }
 
   /* subtitle language modes (the menus follow the menu language instead) */
-  #stage[data-subs='en'] :is(#sub, #card, #choice) .ar:not(.ui) { display: none !important; }
-  #stage[data-subs='ar'] :is(#sub, #card, #choice) .en:not(.ui) { display: none !important; }
+  #stage[data-subs='en'] :is(#sub, #card, #choice, #float) .ar:not(.ui) { display: none !important; }
+  #stage[data-subs='ar'] :is(#sub, #card, #choice, #float) .en:not(.ui) { display: none !important; }
   #stage[data-hints='off'] #hint, #stage[data-hints='off'] #prompt kbd { display: none !important; }
   /* HUD only while playing, and never behind a menu or the end */
   #stage:not(.playing) :is(#prompt, #hint, #tools, #objective, #sub, #choice),
@@ -75,6 +75,37 @@
   #stage.ended :is(#prompt, #hint, #tools, #objective, #card) { visibility: hidden; }
   #stage:has(#choice:not([hidden])) :is(#sub, #prompt) { visibility: hidden; }
   #stage.blackout :is(#tools, #objective, #hint, #prompt) { opacity: 0; transition: opacity 0.6s; }
+
+  /* ------------------ what Sami makes of a thing, floating above it -- */
+  #float {
+    position: absolute;
+    z-index: 7;
+    left: 50%;
+    top: 30%;
+    transform: translate(-50%, -100%);
+    width: max-content;
+    max-width: min(40ch, 46%);
+    display: grid;
+    gap: 0.25em;
+    padding: 0.55em 0.9em 0.6em;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 238, 205, 0.28);
+    background: rgba(24, 20, 16, 0.72);
+    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+    pointer-events: none;
+    text-align: center;
+    animation: floatIn 0.35s ease both;
+  }
+  #float::after { content: ''; position: absolute; left: 50%; bottom: -6px; width: 10px; height: 10px; transform: translateX(-50%) rotate(45deg); background: rgba(24, 20, 16, 0.72); border-right: 1px solid rgba(255, 238, 205, 0.28); border-bottom: 1px solid rgba(255, 238, 205, 0.28); }
+  #float p { margin: 0; text-wrap: balance; }
+  #float p.ar { font: 400 max(13px, calc(var(--t) * 1.12)) / 1.6 var(--arabic); color: #f6efe2; }
+  #float p.en { font: italic 400 max(12px, calc(var(--t) * 0.9)) / 1.4 var(--serif); color: #e6dccb; }
+  #float[data-style='item'] { border-color: rgba(174, 193, 120, 0.55); }
+  #float[data-style='item']::before { content: attr(data-kicker); font: 500 max(9px, calc(var(--t) * 0.62)) / 1 var(--mono); letter-spacing: 0.18em; text-transform: uppercase; color: var(--leaf); }
+  #float.out { animation: floatOut 0.3s ease both; }
+  @keyframes floatIn { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
+  @keyframes floatOut { to { opacity: 0; translate: 0 -4px; } }
+  #stage:not(.playing) #float, #stage.photo #float, #stage:has(#choice:not([hidden])) #float { visibility: hidden; }
 
   /* ------------------------------------------------------ subtitles -- */
   #sub {
@@ -109,17 +140,17 @@
     gap: 0.55em;
     margin-bottom: 0.3em;
     padding: 0.18em 0.75em 0.22em;
-    border: 2px solid #fff;
+    border: 2px solid var(--who, #fff);
     border-radius: 4px;
     background: rgba(0, 0, 0, 0.6);
     text-shadow: none;
   }
-  #sub .who .ar { font: 700 max(12px, calc(var(--t) * 1.02)) / 1.4 var(--arabic); color: #fff; }
-  #sub .who .en { font: 600 max(11px, calc(var(--t) * 0.84)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: #fff; }
+  #sub .who .ar { font: 700 max(11px, calc(var(--t) * 0.92)) / 1.4 var(--arabic); color: var(--who, #fff); }
+  #sub .who .en { font: 600 max(10px, calc(var(--t) * 0.76)) / 1.4 var(--sans); letter-spacing: 0.12em; text-transform: uppercase; color: var(--who, #fff); }
   #sub p { margin: 0; text-wrap: balance; color: #fff; }
-  #sub p.ar { font-size: max(17px, calc(var(--t) * 1.75)); line-height: 1.6; font-weight: 500; }
-  #sub p.en { font: 500 max(14px, calc(var(--t) * 1.28)) / 1.4 var(--sans); }
-  #stage[data-subs='en'] #sub p.en { font-size: max(16px, calc(var(--t) * 1.55)); }
+  #sub p.ar { font-size: max(15px, calc(var(--t) * 1.42)); line-height: 1.55; font-weight: 500; }
+  #sub p.en { font: 500 max(13px, calc(var(--t) * 1.06)) / 1.4 var(--sans); }
+  #stage[data-subs='en'] #sub p.en { font-size: max(14px, calc(var(--t) * 1.26)); }
   /* examine and item notes: centred like speech, set apart by italic English */
   #sub[data-style='examine'] p.ar, #sub[data-style='item'] p.ar { font-weight: 400; }
   #sub[data-style='examine'] p.en, #sub[data-style='item'] p.en { font-style: italic; font-family: var(--serif); font-weight: 400; }
@@ -725,6 +756,7 @@
   <div id="card" role="status" aria-live="polite"></div>
   <div id="prompt" hidden></div>
   <div id="hint" hidden></div>
+  <div id="float" hidden aria-live="polite"></div>
   <div id="sub" hidden aria-live="polite"></div>
   <div id="choice" hidden role="group" aria-label="Choice"></div>
 
@@ -2062,7 +2094,7 @@ class Sound {
     this.tone(530, 0.35, { type: 'square', vol: 0.012 });
   }
 
-  // A sniper's warning shot, close: the supersonic crack arrives before the
+  // A sniper's shot, close by: the supersonic crack arrives before the
   // report from the hill, then the round slaps into the wall ahead.
   sniperCrack() {
     if (!this.ctx) return;
@@ -2487,6 +2519,9 @@ const STR = {
     low: 'Low',
     high: 'High',
     shake: 'Camera shake',
+    dof: 'Depth blur',
+    dofBokeh: 'Lens (bokeh)',
+    dofSoft: 'Soft',
     reduceFlashes: 'Reduce flashes',
     hints: 'Control hints',
     // sheets
@@ -2619,6 +2654,9 @@ const STR = {
     low: 'منخفضة',
     high: 'عالية',
     shake: 'اهتزاز الكاميرا',
+    dof: 'تمويه العمق',
+    dofBokeh: 'عدسة (بوكيه)',
+    dofSoft: 'ناعم',
     reduceFlashes: 'تخفيف الومضات',
     hints: 'تلميحات التحكم',
     noteKicker: 'تنبيه حول المحتوى',
@@ -2740,6 +2778,7 @@ class Text {
   constructor(settings) {
     this.settings = settings;
     this.sub = $('sub');
+    this.floatEl = $('float');
     this.card = $('card');
     this.choiceEl = $('choice');
     this.promptEl = $('prompt');
@@ -2795,6 +2834,7 @@ class Text {
     if (who) {
       const w = document.createElement('div');
       w.className = 'who';
+      w.style.setProperty('--who', whoColour(who));
       w.appendChild(uiSpan(who));
       box.appendChild(w);
     }
@@ -2819,6 +2859,69 @@ class Text {
   clearLine() {
     this.lineId++;
     this.sub.hidden = true;
+    this.hideFloat();
+  }
+
+  // Is a line (spoken or floating) up?
+  lineUp() {
+    return !this.sub.hidden || !this.floatEl.hidden;
+  }
+
+  // What Sami makes of a thing: a caption floating above it, not a subtitle.
+  // placeFloat() keeps it over the thing each frame.
+  float(line, dur = 4, style = 'examine') {
+    const id = ++this.lineId;
+    this.lineStart = performance.now();
+    const last = this.log[this.log.length - 1];
+    if (!last || last.line[1] !== line[1]) {
+      this.log.push({ who: null, line, style });
+      if (this.log.length > 400) this.log.shift();
+    }
+    const el = this.floatEl;
+    el.classList.remove('out');
+    el.dataset.style = style;
+    el.dataset.kicker = lang() === 'ar' ? 'غرض' : 'Item';
+    el.innerHTML = '';
+    const ar = document.createElement('p');
+    ar.className = 'ar';
+    ar.lang = 'ar';
+    ar.dir = 'rtl';
+    ar.textContent = line[0];
+    const en = document.createElement('p');
+    en.className = 'en';
+    en.textContent = line[1];
+    el.append(ar, en);
+    el.hidden = false;
+    // restart the entrance
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+    this.sub.hidden = true;
+    clearTimeout(this.floatTimer);
+    this.floatTimer = setTimeout(() => {
+      if (this.lineId === id) this.hideFloat();
+    }, dur * 1000);
+    return id;
+  }
+
+  placeFloat(u, v) {
+    const el = this.floatEl;
+    if (el.hidden) return;
+    el.style.left = `${Math.min(88, Math.max(12, u * 100))}%`;
+    el.style.top = `${Math.min(70, Math.max(22, v * 100))}%`;
+  }
+
+  hideFloat() {
+    const el = this.floatEl;
+    if (el.hidden) return;
+    el.classList.add('out');
+    clearTimeout(this.floatOutT);
+    this.floatOutT = setTimeout(() => {
+      if (el.classList.contains('out')) {
+        el.hidden = true;
+        el.classList.remove('out');
+      }
+    }, 300);
   }
 
   titleCard(lines, dur = 5) {
@@ -2974,7 +3077,32 @@ const ICONS = {
     '<path d="M5 22V2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5 3.5c3-1.2 5 1 8 0s4.5-.8 6 0v8c-1.5-.8-3-1-6 0s-5-1.2-8 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
 };
 
-return { Text };
+// Each speaker's name in their own colour, so voices are told apart at a
+// glance. Unknown speakers get one from a small palette, by name.
+const WHO_COLOURS = {
+  Sami: '#a9cdf0',
+  Ahmad: '#f0c77e',
+  'Abu Yazan': '#d2aee6',
+  Layla: '#f2a293',
+  Fadi: '#a6dcae',
+  'The old man': '#e3d3a8',
+  'Walkie-talkie': '#cfd4d8',
+  'The medic': '#94dcd6',
+  'The man': '#e8b98f',
+  'The man with the tyre': '#f0a36c',
+  'The spotter': '#bccb8a',
+  'Walkie-talkie man': '#dcb6a0',
+};
+const PALETTE = ['#b7d98c', '#f3b6c8', '#9fc9d9', '#e6c89a', '#c2b4f0'];
+function whoColour(who) {
+  const en = who[1];
+  if (WHO_COLOURS[en]) return WHO_COLOURS[en];
+  let h = 0;
+  for (const ch of en) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}
+
+return { Text, whoColour };
 })();
 
 // ---- src/engine/input.js
@@ -2993,7 +3121,7 @@ const ACTIONS = [
   ['interact', 'Interact / examine', 'تفاعل / تفحّص'],
   ['tool', 'Next tool', 'الأداة التالية'],
   ['use', 'Use tool (hold to crank the torch)', 'استخدم الأداة (اضغط مطوّلاً لشحن المصباح)'],
-  ['skip', 'Skip line (hold)', 'تخطَّ الحوار (مع الضغط المستمر)'],
+  ['skip', 'Next line (hold to keep skipping)', 'السطر التالي (اضغط باستمرار لمتابعة التخطّي)'],
   ['menu', 'Menu', 'القائمة'],
 ];
 
@@ -3162,6 +3290,7 @@ const DEFAULTS = {
   vibration: true,
   focusCam: true, // the camera leans towards things to interact with
   outlines: true, // and they get a thin outline
+  dof: 'bokeh', // depth blur for things far down a street: 'bokeh' | 'soft' | 'off'
   lang: 'en', // menu language: 'en' | 'ar'
   backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
   quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'
@@ -3776,7 +3905,7 @@ const __src_rigs_person = (() => {
 // the way the figure faces; the torso leans positive forward. Drawn in a
 // local frame with the hip at the origin.
 
-const { clamp, lerp } = __src_engine_util;
+const { clamp, lerp, smooth } = __src_engine_util;
 const { limb, shade } = __src_rigs_shapes;
 // Segment lengths. Adults stand about 170 units tall.
 const L = { thigh: 41, shin: 40, torso: 54, neck: 6, head: 10.4, upper: 28, fore: 26 };
@@ -3814,6 +3943,9 @@ const OUTFITS = {
 
 // Poses. `seat` (optional) holds the hip at that height above the ground,
 // for sitting on something.
+// Hip height lying flat on the belly.
+const PRONE_HIP = 17.5;
+
 const POSES = {
   stand: { torso: 0.02, head: 0, thighN: 0.05, shinN: 0.02, thighF: -0.06, shinF: -0.06, armN: 0.05, foreN: 0.16, armF: -0.05, foreF: 0.06 },
   // a low, cautious crouch: hips dropped, knees over the toes, the far leg
@@ -3930,22 +4062,28 @@ function crouchWalkPose(p) {
   };
 }
 
-// Elbow-and-knee crawl: opposite arm and leg reach together.
+// Elbow-and-knee crawl, as soldiers are taught it: flat on the belly, the
+// body never lifts. Opposite arm and leg work together: one forearm reaches
+// ahead and plants while the other knee slides up along the ground (the
+// lower leg folding up behind), then they push and the other pair reaches.
+// Every curve is a smooth half-cosine, so nothing snaps at the turn.
 function crawlPose(p) {
   const c = POSES.prone;
-  const s = Math.sin(p);
-  const reachN = Math.max(0, s);
-  const reachF = Math.max(0, -s);
+  const e = (x) => (1 - Math.cos(x)) / 2;
+  const reachN = e(p);
+  const reachF = e(p + Math.PI);
   return {
     ...c,
-    thighN: c.thighN + 0.35 * reachF,
-    shinN: c.shinN + 0.55 * reachF,
-    thighF: c.thighF + 0.35 * reachN,
-    shinF: c.shinF + 0.55 * reachN,
-    armN: c.armN + 0.3 * reachN - 0.1,
-    foreN: c.foreN + 0.2 * reachN,
-    armF: c.armF + 0.3 * reachF - 0.1,
-    foreF: c.foreF + 0.2 * reachF,
+    torso: c.torso + 0.03 * Math.sin(2 * p),
+    head: c.head + 0.05 * Math.sin(2 * p),
+    armN: c.armN - 0.15 + 0.45 * reachN,
+    foreN: c.foreN + 0.1 - 0.35 * reachN,
+    armF: c.armF - 0.15 + 0.45 * reachF,
+    foreF: c.foreF + 0.1 - 0.35 * reachF,
+    thighF: c.thighF + 0.3 * reachN,
+    shinF: c.shinF - 0.7 * reachN,
+    thighN: c.thighN + 0.3 * reachF,
+    shinN: c.shinN - 0.7 * reachF,
   };
 }
 
@@ -4069,7 +4207,12 @@ class Person {
     if (this.pose.seat != null) return this.pose.seat;
     // Lowest of feet, knees and the torso itself, so poses blend smoothly
     // from standing to kneeling to lying flat.
-    return Math.max(j.footN[1] + footDrop(this.pose.shinN), j.footF[1] + footDrop(this.pose.shinF), j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
+    const h = Math.max(j.footN[1] + footDrop(this.pose.shinN), j.footF[1] + footDrop(this.pose.shinF), j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
+    // lying down, the belly is on the ground whatever the legs are doing (a
+    // crawl draws the knees up, and must not lift the body with them)
+    const lying = smooth(1.05, 1.45, this.pose.torso ?? 0);
+    // (but never so low that a foot still under the body goes into the ground)
+    return Math.max(lerp(h, PRONE_HIP, lying), j.footN[1] + footDrop(this.pose.shinN) + 4, j.footF[1] + footDrop(this.pose.shinF) + 4);
   }
 
   hip() {
@@ -5177,6 +5320,8 @@ const __src_world_walker = (() => {
 const { Person, POSES, walkPose, crouchWalkPose, crawlPose, blendPose } = __src_rigs_person;
 const { clamp, lerp, smooth } = __src_engine_util;
 const HEIGHT = { stand: 170, crouch: 122, prone: 48 };
+// halfway to the ground: on one knee, leaning forward onto the hands
+const KNEEL_DOWN = { ...POSES.kneel, torso: 0.62, head: -0.2, armN: 1.25, foreN: 1.35, armF: 1.1, foreF: 1.25 };
 const SPEED = { stand: 162, run: 310, crouch: 84, prone: 42, carry: 98 };
 const GRAVITY = 2600;
 const JUMP_V = 640;
@@ -5434,8 +5579,19 @@ class Walker {
       }
     }
 
-    // smooth stance changes
-    this.cur = this.cur ? blendPose(this.cur, target, clamp(dt * 14)) : { ...target };
+    // Stance changes take their time (about half a second), and going
+    // between standing and lying passes through a kneel, hands going down
+    // first, as a body really drops to the ground and gets up again.
+    if (this.stance !== this.lastStance) {
+      this.stanceFrom = this.lastStance;
+      this.lastStance = this.stance;
+      this.stanceT = this.cur ? 0.55 : 0;
+    }
+    this.stanceT = Math.max(0, (this.stanceT || 0) - dt);
+    const deep = (this.stanceFrom === 'stand' && this.stance === 'prone') || (this.stanceFrom === 'prone' && this.stance === 'stand');
+    if (deep && this.stanceT > 0.27 && this.onGround && !this.override) target = KNEEL_DOWN;
+    const rate = this.stanceT > 0 ? 7 : 14;
+    this.cur = this.cur ? blendPose(this.cur, target, clamp(dt * rate)) : { ...target };
     let final = this.cur;
     if (this.override) {
       this.overrideBlend = Math.min(this.overrideBlend + dt * 4, 1);
@@ -5687,6 +5843,8 @@ class Game {
     this.text.prompt(null);
     this.text.hint(0, 0, '', null);
     this.promptInfo = null;
+    this.anchor = null;
+    this.floatAt = null;
     this.skipId = 0;
     this.text.objective(null);
     act.build(this);
@@ -5755,9 +5913,32 @@ class Game {
     return dur == null ? this.readTime(line) : Math.max(dur * k, k < 1 ? this.readTime(line) : 0);
   }
 
+  // Examine and item text floats over the thing Sami last reached for (or
+  // over Sami himself); everything else is a subtitle.
+  show(who, line, d, style) {
+    if (!who && (style === 'examine' || style === 'item')) {
+      const a = this.anchor;
+      this.floatAt = a && this.time - this.anchorAt < 12 && Math.abs(a.x + (a.bx || 0) - this.player.x) < 320 ? a : null;
+      return this.text.float(line, d, style);
+    }
+    return this.text.say(who, line, d, style);
+  }
+
+  // Where the floating caption sits, in world space: above the thing, or
+  // above Sami's head.
+  floatPoint() {
+    const a = this.floatAt;
+    if (a) {
+      const h = (a.box || [90, 90])[1];
+      return [a.x + (a.bx || 0), a.y + (a.by || 0) - h / 2 - 14];
+    }
+    const p = this.player;
+    return [p.x, p.y - 200];
+  }
+
   *say(who, line, dur = null, style = '') {
     const d = this.dur(line, dur);
-    const id = this.text.say(who, line, d, style);
+    const id = this.show(who, line, d, style);
     this.sound.score?.speak(d);
     const end = this.time + d;
     // held Skip moves on once the line has been up a moment
@@ -5767,7 +5948,7 @@ class Game {
   // Show a line without waiting for it.
   line(who, line, dur = null, style = '') {
     const d = this.dur(line, dur);
-    this.text.say(who, line, d, style);
+    this.show(who, line, d, style);
     this.sound.score?.speak(d);
   }
 
@@ -5882,25 +6063,89 @@ class Game {
     if (!best && this.focusK < 0.01) this.focus = null;
   }
 
-  // A thin, softly breathing outline round the thing in focus.
+  // A thin, softly breathing outline round the thing in focus, following its
+  // shape: a silhouette (sil: draws the thing, e.g. the cat), a traced
+  // outline (points about the box centre), or else its rounded box. Drawn
+  // offscreen, then anyone standing in front of it is cut out of it, so it
+  // never crosses a person.
   drawOutline(R) {
     const t = this.focus;
     const k = this.focusK;
     if (!t || k < 0.02 || this.scene !== 'street' || this.settings.get('outlines') === false || !t.enabled()) return;
-    const [w, h] = t.box || [90, 90];
+    const { W, H } = R;
+    const oc = (this.olc ||= document.createElement('canvas'));
+    if (oc.width !== W || oc.height !== H) {
+      oc.width = W;
+      oc.height = H;
+    }
+    const c = oc.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+    c.clearRect(0, 0, W, H);
+    R.layer(1);
+    const m = R.layers.emit.x.getTransform();
+    const a = k * (0.8 + 0.2 * Math.sin(this.time * 3));
     const cx = t.x + (t.bx || 0);
     const cy = t.y + (t.by || 0);
-    const a = k * (0.8 + 0.2 * Math.sin(this.time * 3));
-    R.layer(1);
-    R.glow((c) => {
+    if (t.sil) {
+      // a silhouette's edge: the shape, spread a few pixels, less the shape
+      const mc = (this.olm ||= document.createElement('canvas'));
+      if (mc.width !== W || mc.height !== H) {
+        mc.width = W;
+        mc.height = H;
+      }
+      const x = mc.getContext('2d');
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.clearRect(0, 0, W, H);
+      x.setTransform(m);
+      t.sil(x);
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.globalCompositeOperation = 'source-in';
+      x.fillStyle = '#fff';
+      x.fillRect(0, 0, W, H);
+      x.globalCompositeOperation = 'source-over';
+      const r = Math.max(1.5, W / 700);
+      c.globalAlpha = 0.55 * a;
+      for (let q = 0; q < 12; q++) {
+        const ang = (q / 12) * Math.PI * 2;
+        c.drawImage(mc, Math.cos(ang) * r, Math.sin(ang) * r);
+      }
+      c.globalAlpha = 1;
+      c.globalCompositeOperation = 'destination-out';
+      c.drawImage(mc, 0, 0);
+      c.globalCompositeOperation = 'source-over';
+    } else {
+      c.setTransform(m);
       c.beginPath();
-      c.roundRect(cx - w / 2, cy - h / 2, w, h, Math.min(14, w / 4, h / 4));
+      if (t.outline) {
+        const pts = t.outline;
+        c.moveTo(cx + pts[0][0], cy + pts[0][1]);
+        for (let q = 1; q < pts.length; q++) c.lineTo(cx + pts[q][0], cy + pts[q][1]);
+        c.closePath();
+      } else {
+        const [w, h] = t.box || [90, 90];
+        c.roundRect(cx - w / 2, cy - h / 2, w, h, Math.min(14, w / 4, h / 4));
+      }
+      c.lineJoin = 'round';
       c.strokeStyle = `rgba(255, 244, 214, ${0.1 * a})`;
       c.lineWidth = 6;
       c.stroke();
       c.strokeStyle = `rgba(255, 246, 222, ${0.55 * a})`;
       c.lineWidth = 1.6;
       c.stroke();
+    }
+    // cut out everyone standing in front
+    c.setTransform(m);
+    c.globalCompositeOperation = 'destination-out';
+    const who = [this.player, ...this.npcs];
+    for (const w of who) if (w.visible !== false && !w.depthK && Math.abs(w.x - cx) < 600) w.draw(c);
+    if (this.cat && !this.cat.hidden && !t.sil) this.cat.draw(c);
+    c.globalCompositeOperation = 'source-over';
+    R.glow((e) => {
+      e.save();
+      e.setTransform(1, 0, 0, 1, 0, 0);
+      e.drawImage(oc, 0, 0);
+      e.restore();
     });
   }
 
@@ -5948,7 +6193,7 @@ class Game {
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
       } else if (stance === 'stand' && p.stance !== 'stand' && told) {
-        this.text.say(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
+        this.line(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
       p.update(dt, {});
@@ -5978,14 +6223,24 @@ class Game {
     this.cam.y = lerp(this.cam.y, target.y ?? -205, k);
     this.cam.view = lerp(this.cam.view, target.view ?? 1300, k);
     this.shake = Math.max(0, this.shake - dt * 1.4);
+    // the floating caption follows its thing
+    if (!this.text.floatEl.hidden) {
+      const [fx, fy] = this.floatPoint();
+      const [u, v] = this.R.cam.toUv(fx, fy, this.R.W, this.R.H);
+      this.text.placeFloat(u, v);
+    }
 
     // prompts step aside once obeyed, or after a while
     this.updatePrompt(dt);
 
-    // hold Skip to move through dialogue (never through a choice)
-    if (input.held('skip') && !this.text.choiceOpen && !this.text.sub.hidden && performance.now() - (this.text.lineStart || 0) > 350) {
-      this.skipId = this.text.lineId;
-      this.text.clearLine();
+    // Skip: one press moves on to the next line (never past a choice), and
+    // holding it keeps going, a line at a time
+    if (!this.text.choiceOpen && this.text.lineUp()) {
+      const up = performance.now() - (this.text.lineStart || 0);
+      if ((input.hit('skip') && up > 150) || (input.held('skip') && up > 550)) {
+        this.skipId = this.text.lineId;
+        this.text.clearLine();
+      }
     }
   }
 
@@ -6026,7 +6281,8 @@ class Game {
 
   interact() {
     const p = this.player;
-    const t = !this.locked && this.scene === 'street' && !this.text.choiceOpen ? this.level.nearest(p.x) : null;
+    // (no hint while what Sami made of a thing is still floating over it)
+    const t = !this.locked && this.scene === 'street' && !this.text.choiceOpen && this.text.floatEl.hidden ? this.level.nearest(p.x) : null;
     if (!t) {
       this.text.hint(0, 0, '', null);
       return;
@@ -6035,6 +6291,8 @@ class Game {
     const key = keyLabel(this.input.bindings().interact?.[0]);
     this.text.hint(u, v, key, t.label);
     if (this.input.hit('interact')) {
+      this.anchor = t;
+      this.anchorAt = this.time;
       t.use(this);
       // an examine point: remember it, and what Sami made of it
       if (t.look) this.onNotice?.(t.id, t.lookText || this.text.log[this.text.log.length - 1]?.line);
@@ -6640,8 +6898,9 @@ function block(R, spec, t = 0) {
       c.fillRect(x, -f * fh - 6, w, 8);
     }
 
-    // windows
+    // windows (and on the ground floor, a door or two)
     const cols = Math.max(2, Math.round(w / 110));
+    const doorCols = spec.shopFront || spec.noDoors ? new Map() : pickDoors(cols, seed);
     const ww = Math.min(58, (w / cols) * 0.5);
     const wh = fh * 0.46;
     for (let f = 0; f < floors; f++) {
@@ -6650,6 +6909,11 @@ function block(R, spec, t = 0) {
         const wy = -f * fh - fh * 0.72;
         const kind = r();
         if (f === 0 && spec.shopFront) continue;
+        if (f === 0 && doorCols.has(k)) {
+          const dw = Math.min(74, (w / cols) * 0.62);
+          syrianDoor(c, x + ((k + 0.5) * w) / cols, dw, fh * 0.8, doorCols.get(k), seed * 7 + k);
+          continue;
+        }
         if (kind < 0.12) {
           // blown out: ragged dark hole
           c.fillStyle = '#1b1612';
@@ -6961,31 +7225,114 @@ function street(R, x0, x1, { color = '#6e6559', pave = '#8a8072' } = {}) {
   });
 }
 
-// Cables sagging across the street between the blocks, and some broken ones
-// hanging. Cast, so they throw thin shadows.
+// Wooden electricity poles along the street, some leaning after years of
+// blasts, with cables strung between them. Every cable ends somewhere: at
+// the next pole, at a bracket where it goes into a building, or snapped and
+// hanging to the ground. Cast, so they throw shadows.
 function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000 } = {}) {
+  // the poles first: where they stand, how they lean, where the arm is
+  const r = rng(seed);
+  const poles = [];
+  for (let x = from + r() * 200; x < to; x += 620 + r() * 420) {
+    const lean = r() < 0.35 ? (r() - 0.5) * 0.22 : (r() - 0.5) * 0.04;
+    const h = 430 + r() * 50;
+    poles.push({ x, lean, h, top: [x + Math.sin(lean) * h, -Math.cos(lean) * h] });
+  }
+  // what each span between neighbours does
+  const spans = poles.slice(0, -1).map((p, i) => ({ a: p, b: poles[i + 1], kind: r(), wires: 2 + Math.floor(r() * 2), sag: 30 + r() * 40, k: r() }));
+  const armY = (p, n) => [p.top[0] + Math.sin(p.lean) * (14 + n * 12), p.top[1] + Math.cos(p.lean) * (14 + n * 12)];
+  const vis = (x0, x1) => x1 > camX - 1700 && x0 < camX + 1700;
+
   R.cast((c) => {
-    const r = rng(seed);
-    c.strokeStyle = 'rgba(28,24,22,0.85)';
-    c.lineWidth = 1.4;
-    for (let x = from; x < to; x += 260 + r() * 260) {
-      const span = 180 + r() * 260;
-      const y0 = y + (r() - 0.5) * 80;
-      const y1 = y0 + (r() - 0.5) * 60;
-      const hang = r();
-      const drop = r();
-      if (x + span < camX - 1600 || x > camX + 1600) continue;
-      c.beginPath();
-      c.moveTo(x, y0);
-      c.quadraticCurveTo(x + span / 2, Math.max(y0, y1) + 30 + hang * 40, x + span, y1);
-      c.stroke();
-      if (drop < 0.3) {
-        // snapped, hanging down
-        c.beginPath();
-        c.moveTo(x + span * 0.7, y1 + 10);
-        c.quadraticCurveTo(x + span * 0.72, y1 + 60, x + span * 0.66, y1 + 100 + drop * 200);
-        c.stroke();
+    c.lineCap = 'round';
+    for (const s of spans) {
+      if (!vis(s.a.x, s.b.x)) continue;
+      c.strokeStyle = 'rgba(26,22,20,0.9)';
+      c.lineWidth = 1.4;
+      for (let n = 0; n < s.wires; n++) {
+        const [ax, ay] = armY(s.a, n);
+        const [bx, by] = armY(s.b, n);
+        const sag = s.sag + n * 6;
+        if (s.kind < 0.6) {
+          // strung between the two poles
+          c.beginPath();
+          c.moveTo(ax, ay);
+          c.quadraticCurveTo((ax + bx) / 2, Math.max(ay, by) + sag, bx, by);
+          c.stroke();
+        } else if (s.kind < 0.8) {
+          // off the pole and into the building: a bracket on the wall and a hole
+          const wx = ax + (bx - ax) * (0.3 + s.k * 0.4) + n * 18;
+          const wy = -230 - s.k * 120 + n * 10;
+          c.beginPath();
+          c.moveTo(ax, ay);
+          c.quadraticCurveTo((ax + wx) / 2, Math.max(ay, wy) + sag * 0.6, wx, wy);
+          c.stroke();
+          c.fillStyle = '#1c1714';
+          c.fillRect(wx - 2, wy - 2, 5, 5);
+          c.fillStyle = 'rgba(60,50,42,0.9)';
+          c.fillRect(wx - 5, wy + 3, 11, 2.5);
+        } else {
+          // snapped: each end hangs from its pole, down to the ground
+          for (const [px, py, dir] of [[ax, ay, 1], [bx, by, -1]]) {
+            const len = (bx - ax) * (0.18 + s.k * 0.2 + n * 0.05);
+            c.beginPath();
+            c.moveTo(px, py);
+            c.bezierCurveTo(px + dir * len * 0.5, py + 40, px + dir * len * 0.9, py * 0.35, px + dir * len, -2);
+            // the last of it lying along the ground
+            c.lineTo(px + dir * (len + 30 + n * 12), 0);
+            c.stroke();
+          }
+        }
       }
+    }
+    // the poles, over their own wires' ends
+    for (const p of poles) {
+      if (!vis(p.x - 60, p.x + 60)) continue;
+      c.save();
+      c.translate(p.x, 0);
+      c.rotate(p.lean);
+      // a tarred wooden pole, thicker at the foot
+      const g = c.createLinearGradient(-6, 0, 6, 0);
+      g.addColorStop(0, '#3a2c20');
+      g.addColorStop(0.45, '#5a4532');
+      g.addColorStop(1, '#2e241b');
+      c.fillStyle = g;
+      c.beginPath();
+      c.moveTo(-6.5, 2);
+      c.lineTo(-4.5, -p.h);
+      c.lineTo(4.5, -p.h);
+      c.lineTo(6.5, 2);
+      c.fill();
+      // grain and old nails, a blackened band where it was burned
+      c.strokeStyle = 'rgba(20,14,10,0.35)';
+      c.lineWidth = 0.8;
+      c.beginPath();
+      c.moveTo(-1.5, 0);
+      c.lineTo(-1, -p.h);
+      c.moveTo(2, 0);
+      c.lineTo(1.6, -p.h);
+      c.stroke();
+      c.fillStyle = 'rgba(15,10,8,0.55)';
+      c.fillRect(-6, -60, 12, 16);
+      // cross-arms with insulators
+      c.fillStyle = '#3e3024';
+      for (let n = 0; n < 2; n++) {
+        const yy = -p.h + 12 + n * 12;
+        c.fillRect(-24, yy, 48, 5);
+        c.fillStyle = '#c8c2b4';
+        for (const ix of [-20, 18]) c.fillRect(ix, yy - 5, 3, 5);
+        c.fillStyle = '#3e3024';
+      }
+      // a transformer box on some, and posters stapled on
+      if (Math.abs(p.lean) < 0.05 && ((p.x | 0) % 3 === 0)) {
+        c.fillStyle = '#5e6364';
+        c.fillRect(6, -p.h * 0.62, 18, 26);
+        c.fillStyle = 'rgba(0,0,0,0.3)';
+        c.fillRect(6, -p.h * 0.62 + 22, 18, 4);
+      }
+      c.fillStyle = 'rgba(225,215,195,0.55)';
+      c.fillRect(-5, -150, 10, 14);
+      c.restore();
     }
   });
 }
@@ -7511,7 +7858,176 @@ function jetShadowShape(c, x, y, s) {
   c.restore();
 }
 
-return { CONCRETE, sky, skyline, minaret, plume, block, shade, street, cables, foreground, motes, rubble, sniperCurtain, shop, vine, school, roomDoor, jerryCan, scrapPiles, crater, deadOlive, lowWall, jet, jetShadowShape };
+// ------------------------------------------------------------- doors --
+
+// Which ground-floor bays are doors, and of what kind: one on a narrow
+// block, two on a wide one; the same every time for the same building.
+const DOOR_KINDS = ['steel', 'wood', 'shutter', 'gate', 'steel', 'shutter'];
+function pickDoors(cols, seed) {
+  const r = rng(seed * 13 + 5);
+  const doors = new Map();
+  const n = cols >= 4 ? 2 : 1;
+  for (let i = 0; i < n; i++) {
+    const k = Math.floor(r() * cols);
+    doors.set(k, DOOR_KINDS[Math.floor(r() * DOOR_KINDS.length)]);
+  }
+  return doors;
+}
+
+// A Syrian street door, centred on x, standing on the ground (y = 0).
+//   steel: painted sheet steel, double leaf, raised panels, a small grille
+//          at head height (the common block entrance), paint flaking;
+//   wood: an old Damascene door, planked, iron studs in rows, under a
+//         pointed stone arch with a stone step;
+//   shutter: a rolling steel shop shutter, ribbed, often half raised;
+//   gate: a wrought-iron door with a geometric grille over dark glass.
+function syrianDoor(c, x, w, h, kind, seed = 1) {
+  const r = rng(seed);
+  const x0 = x - w / 2;
+  const top = -h;
+  // a stone surround and step, for all of them
+  c.fillStyle = 'rgba(220,208,186,0.55)';
+  c.fillRect(x0 - 7, top - 7, w + 14, h + 7);
+  c.fillStyle = '#b3a589';
+  c.fillRect(x0 - 12, -6, w + 24, 8);
+  c.fillStyle = 'rgba(0,0,0,0.25)';
+  c.fillRect(x0 - 12, -7, w + 24, 1.5);
+  const paint = ['#3f6b5a', '#35566e', '#6a4a3a', '#5a6a3e', '#7a3f38', '#44505a'][Math.floor(r() * 6)];
+  if (kind === 'wood') {
+    // pointed (Damascene) arch
+    const archH = w * 0.45;
+    c.fillStyle = '#c9bb9d';
+    c.beginPath();
+    c.moveTo(x0 - 7, top + archH);
+    c.quadraticCurveTo(x0 - 7, top - 6, x, top - archH * 0.5);
+    c.quadraticCurveTo(x0 + w + 7, top - 6, x0 + w + 7, top + archH);
+    c.fill();
+    c.fillStyle = '#4a3322';
+    c.beginPath();
+    c.moveTo(x0, 0);
+    c.lineTo(x0, top + archH);
+    c.quadraticCurveTo(x0, top + 2, x, top - archH * 0.35);
+    c.quadraticCurveTo(x0 + w, top + 2, x0 + w, top + archH);
+    c.lineTo(x0 + w, 0);
+    c.fill();
+    // planks
+    c.strokeStyle = 'rgba(20,12,6,0.45)';
+    c.lineWidth = 1;
+    for (let px = x0 + w / 6; px < x0 + w; px += w / 6) {
+      c.beginPath();
+      c.moveTo(px, 0);
+      c.lineTo(px, top + archH * 0.4);
+      c.stroke();
+    }
+    // the two leaves, and iron studs in rows
+    c.strokeStyle = 'rgba(15,10,5,0.7)';
+    c.lineWidth = 1.6;
+    c.beginPath();
+    c.moveTo(x, 0);
+    c.lineTo(x, top + archH * 0.1);
+    c.stroke();
+    c.fillStyle = '#1a1511';
+    for (let sy = top + archH + 8; sy < -10; sy += h / 7) {
+      for (let sx = x0 + 6; sx < x0 + w - 3; sx += w / 5) {
+        c.beginPath();
+        c.arc(sx, sy, 1.6, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    // a ring knocker
+    c.strokeStyle = '#1a1511';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.arc(x + w * 0.2, top + h * 0.5, 3.5, 0, Math.PI * 2);
+    c.stroke();
+    return;
+  }
+  if (kind === 'shutter') {
+    // the dark shop behind, then the shutter rolled part way down
+    c.fillStyle = '#16120f';
+    c.fillRect(x0 - 4, top, w + 8, h);
+    const down = 0.35 + r() * 0.65;
+    c.fillStyle = ['#8a8a84', '#7d8a8e', '#9a8f7a'][Math.floor(r() * 3)];
+    c.fillRect(x0 - 4, top, w + 8, h * down);
+    c.fillStyle = 'rgba(0,0,0,0.22)';
+    for (let sy = top + 3; sy < top + h * down; sy += 4.5) c.fillRect(x0 - 4, sy, w + 8, 1.2);
+    // the box it rolls into, a dent, a padlock at the bottom rail
+    c.fillStyle = '#6a6862';
+    c.fillRect(x0 - 8, top - 10, w + 16, 12);
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    c.beginPath();
+    c.ellipse(x0 + w * (0.3 + r() * 0.4), top + h * down * 0.6, 7, 4, 0.3, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#4a4540';
+    c.fillRect(x - 3, top + h * down - 4, 6, 7);
+    return;
+  }
+  if (kind === 'gate') {
+    c.fillStyle = '#141414';
+    c.fillRect(x0, top, w, h);
+    c.fillStyle = 'rgba(120,140,150,0.18)';
+    c.fillRect(x0 + 3, top + 3, w - 6, h * 0.62);
+    // geometric grille: a lattice of diamonds over the glass
+    c.strokeStyle = '#2a2826';
+    c.lineWidth = 2;
+    c.strokeRect(x0 + 2, top + 2, w - 4, h - 4);
+    c.lineWidth = 1.3;
+    c.beginPath();
+    const step = w / 4;
+    for (let d = -h; d < w + h; d += step) {
+      c.moveTo(x0 + d, top);
+      c.lineTo(x0 + d + h * 0.62, top + h * 0.62);
+      c.moveTo(x0 + d, top + h * 0.62);
+      c.lineTo(x0 + d + h * 0.62, top);
+    }
+    c.save();
+    c.beginPath();
+    c.rect(x0 + 2, top + 2, w - 4, h * 0.62);
+    c.clip();
+    c.stroke();
+    c.restore();
+    c.fillStyle = '#2a2826';
+    c.fillRect(x0 + 2, top + h * 0.62, w - 4, h * 0.38 - 2);
+    c.fillStyle = '#3a3632';
+    c.fillRect(x0 + 5, top + h * 0.66, w - 10, h * 0.3);
+    return;
+  }
+  // steel: double leaf, raised panels, a grille window, flaking paint
+  c.fillStyle = paint;
+  c.fillRect(x0, top, w, h);
+  c.strokeStyle = 'rgba(0,0,0,0.45)';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(x, top);
+  c.lineTo(x, 0);
+  c.stroke();
+  c.strokeStyle = 'rgba(255,255,255,0.14)';
+  c.lineWidth = 1;
+  for (const lx of [x0 + 4, x + 4]) {
+    const pw = w / 2 - 8;
+    c.strokeRect(lx, top + h * 0.34, pw, h * 0.26);
+    c.strokeRect(lx, top + h * 0.66, pw, h * 0.28);
+  }
+  // the small grille at head height
+  c.fillStyle = '#15120f';
+  c.fillRect(x0 + 6, top + 8, w - 12, h * 0.2);
+  c.strokeStyle = 'rgba(0,0,0,0.8)';
+  c.lineWidth = 1.2;
+  c.beginPath();
+  for (let gx = x0 + 10; gx < x0 + w - 6; gx += 5) {
+    c.moveTo(gx, top + 8);
+    c.lineTo(gx, top + 8 + h * 0.2);
+  }
+  c.stroke();
+  // flaking paint and rust at the bottom
+  c.fillStyle = 'rgba(150,90,50,0.45)';
+  for (let i = 0; i < 6; i++) c.fillRect(x0 + r() * (w - 6), -8 - r() * h * 0.35, 2 + r() * 5, 1.5 + r() * 3);
+  // handle
+  c.fillStyle = '#c9b48a';
+  c.fillRect(x + 3, top + h * 0.55, 6, 2);
+}
+
+return { CONCRETE, sky, skyline, minaret, plume, block, shade, street, cables, foreground, motes, rubble, sniperCurtain, shop, vine, school, roomDoor, jerryCan, scrapPiles, crater, deadOlive, lowWall, jet, jetShadowShape, syrianDoor };
 })();
 
 // ---- src/sets/horizon.js
@@ -7855,6 +8371,133 @@ function rgbOf(str) {
 return { horizon, rgbOf };
 })();
 
+// ---- src/engine/dof.js
+const __src_engine_dof = (() => {
+// Depth of field: things far down a street go soft, the deeper the softer.
+// The thing is drawn offscreen (only the part of the screen it covers),
+// blurred, and laid into the renderer's layers as if drawn normally.
+//
+// Two looks: 'soft' (a gaussian blur) and 'bokeh' (a disc-shaped blur, as a
+// camera lens makes: light edges spread into round, even discs rather than
+// fading haze). 'off' draws sharp.
+
+const pool = [document.createElement('canvas'), document.createElement('canvas')];
+const fit = (c, w, h) => {
+  if (c.width < w) c.width = Math.ceil(w / 64) * 64;
+  if (c.height < h) c.height = Math.ceil(h / 64) * 64;
+  const x = c.getContext('2d');
+  x.setTransform(1, 0, 0, 1, 0, 0);
+  x.globalCompositeOperation = 'source-over';
+  x.globalAlpha = 1;
+  x.filter = 'none';
+  x.clearRect(0, 0, w, h);
+  return x;
+};
+
+// the disc: the centre, a ring of 6 at half the radius and 12 at the edge
+const DISC = [[0, 0]];
+for (let i = 0; i < 6; i++) DISC.push([0.5 * Math.cos((i / 6) * Math.PI * 2), 0.5 * Math.sin((i / 6) * Math.PI * 2)]);
+for (let i = 0; i < 12; i++) DISC.push([Math.cos((i / 12) * Math.PI * 2 + 0.26), Math.sin((i / 12) * Math.PI * 2 + 0.26)]);
+
+// fn: draws the thing in world space. box: [x0, y0, x1, y1], its world
+// bounds. k: 0 (sharp) … 1 (as far as it goes). opts.mode: 'bokeh' | 'soft'
+// | 'off'; opts.alpha fades it; opts.cast: false for scenery that casts no
+// shadow (paint); opts.mask(ctx): a world-space gradient, where the blur
+// applies (drawn over the sharp version).
+function depthCast(R, fn, box, k, { mode = 'bokeh', alpha = 1, cast = true, mask = null } = {}) {
+  const radius = k * R.W * 0.009;
+  if (mode === 'off' || radius < 0.6) {
+    if (alpha >= 0.999) {
+      if (cast) R.cast(fn);
+      else R.paint(fn);
+      return;
+    }
+  }
+  const m = R.layers.alb.x.getTransform();
+  // the screen rectangle the thing covers, with room for the blur
+  const pts = [
+    [box[0], box[1]],
+    [box[2], box[1]],
+    [box[0], box[3]],
+    [box[2], box[3]],
+  ].map(([x, y]) => [m.a * x + m.c * y + m.e, m.b * x + m.d * y + m.f]);
+  const pad = Math.ceil(radius + 2);
+  const sx = Math.floor(Math.min(...pts.map((p) => p[0]))) - pad;
+  const sy = Math.floor(Math.min(...pts.map((p) => p[1]))) - pad;
+  const w = Math.ceil(Math.max(...pts.map((p) => p[0]))) + pad - sx;
+  const h = Math.ceil(Math.max(...pts.map((p) => p[1]))) + pad - sy;
+  if (w <= 0 || h <= 0 || w > R.W * 2 || h > R.H * 2) return;
+  const [A, B] = pool;
+  const a = fit(A, w, h);
+  a.setTransform(m.a, m.b, m.c, m.d, m.e - sx, m.f - sy);
+  fn(a);
+  const b = fit(B, w, h);
+  if (mode === 'off' || radius < 0.6) b.drawImage(A, 0, 0);
+  else if (mode === 'soft') {
+    b.filter = `blur(${radius.toFixed(2)}px)`;
+    b.drawImage(A, 0, 0);
+    b.filter = 'none';
+  } else {
+    // a disc kernel: the average of the thing shifted over a disc, kept as a
+    // running mean (sample i at weight 1/(i+1)) so 8-bit colour doesn't drift
+    DISC.forEach(([dx, dy], i) => {
+      b.globalAlpha = 1 / (i + 1);
+      b.drawImage(A, dx * radius, dy * radius);
+    });
+    b.globalAlpha = 1;
+  }
+  if (mask) {
+    // blur only where the mask says (the far end); the sharp version is drawn first
+    b.globalCompositeOperation = 'destination-in';
+    b.setTransform(m.a, m.b, m.c, m.d, m.e - sx, m.f - sy);
+    mask(b);
+    b.setTransform(1, 0, 0, 1, 0, 0);
+    b.globalCompositeOperation = 'source-over';
+    if (cast) R.cast(fn);
+    else R.paint(fn);
+  }
+  const put = (ctx, op) => {
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = op;
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(B, 0, 0, w, h, sx, sy, w, h);
+    ctx.restore();
+  };
+  put(R.layers.alb.x, 'source-over');
+  put(R.layers.emit.x, 'destination-out');
+  if (cast) put(R.layers.occ.x, 'source-over');
+}
+
+// A figure's rough world bounds, for depthCast.
+function figureBox(w) {
+  const s = w.rig?.scale ?? 1;
+  const x = w.rig?.x ?? w.x;
+  const y = w.rig?.y ?? w.y;
+  return [x - 80 * s, y - 230 * s, x + 80 * s, y + 10 * s];
+}
+
+// Scenery running away from us to a vanishing point (xc, vy): sharp at the
+// near edge, softer towards the far end.
+function deepScenery(R, fn, box, xc, vy, span, mode = 'bokeh') {
+  if (mode === 'off') return R.paint(fn);
+  depthCast(R, fn, box, 1, {
+    mode,
+    cast: false,
+    mask: (c) => {
+      const grd = c.createRadialGradient(xc, vy, 0, xc, vy, span * 0.6);
+      grd.addColorStop(0, 'rgba(0,0,0,1)');
+      grd.addColorStop(0.3, 'rgba(0,0,0,0.85)');
+      grd.addColorStop(1, 'rgba(0,0,0,0)');
+      c.fillStyle = grd;
+      c.fillRect(box[0] - 50, box[1] - 50, box[2] - box[0] + 100, box[3] - box[1] + 100);
+    },
+  });
+}
+
+return { depthCast, figureBox, deepScenery };
+})();
+
 // ---- src/story/act1-set.js
 const __src_story_act1_set = (() => {
 // Act 1's world: where everything stands, and how each place is drawn and lit.
@@ -7865,6 +8508,7 @@ const __src_story_act1_set = (() => {
 const { lerp, clamp, rng, noise1, mixc, smooth } = __src_engine_util;
 const T = __src_sets_town;
 const { horizon, rgbOf } = __src_sets_horizon;
+const { depthCast, deepScenery, figureBox } = __src_engine_dof;
 const { Person, POSES } = __src_rigs_person;
 const X = {
   start: 150,
@@ -7978,10 +8622,10 @@ function skyStops(k) {
 // ------------------------------------------------------------ side street --
 
 // A street running away from us, into the gap between two blocks.
-function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false } = {}) {
+function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false, mode = 'bokeh' } = {}) {
   const xc = (x0 + x1) / 2;
   const vy = -70;
-  R.paint((c) => {
+  const fn = (c) => {
     // road narrowing to the vanishing point
     c.fillStyle = '#7a7064';
     c.beginPath();
@@ -8030,7 +8674,8 @@ function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false }
       c.lineTo(xc - 25, vy - 86);
       c.fill();
     }
-  });
+  };
+  deepScenery(R, fn, [x0, -520, x1, 4], xc, vy, x1 - x0, mode);
 }
 
 // --------------------------------------------------------------- scenes --
@@ -8043,6 +8688,7 @@ function drawStreet(R, g) {
   const a = g.a;
   const cx = R.cam.x;
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
+  const dof = g.settings.get('dof') || 'bokeh';
 
   T.sky(R, skyStops(a.sunK), { warmth: clamp(a.sunK || 0) });
   const stops = skyStops(a.sunK);
@@ -8116,9 +8762,9 @@ function drawStreet(R, g) {
       c.fillRect(1450, -60, 350, 64); // rubble in the gap, far off
     });
   }
-  if (near(2890, 3320)) sideStreet(R, 2890, 3320, { minaret: true, t });
-  if (near(4930, 5330)) sideStreet(R, 4930, 5330, { curtainWindow: true, t });
-  if (near(9880, 10160)) sideStreet(R, 9880, 10160, { t });
+  if (near(2890, 3320)) sideStreet(R, 2890, 3320, { minaret: true, t, mode: dof });
+  if (near(4930, 5330)) sideStreet(R, 4930, 5330, { curtainWindow: true, t, mode: dof });
+  if (near(9880, 10160)) sideStreet(R, 9880, 10160, { t, mode: dof });
 
   T.street(R, -500, 10800);
   T.cables(R, cx);
@@ -8317,7 +8963,12 @@ function drawStreet(R, g) {
   });
   // passers-by far down the side streets, behind everyone
   for (const w of g.passers || []) {
-    if (w.depth > 0 && near(w.x - 100, w.x + 100)) R.cast((c) => w.draw(c));
+    if (w.depth > 0 && near(w.x - 100, w.x + 100)) depthCast(R, (c) => w.draw(c), figureBox(w), w.depth, { mode: dof, alpha: 1 - smooth(0.8, 1, w.depth) });
+  }
+  // those walking away into depth, behind the street's people: softer as they go
+  for (const w of g.npcs) {
+    if (!w.visible || !w.depthK) continue;
+    depthCast(R, (c) => w.draw(c), figureBox(w), w.depthK, { mode: dof, alpha: 1 - smooth(0.82, 1, w.depthK) });
   }
   for (const w of g.npcs) {
     if (!w.visible || !near(w.x - 100, w.x + 100)) continue;
@@ -8345,14 +8996,10 @@ function drawStreet(R, g) {
     }
   }
   const p = g.player;
-  if (p.visible) {
+  if (p.visible && a.samiDepth) depthCast(R, (c) => p.draw(c), figureBox(p), a.samiDepth, { mode: dof, alpha: 1 - smooth(0.85, 1, a.samiDepth) });
+  else if (p.visible) {
     R.cast((c) => p.draw(c));
     R.shadow((c) => p.draw(c), p.x, p.y, shear, 0.12);
-  }
-  // those walking away into depth
-  for (const w of g.npcs) {
-    if (!w.visible || !w.depthK) continue;
-    R.cast((c) => w.draw(c));
   }
   // the wall around the spotter's window, over him: only his upper body shows
   if (near(X.spotter - 300, X.spotter + 300)) {
@@ -8382,13 +9029,6 @@ function drawStreet(R, g) {
       c.strokeStyle = '#5a4a38';
       c.lineWidth = 3;
       c.strokeRect(W.x0, W.top, W.x1 - W.x0, W.sill - W.top);
-    });
-  }
-  // a building corner the walker passes behind
-  if (a.occluder) {
-    R.paint((c) => {
-      c.fillStyle = '#a5987f';
-      c.fillRect(a.occluder[0], -300, a.occluder[1], 304);
     });
   }
 
@@ -8688,12 +9328,12 @@ const ACT1 = {
     L.ceiling(X.sag0, X.sag1, -150); // the sagged curtain: crouch under it
 
     // --- examine texts from the script ---
-    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, box: [118, 184], bx: 2, by: 64, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
-    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, box: [362, 164], bx: 133, by: 46, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, box: [228, 214], bx: -1, by: 67, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, box: [118, 184], bx: 2, by: 64, outline: [[-54,86],[-56,-10],[-49,-75],[-25,-92],[27,-99],[45,-75],[56,-39],[69,-10],[69,86]], use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
+    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, box: [362, 164], bx: 133, by: 46, outline: [[-178,-80],[-62,-77],[-5,-54],[73,-77],[178,-80],[178,79],[73,79],[73,25],[-61,25],[-61,79],[-178,79]], use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, box: [228, 214], bx: -1, by: 67, outline: [[-100,-105],[101,-105],[101,-74],[111,-63],[111,103],[-110,103],[-110,-63],[-100,-74]], use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
     L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, look: true, box: [100, 60], bx: 2, by: 68, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
     L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, look: true, box: [190, 76], bx: -15, by: 26, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
-    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, box: [320, 270], bx: 29, by: 102, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
+    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, box: [320, 270], bx: 29, by: 102, outline: [[-158,138],[-71,19],[-34,-78],[18,-61],[99,-25],[156,-19],[198,28],[167,138]], use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
       id: 'shard',
       x: X.shard,
@@ -8770,7 +9410,6 @@ const ACT1 = {
         kh.pose(dt, 60);
         kh.rig.x = lerp(X.junction - 10, X.junction + 6, k);
         kh.rig.y = lerp(0, -70, 1 - s);
-        g.a.occluder = k > 0.42 && k < 0.58 ? [X.junction + 10 - 34 * (1 - k), 34] : null;
         if (k >= 1) kh.visible = false;
       } else kh.update(dt, {});
     };
@@ -8917,7 +9556,6 @@ const ACT1 = {
     kh.face('back');
     g.camOverride = { x: X.junction - 80, y: -230, view: 1050 };
     yield () => !kh.visible;
-    g.a.occluder = null;
     // The street is empty. A beat of silence, then the world again.
     g.sound.ambience({ generator: 0, air: 0.1, wind: 0.1 }, 0.5);
     yield 2.5;
@@ -9223,6 +9861,7 @@ const ACT1 = {
       label: ['تحدّث إلى ليلى', 'Talk to Layla'],
       box: [70, 182],
       by: 40,
+      sil: (c) => g.layla?.draw(c),
       enabled: () => !g.a.laylaTalked && !g.a.shelling,
       use: () => {
         g.a.laylaTalked = true;
@@ -9244,6 +9883,7 @@ const ACT1 = {
       range: 110,
       label: ['القطة', 'The cat'],
       look: true,
+      sil: (c) => cat.draw(c),
       box: [74, 84],
       bx: 2,
       by: 19,
@@ -9259,6 +9899,7 @@ const ACT1 = {
       range: 130,
       urgent: true,
       label: ['ملّس عليها', 'Stroke it'],
+      sil: (c) => cat.draw(c),
       box: [74, 84],
       bx: 2,
       by: 19,
@@ -10055,7 +10696,13 @@ function enterDoor(g, w) {
 
 // Now and then, in the calm stretches, someone crosses the mouth of a side
 // street: out of it towards us, or along the street and into it.
-const MOUTHS = [3105, 5130, 10020];
+const MOUTHS = [3105, 10020]; // (not the corner's street: it's exposed to the west)
+// Ground the sniper can see: passers-by run across it, heads down.
+const SNIPED = [
+  [X.curtain0 - 20, X.curtain1 + 20],
+  [X.corner - 20, X.corner + 420],
+];
+const sniped = (x) => SNIPED.some(([a, b]) => x > a && x < b);
 const PASSERS = [
   { outfit: 'man', can: true },
   { outfit: 'woman' },
@@ -10090,7 +10737,8 @@ function streetLife(g, dt) {
       const side = Math.random() < 0.5 ? -1 : 1;
       w.passer = { mouth, dir: Math.random() < 0.5 ? 'out' : 'in', side, phase: 'start' };
       if (w.passer.dir === 'in') {
-        w.place(mouth + side * 900);
+        // from just beyond the edge of the frame, never in view
+        w.place(g.cam.x + side * (g.cam.view / 2 + 160));
         w.f = -side;
       } else {
         w.place(mouth);
@@ -10120,19 +10768,34 @@ function streetLife(g, dt) {
         ps.phase = 'away';
       } else if (ps.dir === 'in' && ps.k >= 1) ps.done = true;
     } else if (ps.phase === 'along') {
-      if (w.goTo(ps.mouth, dt, { speedScale: 0.6 })) {
+      if (w.goTo(ps.mouth, dt, sniped(w.x) ? { run: true } : { speedScale: 0.6 })) {
         w.face('back');
         ps.phase = 'depth';
         ps.k = 0;
         w.baseScale = w.rig.scale;
       }
-    } else if (ps.phase === 'away') {
-      w.goTo(ps.mouth + ps.side * 1000, dt, { speedScale: 0.6 });
-      if (Math.abs(w.x - ps.mouth) > 950) ps.done = true;
+    } else if (ps.phase === 'away' || ps.phase === 'flee') {
+      const run = ps.phase === 'flee' || sniped(w.x);
+      w.goTo(w.x + ps.side * 400, dt, run ? { run: true } : { speedScale: 0.6 });
+      // gone only once out of the frame
+      if (Math.abs(w.x - g.cam.x) > g.cam.view / 2 + 140) ps.done = true;
     }
   }
   g.passers = g.passers.filter((w) => !w.passer.done);
-  if (!calm && (a.shelling || a.drainT0)) g.passers.length = 0;
+  // shelling, or the news: whoever is out hurries off (never just vanishes)
+  if (!calm && (a.shelling || a.drainT0)) {
+    for (const w of g.passers) {
+      const ps = w.passer;
+      if (ps.phase === 'depth') {
+        ps.dir = 'in';
+      } else if (ps.phase !== 'flee') {
+        ps.phase = 'flee';
+        ps.side = w.x < g.cam.x ? -1 : 1;
+        w.face('side');
+        w.f = ps.side;
+      }
+    }
+  }
 }
 
 // A few single shots far to the south, irregular, all afternoon.
@@ -10169,9 +10832,10 @@ const __src_story_act2r_set = (() => {
 // eye. Ahmad lies in School Street under the blanket Um Said put over him:
 // a covered shape, far off. No detail of him is ever drawn.
 
-const { lerp, clamp, rng, mixc } = __src_engine_util;
+const { lerp, clamp, rng, mixc, smooth } = __src_engine_util;
 const T = __src_sets_town;
 const { horizon, rgbOf } = __src_sets_horizon;
+const { depthCast, deepScenery, figureBox } = __src_engine_dof;
 const X = {
   start: 150,
   lanesCp: 900,
@@ -10796,7 +11460,7 @@ function schoolStreet(R, g, t) {
   const xc = (x0 + x1) / 2;
   const vy = -86;
   const at = (k) => ({ s: 1 / (1 + 3.4 * k), x: xc, y: lerp(4, vy, 1 - 1 / (1 + 3.4 * k)) });
-  R.paint((c) => {
+  const road = (c) => {
     // far end: the checkpoint in the last of the light
     c.fillStyle = '#5a5058';
     c.fillRect(x0 + 60, vy - 140, x1 - x0 - 120, 150);
@@ -10880,7 +11544,8 @@ function schoolStreet(R, g, t) {
     c.fillRect(30, -96, 20, 34);
     c.restore();
     void e;
-  });
+  };
+  deepScenery(R, road, [x0, vy - 160, x1, 4], xc, vy, x1 - x0, g.settings.get('dof') || 'bokeh');
   // Ahmad, halfway, under the blanket Um Said put over him: a dark shape
   // at a distance, and nothing more.
   const m = at(0.3);
@@ -11055,7 +11720,7 @@ function drawStreet(R, g) {
       R.shadow((c) => p.draw(c), p.x, p.y, shear, 0.1);
     }
   }
-  for (const w of [p, ...g.npcs]) if (w.visible && w.depthK) R.cast((c) => w.draw(c));
+  for (const w of [p, ...g.npcs]) if (w.visible && w.depthK) depthCast(R, (c) => w.draw(c), figureBox(w), w.depthK, { mode: g.settings.get('dof') || 'bokeh', alpha: 1 - smooth(0.85, 1, w.depthK) });
 
   // --- in front: the cover, the smoke, the bags ---
   if (near(X.wall1[0], X.wall1[1])) T.lowWall(R, X.wall1[0], X.wall1[1] - X.wall1[0], 104, '#a3957c');
@@ -11095,7 +11760,7 @@ const __src_story_act2r_lines = (() => {
 //
 // Lines from script/act2.md (Path A) are final: Damascus dialect, with the
 // English subtitle. A few gameplay barks the script doesn't cover (the
-// sniper lanes, the warning shots, the crawl) are placeholders, marked
+// sniper lanes, the near misses, the crawl) are placeholders, marked
 // `draft: true`; the dialogue log tags those "[draft]". To replace one,
 // change its `ar` and `en` and delete the flag. The code only ever refers
 // to lines by key.
@@ -11126,9 +11791,9 @@ const LINES = {
   lane_intro: d(null, 'فتحة بين بنايتين. من هون بيشوف القنّاص الشارع.', 'A gap between two buildings. From here the sniper can see the street.', 'examine', 5),
   lane_light: d(null, 'وين في شمس، في عين.', 'Where the sun gets through, so does his eye.', 'examine', 3.6),
   lane1_wall: d(null, 'حيط البناية اللي انهدّت. ما ضل منها غير هالحيط، لنص الإجر.', 'All that’s left of the flattened building: this wall, waist-high.', 'examine', 4.5),
-  warn_1: d(null, 'الطلقة فاتت بالحيط قدّامك. تحذير.', 'The round went into the wall ahead of you. A warning.', 'examine', 4),
-  warn_2: d(null, 'عم يشوفك.', 'He can see you.', 'examine', 3),
-  warn_3: d(null, 'مرة تانية. لازم تستنّى.', 'Again. You have to wait.', 'examine', 3),
+  warn_1: d(null, 'الطلقة ضربت بالحيط، شبر عن راسك. ما كان عم يحذّر.', 'The round hit the wall a hand’s width from your head. He wasn’t warning you.', 'examine', 4.5),
+  warn_2: d(null, 'عم يشوفك. وعم يقوّص ليقتل.', 'He can see you. He shoots to kill.', 'examine', 3.4),
+  warn_3: d(null, 'مرة تانية، شبر. لازم تستنّى.', 'A hand’s width, again. You have to wait.', 'examine', 3.4),
   lane2_car: d(null, 'سيارة محروقة. بتغطّي نص الطريق بس.', 'A burnt-out car. It only covers half the way.', 'examine', 4.5),
   lane2_hint: d(null, 'اسمع اللاسلكي. أو طلّع بالمراية.', 'Listen to the radio. Or look with the mirror.', 'examine', 4),
   radio_watch: d('radio', '...عالشبّاك... لسا عالشبّاك...', '...at the window... still at the window...', 'radio', 2.6),
@@ -11152,13 +11817,13 @@ const LINES = {
   shape: s(null, 'شكل مغطّى بحرام، وسط الشارع. لا بقدر وصلّو، ولا بقدر بعد نظري عنو.', 'A shape covered with a blanket, in the middle of the street. I can’t reach him, and I can’t look away.', 'examine', 6.5),
   man_1: s('man', 'إنت سامي؟ صاحب أحمد؟', 'Are you Sami? Ahmad’s friend?', 'whisper', 3.2),
   man_2: s('sami', 'إيه.', 'Yeah.', '', 1.8),
-  man_3: s('man', 'أم سعيد هيي يلي غطّتو. طلعت عليه وهي عارفة إنو القنّاص عم يرصدها. حطّت الحرام وبعدين رجعت. ما رماها. ما بعرف ليش.', 'Um Said is the one who covered him. She went out knowing the sniper was watching. She put the blanket over him and came back. He didn’t shoot her. I don’t know why.', 'whisper', 10),
+  man_3: s('man', 'أم سعيد هيي يلي غطّتو. طلعت عليه وهي عارفة إنو القنّاص عم يرصدها. حطّت الحرام وبعدين رجعت. ما رماها هالمرة. الله أعلم ليش، رمى غيرها قبلها.', 'Um Said is the one who covered him. She went out knowing the sniper was watching. She put the blanket over him and came back. He didn’t shoot her, that time. God knows why. He’s shot others who tried.', 'whisper', 11),
   man_4: s('man', 'ما فينا نجيبو. الشارع مكشوف. القنّاص بالمبنى يلي فيه العلم، عالتلّة. بيشوف كل شي.', 'We can’t get him. The street is exposed. The sniper is in the building with the flag, on the hill. He can see everything.', 'whisper', 7),
 
   // ------------------------------------------ D1: the white cloth --
   sheet: d(null, 'شرشف منشور عالدرابزين. أبيض، أو قريب.', 'A sheet hanging on a balcony rail. White, or near enough.', 'examine', 4),
   rail: d(null, 'سكّة برداية، حديد.', 'A curtain rail. Metal.', 'examine', 3),
-  cloth_item: s(null, 'قماشة بيضا، علامة هدنة. ما بتحمي من الرصاص، بس بتحمي من القرار إنو يرمي.', 'White cloth, a truce signal. It doesn’t stop bullets, but it stops the decision to fire.', 'item', 6.5),
+  cloth_item: s(null, 'قماشة بيضا. الرصاصة ما بتسأل شو رافع. بس ما في غيرها.', 'White cloth. A bullet doesn’t ask what you’re holding up. But it’s all there is.', 'item', 6),
   cloth_1: s('man', 'شو عم تساوي؟', 'What are you doing?', 'whisper', 2.4),
   cloth_2: s('sami', 'بدي احكي معهن.', 'I’m going to talk to them.', '', 2.8),
   cloth_3: s('man', 'مجنون. رح يرموك.', 'You’re mad. They’ll shoot you.', 'whisper', 3),
@@ -11295,7 +11960,7 @@ const ACT2R = {
     // (box: the outline round the thing, fitted to its art, offset by bx, by)
     const look = (id, x, y, key, range = 90, box = {}) => L.add({ id, x, y, range, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key), ...box });
     look('wall1', X.wall1[0] - 40, -120, 'lane1_wall', 90, { box: [425, 110], bx: 248, by: 68 });
-    look('car', X.car[0] - 30, -110, 'lane2_car', 90, { box: [240, 120], bx: 151, by: 55 });
+    look('car', X.car[0] - 30, -110, 'lane2_car', 90, { box: [240, 120], bx: 151, by: 55, outline: [[-117,57],[-119,-19],[-96,-50],[-11,-62],[49,-60],[85,-33],[119,-19],[121,57]] });
     look('crawl', X.crawl[0] - 50, -80, 'crawl', 70, { box: [185, 74], bx: 136, by: 48 });
     look('smoke', X.lane3[0] - 60, -160, 'lane3_smoke', 90, { box: [64, 44], bx: 260, by: 103 });
     look('hospital', X.hosp[0] + 300, -130, 'hospital', 110, { box: [318, 204], by: 35 });
@@ -11374,9 +12039,9 @@ const ACT2R = {
     if (lane.id === 3) g.sound.score?.mood('dusk', 6);
   },
 
-  // A warning shot: the round cracks into the wall ahead of him, and he
-  // throws himself back to where the lane began.
-  *warningShot(g, lane) {
+  // A near miss: he fires to kill, and the round cracks into the wall a hand's
+  // width from Sami's head, and he throws himself back to where the lane began.
+  *nearMiss(g, lane) {
     const p = g.player;
     const a = g.a;
     a.shotBusy = true;
@@ -11533,7 +12198,7 @@ const ACT2R = {
     gd.override = { ...POSES.kneel, head: -0.15 };
     g.lock(false);
     g.text.objective(OBJ.sheet);
-    L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, box: [112, 112], bx: -3, by: 7, label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
+    L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, box: [112, 112], bx: -3, by: 7, outline: [[-47,-49],[43,-49],[45,47],[23,39],[-7,49],[-45,43]], label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
     yield () => a.pull;
     g.lock();
     p.f = 1;
@@ -11725,7 +12390,7 @@ const ACT2R = {
       a.expose = safe ? Math.max(0, a.expose - dt * 2) : a.expose + dt;
       if (a.expose > (a.forgiving ? 0.9 : 0.4) && !a.shotBusy) {
         a.expose = 0;
-        g.runner.run(this.warningShot(g, lane));
+        g.runner.run(this.nearMiss(g, lane));
       }
     } else {
       a.laneState = lane ? a.laneState : null;
@@ -12254,7 +12919,7 @@ function summary2(s) {
   const ar = lang() === 'ar';
   const n = s.lane_retries || 0;
   return [
-    [ar ? '٤:٣٥' : '4:35', ar ? (n ? `عبرتَ الحارة الجنوبية تحت عين القنّاص، وردّتك رصاصة التحذير ${n} مرة.` : 'عبرتَ الحارة الجنوبية تحت عين القنّاص، ولم يرك.') : n ? `You crossed the southern quarter under the sniper's eye. A warning shot turned you back ${n} time${n > 1 ? 's' : ''}.` : "You crossed the southern quarter under the sniper's eye. He never saw you."],
+    [ar ? '٤:٣٥' : '4:35', ar ? (n ? `عبرتَ الحارة الجنوبية تحت عين القنّاص، وأخطأتك رصاصاته بشبر ${n} مرة.` : 'عبرتَ الحارة الجنوبية تحت عين القنّاص، ولم يرك.') : n ? `You crossed the southern quarter under the sniper's eye. His rounds missed you by a hand’s width ${n} time${n > 1 ? 's' : ''}.` : "You crossed the southern quarter under the sniper's eye. He never saw you."],
     [ar ? '٤:٤٢' : '4:42', ar ? 'قال المسعف: ما قدرنا نوصلّو.' : 'The medic said: we couldn’t reach him.'],
     [ar ? '٤:٥٥' : '4:55', ar ? 'رأيتَ شكلاً مغطّى بحرام، وسط شارع المدرسة.' : 'You saw a shape under a blanket, in the middle of School Street.'],
     [ar ? '٥:٠٠' : '5:00', optionFor(DECISIONS[3], s.d_choice)[ar ? 2 : 1]],
@@ -12699,6 +13364,7 @@ const menu = new Menu($('menu'), {
     { key: 'backing', label: 'backing', type: 'select', options: [['off', 'off'], ['light', 'light'], ['dark', 'dark']] },
     { group: 'gDisplay' },
     { key: 'quality', label: 'quality', type: 'select', options: [['auto', 'auto'], ['low', 'low'], ['medium', 'medium'], ['high', 'high']] },
+    { key: 'dof', label: 'dof', type: 'select', options: [['bokeh', 'dofBokeh'], ['soft', 'dofSoft'], ['off', 'off']] },
     { key: 'shake', label: 'shake', type: 'toggle' },
     { key: 'reduceFlashes', label: 'reduceFlashes', type: 'toggle' },
     { group: 'gPlay' },

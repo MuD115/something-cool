@@ -2,7 +2,7 @@
 //
 // Lines from script/act2.md (Path A) are final: Damascus dialect, with the
 // English subtitle. A few gameplay barks the script doesn't cover (the
-// sniper lanes, the warning shots, the crawl) are placeholders, marked
+// sniper lanes, the near misses, the crawl) are placeholders, marked
 // `draft: true`; the dialogue log tags those "[draft]". To replace one,
 // change its `ar` and `en` and delete the flag. The code only ever refers
 // to lines by key.
@@ -33,9 +33,9 @@ export const LINES = {
   lane_intro: d(null, 'فتحة بين بنايتين. من هون بيشوف القنّاص الشارع.', 'A gap between two buildings. From here the sniper can see the street.', 'examine', 5),
   lane_light: d(null, 'وين في شمس، في عين.', 'Where the sun gets through, so does his eye.', 'examine', 3.6),
   lane1_wall: d(null, 'حيط البناية اللي انهدّت. ما ضل منها غير هالحيط، لنص الإجر.', 'All that’s left of the flattened building: this wall, waist-high.', 'examine', 4.5),
-  warn_1: d(null, 'الطلقة فاتت بالحيط قدّامك. تحذير.', 'The round went into the wall ahead of you. A warning.', 'examine', 4),
-  warn_2: d(null, 'عم يشوفك.', 'He can see you.', 'examine', 3),
-  warn_3: d(null, 'مرة تانية. لازم تستنّى.', 'Again. You have to wait.', 'examine', 3),
+  warn_1: d(null, 'الطلقة ضربت بالحيط، شبر عن راسك. ما كان عم يحذّر.', 'The round hit the wall a hand’s width from your head. He wasn’t warning you.', 'examine', 4.5),
+  warn_2: d(null, 'عم يشوفك. وعم يقوّص ليقتل.', 'He can see you. He shoots to kill.', 'examine', 3.4),
+  warn_3: d(null, 'مرة تانية، شبر. لازم تستنّى.', 'A hand’s width, again. You have to wait.', 'examine', 3.4),
   lane2_car: d(null, 'سيارة محروقة. بتغطّي نص الطريق بس.', 'A burnt-out car. It only covers half the way.', 'examine', 4.5),
   lane2_hint: d(null, 'اسمع اللاسلكي. أو طلّع بالمراية.', 'Listen to the radio. Or look with the mirror.', 'examine', 4),
   radio_watch: d('radio', '...عالشبّاك... لسا عالشبّاك...', '...at the window... still at the window...', 'radio', 2.6),
@@ -59,13 +59,13 @@ export const LINES = {
   shape: s(null, 'شكل مغطّى بحرام، وسط الشارع. لا بقدر وصلّو، ولا بقدر بعد نظري عنو.', 'A shape covered with a blanket, in the middle of the street. I can’t reach him, and I can’t look away.', 'examine', 6.5),
   man_1: s('man', 'إنت سامي؟ صاحب أحمد؟', 'Are you Sami? Ahmad’s friend?', 'whisper', 3.2),
   man_2: s('sami', 'إيه.', 'Yeah.', '', 1.8),
-  man_3: s('man', 'أم سعيد هيي يلي غطّتو. طلعت عليه وهي عارفة إنو القنّاص عم يرصدها. حطّت الحرام وبعدين رجعت. ما رماها. ما بعرف ليش.', 'Um Said is the one who covered him. She went out knowing the sniper was watching. She put the blanket over him and came back. He didn’t shoot her. I don’t know why.', 'whisper', 10),
+  man_3: s('man', 'أم سعيد هيي يلي غطّتو. طلعت عليه وهي عارفة إنو القنّاص عم يرصدها. حطّت الحرام وبعدين رجعت. ما رماها هالمرة. الله أعلم ليش، رمى غيرها قبلها.', 'Um Said is the one who covered him. She went out knowing the sniper was watching. She put the blanket over him and came back. He didn’t shoot her, that time. God knows why. He’s shot others who tried.', 'whisper', 11),
   man_4: s('man', 'ما فينا نجيبو. الشارع مكشوف. القنّاص بالمبنى يلي فيه العلم، عالتلّة. بيشوف كل شي.', 'We can’t get him. The street is exposed. The sniper is in the building with the flag, on the hill. He can see everything.', 'whisper', 7),
 
   // ------------------------------------------ D1: the white cloth --
   sheet: d(null, 'شرشف منشور عالدرابزين. أبيض، أو قريب.', 'A sheet hanging on a balcony rail. White, or near enough.', 'examine', 4),
   rail: d(null, 'سكّة برداية، حديد.', 'A curtain rail. Metal.', 'examine', 3),
-  cloth_item: s(null, 'قماشة بيضا، علامة هدنة. ما بتحمي من الرصاص، بس بتحمي من القرار إنو يرمي.', 'White cloth, a truce signal. It doesn’t stop bullets, but it stops the decision to fire.', 'item', 6.5),
+  cloth_item: s(null, 'قماشة بيضا. الرصاصة ما بتسأل شو رافع. بس ما في غيرها.', 'White cloth. A bullet doesn’t ask what you’re holding up. But it’s all there is.', 'item', 6),
   cloth_1: s('man', 'شو عم تساوي؟', 'What are you doing?', 'whisper', 2.4),
   cloth_2: s('sami', 'بدي احكي معهن.', 'I’m going to talk to them.', '', 2.8),
   cloth_3: s('man', 'مجنون. رح يرموك.', 'You’re mad. They’ll shoot you.', 'whisper', 3),

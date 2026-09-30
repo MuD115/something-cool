@@ -73,6 +73,8 @@ export class Game {
     this.text.prompt(null);
     this.text.hint(0, 0, '', null);
     this.promptInfo = null;
+    this.anchor = null;
+    this.floatAt = null;
     this.skipId = 0;
     this.text.objective(null);
     act.build(this);
@@ -141,9 +143,32 @@ export class Game {
     return dur == null ? this.readTime(line) : Math.max(dur * k, k < 1 ? this.readTime(line) : 0);
   }
 
+  // Examine and item text floats over the thing Sami last reached for (or
+  // over Sami himself); everything else is a subtitle.
+  show(who, line, d, style) {
+    if (!who && (style === 'examine' || style === 'item')) {
+      const a = this.anchor;
+      this.floatAt = a && this.time - this.anchorAt < 12 && Math.abs(a.x + (a.bx || 0) - this.player.x) < 320 ? a : null;
+      return this.text.float(line, d, style);
+    }
+    return this.text.say(who, line, d, style);
+  }
+
+  // Where the floating caption sits, in world space: above the thing, or
+  // above Sami's head.
+  floatPoint() {
+    const a = this.floatAt;
+    if (a) {
+      const h = (a.box || [90, 90])[1];
+      return [a.x + (a.bx || 0), a.y + (a.by || 0) - h / 2 - 14];
+    }
+    const p = this.player;
+    return [p.x, p.y - 200];
+  }
+
   *say(who, line, dur = null, style = '') {
     const d = this.dur(line, dur);
-    const id = this.text.say(who, line, d, style);
+    const id = this.show(who, line, d, style);
     this.sound.score?.speak(d);
     const end = this.time + d;
     // held Skip moves on once the line has been up a moment
@@ -153,7 +178,7 @@ export class Game {
   // Show a line without waiting for it.
   line(who, line, dur = null, style = '') {
     const d = this.dur(line, dur);
-    this.text.say(who, line, d, style);
+    this.show(who, line, d, style);
     this.sound.score?.speak(d);
   }
 
@@ -268,25 +293,89 @@ export class Game {
     if (!best && this.focusK < 0.01) this.focus = null;
   }
 
-  // A thin, softly breathing outline round the thing in focus.
+  // A thin, softly breathing outline round the thing in focus, following its
+  // shape: a silhouette (sil: draws the thing, e.g. the cat), a traced
+  // outline (points about the box centre), or else its rounded box. Drawn
+  // offscreen, then anyone standing in front of it is cut out of it, so it
+  // never crosses a person.
   drawOutline(R) {
     const t = this.focus;
     const k = this.focusK;
     if (!t || k < 0.02 || this.scene !== 'street' || this.settings.get('outlines') === false || !t.enabled()) return;
-    const [w, h] = t.box || [90, 90];
+    const { W, H } = R;
+    const oc = (this.olc ||= document.createElement('canvas'));
+    if (oc.width !== W || oc.height !== H) {
+      oc.width = W;
+      oc.height = H;
+    }
+    const c = oc.getContext('2d');
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    c.globalCompositeOperation = 'source-over';
+    c.clearRect(0, 0, W, H);
+    R.layer(1);
+    const m = R.layers.emit.x.getTransform();
+    const a = k * (0.8 + 0.2 * Math.sin(this.time * 3));
     const cx = t.x + (t.bx || 0);
     const cy = t.y + (t.by || 0);
-    const a = k * (0.8 + 0.2 * Math.sin(this.time * 3));
-    R.layer(1);
-    R.glow((c) => {
+    if (t.sil) {
+      // a silhouette's edge: the shape, spread a few pixels, less the shape
+      const mc = (this.olm ||= document.createElement('canvas'));
+      if (mc.width !== W || mc.height !== H) {
+        mc.width = W;
+        mc.height = H;
+      }
+      const x = mc.getContext('2d');
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.clearRect(0, 0, W, H);
+      x.setTransform(m);
+      t.sil(x);
+      x.setTransform(1, 0, 0, 1, 0, 0);
+      x.globalCompositeOperation = 'source-in';
+      x.fillStyle = '#fff';
+      x.fillRect(0, 0, W, H);
+      x.globalCompositeOperation = 'source-over';
+      const r = Math.max(1.5, W / 700);
+      c.globalAlpha = 0.55 * a;
+      for (let q = 0; q < 12; q++) {
+        const ang = (q / 12) * Math.PI * 2;
+        c.drawImage(mc, Math.cos(ang) * r, Math.sin(ang) * r);
+      }
+      c.globalAlpha = 1;
+      c.globalCompositeOperation = 'destination-out';
+      c.drawImage(mc, 0, 0);
+      c.globalCompositeOperation = 'source-over';
+    } else {
+      c.setTransform(m);
       c.beginPath();
-      c.roundRect(cx - w / 2, cy - h / 2, w, h, Math.min(14, w / 4, h / 4));
+      if (t.outline) {
+        const pts = t.outline;
+        c.moveTo(cx + pts[0][0], cy + pts[0][1]);
+        for (let q = 1; q < pts.length; q++) c.lineTo(cx + pts[q][0], cy + pts[q][1]);
+        c.closePath();
+      } else {
+        const [w, h] = t.box || [90, 90];
+        c.roundRect(cx - w / 2, cy - h / 2, w, h, Math.min(14, w / 4, h / 4));
+      }
+      c.lineJoin = 'round';
       c.strokeStyle = `rgba(255, 244, 214, ${0.1 * a})`;
       c.lineWidth = 6;
       c.stroke();
       c.strokeStyle = `rgba(255, 246, 222, ${0.55 * a})`;
       c.lineWidth = 1.6;
       c.stroke();
+    }
+    // cut out everyone standing in front
+    c.setTransform(m);
+    c.globalCompositeOperation = 'destination-out';
+    const who = [this.player, ...this.npcs];
+    for (const w of who) if (w.visible !== false && !w.depthK && Math.abs(w.x - cx) < 600) w.draw(c);
+    if (this.cat && !this.cat.hidden && !t.sil) this.cat.draw(c);
+    c.globalCompositeOperation = 'source-over';
+    R.glow((e) => {
+      e.save();
+      e.setTransform(1, 0, 0, 1, 0, 0);
+      e.drawImage(oc, 0, 0);
+      e.restore();
     });
   }
 
@@ -334,7 +423,7 @@ export class Game {
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
       } else if (stance === 'stand' && p.stance !== 'stand' && told) {
-        this.text.say(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
+        this.line(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
       p.update(dt, {});
@@ -364,14 +453,24 @@ export class Game {
     this.cam.y = lerp(this.cam.y, target.y ?? -205, k);
     this.cam.view = lerp(this.cam.view, target.view ?? 1300, k);
     this.shake = Math.max(0, this.shake - dt * 1.4);
+    // the floating caption follows its thing
+    if (!this.text.floatEl.hidden) {
+      const [fx, fy] = this.floatPoint();
+      const [u, v] = this.R.cam.toUv(fx, fy, this.R.W, this.R.H);
+      this.text.placeFloat(u, v);
+    }
 
     // prompts step aside once obeyed, or after a while
     this.updatePrompt(dt);
 
-    // hold Skip to move through dialogue (never through a choice)
-    if (input.held('skip') && !this.text.choiceOpen && !this.text.sub.hidden && performance.now() - (this.text.lineStart || 0) > 350) {
-      this.skipId = this.text.lineId;
-      this.text.clearLine();
+    // Skip: one press moves on to the next line (never past a choice), and
+    // holding it keeps going, a line at a time
+    if (!this.text.choiceOpen && this.text.lineUp()) {
+      const up = performance.now() - (this.text.lineStart || 0);
+      if ((input.hit('skip') && up > 150) || (input.held('skip') && up > 550)) {
+        this.skipId = this.text.lineId;
+        this.text.clearLine();
+      }
     }
   }
 
@@ -412,7 +511,8 @@ export class Game {
 
   interact() {
     const p = this.player;
-    const t = !this.locked && this.scene === 'street' && !this.text.choiceOpen ? this.level.nearest(p.x) : null;
+    // (no hint while what Sami made of a thing is still floating over it)
+    const t = !this.locked && this.scene === 'street' && !this.text.choiceOpen && this.text.floatEl.hidden ? this.level.nearest(p.x) : null;
     if (!t) {
       this.text.hint(0, 0, '', null);
       return;
@@ -421,6 +521,8 @@ export class Game {
     const key = keyLabel(this.input.bindings().interact?.[0]);
     this.text.hint(u, v, key, t.label);
     if (this.input.hit('interact')) {
+      this.anchor = t;
+      this.anchorAt = this.time;
       t.use(this);
       // an examine point: remember it, and what Sami made of it
       if (t.look) this.onNotice?.(t.id, t.lookText || this.text.log[this.text.log.length - 1]?.line);

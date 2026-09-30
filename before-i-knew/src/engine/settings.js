@@ -21,6 +21,7 @@ export const DEFAULTS = {
   vibration: true,
   focusCam: true, // the camera leans towards things to interact with
   outlines: true, // and they get a thin outline
+  dof: 'bokeh', // depth blur for things far down a street: 'bokeh' | 'soft' | 'off'
   lang: 'en', // menu language: 'en' | 'ar'
   backing: 'off', // subtitle backing: 'off' | 'light' | 'dark'
   quality: 'auto', // 'auto' | 'low' | 'medium' | 'high'

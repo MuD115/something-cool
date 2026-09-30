@@ -50,8 +50,9 @@ play.
 
 1. **The southern quarter.** Walk south, towards School Street. It gets harder as you go:
    - **Three lanes** open onto the sniper on the western hill, and each is a band of low sun
-     across the street. Cross one standing while he's watching and a warning shot cracks into
-     the wall ahead of you, and you're back where the lane began.
+     across the street. Cross one standing while he's watching and he fires to kill: the round
+     cracks into the wall a hand's width from Sami's head, and he throws himself back to where
+     the lane began.
    - In the first lane, keep low behind the waist-high wall.
    - In the second, a burnt-out car only covers half the way. The walkie-talkie tells you
      when he leaves the window, and the mirror shows you.
@@ -85,7 +86,7 @@ the children and the path. It's saved in the browser.
 | Switch tool | Q or Tab | Y |
 | Use tool (tap F for the torch, hold F to crank it) | F | RB |
 | Choose | 1 / 2 / 3, or click | |
-| Skip a line (hold) | X or Backspace | LT |
+| Next line (hold to keep skipping) | X or Backspace | LT |
 | Menu | Esc or P | Start |
 
 You can rebind every key under **Controls**. On phones and tablets, on-screen buttons appear.
@@ -114,17 +115,22 @@ checkpoint. Settings:
 - **Sound:** master, music and effects volume.
 - **Text:** the menu language (English or Arabic, with right-to-left menus), subtitles (Arabic
   and English, English only or Arabic only), text size and the subtitle backing.
-- **Display:** graphics quality (Auto, Low, Medium, High), camera shake and reduce flashes.
+- **Display:** graphics quality (Auto, Low, Medium, High), depth blur (lens, soft or off),
+  camera shake and reduce flashes.
 - **Play:** control hints.
 - **Accessibility:** subtitle reading time (longer, normal, shorter), crouch and prone (press to
   toggle, or hold), Act Two's sniper lanes (standard, or forgiving: longer gaps and more
-  smoke, and a warning shot drops Sami flat where he is instead of sending him back), the
+  smoke, and a near miss drops Sami flat where he is instead of sending him back), the
   camera easing towards things to use, their outlines, and vibration (a phone buzz, or a
   gamepad's rumble, on blasts and shots).
 
 As Sami nears something he can look at, pick up or talk to, the camera leans towards it and
-closes in a little, and a thin, softly breathing outline marks it, fitted to its shape, so it
-isn't walked past. Both can be switched off under Accessibility.
+closes in a little, and a thin, softly breathing outline traces its shape (the cat's own
+silhouette, the three sheets of the sniper curtain, the car's profile), so it isn't walked past.
+The outline never crosses anyone standing in front of it. Both can be switched off under
+Accessibility. What Sami makes of a thing floats above it in a small caption, not in the
+subtitles; spoken lines stay at the bottom, each speaker's name in their own colour. Press Skip
+to move on to the next line (never past a choice); hold it to keep going.
 
 Control prompts step aside once you've done what they ask, or after a few seconds. They come
 back if you stand idle while the story is still waiting on them.
@@ -138,13 +144,24 @@ Everything is drawn and synthesised in code. There are no images or recordings.
   - a cone light, used for the torch in the stairwell;
   - a colour grade, which is warm in the 2010 flashback and drained when the news comes.
 - **Movement** ([`src/world/`](src/world)): a walker with walk, run, crouch, prone, jump and
-  mantle; ceilings you can only pass under crouched; and walls you climb. Story beats are
+  mantle; ceilings you can only pass under crouched; and walls you climb. Stance changes take
+  half a second, and getting down to the ground (or up from it) passes through a kneel. The
+  crawl is an elbow-and-knee crawl with the belly on the ground: opposite forearm and knee
+  reach together, the lower leg folding up behind. Story beats are
   generator scripts, triggered by position.
 - **People and the cat** ([`src/rigs/`](src/rigs)): one procedural rig, with outfits for each
   character and a pose library. It has side, front and back views, with a quick turn between
   them, for anyone walking into or out of a side street. Idle figures breathe, blink and glance
-  around, and passers-by cross the side streets in the calm stretches. The black cat is a separate
-  small rig.
+  around, and passers-by cross the side streets in the calm stretches. They walk in from beyond
+  the edge of the frame, run across ground the sniper can see, never use the exposed corner, and
+  hurry off (never vanish) when the shelling starts. The black cat is a separate small rig.
+- **The street** ([`src/sets/town.js`](src/sets/town.js)): blocks of flats with Syrian doors on
+  the ground floor (painted steel double doors with a grille, old studded wooden doors under a
+  pointed arch, rolling shop shutters, wrought-iron gates), and tarred wooden electricity poles,
+  some leaning, whose cables run to the next pole, into a building, or hang snapped to the ground.
+- **Depth of field** ([`src/engine/dof.js`](src/engine/dof.js)): whoever walks away down a side
+  street, and the far end of the side streets themselves, go softer the deeper they are, with a
+  lens-like (bokeh) disc blur or a plain soft one, and fade as they reach the end.
 - **The distance** ([`src/sets/horizon.js`](src/sets/horizon.js)) is layered and softened with
   depth: Mount Qasioun's ridge with its masts, Damascus with its domes, minarets and cranes, then
   the nearer towns of Ghouta, with haze lifting off the horizon, drifting cirrus and the odd
@@ -175,6 +192,6 @@ Everything is drawn and synthesised in code. There are no images or recordings.
   registry of them. The save names the act and its checkpoint.
 - **Act Two's dialogue** is data, in [`src/story/act2r-lines.js`](src/story/act2r-lines.js),
   keyed by line. The lines from `script/act2.md` are final. A few gameplay barks the script
-  doesn't cover (the lanes, the warning shots, the crawl) are placeholders marked
+  doesn't cover (the lanes, the near misses, the crawl) are placeholders marked
   `draft: true`, and the dialogue log tags them **[draft]**. To replace one, edit its `ar` and
   `en` and delete the flag. No code changes are needed.

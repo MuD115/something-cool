@@ -757,7 +757,7 @@ export class Sound {
     this.tone(530, 0.35, { type: 'square', vol: 0.012 });
   }
 
-  // A sniper's warning shot, close: the supersonic crack arrives before the
+  // A sniper's shot, close by: the supersonic crack arrives before the
   // report from the hill, then the round slaps into the wall ahead.
   sniperCrack() {
     if (!this.ctx) return;

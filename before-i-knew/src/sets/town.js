@@ -250,8 +250,9 @@ export function block(R, spec, t = 0) {
       c.fillRect(x, -f * fh - 6, w, 8);
     }
 
-    // windows
+    // windows (and on the ground floor, a door or two)
     const cols = Math.max(2, Math.round(w / 110));
+    const doorCols = spec.shopFront || spec.noDoors ? new Map() : pickDoors(cols, seed);
     const ww = Math.min(58, (w / cols) * 0.5);
     const wh = fh * 0.46;
     for (let f = 0; f < floors; f++) {
@@ -260,6 +261,11 @@ export function block(R, spec, t = 0) {
         const wy = -f * fh - fh * 0.72;
         const kind = r();
         if (f === 0 && spec.shopFront) continue;
+        if (f === 0 && doorCols.has(k)) {
+          const dw = Math.min(74, (w / cols) * 0.62);
+          syrianDoor(c, x + ((k + 0.5) * w) / cols, dw, fh * 0.8, doorCols.get(k), seed * 7 + k);
+          continue;
+        }
         if (kind < 0.12) {
           // blown out: ragged dark hole
           c.fillStyle = '#1b1612';
@@ -571,31 +577,114 @@ export function street(R, x0, x1, { color = '#6e6559', pave = '#8a8072' } = {}) 
   });
 }
 
-// Cables sagging across the street between the blocks, and some broken ones
-// hanging. Cast, so they throw thin shadows.
+// Wooden electricity poles along the street, some leaning after years of
+// blasts, with cables strung between them. Every cable ends somewhere: at
+// the next pole, at a bracket where it goes into a building, or snapped and
+// hanging to the ground. Cast, so they throw shadows.
 export function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000 } = {}) {
+  // the poles first: where they stand, how they lean, where the arm is
+  const r = rng(seed);
+  const poles = [];
+  for (let x = from + r() * 200; x < to; x += 620 + r() * 420) {
+    const lean = r() < 0.35 ? (r() - 0.5) * 0.22 : (r() - 0.5) * 0.04;
+    const h = 430 + r() * 50;
+    poles.push({ x, lean, h, top: [x + Math.sin(lean) * h, -Math.cos(lean) * h] });
+  }
+  // what each span between neighbours does
+  const spans = poles.slice(0, -1).map((p, i) => ({ a: p, b: poles[i + 1], kind: r(), wires: 2 + Math.floor(r() * 2), sag: 30 + r() * 40, k: r() }));
+  const armY = (p, n) => [p.top[0] + Math.sin(p.lean) * (14 + n * 12), p.top[1] + Math.cos(p.lean) * (14 + n * 12)];
+  const vis = (x0, x1) => x1 > camX - 1700 && x0 < camX + 1700;
+
   R.cast((c) => {
-    const r = rng(seed);
-    c.strokeStyle = 'rgba(28,24,22,0.85)';
-    c.lineWidth = 1.4;
-    for (let x = from; x < to; x += 260 + r() * 260) {
-      const span = 180 + r() * 260;
-      const y0 = y + (r() - 0.5) * 80;
-      const y1 = y0 + (r() - 0.5) * 60;
-      const hang = r();
-      const drop = r();
-      if (x + span < camX - 1600 || x > camX + 1600) continue;
-      c.beginPath();
-      c.moveTo(x, y0);
-      c.quadraticCurveTo(x + span / 2, Math.max(y0, y1) + 30 + hang * 40, x + span, y1);
-      c.stroke();
-      if (drop < 0.3) {
-        // snapped, hanging down
-        c.beginPath();
-        c.moveTo(x + span * 0.7, y1 + 10);
-        c.quadraticCurveTo(x + span * 0.72, y1 + 60, x + span * 0.66, y1 + 100 + drop * 200);
-        c.stroke();
+    c.lineCap = 'round';
+    for (const s of spans) {
+      if (!vis(s.a.x, s.b.x)) continue;
+      c.strokeStyle = 'rgba(26,22,20,0.9)';
+      c.lineWidth = 1.4;
+      for (let n = 0; n < s.wires; n++) {
+        const [ax, ay] = armY(s.a, n);
+        const [bx, by] = armY(s.b, n);
+        const sag = s.sag + n * 6;
+        if (s.kind < 0.6) {
+          // strung between the two poles
+          c.beginPath();
+          c.moveTo(ax, ay);
+          c.quadraticCurveTo((ax + bx) / 2, Math.max(ay, by) + sag, bx, by);
+          c.stroke();
+        } else if (s.kind < 0.8) {
+          // off the pole and into the building: a bracket on the wall and a hole
+          const wx = ax + (bx - ax) * (0.3 + s.k * 0.4) + n * 18;
+          const wy = -230 - s.k * 120 + n * 10;
+          c.beginPath();
+          c.moveTo(ax, ay);
+          c.quadraticCurveTo((ax + wx) / 2, Math.max(ay, wy) + sag * 0.6, wx, wy);
+          c.stroke();
+          c.fillStyle = '#1c1714';
+          c.fillRect(wx - 2, wy - 2, 5, 5);
+          c.fillStyle = 'rgba(60,50,42,0.9)';
+          c.fillRect(wx - 5, wy + 3, 11, 2.5);
+        } else {
+          // snapped: each end hangs from its pole, down to the ground
+          for (const [px, py, dir] of [[ax, ay, 1], [bx, by, -1]]) {
+            const len = (bx - ax) * (0.18 + s.k * 0.2 + n * 0.05);
+            c.beginPath();
+            c.moveTo(px, py);
+            c.bezierCurveTo(px + dir * len * 0.5, py + 40, px + dir * len * 0.9, py * 0.35, px + dir * len, -2);
+            // the last of it lying along the ground
+            c.lineTo(px + dir * (len + 30 + n * 12), 0);
+            c.stroke();
+          }
+        }
       }
+    }
+    // the poles, over their own wires' ends
+    for (const p of poles) {
+      if (!vis(p.x - 60, p.x + 60)) continue;
+      c.save();
+      c.translate(p.x, 0);
+      c.rotate(p.lean);
+      // a tarred wooden pole, thicker at the foot
+      const g = c.createLinearGradient(-6, 0, 6, 0);
+      g.addColorStop(0, '#3a2c20');
+      g.addColorStop(0.45, '#5a4532');
+      g.addColorStop(1, '#2e241b');
+      c.fillStyle = g;
+      c.beginPath();
+      c.moveTo(-6.5, 2);
+      c.lineTo(-4.5, -p.h);
+      c.lineTo(4.5, -p.h);
+      c.lineTo(6.5, 2);
+      c.fill();
+      // grain and old nails, a blackened band where it was burned
+      c.strokeStyle = 'rgba(20,14,10,0.35)';
+      c.lineWidth = 0.8;
+      c.beginPath();
+      c.moveTo(-1.5, 0);
+      c.lineTo(-1, -p.h);
+      c.moveTo(2, 0);
+      c.lineTo(1.6, -p.h);
+      c.stroke();
+      c.fillStyle = 'rgba(15,10,8,0.55)';
+      c.fillRect(-6, -60, 12, 16);
+      // cross-arms with insulators
+      c.fillStyle = '#3e3024';
+      for (let n = 0; n < 2; n++) {
+        const yy = -p.h + 12 + n * 12;
+        c.fillRect(-24, yy, 48, 5);
+        c.fillStyle = '#c8c2b4';
+        for (const ix of [-20, 18]) c.fillRect(ix, yy - 5, 3, 5);
+        c.fillStyle = '#3e3024';
+      }
+      // a transformer box on some, and posters stapled on
+      if (Math.abs(p.lean) < 0.05 && ((p.x | 0) % 3 === 0)) {
+        c.fillStyle = '#5e6364';
+        c.fillRect(6, -p.h * 0.62, 18, 26);
+        c.fillStyle = 'rgba(0,0,0,0.3)';
+        c.fillRect(6, -p.h * 0.62 + 22, 18, 4);
+      }
+      c.fillStyle = 'rgba(225,215,195,0.55)';
+      c.fillRect(-5, -150, 10, 14);
+      c.restore();
     }
   });
 }
@@ -1119,4 +1208,173 @@ export function jetShadowShape(c, x, y, s) {
   c.closePath();
   c.fill();
   c.restore();
+}
+
+// ------------------------------------------------------------- doors --
+
+// Which ground-floor bays are doors, and of what kind: one on a narrow
+// block, two on a wide one; the same every time for the same building.
+const DOOR_KINDS = ['steel', 'wood', 'shutter', 'gate', 'steel', 'shutter'];
+function pickDoors(cols, seed) {
+  const r = rng(seed * 13 + 5);
+  const doors = new Map();
+  const n = cols >= 4 ? 2 : 1;
+  for (let i = 0; i < n; i++) {
+    const k = Math.floor(r() * cols);
+    doors.set(k, DOOR_KINDS[Math.floor(r() * DOOR_KINDS.length)]);
+  }
+  return doors;
+}
+
+// A Syrian street door, centred on x, standing on the ground (y = 0).
+//   steel: painted sheet steel, double leaf, raised panels, a small grille
+//          at head height (the common block entrance), paint flaking;
+//   wood: an old Damascene door, planked, iron studs in rows, under a
+//         pointed stone arch with a stone step;
+//   shutter: a rolling steel shop shutter, ribbed, often half raised;
+//   gate: a wrought-iron door with a geometric grille over dark glass.
+export function syrianDoor(c, x, w, h, kind, seed = 1) {
+  const r = rng(seed);
+  const x0 = x - w / 2;
+  const top = -h;
+  // a stone surround and step, for all of them
+  c.fillStyle = 'rgba(220,208,186,0.55)';
+  c.fillRect(x0 - 7, top - 7, w + 14, h + 7);
+  c.fillStyle = '#b3a589';
+  c.fillRect(x0 - 12, -6, w + 24, 8);
+  c.fillStyle = 'rgba(0,0,0,0.25)';
+  c.fillRect(x0 - 12, -7, w + 24, 1.5);
+  const paint = ['#3f6b5a', '#35566e', '#6a4a3a', '#5a6a3e', '#7a3f38', '#44505a'][Math.floor(r() * 6)];
+  if (kind === 'wood') {
+    // pointed (Damascene) arch
+    const archH = w * 0.45;
+    c.fillStyle = '#c9bb9d';
+    c.beginPath();
+    c.moveTo(x0 - 7, top + archH);
+    c.quadraticCurveTo(x0 - 7, top - 6, x, top - archH * 0.5);
+    c.quadraticCurveTo(x0 + w + 7, top - 6, x0 + w + 7, top + archH);
+    c.fill();
+    c.fillStyle = '#4a3322';
+    c.beginPath();
+    c.moveTo(x0, 0);
+    c.lineTo(x0, top + archH);
+    c.quadraticCurveTo(x0, top + 2, x, top - archH * 0.35);
+    c.quadraticCurveTo(x0 + w, top + 2, x0 + w, top + archH);
+    c.lineTo(x0 + w, 0);
+    c.fill();
+    // planks
+    c.strokeStyle = 'rgba(20,12,6,0.45)';
+    c.lineWidth = 1;
+    for (let px = x0 + w / 6; px < x0 + w; px += w / 6) {
+      c.beginPath();
+      c.moveTo(px, 0);
+      c.lineTo(px, top + archH * 0.4);
+      c.stroke();
+    }
+    // the two leaves, and iron studs in rows
+    c.strokeStyle = 'rgba(15,10,5,0.7)';
+    c.lineWidth = 1.6;
+    c.beginPath();
+    c.moveTo(x, 0);
+    c.lineTo(x, top + archH * 0.1);
+    c.stroke();
+    c.fillStyle = '#1a1511';
+    for (let sy = top + archH + 8; sy < -10; sy += h / 7) {
+      for (let sx = x0 + 6; sx < x0 + w - 3; sx += w / 5) {
+        c.beginPath();
+        c.arc(sx, sy, 1.6, 0, Math.PI * 2);
+        c.fill();
+      }
+    }
+    // a ring knocker
+    c.strokeStyle = '#1a1511';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.arc(x + w * 0.2, top + h * 0.5, 3.5, 0, Math.PI * 2);
+    c.stroke();
+    return;
+  }
+  if (kind === 'shutter') {
+    // the dark shop behind, then the shutter rolled part way down
+    c.fillStyle = '#16120f';
+    c.fillRect(x0 - 4, top, w + 8, h);
+    const down = 0.35 + r() * 0.65;
+    c.fillStyle = ['#8a8a84', '#7d8a8e', '#9a8f7a'][Math.floor(r() * 3)];
+    c.fillRect(x0 - 4, top, w + 8, h * down);
+    c.fillStyle = 'rgba(0,0,0,0.22)';
+    for (let sy = top + 3; sy < top + h * down; sy += 4.5) c.fillRect(x0 - 4, sy, w + 8, 1.2);
+    // the box it rolls into, a dent, a padlock at the bottom rail
+    c.fillStyle = '#6a6862';
+    c.fillRect(x0 - 8, top - 10, w + 16, 12);
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    c.beginPath();
+    c.ellipse(x0 + w * (0.3 + r() * 0.4), top + h * down * 0.6, 7, 4, 0.3, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = '#4a4540';
+    c.fillRect(x - 3, top + h * down - 4, 6, 7);
+    return;
+  }
+  if (kind === 'gate') {
+    c.fillStyle = '#141414';
+    c.fillRect(x0, top, w, h);
+    c.fillStyle = 'rgba(120,140,150,0.18)';
+    c.fillRect(x0 + 3, top + 3, w - 6, h * 0.62);
+    // geometric grille: a lattice of diamonds over the glass
+    c.strokeStyle = '#2a2826';
+    c.lineWidth = 2;
+    c.strokeRect(x0 + 2, top + 2, w - 4, h - 4);
+    c.lineWidth = 1.3;
+    c.beginPath();
+    const step = w / 4;
+    for (let d = -h; d < w + h; d += step) {
+      c.moveTo(x0 + d, top);
+      c.lineTo(x0 + d + h * 0.62, top + h * 0.62);
+      c.moveTo(x0 + d, top + h * 0.62);
+      c.lineTo(x0 + d + h * 0.62, top);
+    }
+    c.save();
+    c.beginPath();
+    c.rect(x0 + 2, top + 2, w - 4, h * 0.62);
+    c.clip();
+    c.stroke();
+    c.restore();
+    c.fillStyle = '#2a2826';
+    c.fillRect(x0 + 2, top + h * 0.62, w - 4, h * 0.38 - 2);
+    c.fillStyle = '#3a3632';
+    c.fillRect(x0 + 5, top + h * 0.66, w - 10, h * 0.3);
+    return;
+  }
+  // steel: double leaf, raised panels, a grille window, flaking paint
+  c.fillStyle = paint;
+  c.fillRect(x0, top, w, h);
+  c.strokeStyle = 'rgba(0,0,0,0.45)';
+  c.lineWidth = 1.5;
+  c.beginPath();
+  c.moveTo(x, top);
+  c.lineTo(x, 0);
+  c.stroke();
+  c.strokeStyle = 'rgba(255,255,255,0.14)';
+  c.lineWidth = 1;
+  for (const lx of [x0 + 4, x + 4]) {
+    const pw = w / 2 - 8;
+    c.strokeRect(lx, top + h * 0.34, pw, h * 0.26);
+    c.strokeRect(lx, top + h * 0.66, pw, h * 0.28);
+  }
+  // the small grille at head height
+  c.fillStyle = '#15120f';
+  c.fillRect(x0 + 6, top + 8, w - 12, h * 0.2);
+  c.strokeStyle = 'rgba(0,0,0,0.8)';
+  c.lineWidth = 1.2;
+  c.beginPath();
+  for (let gx = x0 + 10; gx < x0 + w - 6; gx += 5) {
+    c.moveTo(gx, top + 8);
+    c.lineTo(gx, top + 8 + h * 0.2);
+  }
+  c.stroke();
+  // flaking paint and rust at the bottom
+  c.fillStyle = 'rgba(150,90,50,0.45)';
+  for (let i = 0; i < 6; i++) c.fillRect(x0 + r() * (w - 6), -8 - r() * h * 0.35, 2 + r() * 5, 1.5 + r() * 3);
+  // handle
+  c.fillStyle = '#c9b48a';
+  c.fillRect(x + 3, top + h * 0.55, 6, 2);
 }

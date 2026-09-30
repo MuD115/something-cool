@@ -23,6 +23,7 @@ export class Text {
   constructor(settings) {
     this.settings = settings;
     this.sub = $('sub');
+    this.floatEl = $('float');
     this.card = $('card');
     this.choiceEl = $('choice');
     this.promptEl = $('prompt');
@@ -78,6 +79,7 @@ export class Text {
     if (who) {
       const w = document.createElement('div');
       w.className = 'who';
+      w.style.setProperty('--who', whoColour(who));
       w.appendChild(uiSpan(who));
       box.appendChild(w);
     }
@@ -102,6 +104,69 @@ export class Text {
   clearLine() {
     this.lineId++;
     this.sub.hidden = true;
+    this.hideFloat();
+  }
+
+  // Is a line (spoken or floating) up?
+  lineUp() {
+    return !this.sub.hidden || !this.floatEl.hidden;
+  }
+
+  // What Sami makes of a thing: a caption floating above it, not a subtitle.
+  // placeFloat() keeps it over the thing each frame.
+  float(line, dur = 4, style = 'examine') {
+    const id = ++this.lineId;
+    this.lineStart = performance.now();
+    const last = this.log[this.log.length - 1];
+    if (!last || last.line[1] !== line[1]) {
+      this.log.push({ who: null, line, style });
+      if (this.log.length > 400) this.log.shift();
+    }
+    const el = this.floatEl;
+    el.classList.remove('out');
+    el.dataset.style = style;
+    el.dataset.kicker = lang() === 'ar' ? 'غرض' : 'Item';
+    el.innerHTML = '';
+    const ar = document.createElement('p');
+    ar.className = 'ar';
+    ar.lang = 'ar';
+    ar.dir = 'rtl';
+    ar.textContent = line[0];
+    const en = document.createElement('p');
+    en.className = 'en';
+    en.textContent = line[1];
+    el.append(ar, en);
+    el.hidden = false;
+    // restart the entrance
+    el.style.animation = 'none';
+    void el.offsetWidth;
+    el.style.animation = '';
+    this.sub.hidden = true;
+    clearTimeout(this.floatTimer);
+    this.floatTimer = setTimeout(() => {
+      if (this.lineId === id) this.hideFloat();
+    }, dur * 1000);
+    return id;
+  }
+
+  placeFloat(u, v) {
+    const el = this.floatEl;
+    if (el.hidden) return;
+    el.style.left = `${Math.min(88, Math.max(12, u * 100))}%`;
+    el.style.top = `${Math.min(70, Math.max(22, v * 100))}%`;
+  }
+
+  hideFloat() {
+    const el = this.floatEl;
+    if (el.hidden) return;
+    el.classList.add('out');
+    clearTimeout(this.floatOutT);
+    this.floatOutT = setTimeout(() => {
+      if (el.classList.contains('out')) {
+        el.hidden = true;
+        el.classList.remove('out');
+      }
+    }, 300);
   }
 
   titleCard(lines, dur = 5) {
@@ -256,3 +321,28 @@ const ICONS = {
   whitecloth:
     '<path d="M5 22V2.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M5 3.5c3-1.2 5 1 8 0s4.5-.8 6 0v8c-1.5-.8-3-1-6 0s-5-1.2-8 0" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>',
 };
+
+// Each speaker's name in their own colour, so voices are told apart at a
+// glance. Unknown speakers get one from a small palette, by name.
+const WHO_COLOURS = {
+  Sami: '#a9cdf0',
+  Ahmad: '#f0c77e',
+  'Abu Yazan': '#d2aee6',
+  Layla: '#f2a293',
+  Fadi: '#a6dcae',
+  'The old man': '#e3d3a8',
+  'Walkie-talkie': '#cfd4d8',
+  'The medic': '#94dcd6',
+  'The man': '#e8b98f',
+  'The man with the tyre': '#f0a36c',
+  'The spotter': '#bccb8a',
+  'Walkie-talkie man': '#dcb6a0',
+};
+const PALETTE = ['#b7d98c', '#f3b6c8', '#9fc9d9', '#e6c89a', '#c2b4f0'];
+export function whoColour(who) {
+  const en = who[1];
+  if (WHO_COLOURS[en]) return WHO_COLOURS[en];
+  let h = 0;
+  for (const ch of en) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return PALETTE[h % PALETTE.length];
+}

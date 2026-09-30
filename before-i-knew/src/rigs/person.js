@@ -3,7 +3,7 @@
 // the way the figure faces; the torso leans positive forward. Drawn in a
 // local frame with the hip at the origin.
 
-import { clamp, lerp } from '../engine/util.js';
+import { clamp, lerp, smooth } from '../engine/util.js';
 import { limb, shade } from './shapes.js';
 
 // Segment lengths. Adults stand about 170 units tall.
@@ -42,6 +42,9 @@ export const OUTFITS = {
 
 // Poses. `seat` (optional) holds the hip at that height above the ground,
 // for sitting on something.
+// Hip height lying flat on the belly.
+const PRONE_HIP = 17.5;
+
 export const POSES = {
   stand: { torso: 0.02, head: 0, thighN: 0.05, shinN: 0.02, thighF: -0.06, shinF: -0.06, armN: 0.05, foreN: 0.16, armF: -0.05, foreF: 0.06 },
   // a low, cautious crouch: hips dropped, knees over the toes, the far leg
@@ -158,22 +161,28 @@ export function crouchWalkPose(p) {
   };
 }
 
-// Elbow-and-knee crawl: opposite arm and leg reach together.
+// Elbow-and-knee crawl, as soldiers are taught it: flat on the belly, the
+// body never lifts. Opposite arm and leg work together: one forearm reaches
+// ahead and plants while the other knee slides up along the ground (the
+// lower leg folding up behind), then they push and the other pair reaches.
+// Every curve is a smooth half-cosine, so nothing snaps at the turn.
 export function crawlPose(p) {
   const c = POSES.prone;
-  const s = Math.sin(p);
-  const reachN = Math.max(0, s);
-  const reachF = Math.max(0, -s);
+  const e = (x) => (1 - Math.cos(x)) / 2;
+  const reachN = e(p);
+  const reachF = e(p + Math.PI);
   return {
     ...c,
-    thighN: c.thighN + 0.35 * reachF,
-    shinN: c.shinN + 0.55 * reachF,
-    thighF: c.thighF + 0.35 * reachN,
-    shinF: c.shinF + 0.55 * reachN,
-    armN: c.armN + 0.3 * reachN - 0.1,
-    foreN: c.foreN + 0.2 * reachN,
-    armF: c.armF + 0.3 * reachF - 0.1,
-    foreF: c.foreF + 0.2 * reachF,
+    torso: c.torso + 0.03 * Math.sin(2 * p),
+    head: c.head + 0.05 * Math.sin(2 * p),
+    armN: c.armN - 0.15 + 0.45 * reachN,
+    foreN: c.foreN + 0.1 - 0.35 * reachN,
+    armF: c.armF - 0.15 + 0.45 * reachF,
+    foreF: c.foreF + 0.1 - 0.35 * reachF,
+    thighF: c.thighF + 0.3 * reachN,
+    shinF: c.shinF - 0.7 * reachN,
+    thighN: c.thighN + 0.3 * reachF,
+    shinN: c.shinN - 0.7 * reachF,
   };
 }
 
@@ -297,7 +306,12 @@ export class Person {
     if (this.pose.seat != null) return this.pose.seat;
     // Lowest of feet, knees and the torso itself, so poses blend smoothly
     // from standing to kneeling to lying flat.
-    return Math.max(j.footN[1] + footDrop(this.pose.shinN), j.footF[1] + footDrop(this.pose.shinF), j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
+    const h = Math.max(j.footN[1] + footDrop(this.pose.shinN), j.footF[1] + footDrop(this.pose.shinF), j.kneeN[1] + 8, j.kneeF[1] + 8, 12) + 4;
+    // lying down, the belly is on the ground whatever the legs are doing (a
+    // crawl draws the knees up, and must not lift the body with them)
+    const lying = smooth(1.05, 1.45, this.pose.torso ?? 0);
+    // (but never so low that a foot still under the body goes into the ground)
+    return Math.max(lerp(h, PRONE_HIP, lying), j.footN[1] + footDrop(this.pose.shinN) + 4, j.footF[1] + footDrop(this.pose.shinF) + 4);
   }
 
   hip() {

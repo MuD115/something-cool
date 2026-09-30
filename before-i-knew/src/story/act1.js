@@ -53,12 +53,12 @@ export const ACT1 = {
     L.ceiling(X.sag0, X.sag1, -150); // the sagged curtain: crouch under it
 
     // --- examine texts from the script ---
-    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, box: [118, 184], bx: 2, by: 64, use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
-    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, box: [362, 164], bx: 133, by: 46, use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
-    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, box: [228, 214], bx: -1, by: 67, use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
+    L.add({ id: 'vine', x: X.vine, y: -150, range: 90, label: LOOK, look: true, box: [118, 184], bx: 2, by: 64, outline: [[-54,86],[-56,-10],[-49,-75],[-25,-92],[27,-99],[45,-75],[56,-39],[69,-10],[69,86]], use: () => g.line(null, ['دالية عنب. لسا عم تطلع من بين الحجار. ما حدا قلّها إنو في حرب.', 'A grape vine. Still growing up through the stones. No one told it there’s a war.'], 5, 'examine') });
+    L.add({ id: 'curtain', x: X.curtain0 + 40, y: -220, range: 90, label: LOOK, look: true, box: [362, 164], bx: 133, by: 46, outline: [[-178,-80],[-62,-77],[-5,-54],[73,-77],[178,-80],[178,79],[73,79],[73,25],[-61,25],[-61,79],[-178,79]], use: () => g.line(null, ['ستارة قنّاص. شراشف مشدودة بين البنايتين. الطلقة بتفوت منها بس القنّاص ما بيشوف مين بيمشي وراها.', 'A sniper curtain. Sheets strung between the buildings. The bullet goes through, but the sniper can’t see who’s walking behind it.'], 6, 'examine') });
+    L.add({ id: 'shop', x: X.shop + 110, y: -170, range: 110, label: LOOK, look: true, box: [228, 214], bx: -1, by: 67, outline: [[-100,-105],[101,-105],[101,-74],[111,-63],[111,103],[-110,103],[-110,-63],[-100,-74]], use: () => g.line(null, ['دكّان أبو ريّان. كان يبيع كل شي: خبز وسكّر وسجاير. هلّق ما فيه غير غبرة.', 'Abu Rayyan’s shop. It used to sell everything: bread, sugar, cigarettes. Now there’s nothing in it but dust.'], 5.5, 'examine') });
     L.add({ id: 'battery', x: X.battery + 60, y: -150, range: 90, label: LOOK, look: true, box: [100, 60], bx: 2, by: 68, use: () => g.line(null, ['بطارية سيارة. بتشحن عشر تلفونات إذا بدها. مصدر الكهربا الوحيد لنص الحارة. الصبي اسمو فادي، عمرو خمستعش، صار المسؤول عنها لأنو هوّي الوحيد اللي بيعرف يفكّ ويركّب.', 'A car battery. It can charge ten phones if it has to. The only source of electricity for half the neighbourhood. The boy is Fadi, fifteen. He became responsible for it because he’s the only one who knows how to wire it.'], 9, 'examine') });
     L.add({ id: 'scrap', x: X.scrap + 90, y: -60, range: 70, label: LOOK, look: true, box: [190, 76], bx: -15, by: 26, use: () => g.line(null, ['كومة حديد. نحاس. ألمنيوم. كانت بناية. هلّق هي عملة.', 'A pile of iron. Copper. Aluminium. It was a building. Now it’s currency.'], 5, 'examine') });
-    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, box: [320, 270], bx: 29, by: 102, use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
+    L.add({ id: 'wing', x: X.collapsed + 120, y: -240, range: 80, label: LOOK, look: true, box: [320, 270], bx: 29, by: 102, outline: [[-158,138],[-71,19],[-34,-78],[18,-61],[99,-25],[156,-19],[198,28],[167,138]], use: () => g.line(null, ['جناح المدرسة الشرقي. انهار بقصف هاون قبل شهرين. ما كان فيه حدا. الولاد كانوا بالقبو.', 'The eastern wing of the school. Collapsed from mortar fire two months ago. No one was inside. The children were in the basement.'], 6.5, 'examine') });
     L.add({
       id: 'shard',
       x: X.shard,
@@ -135,7 +135,6 @@ export const ACT1 = {
         kh.pose(dt, 60);
         kh.rig.x = lerp(X.junction - 10, X.junction + 6, k);
         kh.rig.y = lerp(0, -70, 1 - s);
-        g.a.occluder = k > 0.42 && k < 0.58 ? [X.junction + 10 - 34 * (1 - k), 34] : null;
         if (k >= 1) kh.visible = false;
       } else kh.update(dt, {});
     };
@@ -282,7 +281,6 @@ export const ACT1 = {
     kh.face('back');
     g.camOverride = { x: X.junction - 80, y: -230, view: 1050 };
     yield () => !kh.visible;
-    g.a.occluder = null;
     // The street is empty. A beat of silence, then the world again.
     g.sound.ambience({ generator: 0, air: 0.1, wind: 0.1 }, 0.5);
     yield 2.5;
@@ -588,6 +586,7 @@ export const ACT1 = {
       label: ['تحدّث إلى ليلى', 'Talk to Layla'],
       box: [70, 182],
       by: 40,
+      sil: (c) => g.layla?.draw(c),
       enabled: () => !g.a.laylaTalked && !g.a.shelling,
       use: () => {
         g.a.laylaTalked = true;
@@ -609,6 +608,7 @@ export const ACT1 = {
       range: 110,
       label: ['القطة', 'The cat'],
       look: true,
+      sil: (c) => cat.draw(c),
       box: [74, 84],
       bx: 2,
       by: 19,
@@ -624,6 +624,7 @@ export const ACT1 = {
       range: 130,
       urgent: true,
       label: ['ملّس عليها', 'Stroke it'],
+      sil: (c) => cat.draw(c),
       box: [74, 84],
       bx: 2,
       by: 19,
@@ -1420,7 +1421,13 @@ function enterDoor(g, w) {
 
 // Now and then, in the calm stretches, someone crosses the mouth of a side
 // street: out of it towards us, or along the street and into it.
-const MOUTHS = [3105, 5130, 10020];
+const MOUTHS = [3105, 10020]; // (not the corner's street: it's exposed to the west)
+// Ground the sniper can see: passers-by run across it, heads down.
+const SNIPED = [
+  [X.curtain0 - 20, X.curtain1 + 20],
+  [X.corner - 20, X.corner + 420],
+];
+const sniped = (x) => SNIPED.some(([a, b]) => x > a && x < b);
 const PASSERS = [
   { outfit: 'man', can: true },
   { outfit: 'woman' },
@@ -1455,7 +1462,8 @@ function streetLife(g, dt) {
       const side = Math.random() < 0.5 ? -1 : 1;
       w.passer = { mouth, dir: Math.random() < 0.5 ? 'out' : 'in', side, phase: 'start' };
       if (w.passer.dir === 'in') {
-        w.place(mouth + side * 900);
+        // from just beyond the edge of the frame, never in view
+        w.place(g.cam.x + side * (g.cam.view / 2 + 160));
         w.f = -side;
       } else {
         w.place(mouth);
@@ -1485,19 +1493,34 @@ function streetLife(g, dt) {
         ps.phase = 'away';
       } else if (ps.dir === 'in' && ps.k >= 1) ps.done = true;
     } else if (ps.phase === 'along') {
-      if (w.goTo(ps.mouth, dt, { speedScale: 0.6 })) {
+      if (w.goTo(ps.mouth, dt, sniped(w.x) ? { run: true } : { speedScale: 0.6 })) {
         w.face('back');
         ps.phase = 'depth';
         ps.k = 0;
         w.baseScale = w.rig.scale;
       }
-    } else if (ps.phase === 'away') {
-      w.goTo(ps.mouth + ps.side * 1000, dt, { speedScale: 0.6 });
-      if (Math.abs(w.x - ps.mouth) > 950) ps.done = true;
+    } else if (ps.phase === 'away' || ps.phase === 'flee') {
+      const run = ps.phase === 'flee' || sniped(w.x);
+      w.goTo(w.x + ps.side * 400, dt, run ? { run: true } : { speedScale: 0.6 });
+      // gone only once out of the frame
+      if (Math.abs(w.x - g.cam.x) > g.cam.view / 2 + 140) ps.done = true;
     }
   }
   g.passers = g.passers.filter((w) => !w.passer.done);
-  if (!calm && (a.shelling || a.drainT0)) g.passers.length = 0;
+  // shelling, or the news: whoever is out hurries off (never just vanishes)
+  if (!calm && (a.shelling || a.drainT0)) {
+    for (const w of g.passers) {
+      const ps = w.passer;
+      if (ps.phase === 'depth') {
+        ps.dir = 'in';
+      } else if (ps.phase !== 'flee') {
+        ps.phase = 'flee';
+        ps.side = w.x < g.cam.x ? -1 : 1;
+        w.face('side');
+        w.f = ps.side;
+      }
+    }
+  }
 }
 
 // A few single shots far to the south, irregular, all afternoon.
