@@ -56,11 +56,14 @@ export class Level {
     this.things = this.things.filter((t) => t.id !== id);
   }
 
-  nearest(x) {
+  // (y: the player's feet; things more than a storey above or below are
+  // on another floor)
+  nearest(x, y = null) {
     let best = null;
     let bd = Infinity;
     for (const t of this.things) {
       if (!t.enabled()) continue;
+      if (y != null && (t.y < y - 260 || t.y > y + 60)) continue;
       // things marked urgent (a scripted action) win over plain examine points
       const d = Math.abs(t.x - x) - (t.urgent ? 1e6 : 0);
       if (Math.abs(t.x - x) < t.range && d < bd) {

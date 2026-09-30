@@ -26,6 +26,10 @@ export const OUTFITS = {
   khaled: { top: '#d8cfbd', sleeve: 'long', trousers: '#3e3a35', shoes: '#2a211a', skin: '#b98a6a', hair: '#2b211a', hairStyle: 'sidepart', beard: 'short', layer: { kind: 'vest', color: '#6b5a44' }, glasses: true, satchel: '#5a3f26' },
   oldman: { top: '#8d8578', robe: true, trousers: '#8d8578', shoes: '#6a5a48', footwear: 'sandal', skin: '#9c7457', hair: '#d8d2c8', hairStyle: 'bald', beard: 'long', beardColor: '#dcd6cc', headwear: 'kufi', headColor: '#e8e2d6', scarf: '#4a4238' },
   medic: { top: '#b9b5aa', sleeve: 'long', rolled: true, trousers: '#3a3d44', shoes: '#232120', skin: '#b58768', hair: '#1f1915', hairStyle: 'short', beard: 'stubble', layer: { kind: 'coat', color: '#a9a59a' } },
+  // regime soldiers at the checkpoint, and their officer
+  soldier: { top: '#535943', sleeve: 'long', trousers: '#4b503c', shoes: '#1b1a17', footwear: 'boot', skin: '#b88a68', hair: '#1e1914', hairStyle: 'buzz', beard: 'stubble', belt: '#2a2a22', pattern: 'camo', patternColor: '#30352a', layer: { kind: 'vest', color: '#3e4333' }, headwear: 'cap', headColor: '#474c39' },
+  soldier2: { top: '#585d46', sleeve: 'long', trousers: '#4f533f', shoes: '#1b1a17', footwear: 'boot', skin: '#c29776', hair: '#241c16', hairStyle: 'buzz', beard: 'none', belt: '#2a2a22', pattern: 'camo', patternColor: '#353a2c', layer: { kind: 'vest', color: '#41463a' }, headwear: 'beanie', headColor: '#3b3f31' },
+  officer: { top: '#5a5f47', sleeve: 'long', trousers: '#4f543f', shoes: '#15130f', footwear: 'boot', skin: '#b58566', hair: '#1c1612', hairStyle: 'short', beard: 'thickMoustache', beardColor: '#1c1612', belt: '#24201a', layer: { kind: 'jacket', color: '#555a43' } },
   abuyazan: { top: '#7d7a70', sleeve: 'long', trousers: '#34332f', shoes: '#1e1c1a', skin: '#a7795a', hair: '#8f8a82', hairStyle: 'receding', beard: 'thickMoustache', beardColor: '#8e877e', layer: { kind: 'jacket', color: '#3f403c' }, headwear: 'cap', headColor: '#4a4640' },
   spotter: { top: '#4b5245', sleeve: 'long', rolled: true, trousers: '#2d2f31', shoes: '#1d1b19', footwear: 'boot', skin: '#b78867', hair: '#1f1a16', hairStyle: 'buzz', beard: 'goatee', layer: { kind: 'vest', color: '#5b5a3e' }, headwear: 'beanie', headColor: '#2c2c2e' },
   fadi: { top: '#7a3b2c', sleeve: 'short', pattern: 'stripe', patternColor: '#c9b89a', trousers: '#3a3f4a', shoes: '#222', footwear: 'sandal', skin: '#bf9070', hair: '#2a1f18', hairStyle: 'curly', beard: 'none' },
@@ -564,6 +568,22 @@ export class Person {
     for (let y = y0; y < y0 + h; y += o.pattern === 'stripe' ? 6 : 5) {
       ctx.moveTo(x0, y);
       ctx.lineTo(x0 + w, y);
+    }
+    if (o.pattern === 'camo') {
+      // blotches, not lines: the same every frame
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = o.patternColor;
+      for (let i = 0; i < 9; i++) {
+        const bx = x0 + ((i * 37) % 97) / 97 * w;
+        const by = y0 + ((i * 53) % 89) / 89 * h;
+        ctx.moveTo(bx + 5, by);
+        ctx.ellipse(bx, by, 5 + (i % 3) * 2, 3 + (i % 2) * 2, i, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.restore();
+      return;
     }
     if (o.pattern === 'check') {
       for (let x = x0; x < x0 + w; x += 5) {

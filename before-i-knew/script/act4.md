@@ -268,13 +268,13 @@
 
 *They carry Ahmad back across the no-man's-land. Ninety seconds. The checkpoint watches.*
 
-*[ACTING NOTE ON OFFICER MAHER: If the player took the dignity path (G1), Maher watches the crossing without expression. As Sami passes the midpoint, returning, Maher does a small thing: he turns slightly away. Not looking away from guilt — looking away to give them privacy. It's the smallest possible gesture. It means everything or nothing.]*
+*[ACTING NOTE ON OFFICER MAHER: If the player took the dignity path (G1), Maher watches the crossing without expression, Ahmad's lighter in his breast pocket. As Sami passes the midpoint, returning, Maher checks his watch. The twenty minutes he sold are nearly up. That is all the attention he gives it.]*
 
 *[If pragmatic deal (G3): Maher watches the entire crossing without moving. His face is closed. The deal was transactional. There is no gesture. The body is retrieved, but the air between them is heavy with what was exchanged.]*
 
 ### Scene E2-1b: The Retrieval — Anger Variant
 
-*[Plays if negotiation_outcome == partial (G2 anger path, where the confrontation nearly collapsed but was rescued by the photograph moment).]*
+*[Plays if negotiation_outcome == partial (G2 anger path: Sami was beaten, and Maher let the retrieval go ahead on his conditions only because a body in the street is no use to him).]*
 
 *The retrieval is the same, but with differences:*
 

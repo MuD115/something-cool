@@ -2545,8 +2545,17 @@ const STR = {
     endKicker2: 'End of Act Two · The Evening',
     endNext2: 'Act Three, The Night, comes next. The path you chose is saved for it.',
     againAct2: 'Play Act Two again',
-    checkpoints: { walk: 'The Walk', hour: 'The Hour', school: 'The School', news: 'The Corner', south: 'Act Two · South', lanes: 'Act Two · The Lanes', front: 'Act Two · The Frontline' },
-    times: { walk: '3:05 pm', hour: '3:25 pm', school: '3:50 pm', news: '4:10 pm', south: '4:30 pm', lanes: '4:35 pm', front: '4:50 pm' },
+    chapter3: 'Act Three · The Night (Retrieval)',
+    chapter3Sub: '8:00 pm onwards · the checkpoint, or the building',
+    chapter3Locked: 'Finish Act Two to open it',
+    continueAct3: 'Continue to Act Three',
+    endNextAct3: 'Night is coming. Act Three follows him into it.',
+    endKicker3: 'Act Three · The Night · Part One',
+    endNext3: 'The night walk, the visions and the rooftop are still being built. The path you chose is saved for them.',
+    againAct3: 'Play Act Three again',
+    decPrice: 'The price of a body',
+    checkpoints: { walk: 'The Walk', hour: 'The Hour', school: 'The School', news: 'The Corner', south: 'Act Two · South', lanes: 'Act Two · The Lanes', front: 'Act Two · The Frontline', night: 'Act Three · The Open Ground', table: 'Act Three · The Checkpoint', building: 'Act Three · The Building', floor4: 'Act Three · The Fourth Floor', descent: 'Act Three · The Descent' },
+    times: { walk: '3:05 pm', hour: '3:25 pm', school: '3:50 pm', news: '4:10 pm', south: '4:30 pm', lanes: '4:35 pm', front: '4:50 pm', night: '8:15 pm', table: '8:25 pm', building: '8:30 pm', floor4: '8:50 pm', descent: '9:00 pm' },
     rotate: 'Turn your phone sideways for the full frame.',
     // accessibility
     gAccess: 'Accessibility',
@@ -2679,8 +2688,17 @@ const STR = {
     endKicker2: 'نهاية الفصل الثاني · المساء',
     endNext2: 'الفصل الثالث، الليل، هو التالي. الطريق الذي اخترته محفوظ له.',
     againAct2: 'العب الفصل الثاني مجدداً',
-    checkpoints: { walk: 'المشوار', hour: 'الساعة', school: 'المدرسة', news: 'الزاوية', south: 'الفصل الثاني · الجنوب', lanes: 'الفصل الثاني · الممرات', front: 'الفصل الثاني · خط التماس' },
-    times: { walk: '٣:٠٥', hour: '٣:٢٥', school: '٣:٥٠', news: '٤:١٠', south: '٤:٣٠', lanes: '٤:٣٥', front: '٤:٥٠' },
+    chapter3: 'الفصل الثالث · الليل (الاسترداد)',
+    chapter3Sub: 'من ٨:٠٠ مساءً · الحاجز، أو المبنى',
+    chapter3Locked: 'أنهِ الفصل الثاني لفتحه',
+    continueAct3: 'تابع إلى الفصل الثالث',
+    endNextAct3: 'الليل قادم، والفصل الثالث يتبعه إليه.',
+    endKicker3: 'الفصل الثالث · الليل · الجزء الأول',
+    endNext3: 'المشي في الليل والرؤى والسطح قيد البناء. الطريق الذي اخترته محفوظ لها.',
+    againAct3: 'العب الفصل الثالث مجدداً',
+    decPrice: 'ثمن الجثة',
+    checkpoints: { walk: 'المشوار', hour: 'الساعة', school: 'المدرسة', news: 'الزاوية', south: 'الفصل الثاني · الجنوب', lanes: 'الفصل الثاني · الممرات', front: 'الفصل الثاني · خط التماس', night: 'الفصل الثالث · الأرض المكشوفة', table: 'الفصل الثالث · الحاجز', building: 'الفصل الثالث · المبنى', floor4: 'الفصل الثالث · الطابق الرابع', descent: 'الفصل الثالث · النزول' },
+    times: { walk: '٣:٠٥', hour: '٣:٢٥', school: '٣:٥٠', news: '٤:١٠', south: '٤:٣٠', lanes: '٤:٣٥', front: '٤:٥٠', night: '٨:١٥', table: '٨:٢٥', building: '٨:٣٠', floor4: '٨:٥٠', descent: '٩:٠٠' },
     rotate: 'أدِر هاتفك أفقياً لرؤية الصورة كاملة.',
     gAccess: 'سهولة الوصول',
     readSpeed: 'مدة عرض الترجمة',
@@ -3750,11 +3768,14 @@ class Level {
     this.things = this.things.filter((t) => t.id !== id);
   }
 
-  nearest(x) {
+  // (y: the player's feet; things more than a storey above or below are
+  // on another floor)
+  nearest(x, y = null) {
     let best = null;
     let bd = Infinity;
     for (const t of this.things) {
       if (!t.enabled()) continue;
+      if (y != null && (t.y < y - 260 || t.y > y + 60)) continue;
       // things marked urgent (a scripted action) win over plain examine points
       const d = Math.abs(t.x - x) - (t.urgent ? 1e6 : 0);
       if (Math.abs(t.x - x) < t.range && d < bd) {
@@ -3927,6 +3948,10 @@ const OUTFITS = {
   khaled: { top: '#d8cfbd', sleeve: 'long', trousers: '#3e3a35', shoes: '#2a211a', skin: '#b98a6a', hair: '#2b211a', hairStyle: 'sidepart', beard: 'short', layer: { kind: 'vest', color: '#6b5a44' }, glasses: true, satchel: '#5a3f26' },
   oldman: { top: '#8d8578', robe: true, trousers: '#8d8578', shoes: '#6a5a48', footwear: 'sandal', skin: '#9c7457', hair: '#d8d2c8', hairStyle: 'bald', beard: 'long', beardColor: '#dcd6cc', headwear: 'kufi', headColor: '#e8e2d6', scarf: '#4a4238' },
   medic: { top: '#b9b5aa', sleeve: 'long', rolled: true, trousers: '#3a3d44', shoes: '#232120', skin: '#b58768', hair: '#1f1915', hairStyle: 'short', beard: 'stubble', layer: { kind: 'coat', color: '#a9a59a' } },
+  // regime soldiers at the checkpoint, and their officer
+  soldier: { top: '#535943', sleeve: 'long', trousers: '#4b503c', shoes: '#1b1a17', footwear: 'boot', skin: '#b88a68', hair: '#1e1914', hairStyle: 'buzz', beard: 'stubble', belt: '#2a2a22', pattern: 'camo', patternColor: '#30352a', layer: { kind: 'vest', color: '#3e4333' }, headwear: 'cap', headColor: '#474c39' },
+  soldier2: { top: '#585d46', sleeve: 'long', trousers: '#4f533f', shoes: '#1b1a17', footwear: 'boot', skin: '#c29776', hair: '#241c16', hairStyle: 'buzz', beard: 'none', belt: '#2a2a22', pattern: 'camo', patternColor: '#353a2c', layer: { kind: 'vest', color: '#41463a' }, headwear: 'beanie', headColor: '#3b3f31' },
+  officer: { top: '#5a5f47', sleeve: 'long', trousers: '#4f543f', shoes: '#15130f', footwear: 'boot', skin: '#b58566', hair: '#1c1612', hairStyle: 'short', beard: 'thickMoustache', beardColor: '#1c1612', belt: '#24201a', layer: { kind: 'jacket', color: '#555a43' } },
   abuyazan: { top: '#7d7a70', sleeve: 'long', trousers: '#34332f', shoes: '#1e1c1a', skin: '#a7795a', hair: '#8f8a82', hairStyle: 'receding', beard: 'thickMoustache', beardColor: '#8e877e', layer: { kind: 'jacket', color: '#3f403c' }, headwear: 'cap', headColor: '#4a4640' },
   spotter: { top: '#4b5245', sleeve: 'long', rolled: true, trousers: '#2d2f31', shoes: '#1d1b19', footwear: 'boot', skin: '#b78867', hair: '#1f1a16', hairStyle: 'buzz', beard: 'goatee', layer: { kind: 'vest', color: '#5b5a3e' }, headwear: 'beanie', headColor: '#2c2c2e' },
   fadi: { top: '#7a3b2c', sleeve: 'short', pattern: 'stripe', patternColor: '#c9b89a', trousers: '#3a3f4a', shoes: '#222', footwear: 'sandal', skin: '#bf9070', hair: '#2a1f18', hairStyle: 'curly', beard: 'none' },
@@ -4465,6 +4490,22 @@ class Person {
     for (let y = y0; y < y0 + h; y += o.pattern === 'stripe' ? 6 : 5) {
       ctx.moveTo(x0, y);
       ctx.lineTo(x0 + w, y);
+    }
+    if (o.pattern === 'camo') {
+      // blotches, not lines: the same every frame
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = o.patternColor;
+      for (let i = 0; i < 9; i++) {
+        const bx = x0 + ((i * 37) % 97) / 97 * w;
+        const by = y0 + ((i * 53) % 89) / 89 * h;
+        ctx.moveTo(bx + 5, by);
+        ctx.ellipse(bx, by, 5 + (i % 3) * 2, 3 + (i % 2) * 2, i, 0, Math.PI * 2);
+      }
+      ctx.fill();
+      ctx.restore();
+      return;
     }
     if (o.pattern === 'check') {
       for (let x = x0; x < x0 + w; x += 5) {
@@ -5416,6 +5457,12 @@ class Walker {
     this.time += dt;
     const L = this.level;
     this.blocked = null;
+    // moved by a script along a path (a stair flight, a drainpipe): no
+    // physics, just the pose for the speed it's being moved at
+    if (this.scripted) {
+      this.pose(dt, this.scriptedSpeed || 0);
+      return;
+    }
 
     if (this.mantle) {
       const m = this.mantle;
@@ -5578,6 +5625,9 @@ class Walker {
         this.onStep?.(this.stance);
       }
     }
+
+    // arms held a certain way whatever the legs are doing (a raised cloth)
+    if (this.arms) target = { ...target, ...this.arms };
 
     // Stance changes take their time (about half a second), and going
     // between standing and lying passes through a kneel, hands going down
@@ -5829,6 +5879,8 @@ class Game {
     this.flashActors = null;
     this.cat = null;
     this.camOverride = null;
+    this.stanceLock = null;
+    this.onStanceLocked = null;
     this.focus = null;
     this.focusK = 0;
     this.cam = { x: 0, y: -250, view: 1500 };
@@ -6030,7 +6082,7 @@ class Game {
   cameraTarget() {
     if (this.camOverride) return typeof this.camOverride === 'function' ? this.camOverride(this) : this.camOverride;
     const p = this.player;
-    const cam = { x: p.x + p.f * 110, y: -205, view: 1300 };
+    const cam = this.act.camera?.(this) || { x: p.x + p.f * 110, y: -205, view: 1300 };
     // near something to interact with, the camera leans towards it and closes in
     const f = this.focus;
     const k = f && this.settings.get('focusCam') !== false ? smooth(0, 1, this.focusK) : 0;
@@ -6052,6 +6104,7 @@ class Game {
     if (this.scene === 'street' && !this.locked && !this.text.choiceOpen && !this.autoWalk) {
       for (const t of this.level.things) {
         if (!t.enabled()) continue;
+        if (t.y < p.y - 260 || t.y > p.y + 60) continue; // another floor
         const d = Math.abs(t.x - p.x);
         const r = t.range * 1.9;
         if (d < r && (!best || d < best.d)) best = { t, d, r };
@@ -6177,7 +6230,10 @@ class Game {
     } else if (!this.locked && this.scene === 'street') {
       let stance;
       let told = true;
-      if (this.settings.get('crouchMode') === 'hold') {
+      // some moments won't let him drop or run (walking out under a white cloth)
+      if (this.stanceLock) {
+        if (input.hit('crouch') || input.hit('prone') || (input.held('run') && Math.abs(p.vx) > 1)) this.onStanceLocked?.();
+      } else if (this.settings.get('crouchMode') === 'hold') {
         // held: down while the key is, up (when there's room) once it's let go
         const want = input.held('prone') ? 'prone' : input.held('crouch') ? 'crouch' : 'stand';
         told = want !== this.heldWant;
@@ -6189,7 +6245,8 @@ class Game {
         if (input.hit('jump') && p.stance !== 'stand') stance = 'stand';
       }
       const move = (input.held('right') ? 1 : 0) - (input.held('left') ? 1 : 0);
-      p.update(dt, { move: this.gate ? this.gate(move) : move, run: input.held('run'), jump: input.hit('jump') && p.stance === 'stand', stance });
+      if (this.stanceLock) stance = p.stance !== this.stanceLock ? this.stanceLock : undefined;
+      p.update(dt, { move: this.gate ? this.gate(move) : move, run: input.held('run') && !this.stanceLock, jump: input.hit('jump') && p.stance === 'stand' && !this.stanceLock, stance });
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
       } else if (stance === 'stand' && p.stance !== 'stand' && told) {
@@ -6281,8 +6338,9 @@ class Game {
 
   interact() {
     const p = this.player;
-    // (no hint while what Sami made of a thing is still floating over it)
-    const t = !this.locked && this.scene === 'street' && !this.text.choiceOpen && this.text.floatEl.hidden ? this.level.nearest(p.x) : null;
+    let t = !this.locked && this.scene === 'street' && !this.text.choiceOpen ? this.level.nearest(p.x, p.y) : null;
+    // (no hint for a thing while what Sami made of it is still floating over it)
+    if (t && t === this.floatAt && !this.text.floatEl.hidden) t = null;
     if (!t) {
       this.text.hint(0, 0, '', null);
       return;
@@ -12501,7 +12559,1574 @@ function* ambient(g) {
 }
 
 
-return { ACT2R };
+return { ACT2R, whiteCloth };
+})();
+
+// ---- src/story/act3r-set.js
+const __src_story_act3r_set = (() => {
+// Act 3, Retrieval: The Night. Two places, one per route:
+//
+//   Part 1 (the white cloth): the last wall of our side, then sixty metres of
+//   open, moonlit ground to the regime checkpoint: sandbags, a battery lamp,
+//   a camp table, a flag. Right is west, towards the checkpoint; the moon is
+//   low in the east, behind Sami.
+//
+//   Part 2 (the back route): the six-storey building beside School Street,
+//   seen in section, floor by floor, dark but for the torch and the moon
+//   through the holes; then its outside wall, a balcony, a drainpipe, the
+//   alley and the street where the blanket lies.
+//
+// World units: ground at y = 0, up is negative.
+
+const { lerp, clamp, rng, mixc } = __src_engine_util;
+const T = __src_sets_town;
+const { horizon } = __src_sets_horizon;
+const { sandbags } = __src_story_act2r_set;
+// ------------------------------------------------------------- Part 1 --
+
+const X1 = {
+  start: 40,
+  wall: [60, 150], // the last wall of our side
+  open: 170, // where the open ground begins
+  blanket: 560, // the shape in the street, off to the side
+  shout: 900,
+  stop: 980,
+  bags: [1400, 1580],
+  lamp: 1600,
+  table: 1700,
+  maher: 1768,
+  seat: 1632, // the chair across the table from him
+  flag: 1840,
+  end: 2100,
+};
+
+// ------------------------------------------------------------- Part 2 --
+
+const FH = 200; // floor to floor
+const floorY = (n) => -(n - 1) * FH; // floor 1 is the ground
+const X2 = {
+  b0: 0,
+  b1: 1100, // the building's outer walls
+  door: 50,
+  stairs1: [820, 1040], // F1 → F2 (in the stairwell, behind)
+  table: 420,
+  drawing: 300,
+  stairs2: [40, 300], // F2 → F3 (in the stairwell, behind): the slab across them
+  slab: [150, 210],
+  wardrobe: [470, 580],
+  lowceil: [660, 820],
+  mound: [900, 1000], // rubble under the missing stairs, F3 → F4
+  f4edge: 900, // where the fourth floor stops (over the mound's edge)
+  heights: 480,
+  stairs4: [30, 250], // F4 → F5 (in the stairwell, behind): one step gives way
+  hole: 1000, // the hole in the outside wall, fifth floor
+  balc5: [1100, 1170],
+  balc4: [1100, 1260],
+  pipe: 1250,
+  alley: [1100, 1420],
+  arch: [1330, 1420], // the fallen arch into the street: crawl
+  street: 1420,
+  blanket: 1640,
+  shade: 1360, // where the buildings' shadow ends
+  lamp: 2450,
+};
+
+// ------------------------------------------------------------ the sky --
+
+const NIGHT = [[0, '#05070f'], [0.45, '#0d1426'], [0.8, '#1b2440']];
+
+function stars(R, t) {
+  R.sky((c) => {
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    const r = rng(7);
+    for (let i = 0; i < 160; i++) {
+      const x = r() * R.W;
+      const y = r() * R.H * 0.62;
+      const tw = 0.55 + 0.45 * Math.sin(t * (0.6 + r() * 1.4) + i);
+      c.fillStyle = `rgba(230,236,255,${(0.15 + r() * 0.55) * tw})`;
+      const s = r() < 0.08 ? 1.6 : 1;
+      c.fillRect(x, y, s, s);
+    }
+    c.restore();
+  });
+}
+
+// The moon, three-quarters full, and its halo. uv on screen.
+function moon(R, u, v) {
+  R.sky((c) => {
+    c.save();
+    c.setTransform(1, 0, 0, 1, 0, 0);
+    const x = u * R.W;
+    const y = v * R.H;
+    const r = R.H * 0.035;
+    const halo = c.createRadialGradient(x, y, r, x, y, r * 9);
+    halo.addColorStop(0, 'rgba(200,215,255,0.22)');
+    halo.addColorStop(1, 'rgba(200,215,255,0)');
+    c.fillStyle = halo;
+    c.fillRect(x - r * 9, y - r * 9, r * 18, r * 18);
+    c.fillStyle = '#eef0f6';
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.fill();
+    // the dark quarter
+    c.fillStyle = 'rgba(12,16,30,0.92)';
+    c.beginPath();
+    c.arc(x - r * 1.35, y - r * 0.1, r * 0.95, 0, Math.PI * 2);
+    c.fill();
+    c.fillStyle = 'rgba(160,170,190,0.25)';
+    c.beginPath();
+    c.arc(x + r * 0.3, y - r * 0.25, r * 0.22, 0, Math.PI * 2);
+    c.arc(x + r * 0.05, y + r * 0.35, r * 0.15, 0, Math.PI * 2);
+    c.fill();
+    c.restore();
+  });
+}
+
+function nightSky(R, g, { moonUv = [0.12, 0.26] } = {}) {
+  T.sky(R, NIGHT, { sun: moonUv, warmth: 0 });
+  stars(R, g.time);
+  moon(R, moonUv[0], moonUv[1]);
+  horizon(R, {
+    haze: [36, 44, 70],
+    shade: [22, 26, 40],
+    cloud: [70, 80, 110],
+    span: 6000,
+    seed: 31,
+    t: g.time,
+    lights: 1, // Damascus, lit, to the west
+    lite: g.settings.get('quality') === 'low',
+  });
+}
+
+// ------------------------------------------------------------ the look --
+
+function nightLook(g) {
+  const a = g.a;
+  const lights = [
+    // the moon: cool, low in the east
+    { uv: a.part === 2 ? [-0.3, -0.4] : [0.12, 0.26], color: [0.62, 0.7, 0.95], intensity: a.inside ? 0.12 : 0.55, radius: 0, rim: 0.9 },
+  ];
+  const torch = g.torchLight();
+  if (torch) lights.push(torch);
+  if (a.part === 1) {
+    // the battery lamp on the sandbags
+    const fl = 0.92 + 0.08 * Math.sin(g.time * 13) * Math.sin(g.time * 3.1);
+    lights.push({ x: X1.lamp + (a.lampAtTable ? 100 : 0), y: a.lampAtTable ? -112 : -150, color: [1, 0.82, 0.52], intensity: 1.6 * fl, radius: 0.16, rim: 0.8 });
+  } else {
+    // moonlight falling through the holes in the building
+    for (const [x, y] of MOON_HOLES) lights.push({ x, y: y + 60, color: [0.6, 0.68, 0.95], intensity: 0.5, radius: 0.1, rim: 0.3 });
+    lights.push({ x: X2.lamp, y: -140, color: [1, 0.82, 0.52], intensity: 0.5, radius: 0.1, rim: 0.4 });
+  }
+  if (a.shotAt && g.time - a.shotAt < 0.12) lights.push({ x: a.shotX, y: a.shotY, color: [1, 0.9, 0.7], intensity: 1.2, radius: 0.06, rim: 0.4 });
+  return {
+    ambient: a.inside ? [0.075, 0.08, 0.11] : [0.09, 0.105, 0.16],
+    lights: lights.slice(0, 8),
+    groundShadow: 0.55,
+    bloom: 0.7,
+    exposure: 0.98,
+    grain: 0.07,
+    grade: { sat: 0.62, contrast: 1.1, lift: 0.01, tint: [0.92, 0.97, 1.08] },
+    fade: Math.max(a.endFade || 0, a.blackout || 0),
+    flash: a.hitAt && g.time - a.hitAt < 0.15 ? [0.3, 0.05, 0.02] : null,
+  };
+}
+
+const surfaceAt = (x) => (x > 170 && x < 1400 ? 'rubble' : 'grit');
+
+// ======================================================= Part 1: draw ==
+
+function drawApproach(R, g) {
+  const a = g.a;
+  const t = g.time;
+  const cx = R.cam.x;
+  const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
+  nightSky(R, g);
+  T.skyline(R, { depth: 0.3, y: 30, color: '#141826', seed: 41 });
+
+  // our side: the last buildings, dark, to the left
+  T.block(R, { x: -900, w: 820, floors: 4, fh: 140, color: '#3a3c44', seed: 301, torn: 0.3, tornLeft: false, noDoors: true }, t);
+  // across the open ground: the regime side, the checkpoint in front of it
+  T.block(R, { x: 1500, w: 700, floors: 5, fh: 140, color: '#34363f', seed: 302, torn: 0.2 }, t);
+  T.block(R, { x: 2200, w: 600, floors: 3, fh: 140, color: '#30323a', seed: 303, torn: 0.5 }, t);
+
+  // the open ground: broken tarmac, glass, a crater's edge
+  R.paint((c) => {
+    c.fillStyle = '#2d2c2e';
+    c.fillRect(-1000, -6, 4000, 30);
+    const r = rng(11);
+    for (let i = 0; i < 140; i++) {
+      const x = X1.open + r() * (X1.bags[0] - X1.open);
+      c.fillStyle = r() < 0.2 ? 'rgba(200,210,230,0.35)' : 'rgba(80,76,72,0.8)';
+      c.fillRect(x, -3 - r() * 3, 2 + r() * 6, 2 + r() * 3);
+    }
+    // the crater
+    c.fillStyle = '#1c1b1d';
+    c.beginPath();
+    c.ellipse(430, -2, 70, 7, 0, 0, Math.PI * 2);
+    c.fill();
+  });
+  // the shape under the blanket, out in the street, where Sami won't look
+  if (near(X1.blanket - 80, X1.blanket + 80)) blanketShape(R, X1.blanket, -14, 0.8);
+
+  // the last wall of our side
+  if (near(X1.wall[0], X1.wall[1])) T.lowWall(R, X1.wall[0], X1.wall[1] - X1.wall[0], 120, '#57554f');
+  // the checkpoint: sandbags, the lamp, the table, a flag
+  if (near(X1.bags[0] - 200, X1.flag + 200)) checkpoint(R, g, t);
+  T.cables(R, cx, { seed: 61, from: -900, to: 2800, y: -380 });
+
+  // the people
+  const shear = -1.2;
+  for (const w of [...g.npcs, g.player]) {
+    if (!w.visible || !near(w.x - 100, w.x + 100)) continue;
+    R.cast((c) => w.draw(c));
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.1);
+  }
+  if (near(X1.bags[0], X1.bags[1])) sandbags(R, X1.bags[0], X1.bags[1] - X1.bags[0], 4, { color: '#5e5646' });
+  g.effects.draw(R);
+}
+
+function checkpoint(R, g, t) {
+  const a = g.a;
+  // a flagpole, the flag hanging in the still air
+  R.cast((c) => {
+    c.fillStyle = '#2a2a2a';
+    c.fillRect(X1.flag, -330, 4, 334);
+    const sway = Math.sin(t * 0.8) * 3;
+    c.fillStyle = '#8d2a2a';
+    c.fillRect(X1.flag + 4, -328, 70 + sway, 16);
+    c.fillStyle = '#e8e4dc';
+    c.fillRect(X1.flag + 4, -312, 70 + sway, 16);
+    c.fillStyle = '#1b1b1b';
+    c.fillRect(X1.flag + 4, -296, 70 + sway, 16);
+    // the regime's flag: two green stars on the white
+    c.fillStyle = '#2f7a3a';
+    for (const sx of [0.34, 0.66]) {
+      const px = X1.flag + 4 + (70 + sway) * sx;
+      c.beginPath();
+      for (let i = 0; i < 10; i++) {
+        const r = i % 2 ? 2.4 : 5.6;
+        const ang = -Math.PI / 2 + (i * Math.PI) / 5;
+        c.lineTo(px + Math.cos(ang) * r, -304 + Math.sin(ang) * r);
+      }
+      c.fill();
+    }
+  });
+  // the camp table, two folding chairs, the radio, the thermos, glasses
+  R.cast((c) => {
+    c.fillStyle = '#4a4638';
+    c.fillRect(X1.table - 50, -82, 100, 6);
+    c.fillRect(X1.table - 44, -76, 4, 76);
+    c.fillRect(X1.table + 40, -76, 4, 76);
+    for (const [cx, f] of [[X1.seat, 1], [X1.maher + 10, -1]]) {
+      c.fillStyle = '#3a3a3c';
+      c.fillRect(cx - 18, -44, 36, 4);
+      c.fillRect(cx - 16, -40, 3, 40);
+      c.fillRect(cx + 13, -40, 3, 40);
+      c.fillRect(cx - f * 18, -96, 3, 56);
+    }
+    // radio
+    c.fillStyle = '#2c2e27';
+    c.fillRect(X1.table + 14, -104, 30, 22);
+    c.fillStyle = '#6e7560';
+    c.fillRect(X1.table + 30, -128, 2, 24);
+    // thermos and two tea glasses
+    c.fillStyle = '#7a2a24';
+    c.fillRect(X1.table - 30, -112, 12, 30);
+    c.fillStyle = 'rgba(200,120,60,0.8)';
+    c.fillRect(X1.table - 12, -92, 6, 10);
+    c.fillRect(X1.table + 2, -92, 6, 10);
+    // what they took from Sami, on the table
+    if (a.onTable) {
+      c.fillStyle = '#2a2d31';
+      c.fillRect(X1.table - 4, -90, 10, 8); // walkie
+      if (a.lighterOnTable) {
+        c.fillStyle = '#b9b3a4';
+        c.fillRect(X1.table + 8, -87, 5, 5); // the lighter
+      }
+    }
+  });
+  // the battery lamp: on the sandbags, then on the table
+  const lx = a.lampAtTable ? X1.table : X1.lamp;
+  const ly = a.lampAtTable ? -90 : -128;
+  R.cast((c) => {
+    c.fillStyle = '#2e2e2c';
+    c.fillRect(lx - 7, ly - 16, 14, 16);
+  });
+  R.glow((c) => {
+    const grd = c.createRadialGradient(lx, ly - 18, 0, lx, ly - 18, 60);
+    grd.addColorStop(0, 'rgba(255,220,160,0.9)');
+    grd.addColorStop(0.2, 'rgba(255,200,130,0.3)');
+    grd.addColorStop(1, 'rgba(255,190,120,0)');
+    c.fillStyle = grd;
+    c.fillRect(lx - 60, ly - 78, 120, 120);
+  });
+}
+
+// A shape under a dark blanket on the ground. Nothing else is shown.
+function blanketShape(R, x, y, s = 1) {
+  R.cast((c) => {
+    c.save();
+    c.translate(x, y);
+    c.scale(s, s);
+    c.fillStyle = '#3a342c';
+    c.beginPath();
+    c.moveTo(-70, 0);
+    c.quadraticCurveTo(-66, -16, -40, -18);
+    c.quadraticCurveTo(-10, -24, 18, -19);
+    c.quadraticCurveTo(46, -22, 62, -12);
+    c.quadraticCurveTo(72, -6, 70, 0);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.3)';
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(-30, -17);
+    c.quadraticCurveTo(-24, -8, -30, 0);
+    c.moveTo(20, -18);
+    c.quadraticCurveTo(28, -9, 22, 0);
+    c.stroke();
+    c.restore();
+  });
+}
+
+// ======================================================= Part 2: draw ==
+
+// Holes in the building's back wall, where the moon comes in: [x, y] centres.
+const MOON_HOLES = [
+  [260, floorY(2) - 120],
+  [640, floorY(3) - 110],
+  [900, floorY(4) - 130],
+  [420, floorY(5) - 120],
+];
+
+function drawBuilding(R, g) {
+  const a = g.a;
+  const t = g.time;
+  const cx = R.cam.x;
+  const near = (x0, x1) => x1 > cx - 1500 && x0 < cx + 1500;
+  nightSky(R, g, { moonUv: [0.9, 0.18] });
+  T.skyline(R, { depth: 0.3, y: 40, color: '#141826', seed: 42 });
+
+  // across the street: the regime side, dark, and the checkpoint lamp
+  T.block(R, { x: 1800, w: 900, floors: 5, fh: 150, color: '#2e3038', seed: 311, torn: 0.3 }, t);
+  R.glow((c) => {
+    const grd = c.createRadialGradient(X2.lamp, -150, 0, X2.lamp, -150, 50);
+    grd.addColorStop(0, 'rgba(255,215,150,0.9)');
+    grd.addColorStop(1, 'rgba(255,200,130,0)');
+    c.fillStyle = grd;
+    c.fillRect(X2.lamp - 50, -200, 100, 100);
+  });
+
+  // the back wall of each floor, with the moon's holes cut through it
+  R.paint((c) => {
+    c.beginPath();
+    c.rect(X2.b0, floorY(6) - 20, X2.b1 - X2.b0, -floorY(6) + 20);
+    for (const [hx, hy] of MOON_HOLES) {
+      c.moveTo(hx + 50, hy);
+      c.ellipse(hx, hy, 50, 34, 0.2, 0, Math.PI * 2);
+    }
+    c.fillStyle = '#34322f';
+    c.fill('evenodd');
+    // stained plaster, a tide line of damp, soot around the holes
+    const r = rng(5);
+    for (let i = 0; i < 90; i++) {
+      c.fillStyle = `rgba(${r() < 0.5 ? '90,84,76' : '15,12,10'},0.25)`;
+      c.fillRect(X2.b0 + r() * (X2.b1 - X2.b0), floorY(6) + r() * -floorY(6), 20 + r() * 60, 10 + r() * 40);
+    }
+  });
+
+  // the flights in the stairwell, behind
+  if (near(X2.stairs1[0], X2.stairs1[1])) stairFlight(R, X2.stairs1[0], floorY(1), X2.stairs1[1], floorY(2));
+  if (near(X2.stairs2[0], X2.stairs2[1])) stairFlight(R, X2.stairs2[0], floorY(2), X2.stairs2[1], floorY(3), { slab: !a.slabCrossed });
+  if (near(X2.stairs4[0], X2.stairs4[1])) stairFlight(R, X2.stairs4[0], floorY(4), X2.stairs4[1], floorY(5), { broken: a.stepGone ? 4 : -1 });
+
+  // furniture and what the rooms still hold
+  if (near(X2.table - 100, X2.table + 100)) diningTable(R, X2.table, floorY(2));
+  if (near(X2.drawing - 50, X2.drawing + 50)) childsDrawing(R, X2.drawing, floorY(2) - 120);
+  if (near(X2.wardrobe[0], X2.wardrobe[1])) wardrobe(R, X2.wardrobe[0], floorY(3));
+  if (near(X2.heights - 60, X2.heights + 60)) doorFrame(R, X2.heights, floorY(4));
+
+  // floors, stairs, the slab, the fallen ceiling, the mound
+  R.cast((c) => {
+    for (const s of g.level.solids) {
+      if (!near(s.x0, s.x1) || s.hidden) continue;
+      if (s.kind === 'step') {
+        c.fillStyle = '#5b5750';
+        c.fillRect(s.x0, s.y0, s.x1 - s.x0, 8);
+        c.fillStyle = '#403d38';
+        c.fillRect(s.x0, s.y0 + 8, s.x1 - s.x0, Math.min(s.y1 - s.y0, 200) - 8);
+      } else if (s.kind === 'floor') {
+        c.fillStyle = '#6a655c';
+        c.fillRect(s.x0, s.y0, s.x1 - s.x0, 16);
+        c.fillStyle = 'rgba(0,0,0,0.3)';
+        c.fillRect(s.x0, s.y0 + 12, s.x1 - s.x0, 4);
+        // broken ends show their rebar
+        c.strokeStyle = '#3b2f28';
+        c.lineWidth = 1.5;
+        for (const ex of [s.x0, s.x1]) {
+          if (s.raw?.includes(ex)) {
+            c.beginPath();
+            for (let i = 0; i < 4; i++) {
+              c.moveTo(ex, s.y0 + 3 + i * 3);
+              c.lineTo(ex + (ex === s.x0 ? -1 : 1) * (10 + i * 5), s.y0 + 8 + i * 5);
+            }
+            c.stroke();
+          }
+        }
+      } else if (s.kind === 'slab') {
+        c.fillStyle = '#6f6a61';
+        c.save();
+        c.translate((s.x0 + s.x1) / 2, s.y0 + 20);
+        c.rotate(-0.25 + (a.slabShift || 0) * 0.04);
+        c.fillRect(-70, -18, 140, 26);
+        c.strokeStyle = '#3b2f28';
+        c.lineWidth = 1.5;
+        c.beginPath();
+        for (let i = 0; i < 5; i++) {
+          c.moveTo(-60 + i * 30, 8);
+          c.lineTo(-64 + i * 30, 24);
+        }
+        c.stroke();
+        c.restore();
+      } else if (s.kind === 'mound') {
+        T.rubble(R, s.x0 - 10, s.x1 - s.x0 + 20, 70, { seed: 5, color: '#5d5850', cast: false });
+      } else if (s.kind === 'balcony') {
+        c.fillStyle = '#5f5a52';
+        c.fillRect(s.x0, s.y0, s.x1 - s.x0, 12);
+        c.strokeStyle = '#2a2724';
+        c.lineWidth = 2;
+        c.beginPath();
+        c.moveTo(s.x0, s.y0 - 36);
+        c.lineTo(s.x1, s.y0 - 36);
+        for (let bx = s.x0 + 6; bx < s.x1; bx += 10) {
+          c.moveTo(bx, s.y0);
+          c.lineTo(bx, s.y0 - 36);
+        }
+        c.stroke();
+      }
+    }
+    // the dropped ceiling on the third floor, and the wardrobe's bulk
+    for (const k of g.level.ceilings) {
+      if (!near(k.x0, k.x1)) continue;
+      c.fillStyle = '#5a554d';
+      c.beginPath();
+      c.moveTo(k.x0 - 10, k.y - 40);
+      c.lineTo(k.x1 + 10, k.y - 50);
+      c.lineTo(k.x1, k.y);
+      c.lineTo(k.x0, k.y + 2);
+      c.fill();
+    }
+  });
+
+  // the outside wall on the right, with the hole on the fifth floor, and the
+  // drainpipe down it
+  R.cast((c) => {
+    c.fillStyle = '#4a4740';
+    c.beginPath();
+    c.rect(X2.b1 - 18, floorY(6), 18, -floorY(6));
+    c.rect(X2.b1 - 18, floorY(5) - 150, 18, 150); // (cut below: the hole)
+    c.fill();
+    c.fillStyle = '#34322f';
+    c.fillRect(X2.b0, floorY(6), 16, -floorY(6));
+    c.fillStyle = '#3c3a38';
+    c.fillRect(X2.pipe - 3, floorY(4) - 20, 6, -floorY(4) + 20);
+    for (let y = floorY(4); y < 0; y += 60) c.fillRect(X2.pipe - 5, y, 10, 3);
+  });
+  // (the hole itself: sky shows through where the wall isn't)
+  R.paint((c) => {
+    c.globalCompositeOperation = 'destination-out';
+    c.beginPath();
+    c.ellipse(X2.b1 - 9, floorY(5) - 80, 20, 70, 0, 0, Math.PI * 2);
+    c.fill();
+  });
+
+  // moonlight falling through the holes, in shafts, with dust in it
+  R.glow((c) => {
+    for (const [hx, hy] of MOON_HOLES) {
+      const n = Math.round(-hy / FH);
+      const floor = floorY(n + 1 > 5 ? 5 : n + 1) + 0;
+      const fy = Math.min(floorY(Math.ceil(-hy / FH)), floor);
+      const grd = c.createLinearGradient(hx, hy, hx + 80, fy);
+      grd.addColorStop(0, 'rgba(150,170,230,0.16)');
+      grd.addColorStop(1, 'rgba(150,170,230,0.03)');
+      c.fillStyle = grd;
+      c.beginPath();
+      c.moveTo(hx - 40, hy);
+      c.lineTo(hx + 40, hy);
+      c.lineTo(hx + 150, hy + 150);
+      c.lineTo(hx + 30, hy + 150);
+      c.fill();
+      c.fillStyle = 'rgba(200,210,240,0.25)';
+      c.beginPath();
+      c.ellipse(hx, hy, 50, 34, 0.2, 0, Math.PI * 2);
+      c.fill();
+    }
+  });
+
+  // outside: the alley, the fallen arch, the street, the blanket
+  R.paint((c) => {
+    c.fillStyle = '#2b2a2c';
+    c.fillRect(X2.b1, -6, 1600, 30);
+    // the moonlit street, pale, beyond the buildings' shadow
+    c.fillStyle = '#6a6e7c';
+    c.fillRect(X2.shade, -6, 1400, 8);
+    c.fillStyle = 'rgba(0,0,0,0.45)';
+    c.fillRect(X2.b1, -6, X2.shade - X2.b1, 10);
+  });
+  R.glow((c) => {
+    c.fillStyle = 'rgba(160,175,220,0.12)';
+    c.fillRect(X2.shade, -30, 1400, 30);
+  });
+  if (!a.dragged) blanketShape(R, a.blanketX ?? X2.blanket, 0, 1);
+  else blanketShape(R, a.blanketX, 0, 1);
+
+  // the people
+  for (const w of [...g.npcs, g.player]) {
+    if (!w.visible || !near(w.x - 100, w.x + 100)) continue;
+    R.cast((c) => w.draw(c));
+  }
+  // the arch, in front of him as he crawls under it
+  R.cast((c) => {
+    c.fillStyle = '#4e4a43';
+    c.beginPath();
+    c.moveTo(X2.arch[0] - 20, -150);
+    c.quadraticCurveTo((X2.arch[0] + X2.arch[1]) / 2, -40, X2.arch[1] + 20, -60);
+    c.lineTo(X2.arch[1] + 20, -150);
+    c.fill();
+  });
+  // the front edges of the floors, over everything inside
+  R.cast((c) => {
+    for (let n = 2; n <= 6; n++) {
+      c.fillStyle = 'rgba(40,38,34,0.9)';
+      c.fillRect(X2.b0, floorY(n) + 14, 16, 4);
+    }
+  });
+  g.effects.draw(R);
+}
+
+function diningTable(R, x, fy) {
+  R.cast((c) => {
+    c.fillStyle = '#4a3a2c';
+    c.fillRect(x - 60, fy - 70, 120, 6);
+    c.fillRect(x - 54, fy - 64, 4, 64);
+    c.fillRect(x + 50, fy - 64, 4, 64);
+    // plates under dust, a jug, a chair pushed back
+    c.fillStyle = '#b8b2a4';
+    for (const px of [-40, -12, 16, 40]) {
+      c.beginPath();
+      c.ellipse(x + px, fy - 72, 9, 2.5, 0, 0, Math.PI * 2);
+      c.fill();
+    }
+    c.fillStyle = '#6a7a8a';
+    c.fillRect(x + 2, fy - 86, 8, 14);
+    c.fillStyle = '#3e3024';
+    c.fillRect(x + 72, fy - 40, 30, 4);
+    c.fillRect(x + 98, fy - 90, 4, 90);
+    c.fillStyle = 'rgba(200,190,170,0.18)';
+    c.fillRect(x - 60, fy - 76, 120, 4); // plaster dust
+  });
+}
+
+function childsDrawing(R, x, y) {
+  R.paint((c) => {
+    c.fillStyle = '#d8d2c2';
+    c.fillRect(x - 24, y - 18, 48, 36);
+    c.strokeStyle = '#3a6ac0';
+    c.lineWidth = 1.5;
+    c.strokeRect(x - 14, y - 2, 16, 12); // the house
+    c.beginPath();
+    c.moveTo(x - 16, y - 2);
+    c.lineTo(x - 6, y - 10);
+    c.lineTo(x + 4, y - 2);
+    c.stroke();
+    c.fillStyle = '#e8b830';
+    c.beginPath();
+    c.arc(x + 14, y - 10, 4, 0, Math.PI * 2);
+    c.fill();
+    c.strokeStyle = '#c03a3a';
+    for (let i = 0; i < 4; i++) {
+      const px = x + 6 + i * 4;
+      c.beginPath();
+      c.moveTo(px, y + 2);
+      c.lineTo(px, y + 10);
+      c.stroke();
+    }
+  });
+}
+
+function wardrobe(R, x0, fy) {
+  R.cast((c) => {
+    // on its side, propped on the tilted floor: there's a crawl space under it
+    c.fillStyle = '#5a4432';
+    c.fillRect(x0 - 10, fy - 174, 130, 44);
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    c.fillRect(x0 + 50, fy - 174, 2, 44);
+    c.fillStyle = '#3e2e22';
+    c.fillRect(x0 - 6, fy - 130, 8, 130); // a broken shelf holding it up
+  });
+}
+
+function doorFrame(R, x, fy) {
+  R.cast((c) => {
+    c.fillStyle = '#6a5a48';
+    c.fillRect(x - 36, fy - 180, 6, 180);
+    c.fillRect(x + 30, fy - 180, 6, 180);
+    c.fillRect(x - 36, fy - 186, 72, 8);
+    // pencil marks up the frame, each with a year
+    c.fillStyle = '#20180f';
+    [[-70, 2009], [-86, 2010], [-100, 2011]].forEach(([h]) => c.fillRect(x + 30, fy + h, 10, 1.5));
+  });
+}
+
+// The solids and ceilings of the building, as the level needs them. The
+// flights of stairs stand in the stairwell, behind the floors, and are
+// climbed as a moment of their own; the floors run wall to wall, except the
+// fourth, which stops short where the stairs to it fell (a jump and a climb
+// from the rubble below).
+function buildBuilding(L) {
+  const floor = (n, x0, x1, raw = []) => {
+    Object.assign(L.solid(x0, x1, floorY(n), floorY(n) + 16), { kind: 'floor', raw });
+    L.ceiling(x0, x1, floorY(n) + 16);
+  };
+  floor(2, 16, X2.b1 - 18);
+  floor(3, 16, X2.b1 - 18);
+  floor(4, 16, X2.f4edge, [X2.f4edge]);
+  floor(5, 16, X2.b1 - 18);
+  L.ceiling(16, X2.b1, floorY(6) + 16); // the roof
+  // the left wall, the whole height
+  L.solid(-40, 16, floorY(6), 0, { noClimb: true, hidden: true });
+  // the wardrobe: a crawl space under it (a ceiling)
+  L.ceiling(X2.wardrobe[0], X2.wardrobe[1], floorY(3) - 130);
+  // the fallen ceiling: belly only
+  L.ceiling(X2.lowceil[0], X2.lowceil[1], floorY(3) - 58);
+  // the rubble mound under the missing stairs to floor 4
+  Object.assign(L.solid(X2.mound[0], X2.mound[1], floorY(3) - 60, floorY(3)), { kind: 'mound' });
+  // outside: the fifth-floor balcony (broken short), the fourth's, a rail
+  Object.assign(L.solid(X2.balc5[0], X2.balc5[1], floorY(5), floorY(5) + 12), { kind: 'balcony' });
+  Object.assign(L.solid(X2.balc4[0], X2.balc4[1], floorY(4), floorY(4) + 12), { kind: 'balcony' });
+  L.solid(X2.balc4[1], X2.balc4[1] + 6, floorY(5), floorY(4), { noClimb: true, hidden: true });
+  // the outside wall below the hole (floors 1 to 4)
+  L.solid(X2.b1 - 18, X2.b1, floorY(5) + 16, 0, { noClimb: true, hidden: true });
+  // the fallen arch into the street: crawl
+  L.ceiling(X2.arch[0], X2.arch[1], -58);
+}
+
+// A flight of stairs in the stairwell, behind the floors: (xa, ya) foot to
+// (xb, yb) head. `broken`: which step is missing.
+function stairFlight(R, xa, ya, xb, yb, { broken = -1, slab = false, t = 0 } = {}) {
+  R.paint((c) => {
+    const n = 10;
+    for (let k = 0; k < n; k++) {
+      if (k === broken) continue;
+      const sx = lerp(xa, xb, k / n);
+      const sy = lerp(ya, yb, (k + 1) / n);
+      const sw = (xb - xa) / n;
+      c.fillStyle = '#4c4943';
+      c.fillRect(Math.min(sx, sx + sw), sy, Math.abs(sw) + 1, 6);
+      c.fillStyle = '#3a3733';
+      c.fillRect(Math.min(sx, sx + sw), sy + 6, Math.abs(sw) + 1, (ya - yb) / n);
+    }
+    // the rail, bent
+    c.strokeStyle = '#2a2622';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(xa, ya - 90);
+    c.lineTo(xb, yb - 90);
+    c.stroke();
+  });
+  if (slab) {
+    R.cast((c) => {
+      c.save();
+      c.translate(lerp(xa, xb, 0.5), lerp(ya, yb, 0.5) - 20);
+      c.rotate(-0.28);
+      c.fillStyle = '#6f6a61';
+      c.fillRect(-80, -20, 160, 28);
+      c.strokeStyle = '#3b2f28';
+      c.lineWidth = 1.5;
+      c.beginPath();
+      for (let i = 0; i < 6; i++) {
+        c.moveTo(-70 + i * 28, 8);
+        c.lineTo(-74 + i * 28, 24);
+      }
+      c.stroke();
+      c.restore();
+    });
+  }
+}
+
+return { X1, FH, floorY, X2, nightLook, surfaceAt, drawApproach, blanketShape, drawBuilding, buildBuilding, stairFlight };
+})();
+
+// ---- src/story/act3r-lines.js
+const __src_story_act3r_lines = (() => {
+// Act 3, Retrieval: The Night. Parts 1 (the negotiation) and 2 (the
+// dangerous route). Lines from script/act3.md are final: Damascus dialect
+// (the soldiers with a coastal accent), with the English. Gameplay barks the
+// script doesn't cover are placeholders, marked `draft: true`; the dialogue
+// log tags those "[draft]". The code only ever refers to lines by key.
+//
+// Officer Maher follows the revised script: no sympathy, no photograph. A
+// regime officer who sells passage and bodies, as the checkpoints did.
+
+const WHO = {
+  sami: ['سامي', 'Sami'],
+  soldier: ['صوت جندي', 'Soldier’s voice'],
+  s1: ['جندي', 'Soldier'],
+  maher: ['الضابط ماهر', 'Officer Maher'],
+};
+
+const s = (who, ar, en, style = '', dur = null) => ({ who, ar, en, style, dur });
+const d = (...a) => ({ ...s(...a), draft: true });
+
+const LINES = {
+  // ------------------------------------------------ 3A-1: the approach --
+  torch_tip: d(null, 'الأرض قدّامي ما بتنشاف. شوية ضو، وبسرعة.', 'I can’t see the ground ahead. A little light, and quickly.', 'examine', 4),
+  ground: s(null, 'ردم. قزاز. طرف حفرة.', 'Rubble. Glass. The edge of a crater.', 'examine', 3.4),
+  torch_off: d(null, 'بطفّيه. الضو بيجيب الرصاص.', 'I switch it off. Light draws fire.', 'examine', 3.4),
+  no_crouch: d(null, 'لا. واقف، والقماشة فوق راسي. لازم يشوفوها.', 'No. Upright, the cloth above my head. They have to see it.', 'examine', 4),
+  shout_1: s('soldier', 'مين هاد؟! وقّف!', 'Who’s that?! Stop!', 'shout', 2.8),
+  sami_1: s('sami', 'مدني! مدني! عندي قماشة بيضا! بدي احكي مع الضابط!', 'Civilian! Civilian! I have a white cloth! I want to speak with the officer!', 'shout', 4.5),
+  shout_2: s('soldier', 'ارفع إيديك! ضل واقف!', 'Raise your hands! Stay where you are!', 'shout', 3),
+  s1_tell: s('s1', 'خبّر الضابط.', 'Tell the officer.', '', 2.4),
+
+  // ------------------------------------------------- 3A-2: Officer Maher --
+  m_1: s('maher', 'شو بدك؟', 'What do you want?', '', 2.4),
+  sa_1: s('sami', 'في جثة بالشارع. صاحبي. بدي جيبو.', 'There’s a body in the street. My friend. I want to bring him back.', '', 4),
+  m_2: s('maher', 'صاحبك؟ مين كان صاحبك؟', 'Your friend? Who was your friend?', '', 3),
+  sa_2: s('sami', 'اسمو أحمد. كان معلّم.', 'His name was Ahmad. He was a teacher.', '', 3),
+  m_3: s('maher', 'كلهن معلمين. أو أطباء. أو صحفيين. ما حدا بيقول إنو كان مسلّح.', 'They’re all teachers. Or doctors. Or journalists. No one ever says he was armed.', '', 5.5),
+  sa_3: s('sami', 'لأنو ما كان مسلّح. كان يعلّم ولاد عربي بقبو مدرسة.', 'Because he wasn’t armed. He was teaching children Arabic in a school basement.', '', 5),
+  m_4: s('maher', 'بقبو مدرسة. وين؟', 'In a school basement. Where?', '', 2.8),
+  sa_4: s('sami', 'بالحارة الشرقية.', 'In the eastern quarter.', '', 2.6),
+  m_5: s('maher', 'والمسلحين يلي بالحارة الشرقية، مين بيعلّمهن؟', 'And the militants in the eastern quarter, who teaches them?', '', 4.5),
+  sa_5: s('sami', 'صاحبي كان يعلّم ولاد عمرهن تمان سنين. اسماءهن: رامي، سارة، يوسف، ليلى، عمر. بدك كمّل؟', 'My friend taught children aged eight. Their names: Rami, Sara, Youssef, Layla, Omar. Shall I go on?', '', 7),
+  m_6: s('maher', 'قعود.', 'Sit down.', '', 2),
+
+  // ---------------------------------------------------- beat 1: terms --
+  m_7: s('maher', 'بدك تجيب الجثة.', 'You want to retrieve the body.', '', 2.8),
+  sa_7: s('sami', 'إي.', 'Yes.', '', 1.6),
+  m_8: s('maher', 'ليش؟', 'Why?', '', 1.6),
+  sa_8: s('sami', 'لأنو لازم يندفن. أمو بدها تدفنو.', 'Because he needs to be buried. His mother wants to bury him.', '', 4),
+  m_9: s('maher', 'أمو. هي كمان بالحصار؟', 'His mother. She’s in the siege too?', '', 3),
+  sa_9: s('sami', 'إي.', 'Yes.', '', 1.6),
+  m_10: s('maher', 'ليش ما طلعت؟', 'Why didn’t she leave?', '', 2.4),
+  sa_10: s('sami', 'لأنو هاد بيتها.', 'Because this is her home.', '', 2.8),
+  m_11: s('maher', 'بتعرف شو بيصير لو سمحتلك تاخد الجثة؟ رح يقولوا عني إنّي عم بساعد إرهابيين. رح يكون في تحقيق. يمكن يبعتوني ع خط تاني، واحد ما في رجعة منو.', 'You know what happens if I let you take the body? They’ll say I’m helping terrorists. There’ll be an investigation. They might send me to another front, one you don’t come back from.', '', 9),
+
+  // --------------------------------------- beat 2: teacher and soldier --
+  sa_12: s('sami', 'أحمد ما كان إرهابي. كان يعلّم ولاد قواعد عربي.', 'Ahmad wasn’t a terrorist. He taught children Arabic grammar.', '', 4),
+  m_12: s('maher', 'والمظاهرات؟', 'And the protests?', '', 2.2),
+  sa_13: s('sami', 'المظاهرات كانت سلمية.', 'The protests were peaceful.', '', 2.8),
+  m_13: s('maher', 'سلمية. وبعدها؟', 'Peaceful. And after?', '', 2.6),
+  sa_14: s('sami', 'أحمد ما حمل سلاح بحياتو.', 'Ahmad never carried a weapon in his life.', '', 3.2),
+  m_14: s('maher', 'وإنت؟', 'And you?', '', 1.8),
+  sa_15: s('sami', 'أنا مهندس. بصلّح مواسير مي.', 'I’m an engineer. I fix water pipes.', '', 3),
+  m_15: s('maher', 'مهندس. مواسير مي.', 'An engineer. Water pipes.', '', 2.6),
+
+  // ------------------------------------------------- beat 3: the price --
+  m_16: s('maher', 'حلوة. أصلية؟', 'Nice. Is it real?', '', 2.4),
+  sa_16: s('sami', 'هي لأحمد.', 'It’s Ahmad’s.', '', 2),
+  m_17: s('maher', 'أحمد ما عاد بدّو ياها.', 'Ahmad doesn’t need it any more.', '', 3),
+  m_18: s('maher', 'هون ما في شي ببلاش. لا الطحين، ولا الدوا، ولا الجثث. قلّي شو معك.', 'Nothing here is free. Not flour, not medicine, not bodies. Tell me what you’ve got.', '', 6),
+
+  // ------------------------------------------------------ G1: dignity --
+  g1_1: s('sami', 'اليوم شفت ولاد عم ياكلوا علف. شفت ولاد عم يجمّعوا حديد ليشتروا خبز. أحمد كان يعلّمهن يقروا. ما بطلب منك شي غير إنو يندفن.', 'Today I saw children eating animal feed. I saw children collecting scrap metal to buy bread. Ahmad was teaching them to read. I’m not asking you for anything except that he’s buried.', '', 10),
+  g1_2: s('maher', 'حكي حلو. الحكي ما بيشتري شي.', 'Nice speech. Speeches don’t buy anything.', '', 3.6),
+  g1_3: s('maher', 'هي بتكفّي. عشرين دقيقة قبل الفجر. إذا ما شافك حدا من شبابي، ما كنت هون. إذا شافوك، مش شغلتي.', 'That’ll do. Twenty minutes before dawn. If none of my men see you, you were never here. If they see you, it’s not my business.', '', 8),
+
+  // -------------------------------------------------------- G2: anger --
+  g2_1: s('sami', 'شو بدك؟ ندفع لتندفن الناس؟ عم تجوّعوا ولاد! عم ترموا براميل ع بيوت! وإنت قاعد هون عم تشرب شاي وتبيع جثث؟', 'What do you want? Pay you so people can be buried? You’re starving children! You’re dropping barrels on houses! And you sit here drinking tea, selling bodies?', 'shout', 8.5),
+  g2_2: s('maher', 'آخر واحد حكى هيك رجّعناه بكيس. إنت محظوظ إني تعبان الليلة.', 'The last man who talked like that, we sent back in a bag. You’re lucky I’m tired tonight.', '', 5.5),
+  g2_3: s('maher', 'بالفجر. تنين بس، وخمس دقايق. والقنّاص مش تبعي. إذا رمى، هاي إرادة الله.', 'At dawn. Two men only, and five minutes. The sniper isn’t mine. If he fires, that’s God’s will.', '', 7),
+
+  // --------------------------------------------------------- G3: deal --
+  g3_1: s('sami', 'بقدر ساعدك بشي.', 'I can help you with something.', 'whisper', 2.6),
+  g3_2: s('maher', 'شو عندك؟', 'What do you have?', '', 2),
+  g3_3: s('sami', 'أنا بعرف شبكة المي تبعت هالمنطقة. كل أنبوب، كل محبس، كل خط. إذا بدك تقطع المي ع حي معيّن، أو توصّلها، أنا بقدر قلّك من وين.', 'I know the water network of this area. Every pipe, every valve, every line. If you want to cut the water to a specific block, or reconnect it, I can tell you where.', '', 9),
+  g3_4: s('maher', 'الشبكة المحلية. المحابس الرئيسية.', 'The local network. The main valves.', '', 3.2),
+  g3_5: s('sami', 'إي.', 'Yes.', '', 1.8),
+  g3_6: s('maher', 'أعطيني خريطة. ما بدها تكون كاملة، بس المحابس الرئيسية يلي بتتحكّم بالحارة الجنوبية.', 'Give me a map. It doesn’t have to be complete, just the main valves that control the southern quarter.', '', 6),
+  g3_7: s('maher', 'خود صاحبك. الليلة. هلّق.', 'Take your friend. Tonight. Now.', '', 3.2),
+  g3_after: d(null, 'رسمت له المحابس. إيدي كانت ثابتة. بطني لا.', 'I drew him the valves. My hand was steady. My stomach wasn’t.', 'examine', 5),
+
+  // --------------------------------------------- 3B-1: the building --
+  building: d(null, 'ست طوابق، ونصها ع الأرض. أنا مهندس. بعرف إنو ما لازم كون هون.', 'Six storeys, and half of it on the ground. I’m an engineer. I know I shouldn’t be in here.', 'examine', 5.5),
+  dark: d(null, 'عتمة. بلا ضو ما بشوف وين الأرض.', 'Dark. Without light I can’t see where the floor is.', 'examine', 3.6),
+  table: s(null, 'طاولة محطوط عليها صحون. كانوا عم يتعشّوا، أو رايحين يتعشّوا. ما رجعوا.', 'A table with plates set on it. They were eating dinner, or about to. They didn’t come back.', 'examine', 6),
+  drawing: d(null, 'رسمة ولد ع الحيط. بيت، وشمس، وأربع أشخاص ماسكين إيدين بعض.', 'A child’s drawing on the wall. A house, a sun, four people holding hands.', 'examine', 5),
+  slab: d(null, 'بلاطة سقف واقعة ع الدرج. بطلع من فوقها، ع الحديد.', 'A ceiling slab has fallen across the stairs. I’ll climb over it, on the rebar.', 'examine', 4.5),
+  slab_holds: d(null, 'تحرّكت. وثبتت.', 'It shifted. And held.', 'examine', 2.6),
+  wardrobe: d(null, 'خزانة ع جنبها. بمرق من تحتها.', 'A wardrobe on its side. I’ll get under it.', 'examine', 3.2),
+  lowceil: d(null, 'السقف نازل لنص الإجر. ع بطني.', 'The ceiling has come down to knee height. On my belly.', 'examine', 3.6),
+  gap: d(null, 'الدرج راح. بس البسطة فوق باينة. بنط وبتمسّك.', 'The stairs are gone. But the landing above is there. Jump, and hold on.', 'examine', 4),
+  heights: s(null, 'خطوط طول ع باب. ولد أو بنت، كل سنة خط جديد. ٢٠٠٩. ٢٠١٠. ٢٠١١. ما في ٢٠١٢.', 'Height markings on a door frame. A boy or girl, a new line each year. 2009. 2010. 2011. There is no 2012.', 'examine', 7),
+  step_gives: d(null, 'الدرجة انكسرت تحتي. تمسّكت بالدرابزين.', 'The step broke under me. I caught the rail.', 'examine', 3.6),
+
+  // --------------------------------------------- 3B-2: the view --
+  view: s(null, 'من هون بشوف الشارع كلو. الحاجز، النور، الحرام يلي عالأرض. ومن هون، بشوف يلي شافو القنّاص. شارع فاضي وشخص عم يمشي. من هالعلو، كل إنسان بيصير نقطة.', 'From here I can see the whole street. The checkpoint, the light, the blanket on the ground. And from here, I see what the sniper saw. An empty street and a person walking. From this height, every person becomes a dot.', 'examine', 11),
+  balcony: d(null, 'البلكون مكشوف. منحني.', 'The balcony is exposed. Stay low.', 'examine', 3),
+  pipe: d(null, 'قسطل المزراب. بيطقطق، بس بيحمل.', 'The drainpipe. It creaks, but it holds.', 'examine', 3.4),
+  alley: d(null, 'زاروب ورا البنايات. من هون عالشارع عشرين متر.', 'An alley behind the buildings. From here to the street, twenty metres.', 'examine', 4),
+  moon: d(null, 'القمر كاشف كل شي. ع بطني، وع مهلي.', 'The moon shows everything. On my belly, and slowly.', 'examine', 3.6),
+  miss_1: d(null, 'طلقة. شبر عن راسي. ما كان عم يحذّر.', 'A shot. A hand’s width from my head. He wasn’t warning me.', 'examine', 4),
+  miss_2: d(null, 'واقف بالضو. رح يقتلني.', 'Standing in the light. He’ll kill me.', 'examine', 3.2),
+  blanket: d(null, 'ما برفع الحرام. بمسك أطرافو.', 'I don’t lift the blanket. I take its edges.', 'examine', 3.6),
+  drag: d(null, 'تقيل. أتقل من أي شي حملتو.', 'Heavy. Heavier than anything I’ve carried.', 'examine', 3.6),
+};
+
+// Title cards (scene intros, in Aref Ruqaa).
+const CARDS = {
+  open: [['الليل وصل.', 'Night has arrived.'], ['بالحصار، الليل مش بس عتمة. الليل هوي المكان يلي بتطلع فيه الأشياء يلي الشمس بتخبّيها.', 'Under siege, night isn’t just darkness. Night is the place where the things the sun hides come out.']],
+  after: [['قبل الفجر.', 'Before dawn.'], ['والليل لسّا طويل.', 'And the night is still long.']],
+};
+
+return { WHO, LINES, CARDS };
+})();
+
+// ---- src/story/act3r.js
+const __src_story_act3r = (() => {
+// Act 3, Retrieval: The Night (الليل), from 8 pm. Parts 1 and 2 of
+// script/act3.md: whichever way Sami chose at the end of Act Two.
+//
+//   Part 1, the white cloth (d_choice 'cloth'): the torch, sixty metres of
+//   open ground under a raised sheet, the checkpoint, and Officer Maher, who
+//   sells what he controls. Choice G: dignity, anger or a deal.
+//
+//   Part 2, the back route (d_choice 'back'): up through the ruined
+//   building in the dark, out onto its balconies, down its drainpipe, and on
+//   his belly across the moonlit street to the blanket, to pull it back into
+//   the shadow.
+//
+// Lines come from act3r-lines.js by key. Prompts, objectives and choice
+// labels here are in Modern Standard Arabic.
+
+const { lerp, clamp } = __src_engine_util;
+const { POSES, crawlPose } = __src_rigs_person;
+const { writeSave } = __src_engine_save;
+const { X1, X2, floorY, nightLook, surfaceAt, drawApproach, drawBuilding, buildBuilding } = __src_story_act3r_set;
+const { LINES, WHO, CARDS } = __src_story_act3r_lines;
+const { whiteCloth } = __src_story_act2r;
+const GAP = 0.45;
+const RAISED = { armN: 2.55, foreN: 2.75 };
+const HANDS_UP = { armN: 2.6, foreN: 2.95, armF: 2.5, foreF: 2.9 };
+const SIT = { ...POSES.sitChair, head: 0.1, armN: 0.3, foreN: 1.35, armF: 0.25, foreF: 1.3 };
+const SIT_LEAN = { ...SIT, torso: 0.2, head: 0.2, armN: 0.9, foreN: 1.7 };
+const DOUBLED = { ...POSES.sitChair, torso: 0.75, head: 0.5, armN: 0.3, foreN: 1.9, armF: 0.35, foreF: 1.8 };
+const RIFLE = { ...POSES.stand, armN: 0.7, foreN: 1.55, armF: 0.55, foreF: 1.4 };
+
+const OBJ = {
+  crank: ['أدِر مقبض المصباح لترى الأرض', 'Crank the torch to see the ground'],
+  cross: ['امشِ إلى الحاجز والقماشة مرفوعة', 'Walk to the checkpoint, the cloth raised'],
+  up: ['اصعد عبر المبنى', 'Climb up through the building'],
+  hole: ['اخرج من الفتحة في الجدار', 'Go out through the hole in the wall'],
+  down: ['انزل إلى الزقاق', 'Get down to the alley'],
+  crawl: ['ازحف إلى أحمد', 'Crawl to Ahmad'],
+};
+
+// A line by key, as a script step: shows it, tags placeholders in the log.
+function* say(g, key) {
+  const L = LINES[key];
+  const step = g.say(L.who ? WHO[L.who] : null, [L.ar, L.en], L.dur, L.style || '');
+  const first = step.next();
+  markDraft(g, L);
+  yield first.value;
+}
+function line(g, key) {
+  const L = LINES[key];
+  g.line(L.who ? WHO[L.who] : null, [L.ar, L.en], L.dur, L.style || '');
+  markDraft(g, L);
+}
+function markDraft(g, L) {
+  const last = g.text.log[g.text.log.length - 1];
+  if (last && last.line[1] === L.en) last.draft = !!L.draft;
+}
+function* talk(g, keys) {
+  for (const k of keys) {
+    yield* say(g, k);
+    yield GAP;
+  }
+}
+
+// A soldier's rifle, held low across the body.
+function rifle(c, hand) {
+  const [hx, hy] = hand;
+  c.save();
+  c.translate(hx, hy);
+  c.rotate(-0.35);
+  c.fillStyle = '#1d1c1a';
+  c.fillRect(-34, -4, 70, 6); // body and barrel
+  c.fillRect(36, -3, 18, 3);
+  c.fillRect(-2, 2, 6, 12); // magazine, curved
+  c.fillStyle = '#4a3322';
+  c.fillRect(-48, -3, 16, 8); // stock
+  c.restore();
+}
+
+// Move a walker along a path of [x, y] points at a speed, with a pose
+// for the gait (the walker's own, or a function of the distance so far).
+function* along(g, w, pts, speed, pose = null) {
+  w.scripted = true;
+  let seg = 0;
+  let u = 0;
+  let dist = 0;
+  yield () => {
+    const dt = g.lastDt || 1 / 60;
+    let left = speed * dt;
+    while (left > 0 && seg < pts.length - 1) {
+      const [ax, ay] = pts[seg];
+      const [bx, by] = pts[seg + 1];
+      const len = Math.hypot(bx - ax, by - ay) || 1;
+      const step = Math.min(left, len * (1 - u));
+      u += step / len;
+      left -= step;
+      dist += step;
+      if (u >= 1 - 1e-6) {
+        seg++;
+        u = 0;
+      }
+    }
+    const i = Math.min(seg, pts.length - 2);
+    const [ax, ay] = pts[i];
+    const [bx, by] = pts[i + 1];
+    w.x = lerp(ax, bx, seg >= pts.length - 1 ? 1 : u);
+    w.y = lerp(ay, by, seg >= pts.length - 1 ? 1 : u);
+    if (bx !== ax) w.f = bx > ax ? 1 : -1;
+    w.stride += speed * dt;
+    w.scriptedSpeed = speed;
+    w.override = pose ? pose(dist) : null;
+    return seg >= pts.length - 1;
+  };
+  w.scripted = false;
+  w.scriptedSpeed = 0;
+  w.override = null;
+  w.vx = 0;
+  w.vy = 0;
+  w.onGround = true;
+}
+
+const ACT3R = {
+  bounds: [-200, 2300],
+
+  build(g) {
+    const L = g.level;
+    const s = g.state;
+    const part = s.d_choice === 'back' ? 2 : 1;
+    g.a = { part, inside: part === 2, nextChirp: 0, nextRadio: 4 };
+    g.surface = part === 2 ? (x) => (x > X2.b1 ? 'grit' : 'rubble') : surfaceAt;
+    for (const id of ['torch']) if (!s.tools.includes(id)) s.tools.push(id);
+    g.active = 'torch';
+    g.torch.charge = 0.25;
+    g.sound.ambience({ wind: 0.22, air: 0.28, crowd: 0, generator: 0, traffic: 0 }, 2);
+    g.sound.life(0.25);
+    g.sound.score?.mood('after', 3);
+    if (part === 1) this.buildApproach(g);
+    else this.buildBuilding(g);
+  },
+
+  // ------------------------------------------------------ Part 1 build --
+
+  buildApproach(g) {
+    const s = g.state;
+    const p = g.player;
+    if (!s.tools.includes('whitecloth')) s.tools.push('whitecloth');
+    const s1 = g.npc('soldier', X1.bags[0] + 70, { f: -1 });
+    const s2 = g.npc('soldier2', X1.bags[0] + 120, { f: -1 });
+    for (const w of [s1, s2]) {
+      w.override = RIFLE;
+      w.rig.prop = (c, hand) => rifle(c, hand);
+    }
+    const maher = g.npc('officer', X1.maher, { f: -1 });
+    maher.override = SIT;
+    Object.assign(g, { s1, s2, maher });
+    g.level.add({ id: 'ground', x: 300, y: -30, range: 110, look: true, box: [220, 30], bx: 110, by: 18, label: ['تفحّص', 'Examine'], use: () => line(g, 'ground') });
+    if (s.checkpoint === 'table') {
+      this.seat(g);
+      g.runner.run(this.table(g));
+    } else {
+      p.place(X1.start);
+      p.f = 1;
+      g.runner.run(this.approach(g));
+    }
+  },
+
+  // Everyone in their places at the camp table.
+  seat(g) {
+    const p = g.player;
+    const a = g.a;
+    p.place(X1.seat);
+    p.f = 1;
+    p.override = SIT;
+    p.rig.prop = null;
+    p.arms = null;
+    a.lampAtTable = true;
+    a.onTable = true;
+    a.lighterOnTable = true;
+    g.s1.place(X1.seat - 90);
+    g.s1.f = 1;
+    g.s2.place(X1.maher + 90);
+    g.s2.f = -1;
+    g.camOverride = { x: (X1.seat + X1.maher) / 2, y: -150, view: 820 };
+    g.state.tools = g.state.tools.filter((id) => id !== 'walkie' && id !== 'lighter');
+    g.active = 'torch';
+    g.snapCamera();
+  },
+
+  *approach(g) {
+    const p = g.player;
+    const a = g.a;
+    g.checkpoint('night');
+    g.fade = 1;
+    g.lock();
+    g.text.titleCard(CARDS.open, 7);
+    yield 1.5;
+    for (let k = 1; k >= 0; k -= 0.05) {
+      g.fade = k;
+      yield 0.05;
+    }
+    yield 5;
+    // the torch: first, just enough light to see the ground
+    g.lock(false);
+    g.active = 'torch';
+    yield* say(g, 'torch_tip');
+    g.text.objective(OBJ.crank);
+    g.prompt('use', 'اضغط مطوّلاً لتدوير المصباح، ثم اضغط مرة لإضاءته', 'Hold to crank the torch, then tap to switch it on');
+    yield () => g.torch.on && g.torch.charge > 0.4;
+    g.prompt(null);
+    yield 1.5;
+    yield* say(g, 'ground');
+    yield 1;
+    g.torch.on = false;
+    g.sound.click();
+    yield* say(g, 'torch_off');
+
+    // the crossing: upright, slow, the cloth above his head
+    g.giveTool('whitecloth');
+    p.rig.prop = (c, hand) => whiteCloth(c, hand, g.time);
+    p.arms = RAISED;
+    g.stanceLock = 'stand';
+    let told = -9;
+    g.onStanceLocked = () => {
+      if (g.time - told > 6) {
+        told = g.time;
+        line(g, 'no_crouch');
+      }
+    };
+    g.gate = (m) => m * 0.45;
+    g.text.objective(OBJ.cross);
+    g.prompt('right', 'تقدّم', 'Walk on');
+    yield () => p.x > X1.open + 40;
+    g.prompt(null);
+    yield () => p.x > X1.shout;
+
+    // the shout
+    g.lock();
+    g.text.objective(null);
+    g.gate = null;
+    g.sound.distantShot?.();
+    yield* say(g, 'shout_1');
+    yield 0.3;
+    yield* say(g, 'sami_1');
+    yield 0.8;
+    yield* say(g, 'shout_2');
+    p.arms = HANDS_UP;
+    yield 3;
+    // two of them come out, rifles low; one pats him down
+    g.s1.override = null;
+    g.s2.override = null;
+    yield* g.walkNpc(g.s1, p.x + 70, { speedScale: 0.45 });
+    g.s1.f = -1;
+    yield* g.walkNpc(g.s2, p.x + 120, { speedScale: 0.45 });
+    g.s2.f = -1;
+    g.s1.override = { ...POSES.hands, torso: 0.3 };
+    g.sound.cloth();
+    yield 1.4;
+    g.state.tools = g.state.tools.filter((id) => id !== 'walkie' && id !== 'lighter');
+    g.active = 'whitecloth';
+    g.s1.override = RIFLE;
+    yield* say(g, 's1_tell');
+    yield 1;
+    // they walk him in
+    for (let k = 0; k <= 1; k += 0.05) {
+      g.fade = k;
+      yield 0.04;
+    }
+    g.stanceLock = null;
+    g.onStanceLocked = null;
+    this.seat(g);
+    g.checkpoint('table');
+    yield 0.8;
+    for (let k = 1; k >= 0; k -= 0.05) {
+      g.fade = k;
+      yield 0.04;
+    }
+    g.fade = 0;
+    yield* this.table(g);
+  },
+
+  // ----------------------------------------------- the checkpoint table --
+
+  *table(g) {
+    const a = g.a;
+    const s = g.state;
+    const p = g.player;
+    const m = g.maher;
+    g.lock();
+    g.fade = 0;
+    g.sound.radio(1.2);
+    yield 1.2;
+    yield* talk(g, ['m_1', 'sa_1', 'm_2', 'sa_2', 'm_3', 'sa_3', 'm_4', 'sa_4', 'm_5', 'sa_5', 'm_6']);
+    // Beat 1: tea, and the terms
+    m.override = { ...SIT, armN: 0.9, foreN: 1.8 };
+    g.sound.slosh?.();
+    yield 0.8;
+    m.override = SIT;
+    yield* talk(g, ['m_7', 'sa_7', 'm_8', 'sa_8', 'm_9', 'sa_9', 'm_10', 'sa_10', 'm_11']);
+    // Beat 2
+    yield* talk(g, ['sa_12', 'm_12', 'sa_13', 'm_13', 'sa_14', 'm_14', 'sa_15', 'm_15']);
+    // Beat 3: the price. He picks up Ahmad's lighter.
+    m.override = { ...SIT_LEAN, armN: 1.2, foreN: 2.1 };
+    a.lighterOnTable = false;
+    g.sound.click();
+    yield 0.6;
+    yield* talk(g, ['m_16', 'sa_16', 'm_17']);
+    m.override = SIT;
+    a.lighterOnTable = true;
+    yield* say(g, 'm_18');
+    yield 0.6;
+
+    const pick = yield* g.choose(['كيف يجيب سامي؟', 'How does Sami answer?'], [
+      { ar: 'بكرامة', en: 'With dignity' },
+      { ar: 'بغضب', en: 'With anger' },
+      { ar: 'بصفقة', en: 'With a deal' },
+    ]);
+    s.choices = [...(s.choices || []), `G${pick + 1}`];
+    if (pick === 0) {
+      s.g_choice = 'dignity';
+      p.override = SIT_LEAN;
+      yield* say(g, 'g1_1');
+      yield GAP;
+      p.override = SIT;
+      yield* say(g, 'g1_2');
+      // the lighter goes into his pocket; Sami half rises, a hand sits him down
+      a.lighterOnTable = false;
+      m.override = { ...SIT, armN: 0.1, foreN: 2.4 };
+      yield 0.8;
+      p.override = { ...SIT, torso: -0.2, thighN: 1.2, thighF: 1.1 };
+      yield* g.walkNpc(g.s1, X1.seat - 30, { speedScale: 0.5 });
+      g.s1.f = 1;
+      g.s1.override = { ...RIFLE, armN: 1.6, foreN: 1.7 };
+      p.override = SIT;
+      yield 1;
+      m.override = SIT;
+      yield* say(g, 'g1_3');
+      g.s1.override = RIFLE;
+      s.negotiation_outcome = 'success';
+      s.body_retrieved = true;
+      s.lighter_taken = true;
+    } else if (pick === 1) {
+      s.g_choice = 'anger';
+      s.courage = (s.courage || 0) + 1;
+      p.override = { ...SIT_LEAN, torso: 0.3, head: -0.1, armN: 1.3, foreN: 1.4 };
+      yield* say(g, 'g2_1');
+      // a look from Maher; the soldier steps behind Sami
+      yield* g.walkNpc(g.s1, X1.seat - 34, { speedScale: 0.6 });
+      g.s1.f = 1;
+      yield 0.6;
+      // (heard, not shown: the camera stays on the lamp)
+      g.camOverride = { x: X1.table, y: -110, view: 520 };
+      g.sound.tone(58, 0.35, { vol: 0.8, to: 36 });
+      g.sound.noise({ dur: 0.18, freq: 500, q: 0.6, vol: 0.5 });
+      g.sound.onImpact?.(0.6, 0.25);
+      a.hitAt = g.time;
+      g.bump(0.35);
+      p.override = DOUBLED;
+      yield 2.4;
+      g.camOverride = { x: (X1.seat + X1.maher) / 2, y: -150, view: 820 };
+      yield* say(g, 'g2_2');
+      a.lighterOnTable = false;
+      yield GAP;
+      yield* say(g, 'g2_3');
+      s.negotiation_outcome = 'partial';
+      s.lighter_taken = true;
+    } else {
+      s.g_choice = 'deal';
+      p.override = SIT_LEAN;
+      yield* talk(g, ['g3_1', 'g3_2', 'g3_3', 'g3_4', 'g3_5', 'g3_6']);
+      // he draws the valves on a scrap of paper
+      p.override = { ...SIT_LEAN, torso: 0.35, armN: 1.2, foreN: 1.9 };
+      yield 2.5;
+      p.override = SIT;
+      yield* say(g, 'g3_7');
+      yield* say(g, 'g3_after');
+      s.negotiation_outcome = 'success';
+      s.body_retrieved = true;
+      s.lighter_taken = false;
+    }
+    // they give back the walkie-talkie (and the lighter, only for the map)
+    if (!s.tools.includes('walkie')) s.tools.push('walkie');
+    if (!s.lighter_taken && !s.tools.includes('lighter')) s.tools.push('lighter');
+    a.onTable = false;
+    // he walks back into the dark, the cloth folded under his arm
+    yield 1;
+    p.override = null;
+    g.s1.place(X1.bags[0] + 60);
+    g.camOverride = null;
+    const t0 = g.time;
+    yield* g.walkPlayer(X1.stop - 200);
+    yield () => g.time - t0 > 3;
+    yield* this.finish(g);
+  },
+
+  // ------------------------------------------------------ Part 2 build --
+
+  buildBuilding(g) {
+    const s = g.state;
+    const p = g.player;
+    const L = g.level;
+    const a = g.a;
+    buildBuilding(L);
+    const look = (id, x, y, key, box) => L.add({ id, x, y, range: 90, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key), ...box });
+    look('table', X2.table, floorY(2) - 90, 'table', { box: [150, 90], by: 45 });
+    look('drawing', X2.drawing, floorY(2) - 130, 'drawing', { box: [60, 44], by: 10 });
+    look('heights', X2.heights, floorY(4) - 110, 'heights', { box: [84, 196], by: 18 });
+    L.add({ id: 'stairs1', x: X2.stairs1[0] + 30, y: -100, range: 70, urgent: true, label: ['اصعد الدرج', 'Climb the stairs'], box: [80, 160], by: 20, enabled: () => !a.climbing && g.player.y > -30, use: () => g.runner.run(this.flight(g, X2.stairs1, 1, 2)) });
+    L.add({ id: 'stairs2', x: X2.stairs2[0] + 30, y: floorY(2) - 100, range: 70, urgent: true, label: ['اصعد الدرج', 'Climb the stairs'], box: [80, 160], by: 20, enabled: () => !a.climbing && g.player.y > floorY(3) + 50 && g.player.y < floorY(2) + 50, use: () => g.runner.run(this.climb2(g)) });
+    L.add({ id: 'stairs4', x: X2.stairs4[0] + 30, y: floorY(4) - 100, range: 70, urgent: true, label: ['اصعد الدرج', 'Climb the stairs'], box: [80, 160], by: 20, enabled: () => !a.climbing && g.player.y > floorY(5) + 50 && g.player.y < floorY(4) + 50, use: () => g.runner.run(this.climb4(g)) });
+    L.add({ id: 'hole', x: X2.hole, y: floorY(5) - 110, range: 90, urgent: true, label: ['انظر من الفتحة', 'Look out'], box: [60, 150], bx: 80, by: 30, enabled: () => !a.viewed && Math.abs(g.player.y - floorY(5)) < 20, use: () => g.runner.run(this.view(g)) });
+    L.add({ id: 'pipe', x: X2.pipe - 10, y: floorY(4) - 60, range: 60, urgent: true, label: ['انزل على القسطل', 'Climb down the pipe'], box: [30, 120], bx: 10, by: 20, enabled: () => !a.down && Math.abs(g.player.y - floorY(4)) < 20, use: () => g.runner.run(this.pipe(g)) });
+    L.add({ id: 'blanket', x: X2.blanket, y: -40, range: 80, urgent: true, label: ['أمسك أطراف الحرام', 'Take the edges of the blanket'], box: [150, 30], by: 25, enabled: () => !a.dragged && g.player.stance === 'prone', use: () => g.runner.run(this.drag(g)) });
+    const cp = s.checkpoint;
+    if (cp === 'floor4') p.place(X2.f4edge - 60, floorY(4));
+    else if (cp === 'descent') {
+      a.viewed = true;
+      a.inside = false;
+      p.place(X2.balc5[0] + 20, floorY(5));
+    } else p.place(X2.door + 30, 0);
+    p.f = 1;
+    g.runner.run(this.building(g));
+  },
+
+  camera(g) {
+    if (g.a.part !== 2) return null;
+    const p = g.player;
+    return { x: p.x + p.f * 110, y: clamp(p.y - 205, floorY(5) - 260, -205), view: 1300 };
+  },
+
+  *building(g) {
+    const a = g.a;
+    const s = g.state;
+    const cp = s.checkpoint;
+    if (cp !== 'floor4' && cp !== 'descent') {
+      g.checkpoint('building');
+      g.fade = 1;
+      g.lock();
+      g.text.titleCard(CARDS.open, 7);
+      yield 1.5;
+      for (let k = 1; k >= 0; k -= 0.05) {
+        g.fade = k;
+        yield 0.05;
+      }
+      yield 5;
+      g.lock(false);
+      yield* say(g, 'building');
+      yield* say(g, 'dark');
+      g.prompt('use', 'اضغط مطوّلاً لتدوير المصباح، ثم اضغط مرة لإضاءته', 'Hold to crank the torch, then tap to switch it on');
+      yield () => g.torch.on;
+      g.prompt(null);
+    } else g.lock(false);
+    g.text.objective(a.viewed ? OBJ.down : OBJ.up);
+  },
+
+  // F1 → F2: an ordinary flight, still standing.
+  *flight(g, [xa, xb], from, to) {
+    const p = g.player;
+    const a = g.a;
+    a.climbing = true;
+    g.lock();
+    yield* g.walkPlayer(xa + 10);
+    yield* along(g, p, [[xa + 10, floorY(from)], [xb, floorY(to)], [xb + 20, floorY(to)]], 90);
+    p.place(xb + 20, floorY(to));
+    p.f = -1;
+    a.climbing = false;
+    g.lock(false);
+  },
+
+  // F2 → F3: up the flight in the stairwell, over the slab across it.
+  *climb2(g) {
+    const p = g.player;
+    const a = g.a;
+    a.climbing = true;
+    g.lock();
+    const [xa, xb] = X2.stairs2;
+    const ya = floorY(2);
+    const yb = floorY(3);
+    yield* g.walkPlayer(xa + 10);
+    const mid = [lerp(xa, xb, 0.45), lerp(ya, yb, 0.45)];
+    yield* along(g, p, [[xa + 10, ya], mid], 70);
+    yield* say(g, 'slab');
+    // over it, on the rebar: a mantle, the slab grinding under him
+    p.override = POSES.reachUp;
+    yield 0.5;
+    g.sound.noise({ dur: 1.4, freq: 120, type: 'lowpass', vol: 0.5, buf: g.sound.brownBuf, attack: 0.1 });
+    g.effects.trickle?.(mid[0] + 20, mid[1] - 120, 2);
+    g.bump(0.2);
+    a.slabShift = 1;
+    yield* along(g, p, [mid, [mid[0] + 40, mid[1] - 70], [mid[0] + 80, mid[1] - 60]], 60, () => POSES.hands);
+    yield* say(g, 'slab_holds');
+    a.slabCrossed = true;
+    yield* along(g, p, [[mid[0] + 80, mid[1] - 60], [xb, yb], [xb + 30, yb]], 80);
+    p.place(xb + 30, yb);
+    a.climbing = false;
+    g.lock(false);
+  },
+
+  // F4 → F5: the last flight; one step gives way.
+  *climb4(g) {
+    const p = g.player;
+    const a = g.a;
+    a.climbing = true;
+    g.lock();
+    const [xa, xb] = X2.stairs4;
+    const ya = floorY(4);
+    const yb = floorY(5);
+    yield* g.walkPlayer(xa + 10);
+    const k = 0.45;
+    const mid = [lerp(xa, xb, k), lerp(ya, yb, k)];
+    yield* along(g, p, [[xa + 10, ya], mid], 60);
+    // the step breaks: he drops, catches the rail
+    a.stepGone = true;
+    g.sound.noise({ dur: 0.25, freq: 900, q: 0.8, vol: 0.5 });
+    g.sound.noise({ when: g.sound.t + 0.6, dur: 0.3, freq: 300, q: 0.6, vol: 0.4 });
+    g.bump(0.3);
+    g.effects.puff?.(mid[0], mid[1] + 10, 0.4);
+    p.override = { ...POSES.reachUp, armF: 0.3, foreF: 0.5 };
+    yield* along(g, p, [mid, [mid[0], mid[1] + 16]], 120, () => ({ ...POSES.reachUp, armF: 0.3, foreF: 0.5 }));
+    yield* say(g, 'step_gives');
+    yield* along(g, p, [[mid[0], mid[1] + 16], [mid[0] + 20, mid[1] - 20], [xb, yb], [xb + 30, yb]], 60);
+    p.place(xb + 30, yb);
+    a.climbing = false;
+    g.lock(false);
+    g.text.objective(OBJ.hole);
+  },
+
+  // The view from the fifth floor: the street, the checkpoint, the blanket.
+  *view(g) {
+    const a = g.a;
+    a.viewed = true;
+    g.lock();
+    g.text.objective(null);
+    yield* g.walkPlayer(X2.hole - 40);
+    g.player.f = 1;
+    g.camOverride = { x: 1500, y: -420, view: 2300 };
+    g.sound.ambience({ wind: 0.45 }, 2);
+    yield 2;
+    yield* say(g, 'view');
+    yield 1;
+    g.camOverride = null;
+    a.inside = false;
+    g.checkpoint('descent');
+    g.lock(false);
+    g.text.objective(OBJ.down);
+    yield* say(g, 'balcony');
+    g.prompt('crouch', 'انحنِ', 'Crouch');
+  },
+
+  // Down the drainpipe to the alley.
+  *pipe(g) {
+    const p = g.player;
+    const a = g.a;
+    a.down = true;
+    g.lock();
+    g.prompt(null);
+    yield* g.walkPlayer(X2.pipe - 14);
+    p.stance = 'stand';
+    yield* say(g, 'pipe');
+    const climb = (dist) => {
+      const q = Math.sin(dist * 0.06);
+      return { ...POSES.reachUp, torso: 0.05, armN: 2.5 + 0.3 * q, foreN: 2.9, armF: 2.5 - 0.3 * q, foreF: 2.9, thighN: 0.6 + 0.3 * q, shinN: -0.4, thighF: 0.6 - 0.3 * q, shinF: -0.4 };
+    };
+    const t0 = g.time;
+    for (const y of [floorY(4) + 40, -380, -250, -120, -40]) {
+      yield* along(g, p, [[X2.pipe - 14, p.y], [X2.pipe - 14, y]], 55, climb);
+      if (g.time - t0 < 30) g.sound.noise({ dur: 0.3, freq: 700, q: 3, vol: 0.12 }); // the pipe creaks
+    }
+    yield* along(g, p, [[X2.pipe - 14, -40], [X2.pipe - 20, 0]], 90);
+    p.place(X2.pipe - 20, 0);
+    g.lock(false);
+    yield* say(g, 'alley');
+    g.text.objective(OBJ.crawl);
+    g.prompt('prone', 'انبطح وازحف', 'Go prone, and crawl');
+  },
+
+  // Take the blanket's edges and pull him back into the shadow.
+  *drag(g) {
+    const p = g.player;
+    const a = g.a;
+    a.dragged = true;
+    g.lock();
+    g.prompt(null);
+    g.text.objective(null);
+    yield* say(g, 'blanket');
+    a.blanketX = X2.blanket;
+    p.f = 1;
+    const x0 = p.x;
+    const tx = X2.shade - 40;
+    // backwards on his belly, the weight coming after him
+    yield* along(g, p, [[x0, 0], [tx, 0]], 26, (dist) => crawlPose(dist * 0.08));
+    p.f = 1;
+    yield 0.2;
+    g.line(null, [LINES.drag.ar, LINES.drag.en], LINES.drag.dur, 'examine');
+    markDraft(g, LINES.drag);
+    // he sits, and rests one hand on it, where the shoulder would be
+    p.override = { ...POSES.sitGround, armN: 1.35, foreN: 1.45, head: 0.35 };
+    g.sound.ambience({ wind: 0.1, air: 0.15 }, 3);
+    yield 6;
+    const s = g.state;
+    s.body_retrieved = true;
+    s.dangerous_route_complete = true;
+    s.courage = (s.courage || 0) + 1;
+    yield* this.finish(g);
+  },
+
+  // A shot that means to kill, and misses by a hand's width: back into cover.
+  *nearMiss(g, back, key) {
+    const p = g.player;
+    const a = g.a;
+    a.shotBusy = true;
+    g.lock();
+    const hx = p.x + p.f * 60;
+    const hy = p.y - 90 - Math.random() * 40;
+    g.sound.sniperCrack();
+    g.effects.puff(hx, hy);
+    Object.assign(a, { shotAt: g.time, shotX: hx, shotY: hy });
+    g.bump(0.25);
+    yield 0.5;
+    g.fade = 0.5;
+    yield 0.2;
+    p.place(back.x, back.y);
+    p.stance = back.stance;
+    g.fade = 0;
+    g.state.lane_retries = (g.state.lane_retries || 0) + 1;
+    line(g, key);
+    g.lock(false);
+    a.shotBusy = false;
+  },
+
+  *finish(g) {
+    const s = g.state;
+    s.completed = true;
+    writeSave(s);
+    const t0 = g.time;
+    yield () => {
+      g.a.endFade = clamp((g.time - t0) / 2);
+      return g.a.endFade >= 1;
+    };
+    g.fade = 1;
+    g.sound.ambience({ crowd: 0, wind: 0.05, air: 0.1, generator: 0, traffic: 0 }, 2);
+    yield 1;
+    g.sound.ney(196, 10, 0.16);
+    g.text.titleCard(CARDS.after, 6);
+    yield 6.5;
+    g.onEnd?.(s);
+  },
+
+  // ============================================== per-frame extras ==
+
+  update(g, dt) {
+    const a = g.a;
+    const p = g.player;
+    g.lastDt = dt;
+    // crickets, loud in the silence (quieter inside)
+    if (g.time > a.nextChirp && g.scene === 'street') {
+      a.nextChirp = g.time + 0.25 + Math.random() * 0.7;
+      const f = 4300 + Math.random() * 700;
+      const pan = Math.random() * 2 - 1;
+      const v = a.inside ? 0.004 : 0.011;
+      for (let i = 0; i < 3; i++) g.sound.tone(f, 0.028, { when: g.sound.t + i * 0.055, vol: v, pan });
+    }
+    if (a.part === 1) {
+      // the checkpoint's radio, now and then
+      if (g.time > a.nextRadio && p.x > X1.shout - 300) {
+        a.nextRadio = g.time + 7 + Math.random() * 9;
+        g.sound.radio(0.8 + Math.random());
+      }
+      return;
+    }
+    // the building settles and groans
+    if (a.inside && g.time > (a.nextGroan || 6)) {
+      a.nextGroan = g.time + 14 + Math.random() * 14;
+      g.sound.groan?.();
+    }
+    if (a.shotBusy || g.locked) return;
+    // lines as he comes to things, once each
+    const once = (k, cond) => {
+      if (!a[`said_${k}`] && cond) {
+        a[`said_${k}`] = true;
+        line(g, k);
+      }
+    };
+    const onFloor = (n) => Math.abs(p.y - floorY(n)) < 30;
+    once('wardrobe', onFloor(3) && p.x > X2.wardrobe[0] - 120 && p.x < X2.wardrobe[0]);
+    once('lowceil', onFloor(3) && p.x > X2.lowceil[0] - 110 && p.x < X2.lowceil[0]);
+    if (!a.said_gap && onFloor(3) && p.x > X2.mound[0] - 60) g.prompt('jump', 'اقفز وتمسّك', 'Jump, and pull yourself up');
+    once('gap', onFloor(3) && p.x > X2.mound[0] - 60);
+    if (a.f4 && !a.promptCleared) {
+      a.promptCleared = true;
+      g.prompt(null);
+    }
+    // up onto the fourth floor: a piece of the edge breaks away
+    if (!a.f4 && p.y <= floorY(4) + 2 && !p.mantle) {
+      a.f4 = true;
+      g.sound.noise({ dur: 0.3, freq: 400, q: 0.6, vol: 0.4 });
+      g.sound.noise({ when: g.sound.t + 0.9, dur: 0.6, freq: 180, type: 'lowpass', vol: 0.5, buf: g.sound.brownBuf });
+      g.effects.puff(X2.f4edge, floorY(4) + 10, 0.5);
+      g.bump(0.2);
+      g.checkpoint('floor4');
+    }
+    // the balconies are in the open: stay low
+    const onBalcony = p.x > X2.b1 && p.y < floorY(3);
+    if (onBalcony && p.stance === 'stand' && Math.abs(p.vx) > 5) {
+      a.expose = (a.expose || 0) + dt;
+      if (a.expose > 0.8) {
+        a.expose = 0;
+        g.runner.run(this.nearMiss(g, { x: X2.hole - 30, y: floorY(5), stance: 'crouch' }, 'miss_1'));
+      }
+    } else if (!onBalcony) a.expose = 0;
+    // the moonlit street: only on his belly
+    if (a.down && !a.dragged && p.x > X2.shade && p.y > -5) {
+      once('moon', true);
+      if (p.stance !== 'prone') {
+        a.expose2 = (a.expose2 || 0) + dt;
+        if (a.expose2 > 0.5) {
+          a.expose2 = 0;
+          g.runner.run(this.nearMiss(g, { x: X2.shade - 30, y: 0, stance: 'prone' }, 'miss_2'));
+        }
+      } else a.expose2 = 0;
+    }
+  },
+
+  useTool(g, id) {
+    if (id === 'whitecloth') g.line(null, ['القماشة البيضا.', 'The white cloth.'], 2, 'item');
+    else if (id === 'walkie') {
+      g.sound.squelch();
+      g.line(['لاسلكي', 'Walkie-talkie'], ['...ما في شي...', '...nothing...'], 2, 'radio');
+    } else if (id === 'lighter') {
+      g.sound.click();
+    }
+  },
+
+  draw(R, g) {
+    if (g.a.part === 1) drawApproach(R, g);
+    else drawBuilding(R, g);
+  },
+
+  look(g) {
+    return nightLook(g);
+  },
+};
+
+return { ACT3R };
 })();
 
 // ---- src/story/items.js
@@ -12710,10 +14335,11 @@ const { freshState, loadSave, writeSave, clearSave } = __src_engine_save;
 const { Game, TOOLS } = __src_game;
 const { ACT1 } = __src_story_act1;
 const { ACT2R } = __src_story_act2r;
+const { ACT3R } = __src_story_act3r;
 const { ITEMS, JOURNAL } = __src_story_items;
 const { Photo } = __src_engine_photo;
 // The chapters. A save names its act; old saves (act: 1) are Act One.
-const ACTS = { act1: ACT1, act2r: ACT2R };
+const ACTS = { act1: ACT1, act2r: ACT2R, act3r: ACT3R };
 const actKey = (s) => (s && ACTS[s.act] ? s.act : 'act1');
 
 // What the player has unlocked, and the state Act One ended with (carried
@@ -12742,6 +14368,16 @@ function act2State(s) {
   const tools = [...new Set([...(s?.tools || []), 'torch', 'mirror', 'walkie'])];
   return { ...freshState(), ...(s || {}), path: 'retrieval', act: 'act2r', checkpoint: 'south', completed: false, tools, noticed: [] };
 }
+// Act Three (Retrieval) begins where Act Two left him: with the white cloth
+// at the checkpoint's edge, or at the door of the ruined building.
+function act3State(s) {
+  const back = s?.d_choice === 'back';
+  const tools = [...new Set([...(s?.tools || []), 'torch', 'walkie', 'lighter', 'journal'])];
+  if (!back && !tools.includes('whitecloth')) tools.push('whitecloth');
+  return { ...freshState(), ...(s || {}), path: 'retrieval', d_choice: back ? 'back' : 'cloth', act: 'act3r', checkpoint: back ? 'building' : 'night', completed: false, tools, noticed: [] };
+}
+// What comes after each act, and how to start it from the state it ended with.
+const NEXT = { act1: ['act2r', act2State], act2r: ['act3r', act3State] };
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
@@ -12912,6 +14548,18 @@ const DECISIONS = [
     ],
   },
 ];
+DECISIONS.push({
+  act: 'act3r',
+  key: 'g_choice',
+  title: 'decPrice',
+  time: ['8:45', '٨:٤٥'],
+  options: [
+    ['dignity', 'You told Maher what you’d seen. He took Ahmad’s lighter as the price.', 'أخبرتَ ماهر بما رأيت. أخذ ولّاعة أحمد ثمناً.'],
+    ['anger', 'You told Maher what he was. A rifle butt, then his conditions.', 'قلتَ لماهر ما هو. ضربة بأخمص البندقية، ثم شروطه.'],
+    ['deal', 'You drew Maher the valves that control the southern quarter’s water.', 'رسمتَ لماهر المحابس التي تتحكّم بمياه الحارة الجنوبية.'],
+    ['none', 'You went up through the ruined building, and out over the street.', 'صعدتَ عبر المبنى المدمّر، وخرجتَ فوق الشارع.'],
+  ],
+});
 const optionFor = (d, v) => d.options.find((o) => o[0] === v) || d.options[d.options.length - 1];
 
 // The end card: each choice as a moment in the afternoon.
@@ -12924,6 +14572,22 @@ function summary2(s) {
     [ar ? '٤:٥٥' : '4:55', ar ? 'رأيتَ شكلاً مغطّى بحرام، وسط شارع المدرسة.' : 'You saw a shape under a blanket, in the middle of School Street.'],
     [ar ? '٥:٠٠' : '5:00', optionFor(DECISIONS[3], s.d_choice)[ar ? 2 : 1]],
     [ar ? '٥:١٠' : '5:10', ar ? 'أعطاك أبو يزن ولّاعة أحمد ودفتره.' : 'Abu Yazan gave you Ahmad’s lighter, and his journal.'],
+  ];
+}
+
+function summary3(s) {
+  const ar = lang() === 'ar';
+  if (s.d_choice === 'back') {
+    return [
+      [ar ? '٨:٣٠' : '8:30', ar ? 'صعدتَ عبر المبنى المدمّر في العتمة، طابقاً بعد طابق.' : 'You climbed the ruined building in the dark, floor by floor.'],
+      [ar ? '٩:٠٠' : '9:00', ar ? 'من الطابق الخامس، رأيتَ ما رآه القنّاص.' : 'From the fifth floor, you saw what the sniper saw.'],
+      [ar ? '٩:٤٠' : '9:40', ar ? 'زحفتَ إلى الحرام، وسحبتَه إلى الظل.' : 'You crawled to the blanket, and pulled it back into the shadow.'],
+    ];
+  }
+  return [
+    [ar ? '٨:١٥' : '8:15', ar ? 'مشيتَ ستين متراً في العراء، والقماشة البيضاء فوق رأسك.' : 'You walked sixty metres in the open, the white cloth above your head.'],
+    [ar ? '٨:٢٥' : '8:25', ar ? 'قال ماهر: هون ما في شي ببلاش.' : 'Maher said: nothing here is free.'],
+    [ar ? '٨:٤٥' : '8:45', optionFor(DECISIONS[4], s.g_choice)[ar ? 2 : 1]],
   ];
 }
 
@@ -12989,6 +14653,10 @@ function showEnd(s) {
     if (!p.unlocked.includes('act2r')) p.unlocked.push('act2r');
     p.carry = { ...s };
   }
+  if (key === 'act2r') {
+    if (!p.unlocked.includes('act3r')) p.unlocked.push('act3r');
+    p.carry2 = { ...s };
+  }
   // every choice made, for Your story
   for (const d of DECISIONS.filter((x) => x.act === key)) {
     const v = optionFor(d, s[d.key])[0];
@@ -13000,14 +14668,15 @@ function showEnd(s) {
   const total = p.totals[key] || 0;
   const looked = (s.noticed || []).length;
   const act1 = key === 'act1';
-  const rows = act1 ? summary(s) : summary2(s);
-  const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
-  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
-  const next = act1; // every ending of Act One goes on into Act Two
+  const act3 = key === 'act3r';
+  const rows = act1 ? summary(s) : act3 ? summary3(s) : summary2(s);
+  const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : act3 ? [ar ? '٨:٠٠' : '8:00', ar ? 'الليل وصل.' : 'Night had arrived.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
+  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : act3 ? [ar ? '١٠:٠٠' : '10:00', ar ? 'والليل لسّا طويل.' : 'And the night is still long.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
+  const next = NEXT[key]; // Act One (any ending) → Act Two → Act Three
   const end = $('end');
   sheetDir(end);
   end.innerHTML = `
-    <p class="kicker-small">${esc(t(act1 ? 'endKicker' : 'endKicker2'))}</p>
+    <p class="kicker-small">${esc(t(act1 ? 'endKicker' : act3 ? 'endKicker3' : 'endKicker2'))}</p>
     <h2 id="end-h"><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="end-en">Before I Knew</span></h2>
     <ol class="timeline">
       <li class="tl-start"><time>${first[0]}</time><span>${esc(first[1])}</span></li>
@@ -13015,10 +14684,10 @@ function showEnd(s) {
       <li class="tl-end"><time>${last[0]}</time><span>${esc(last[1])}</span></li>
     </ol>
     ${total ? `<p class="end-noticed">${esc(t('noticed')(looked, total))}</p>` : ''}
-    <p class="sheet-quiet">${esc(t(act1 ? (s.path === 'retrieval' ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
+    <p class="sheet-quiet">${esc(t(act1 ? (s.path === 'retrieval' ? 'endNextAct2' : 'pathPending') : act3 ? 'endNext3' : 'endNextAct3'))}</p>
     <div class="sheet-btns">
-      ${next ? `<button type="button" id="end-next" class="primary">${esc(t('continueAct2'))}</button>` : ''}
-      <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : 'againAct2'))}</button>
+      ${next ? `<button type="button" id="end-next" class="primary">${esc(t(act1 ? 'continueAct2' : 'continueAct3'))}</button>` : ''}
+      <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : act3 ? 'againAct3' : 'againAct2'))}</button>
       <button type="button" id="end-menu">${esc(t('mainMenu'))}</button>
     </div>
     <button type="button" class="end-after-link" id="end-after" aria-expanded="false">${esc(t('afterwordLink'))}</button>
@@ -13031,7 +14700,7 @@ function showEnd(s) {
   };
   $('end-next')?.addEventListener('click', () => {
     close();
-    const n = act2State(s);
+    const n = next[1](s);
     writeSave(n);
     startGame(n);
   });
@@ -13039,7 +14708,7 @@ function showEnd(s) {
     close();
     if (act1) newGame();
     else {
-      const n = act2State(progress().carry || s);
+      const n = act3 ? act3State(progress().carry2 || s) : act2State(progress().carry || s);
       writeSave(n);
       startGame(n);
     }
@@ -13075,15 +14744,20 @@ const saved = () => {
   const s = loadSave();
   return s && !s.completed && !(actKey(s) === 'act1' && s.checkpoint === 'walk') ? s : null;
 };
-// Act One finished (any ending) and Act Two not yet begun: Continue starts it.
+// An act finished and the next not yet begun: Continue starts it.
 const nextAct = () => {
   const s = loadSave();
-  return s && s.completed && actKey(s) === 'act1' ? s : null;
+  return s && s.completed && NEXT[actKey(s)] ? s : null;
+};
+const startNext = (s) => {
+  const n = NEXT[actKey(s)][1](s);
+  writeSave(n);
+  startGame(n);
 };
 
 function continueSub() {
   const s = saved();
-  if (!s) return nextAct() ? t('chapter2') : '';
+  if (!s) return nextAct() ? t(actKey(nextAct()) === 'act1' ? 'chapter2' : 'chapter3') : '';
   return `${t('checkpoints')[s.checkpoint] || ''} · ${t('times')[s.checkpoint] || ''}`;
 }
 
@@ -13102,7 +14776,7 @@ function pauseAside() {
 }
 
 // The scenes of each act, in order: the first is the act's own start.
-const SCENES = { act1: ['walk', 'hour', 'school', 'news'], act2r: ['south', 'lanes', 'front'] };
+const SCENES = { act1: ['walk', 'hour', 'school', 'news'], act2r: ['south', 'lanes', 'front'], act3r: ['night', 'table', 'building', 'floor4', 'descent'] };
 const sceneName = (cp) => String(t('checkpoints')[cp] || cp).split(' · ').pop();
 
 function chaptersPage(panel, m) {
@@ -13144,6 +14818,13 @@ function chaptersPage(panel, m) {
     startGame(n);
   });
   scenes('act2r', open2);
+  const open3 = p.unlocked.includes('act3r');
+  item('III', t('chapter3'), open3 ? t('chapter3Sub') : t('chapter3Locked'), !open3, () => {
+    const n = act3State(p.carry2);
+    writeSave(n);
+    startGame(n);
+  });
+  scenes('act3r', open3);
   panel.appendChild(list);
   m.backButton(panel);
 }
@@ -13158,7 +14839,7 @@ function storyPage(panel, m) {
   box.className = 'menu-story';
   box.tabIndex = 0;
   let any = false;
-  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2']]) {
+  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2'], ['act3r', 'chapter3']]) {
     const ds = DECISIONS.filter((d) => d.act === key);
     if (!ds.some((d) => p.seen[d.key]?.length)) continue;
     any = true;
@@ -13182,7 +14863,7 @@ function storyPage(panel, m) {
   // what you noticed
   let notes = `<h3 class="menu-group">${esc(t('memories'))}</h3><p class="menu-sub">${esc(t('memoriesSub'))}</p>`;
   let found = 0;
-  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2']]) {
+  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2'], ['act3r', 'chapter3']]) {
     const got = Object.values(p.noticed[key] || {});
     const total = Math.max(p.totals[key] || 0, got.length);
     if (!total) continue;
@@ -13305,9 +14986,7 @@ const menu = new Menu($('menu'), {
       hidden: () => !saved() && !nextAct(),
       action: () => {
         if (saved()) return startGame(saved());
-        const n = act2State(nextAct());
-        writeSave(n);
-        startGame(n);
+        startNext(nextAct());
       },
     },
     { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
@@ -13513,6 +15192,7 @@ window.game = {
   progress,
   start: (checkpoint = 'walk', extra = {}) => startGame({ ...freshState(), checkpoint, ...extra }),
   startAct2: (checkpoint = 'south', extra = {}) => startGame({ ...act2State(null), checkpoint, ...extra }),
+  startAct3: (d = 'cloth', checkpoint = null, extra = {}) => startGame({ ...act3State({ d_choice: d }), ...(checkpoint ? { checkpoint } : {}), ...extra }),
   get mode() {
     return mode;
   },

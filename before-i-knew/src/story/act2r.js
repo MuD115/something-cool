@@ -578,7 +578,7 @@ function cigarette(c, hand, t) {
 }
 
 // A bedsheet wrapped round a curtain rail, held high.
-function whiteCloth(c, hand, t) {
+export function whiteCloth(c, hand, t) {
   const [hx, hy] = hand;
   c.strokeStyle = '#4a3b2e';
   c.lineWidth = 3;

@@ -103,6 +103,12 @@ export class Walker {
     this.time += dt;
     const L = this.level;
     this.blocked = null;
+    // moved by a script along a path (a stair flight, a drainpipe): no
+    // physics, just the pose for the speed it's being moved at
+    if (this.scripted) {
+      this.pose(dt, this.scriptedSpeed || 0);
+      return;
+    }
 
     if (this.mantle) {
       const m = this.mantle;
@@ -265,6 +271,9 @@ export class Walker {
         this.onStep?.(this.stance);
       }
     }
+
+    // arms held a certain way whatever the legs are doing (a raised cloth)
+    if (this.arms) target = { ...target, ...this.arms };
 
     // Stance changes take their time (about half a second), and going
     // between standing and lying passes through a kneel, hands going down

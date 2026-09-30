@@ -10,11 +10,12 @@ import { freshState, loadSave, writeSave, clearSave } from './engine/save.js';
 import { Game, TOOLS } from './game.js';
 import { ACT1 } from './story/act1.js';
 import { ACT2R } from './story/act2r.js';
+import { ACT3R } from './story/act3r.js';
 import { ITEMS, JOURNAL } from './story/items.js';
 import { Photo } from './engine/photo.js';
 
 // The chapters. A save names its act; old saves (act: 1) are Act One.
-const ACTS = { act1: ACT1, act2r: ACT2R };
+const ACTS = { act1: ACT1, act2r: ACT2R, act3r: ACT3R };
 const actKey = (s) => (s && ACTS[s.act] ? s.act : 'act1');
 
 // What the player has unlocked, and the state Act One ended with (carried
@@ -43,6 +44,16 @@ function act2State(s) {
   const tools = [...new Set([...(s?.tools || []), 'torch', 'mirror', 'walkie'])];
   return { ...freshState(), ...(s || {}), path: 'retrieval', act: 'act2r', checkpoint: 'south', completed: false, tools, noticed: [] };
 }
+// Act Three (Retrieval) begins where Act Two left him: with the white cloth
+// at the checkpoint's edge, or at the door of the ruined building.
+function act3State(s) {
+  const back = s?.d_choice === 'back';
+  const tools = [...new Set([...(s?.tools || []), 'torch', 'walkie', 'lighter', 'journal'])];
+  if (!back && !tools.includes('whitecloth')) tools.push('whitecloth');
+  return { ...freshState(), ...(s || {}), path: 'retrieval', d_choice: back ? 'back' : 'cloth', act: 'act3r', checkpoint: back ? 'building' : 'night', completed: false, tools, noticed: [] };
+}
+// What comes after each act, and how to start it from the state it ended with.
+const NEXT = { act1: ['act2r', act2State], act2r: ['act3r', act3State] };
 
 const $ = (id) => document.getElementById(id);
 const stage = $('stage');
@@ -213,6 +224,18 @@ const DECISIONS = [
     ],
   },
 ];
+DECISIONS.push({
+  act: 'act3r',
+  key: 'g_choice',
+  title: 'decPrice',
+  time: ['8:45', '٨:٤٥'],
+  options: [
+    ['dignity', 'You told Maher what you’d seen. He took Ahmad’s lighter as the price.', 'أخبرتَ ماهر بما رأيت. أخذ ولّاعة أحمد ثمناً.'],
+    ['anger', 'You told Maher what he was. A rifle butt, then his conditions.', 'قلتَ لماهر ما هو. ضربة بأخمص البندقية، ثم شروطه.'],
+    ['deal', 'You drew Maher the valves that control the southern quarter’s water.', 'رسمتَ لماهر المحابس التي تتحكّم بمياه الحارة الجنوبية.'],
+    ['none', 'You went up through the ruined building, and out over the street.', 'صعدتَ عبر المبنى المدمّر، وخرجتَ فوق الشارع.'],
+  ],
+});
 const optionFor = (d, v) => d.options.find((o) => o[0] === v) || d.options[d.options.length - 1];
 
 // The end card: each choice as a moment in the afternoon.
@@ -225,6 +248,22 @@ function summary2(s) {
     [ar ? '٤:٥٥' : '4:55', ar ? 'رأيتَ شكلاً مغطّى بحرام، وسط شارع المدرسة.' : 'You saw a shape under a blanket, in the middle of School Street.'],
     [ar ? '٥:٠٠' : '5:00', optionFor(DECISIONS[3], s.d_choice)[ar ? 2 : 1]],
     [ar ? '٥:١٠' : '5:10', ar ? 'أعطاك أبو يزن ولّاعة أحمد ودفتره.' : 'Abu Yazan gave you Ahmad’s lighter, and his journal.'],
+  ];
+}
+
+function summary3(s) {
+  const ar = lang() === 'ar';
+  if (s.d_choice === 'back') {
+    return [
+      [ar ? '٨:٣٠' : '8:30', ar ? 'صعدتَ عبر المبنى المدمّر في العتمة، طابقاً بعد طابق.' : 'You climbed the ruined building in the dark, floor by floor.'],
+      [ar ? '٩:٠٠' : '9:00', ar ? 'من الطابق الخامس، رأيتَ ما رآه القنّاص.' : 'From the fifth floor, you saw what the sniper saw.'],
+      [ar ? '٩:٤٠' : '9:40', ar ? 'زحفتَ إلى الحرام، وسحبتَه إلى الظل.' : 'You crawled to the blanket, and pulled it back into the shadow.'],
+    ];
+  }
+  return [
+    [ar ? '٨:١٥' : '8:15', ar ? 'مشيتَ ستين متراً في العراء، والقماشة البيضاء فوق رأسك.' : 'You walked sixty metres in the open, the white cloth above your head.'],
+    [ar ? '٨:٢٥' : '8:25', ar ? 'قال ماهر: هون ما في شي ببلاش.' : 'Maher said: nothing here is free.'],
+    [ar ? '٨:٤٥' : '8:45', optionFor(DECISIONS[4], s.g_choice)[ar ? 2 : 1]],
   ];
 }
 
@@ -290,6 +329,10 @@ function showEnd(s) {
     if (!p.unlocked.includes('act2r')) p.unlocked.push('act2r');
     p.carry = { ...s };
   }
+  if (key === 'act2r') {
+    if (!p.unlocked.includes('act3r')) p.unlocked.push('act3r');
+    p.carry2 = { ...s };
+  }
   // every choice made, for Your story
   for (const d of DECISIONS.filter((x) => x.act === key)) {
     const v = optionFor(d, s[d.key])[0];
@@ -301,14 +344,15 @@ function showEnd(s) {
   const total = p.totals[key] || 0;
   const looked = (s.noticed || []).length;
   const act1 = key === 'act1';
-  const rows = act1 ? summary(s) : summary2(s);
-  const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
-  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
-  const next = act1; // every ending of Act One goes on into Act Two
+  const act3 = key === 'act3r';
+  const rows = act1 ? summary(s) : act3 ? summary3(s) : summary2(s);
+  const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : act3 ? [ar ? '٨:٠٠' : '8:00', ar ? 'الليل وصل.' : 'Night had arrived.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
+  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : act3 ? [ar ? '١٠:٠٠' : '10:00', ar ? 'والليل لسّا طويل.' : 'And the night is still long.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
+  const next = NEXT[key]; // Act One (any ending) → Act Two → Act Three
   const end = $('end');
   sheetDir(end);
   end.innerHTML = `
-    <p class="kicker-small">${esc(t(act1 ? 'endKicker' : 'endKicker2'))}</p>
+    <p class="kicker-small">${esc(t(act1 ? 'endKicker' : act3 ? 'endKicker3' : 'endKicker2'))}</p>
     <h2 id="end-h"><span class="ar" lang="ar" dir="rtl">قبل ما عرفت</span><span class="end-en">Before I Knew</span></h2>
     <ol class="timeline">
       <li class="tl-start"><time>${first[0]}</time><span>${esc(first[1])}</span></li>
@@ -316,10 +360,10 @@ function showEnd(s) {
       <li class="tl-end"><time>${last[0]}</time><span>${esc(last[1])}</span></li>
     </ol>
     ${total ? `<p class="end-noticed">${esc(t('noticed')(looked, total))}</p>` : ''}
-    <p class="sheet-quiet">${esc(t(act1 ? (s.path === 'retrieval' ? 'endNextAct2' : 'pathPending') : 'endNext2'))}</p>
+    <p class="sheet-quiet">${esc(t(act1 ? (s.path === 'retrieval' ? 'endNextAct2' : 'pathPending') : act3 ? 'endNext3' : 'endNextAct3'))}</p>
     <div class="sheet-btns">
-      ${next ? `<button type="button" id="end-next" class="primary">${esc(t('continueAct2'))}</button>` : ''}
-      <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : 'againAct2'))}</button>
+      ${next ? `<button type="button" id="end-next" class="primary">${esc(t(act1 ? 'continueAct2' : 'continueAct3'))}</button>` : ''}
+      <button type="button" id="end-again" class="${next ? '' : 'primary'}">${esc(t(act1 ? 'again' : act3 ? 'againAct3' : 'againAct2'))}</button>
       <button type="button" id="end-menu">${esc(t('mainMenu'))}</button>
     </div>
     <button type="button" class="end-after-link" id="end-after" aria-expanded="false">${esc(t('afterwordLink'))}</button>
@@ -332,7 +376,7 @@ function showEnd(s) {
   };
   $('end-next')?.addEventListener('click', () => {
     close();
-    const n = act2State(s);
+    const n = next[1](s);
     writeSave(n);
     startGame(n);
   });
@@ -340,7 +384,7 @@ function showEnd(s) {
     close();
     if (act1) newGame();
     else {
-      const n = act2State(progress().carry || s);
+      const n = act3 ? act3State(progress().carry2 || s) : act2State(progress().carry || s);
       writeSave(n);
       startGame(n);
     }
@@ -376,15 +420,20 @@ const saved = () => {
   const s = loadSave();
   return s && !s.completed && !(actKey(s) === 'act1' && s.checkpoint === 'walk') ? s : null;
 };
-// Act One finished (any ending) and Act Two not yet begun: Continue starts it.
+// An act finished and the next not yet begun: Continue starts it.
 const nextAct = () => {
   const s = loadSave();
-  return s && s.completed && actKey(s) === 'act1' ? s : null;
+  return s && s.completed && NEXT[actKey(s)] ? s : null;
+};
+const startNext = (s) => {
+  const n = NEXT[actKey(s)][1](s);
+  writeSave(n);
+  startGame(n);
 };
 
 function continueSub() {
   const s = saved();
-  if (!s) return nextAct() ? t('chapter2') : '';
+  if (!s) return nextAct() ? t(actKey(nextAct()) === 'act1' ? 'chapter2' : 'chapter3') : '';
   return `${t('checkpoints')[s.checkpoint] || ''} · ${t('times')[s.checkpoint] || ''}`;
 }
 
@@ -403,7 +452,7 @@ function pauseAside() {
 }
 
 // The scenes of each act, in order: the first is the act's own start.
-const SCENES = { act1: ['walk', 'hour', 'school', 'news'], act2r: ['south', 'lanes', 'front'] };
+const SCENES = { act1: ['walk', 'hour', 'school', 'news'], act2r: ['south', 'lanes', 'front'], act3r: ['night', 'table', 'building', 'floor4', 'descent'] };
 const sceneName = (cp) => String(t('checkpoints')[cp] || cp).split(' · ').pop();
 
 function chaptersPage(panel, m) {
@@ -445,6 +494,13 @@ function chaptersPage(panel, m) {
     startGame(n);
   });
   scenes('act2r', open2);
+  const open3 = p.unlocked.includes('act3r');
+  item('III', t('chapter3'), open3 ? t('chapter3Sub') : t('chapter3Locked'), !open3, () => {
+    const n = act3State(p.carry2);
+    writeSave(n);
+    startGame(n);
+  });
+  scenes('act3r', open3);
   panel.appendChild(list);
   m.backButton(panel);
 }
@@ -459,7 +515,7 @@ function storyPage(panel, m) {
   box.className = 'menu-story';
   box.tabIndex = 0;
   let any = false;
-  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2']]) {
+  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2'], ['act3r', 'chapter3']]) {
     const ds = DECISIONS.filter((d) => d.act === key);
     if (!ds.some((d) => p.seen[d.key]?.length)) continue;
     any = true;
@@ -483,7 +539,7 @@ function storyPage(panel, m) {
   // what you noticed
   let notes = `<h3 class="menu-group">${esc(t('memories'))}</h3><p class="menu-sub">${esc(t('memoriesSub'))}</p>`;
   let found = 0;
-  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2']]) {
+  for (const [key, title] of [['act1', 'chapter1'], ['act2r', 'chapter2'], ['act3r', 'chapter3']]) {
     const got = Object.values(p.noticed[key] || {});
     const total = Math.max(p.totals[key] || 0, got.length);
     if (!total) continue;
@@ -606,9 +662,7 @@ const menu = new Menu($('menu'), {
       hidden: () => !saved() && !nextAct(),
       action: () => {
         if (saved()) return startGame(saved());
-        const n = act2State(nextAct());
-        writeSave(n);
-        startGame(n);
+        startNext(nextAct());
       },
     },
     { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
@@ -814,6 +868,7 @@ window.game = {
   progress,
   start: (checkpoint = 'walk', extra = {}) => startGame({ ...freshState(), checkpoint, ...extra }),
   startAct2: (checkpoint = 'south', extra = {}) => startGame({ ...act2State(null), checkpoint, ...extra }),
+  startAct3: (d = 'cloth', checkpoint = null, extra = {}) => startGame({ ...act3State({ d_choice: d }), ...(checkpoint ? { checkpoint } : {}), ...extra }),
   get mode() {
     return mode;
   },

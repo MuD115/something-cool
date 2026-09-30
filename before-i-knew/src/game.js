@@ -59,6 +59,8 @@ export class Game {
     this.flashActors = null;
     this.cat = null;
     this.camOverride = null;
+    this.stanceLock = null;
+    this.onStanceLocked = null;
     this.focus = null;
     this.focusK = 0;
     this.cam = { x: 0, y: -250, view: 1500 };
@@ -260,7 +262,7 @@ export class Game {
   cameraTarget() {
     if (this.camOverride) return typeof this.camOverride === 'function' ? this.camOverride(this) : this.camOverride;
     const p = this.player;
-    const cam = { x: p.x + p.f * 110, y: -205, view: 1300 };
+    const cam = this.act.camera?.(this) || { x: p.x + p.f * 110, y: -205, view: 1300 };
     // near something to interact with, the camera leans towards it and closes in
     const f = this.focus;
     const k = f && this.settings.get('focusCam') !== false ? smooth(0, 1, this.focusK) : 0;
@@ -282,6 +284,7 @@ export class Game {
     if (this.scene === 'street' && !this.locked && !this.text.choiceOpen && !this.autoWalk) {
       for (const t of this.level.things) {
         if (!t.enabled()) continue;
+        if (t.y < p.y - 260 || t.y > p.y + 60) continue; // another floor
         const d = Math.abs(t.x - p.x);
         const r = t.range * 1.9;
         if (d < r && (!best || d < best.d)) best = { t, d, r };
@@ -407,7 +410,10 @@ export class Game {
     } else if (!this.locked && this.scene === 'street') {
       let stance;
       let told = true;
-      if (this.settings.get('crouchMode') === 'hold') {
+      // some moments won't let him drop or run (walking out under a white cloth)
+      if (this.stanceLock) {
+        if (input.hit('crouch') || input.hit('prone') || (input.held('run') && Math.abs(p.vx) > 1)) this.onStanceLocked?.();
+      } else if (this.settings.get('crouchMode') === 'hold') {
         // held: down while the key is, up (when there's room) once it's let go
         const want = input.held('prone') ? 'prone' : input.held('crouch') ? 'crouch' : 'stand';
         told = want !== this.heldWant;
@@ -419,7 +425,8 @@ export class Game {
         if (input.hit('jump') && p.stance !== 'stand') stance = 'stand';
       }
       const move = (input.held('right') ? 1 : 0) - (input.held('left') ? 1 : 0);
-      p.update(dt, { move: this.gate ? this.gate(move) : move, run: input.held('run'), jump: input.hit('jump') && p.stance === 'stand', stance });
+      if (this.stanceLock) stance = p.stance !== this.stanceLock ? this.stanceLock : undefined;
+      p.update(dt, { move: this.gate ? this.gate(move) : move, run: input.held('run') && !this.stanceLock, jump: input.hit('jump') && p.stance === 'stand' && !this.stanceLock, stance });
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
       } else if (stance === 'stand' && p.stance !== 'stand' && told) {
@@ -511,8 +518,9 @@ export class Game {
 
   interact() {
     const p = this.player;
-    // (no hint while what Sami made of a thing is still floating over it)
-    const t = !this.locked && this.scene === 'street' && !this.text.choiceOpen && this.text.floatEl.hidden ? this.level.nearest(p.x) : null;
+    let t = !this.locked && this.scene === 'street' && !this.text.choiceOpen ? this.level.nearest(p.x, p.y) : null;
+    // (no hint for a thing while what Sami made of it is still floating over it)
+    if (t && t === this.floatAt && !this.text.floatEl.hidden) t = null;
     if (!t) {
       this.text.hint(0, 0, '', null);
       return;

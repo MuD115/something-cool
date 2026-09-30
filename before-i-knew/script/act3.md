@@ -132,13 +132,13 @@ Two **soldiers** emerge from behind the sandbags. They approach — cautious, ri
 > *(making a note on a scrap of paper — or pretending to)* والمسلحين يلي بالحارة الشرقية — مين بيعلّمهن؟
 > *(making a note on a scrap of paper — or pretending to)* And the militants in the eastern quarter — who teaches them?
 
-*[ACTING NOTE: Maher's cynicism is practised but not total. He's heard this claim a hundred times — "he was a civilian, he was a teacher." Some of those times it was true. Some of those times it wasn't. He's lost the ability to tell, and that loss is part of what the war has cost him.]*
+*[ACTING NOTE: Maher's contempt is routine. To him every man killed on the other side was armed, whatever he was; that is the regime's line, and he repeats it without thinking about it. He is not torn. He is bored, and he is working out what this is worth to him.]*
 
 **سامي:**
 > *(controlled)* صاحبي كان يعلّم ولاد عمرهن تمان سنين. اسماءهن: رامي، سارة، يوسف، ليلى، عمر. بدك كمّل؟
 > *(controlled)* My friend taught children aged eight. Their names: Rami, Sara, Youssef, Layla, Omar. Shall I go on?
 
-*A pause. Something shifts in Maher's face — not much, but enough.*
+*A pause. Maher's face doesn't change. He has heard lists of names before. But a man who walks into a checkpoint with a bedsheet wants something badly, and that can be worth something.*
 
 **ماهر:**
 > *(leaning back)* قعود.
@@ -197,7 +197,7 @@ Two **soldiers** emerge from behind the sandbags. They approach — cautious, ri
 > بتعرف شو بيصير لو سمحتلك تاخد الجثة؟ رح يقولوا عني إنّي عم بساعد إرهابيين. رح يكون في تحقيق. يمكن يبعتوني ع خط تاني — واحد ما في رجعة منو.
 > *You know what happens if I let you take the body? They'll say I'm helping terrorists. There'll be an investigation. They might send me to another front — one you don't come back from.*
 
-*[ACTING NOTE: Maher is being frank. He's not performing cruelty. He's calculating — risk to himself, risk to his position, risk to his family. Every decision at this checkpoint is a survival equation.]*
+*[ACTING NOTE: Maher isn't confiding. He's setting a price, making the risk sound large so the payment will be. Checkpoints like his traded in everything: bodies, passage, flour, medicine. The body in the street is, to him, a thing he controls and can sell.]*
 
 ### Beat 2: The Teacher and the Soldier
 
@@ -255,139 +255,95 @@ Two **soldiers** emerge from behind the sandbags. They approach — cautious, ri
 > *(waving his hand)* ما بهمّني. كان زمان.
 > *(waving his hand)* Doesn't matter. That was a long time ago.
 
-### Beat 3: The Personal
+### Beat 3: The Price
 
-*Maher shifts in his chair. He reaches into his chest pocket and takes out a photograph — creased, soft from handling. He looks at it, then sets it on the table. Two young girls, the older maybe six, the younger four. They're in a garden. The older one is making a face at the camera. The younger one is mid-laugh.*
-
-**ماهر:**
-> بناتي. ريم ورنا. ما شفتهن من خمس أشهر.
-> *My daughters. Reem and Rana. I haven't seen them in five months.*
-
-*He doesn't offer the photo for Sami to hold. He sets it where both of them can see it.*
+*Maher sets his glass down. He nods at the table, where the soldiers have laid out what they took from Sami: the walkie-talkie, and Ahmad's lighter. He picks up the lighter, flicks it open, shuts it. Opens it again.*
 
 **ماهر:**
-> بتعرف ليش أنا هون؟ مش لأني بحب النظام. مش لأني بكره الناس يلي هونيك. *(gestures toward Ghouta)* أنا هون لأنو إذا ما كنت هون — شو بيصير لهنّ؟ *(taps the photo)*
-> *You know why I'm here? Not because I love the regime. Not because I hate the people over there. *(gestures toward Ghouta)* I'm here because if I'm not here — what happens to them? *(taps the photo)*
+> *(turning the Zippo in the lamplight)* حلوة. أصلية؟
+> *(turning the Zippo in the lamplight)* Nice. Is it real?
 
-*[ACTING NOTE: This is real. Maher is not manipulating. He is a man from a poor Alawite village who joined the army because it was the only route out. His family is marked by his service. If the regime falls, the retribution will find them. He is complicit in a siege that starves children because he believes — perhaps correctly — that the alternative is his own children's deaths. The player should feel the weight of this without being asked to agree with it.]*
+**سامي:**
+> *(too fast)* هي لأحمد.
+> *(too fast)* It's Ahmad's.
 
 **ماهر:**
-> أنا ما اخترت هالحرب. بس إذا ما كملت فيها — بناتي بيدفعوا التمن.
-> *I didn't choose this war. But if I don't keep going — my daughters pay the price.*
+> *(unmoved)* أحمد ما عاد بدّو ياها.
+> *(unmoved)* Ahmad doesn't need it any more.
+
+*He sets it down between them, closer to himself than to Sami.*
+
+**ماهر:**
+> هون ما في شي ببلاش. لا الطحين، ولا الدوا، ولا الجثث. قلّي شو معك.
+> *Nothing here is free. Not flour, not medicine, not bodies. Tell me what you've got.*
+
+*[ACTING NOTE: This is the whole of Maher. There is no photograph, no speech about his family, no doubt. Around the besieged towns, checkpoints ran on bribes: a sack of flour could cost ten times its price, and families paid officers for the bodies of their dead. Maher is one of those officers. The player should not be invited to understand him. They should see, plainly, how the siege was run.]*
 
 ### CHOICE G — The Negotiation Approach
 
-*A long beat. Sami holds Maher's gaze. The lamp flickers. Three options:*
+*A long beat. The lamp flickers. The lighter sits on the table. Three options:*
 
-> **G1:** بكرامة / With dignity — *[Sami speaks calmly, holds the weight without breaking it]*
+> **G1:** بكرامة / With dignity — *[Sami tells him what he saw today, calmly, and asks for nothing but his friend]*
 
 > **G2:** بغضب / With anger — *[Sami cannot contain it — the injustice spills out]*
 
-> **G3:** بصفقة / With a deal — *[Sami offers something practical — a concession]*
+> **G3:** بصفقة / With a deal — *[Sami offers something practical — the one thing he knows that they want]*
 
 ---
 
 #### Branch G1: Dignity — بكرامة
 
 **سامي:**
-> *(calmly, looking at the photo)* حلوين بناتك.
-> *(calmly, looking at the photo)* Your daughters are beautiful.
+> *(calmly)* اليوم شفت ولاد عم ياكلوا علف. شفت ولاد عم يجمّعوا حديد ليشتروا خبز. أحمد كان يعلّمهن يقروا. ما بطلب منك شي غير إنو يندفن.
+> *(calmly)* Today I saw children eating animal feed. I saw children collecting scrap metal to buy bread. Ahmad was teaching them to read. I'm not asking you for anything except that he's buried.
 
-*Maher's face tightens, briefly — vulnerability exposed.*
-
-**سامي:**
-> وأنا بفهم. إنت خايف عليهن. وعم تساوي يلي بتقدر عليه تحميهن.
-> *And I understand. You're afraid for them. And you're doing what you can to protect them.*
-
-*A pause.*
-
-**سامي:**
-> بس ريم ورنا — كم عمرهن؟ ست وأربعة؟ في ولاد نفس عمرهن هونيك. *(gestures back toward Ghouta)* عم ياكلوا علف بقر. عم ينامو بأقبية. عم يجمّعوا حديد تيشتروا أكل. أنا شفتهن اليوم. ما بدي إياك تحس بالذنب — بدي إياك تعرف.
-> *But Reem and Rana — how old are they? Six and four? There are children their age over there. *(gestures back toward Ghouta)* They're eating animal feed. They're sleeping in basements. They're collecting scrap metal to buy food. I saw them today. I don't want you to feel guilty — I want you to know.*
-
-*A long silence. Maher looks at the photo. Then at Sami. Then at the darkness beyond the checkpoint.*
+*Maher listens the way a man listens to rain. When Sami finishes, he picks up the lighter again.*
 
 **ماهر:**
-> *(very quietly)* بعرف.
-> *(very quietly)* I know.
+> *(flatly)* حكي حلو. الحكي ما بيشتري شي.
+> *(flatly)* Nice speech. Speeches don't buy anything.
 
-*The radio crackles. Maher ignores it.*
-
-**ماهر:**
-> *(after another silence)* خود صاحبك. قبل الفجر. بالعتمة. ما بشوف شي.
-> *(after another silence)* Take your friend. Before dawn. In the dark. I won't see anything.
-
-*He picks up the photo and puts it back in his pocket.*
+*He puts the lighter in his breast pocket. Sami half rises. A soldier's hand lands on his shoulder and sits him down.*
 
 **ماهر:**
-> *(not looking at Sami)* ولا ترجع.
-> *(not looking at Sami)* And don't come back.
+> هي بتكفّي. عشرين دقيقة قبل الفجر. إذا ما شافك حدا من شبابي، ما كنت هون. إذا شافوك، مش شغلتي.
+> *That'll do. Twenty minutes before dawn. If none of my men see you, you were never here. If they see you, it's not my business.*
 
-*[ACTING NOTE: "I won't see anything" — Maher is giving permission without giving permission. He is maintaining plausible deniability while allowing a man to bury his friend. This is the furthest he can go. It costs him something, and Sami should see that cost without naming it.]*
+*[ACTING NOTE: The price is Ahmad's lighter, the thing Abu Yazan kept for him, the thing that lit the candles in the classroom. Maher takes it as he would take a packet of cigarettes. Sami's dignity bought nothing. The lighter bought twenty minutes, and no promise.]*
 
-> **[STATE: negotiation_outcome = success, officer_connection = true, body_retrieved = true]**
+> **[STATE: negotiation_outcome = success, officer_connection = false, body_retrieved = true, lighter_taken = true]**
 
-**سامي:**
-> *(standing)* شكراً.
-> *(standing)* Thank you.
-
-**ماهر:**
-> *(sharp)* ما بدي شكرك. روح.
-> *(sharp)* I don't want your thanks. Go.
-
-*The soldiers return Sami's lighter and walkie-talkie. They watch him walk back into the dark, the white cloth folded under his arm. The checkpoint light shrinks behind him.*
+*The soldiers give back the walkie-talkie. Not the lighter. They watch him walk back into the dark, the white cloth folded under his arm. Behind him, someone laughs at something on the radio.*
 
 ---
 
 #### Branch G2: Anger — بغضب
 
 **سامي:**
-> *(voice rising)* بناتك — عم تحكيلي عن بناتك؟ وبنات الناس يلي عم تحاصرهن شو؟ ما عندهن بنات؟
-> *(voice rising)* Your daughters — you're telling me about your daughters? And the daughters of the people you're besieging — what about them? Don't they have daughters?
+> *(voice rising)* شو بدك؟ ندفع لتندفن الناس؟ عم تجوّعوا ولاد! عم ترموا براميل ع بيوت! وإنت قاعد هون عم تشرب شاي وتبيع جثث؟
+> *(voice rising)* What do you want? Pay you so people can be buried? You're starving children! You're dropping barrels on houses! And you sit here drinking tea, selling bodies?
 
-*Maher's face hardens.*
+*Maher doesn't answer. He looks at one of the soldiers. The soldier steps behind Sami.*
 
-**سامي:**
-> عم تجوّعوا ولاد! عم ترموا براميل ع بيوت! وإنت قاعد هون عم تشرب شاي وتقلّي عن بناتك؟
-> *You're starving children! You're dropping barrels on houses! And you sit here drinking tea and telling me about your daughters?*
+**Sound:** A rifle butt. A single heavy sound, and Sami's breath going out of him. The scrape of the chair. Silence.
 
-**ماهر:**
-> *(standing, chair scraping)* اخترت كلامك.
-> *(standing, chair scraping)* Choose your words.
-
-**سامي:**
-> *(not stopping)* كل يوم عم يموتوا ناس. كل يوم. والعالم عم يتفرّج. وإنتو — إنتو عم تساعدوا.
-> *(not stopping)* Every day people are dying. Every day. And the world watches. And you — you're helping it happen.
-
-*The soldiers step closer. One puts a hand on his rifle. Maher raises a hand — a signal to wait.*
+*[The violence is heard, not shown. The camera stays on the lamp, and on Maher's hand, which doesn't move from his glass.]*
 
 **ماهر:**
-> *(very controlled, but his voice has an edge)* بتعرف شو صار لمّا آخر واحد جاءني بهالحكي؟ رجّعوه بصندوق. إنت عندك فرصة وحدة — إنك تمشي من هون بحياتك.
-> *(very controlled, but his voice has an edge)* You know what happened to the last man who came to me with this talk? They sent him back in a box. You have one chance — to walk out of here alive.
+> *(quietly, as if nothing happened)* آخر واحد حكى هيك رجّعناه بكيس. إنت محظوظ إني تعبان الليلة.
+> *(quietly, as if nothing happened)* The last man who talked like that, we sent back in a bag. You're lucky I'm tired tonight.
 
-*A silence. Then — as Maher leans forward — the photograph slips from his chest pocket. It falls to the table. The two girls' faces, lit by the lamp.*
-
-*Both men look at it. The anger in the air shifts — doesn't disappear, but cracks. The photograph is so small, so ordinary. Two children in a garden.*
-
-*Sami breathes. Maher picks up the photo. His hand trembles, slightly — barely visible.*
+*He pockets the lighter. Then, because a body in the street is no use to him and a man in the checkpoint is a nuisance:*
 
 **ماهر:**
-> *(sitting back down, slowly)* روح.
-> *(sitting back down, slowly)* Go.
+> بالفجر. تنين بس، وخمس دقايق. والقنّاص مش تبعي. إذا رمى، هاي إرادة الله.
+> *At dawn. Two men only, and five minutes. The sniper isn't mine. If he fires, that's God's will.*
 
-**سامي:**
-> وصاحبي؟
-> *And my friend?*
+*[ACTING NOTE: "The sniper isn't mine" is a lie of convenience; the sniper and the checkpoint serve the same army. Maher is washing his hands in front of Sami, and he doesn't care if Sami believes him.]*
 
-**ماهر:**
-> *(a long pause, looking at the photo)* ...بالفجر. ما بضمنلك شي. بس إذا ما شافك حدا...
-> *(a long pause, looking at the photo)* ...At dawn. I can't guarantee anything. But if no one sees you...
+> **[STATE: negotiation_outcome = partial, officer_connection = false, lighter_taken = true]**
 
-*He trails off. It's not permission. It's the closest thing to permission he can offer after what Sami said.*
-
-> **[STATE: negotiation_outcome = partial, officer_connection = false]**
-
-*The soldiers return Sami's things. He walks into the dark. Behind him, Maher is still holding the photo.*
+*They push Sami out past the sandbags. He walks back into the dark, holding his side.*
 
 ---
 
@@ -972,7 +928,7 @@ This is the game's most demanding physical sequence. Sami must navigate upward t
 
 ### Key Emotional Beats
 1. **The Crossing** — walking sixty metres in moonlight under the white cloth, utterly exposed
-2. **Maher's photograph** — two girls in a garden, the human face of complicity
+2. **Ahmad's lighter in Maher's pocket**: the price of a body at a regime checkpoint
 3. **The Sniper's View** — seeing what the sniper saw, the dehumanisation of distance
 4. **The Cat's Yawn** — a moment of absolute, meaningless peace
 5. **The Wedding** — joy continuing despite everything, and Sami choosing not to enter
