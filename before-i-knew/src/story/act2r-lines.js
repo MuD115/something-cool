@@ -32,7 +32,7 @@ export const LINES = {
   // the sniper lanes (gameplay barks, not in the script)
   lane_intro: d(null, 'فتحة بين بنايتين. من هون بيشوف القنّاص الشارع.', 'A gap between two buildings. From here the sniper can see the street.', 'examine', 5),
   lane_light: d(null, 'وين في شمس، في عين.', 'Where the sun gets through, so does his eye.', 'examine', 3.6),
-  lane1_wall: d(null, 'حيط البناية اللي انهدّت. ما ضل منها غير هالحيط، لنص الإجر.', 'All that’s left of the flattened building: this wall, waist-high.', 'examine', 4.5),
+  lane1_wall: d(null, 'حيط البناية اللي انهدّت. ما ضل منها غير هالحيط، لحد الخصر.', 'All that’s left of the flattened building: this wall, waist-high.', 'examine', 4.5),
   warn_1: d(null, 'الطلقة ضربت بالحيط، شبر عن راسك. ما كان عم يحذّر.', 'The round hit the wall a hand’s width from your head. He wasn’t warning you.', 'examine', 4.5),
   warn_2: d(null, 'عم يشوفك. وعم يقوّص ليقتل.', 'He can see you. He shoots to kill.', 'examine', 3.4),
   warn_3: d(null, 'مرة تانية، شبر. لازم تستنّى.', 'A hand’s width, again. You have to wait.', 'examine', 3.4),

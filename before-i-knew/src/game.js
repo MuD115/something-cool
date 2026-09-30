@@ -7,6 +7,7 @@ import { Effects } from './sets/effects.js';
 import { keyLabel } from './engine/input.js';
 import { clamp, lerp, smooth } from './engine/util.js';
 import { writeSave } from './engine/save.js';
+import { POSES } from './rigs/person.js';
 
 export const TOOLS = {
   torch: { id: 'torch', ar: 'مصباح يدوي', en: 'Hand-crank torch' },
@@ -35,6 +36,7 @@ export class Game {
     this.runner = new Runner();
     this.effects = new Effects();
     this.player = new Walker(this.level, 'sami');
+    this.player.idles = true;
     this.player.onStep = (stance) => {
       const p = this.player;
       const surface = this.scene === 'stairwell' ? 'hollow' : this.surface?.(p.x) || 'grit';
@@ -202,6 +204,32 @@ export class Game {
     this.text.pick(i);
   }
 
+  // Reach for something at (x, y) and take it: a squat for things on the
+  // ground, a reach for things at hand height, arms up for things above.
+  // onGrab runs at the moment the hand gets there.
+  *reach(x, y, onGrab) {
+    const p = this.player;
+    const was = this.locked;
+    this.lock();
+    const f = x >= p.x ? 1 : -1;
+    if (f !== p.f) p.rig.pivot?.();
+    p.f = f;
+    const pose =
+      y > -70
+        ? { ...POSES.squat, torso: 0.6, head: 0.4, armN: 1.2, foreN: 1.3, armF: 0.85, foreF: 1.15 }
+        : y < -190
+          ? { ...POSES.reachUp, head: -0.45, armF: 0.35, foreF: 0.55 }
+          : { ...POSES.stand, torso: 0.18, head: 0.15, armN: 1.45, foreN: 1.5 };
+    p.override = pose;
+    yield 0.42;
+    onGrab?.();
+    this.sound.cloth();
+    yield 0.16;
+    p.override = null;
+    yield 0.3;
+    if (!was) this.lock(false);
+  }
+
   *walkNpc(w, x, opts = {}) {
     w.goal = x;
     w.goalOpts = opts;
@@ -230,8 +258,8 @@ export class Game {
 
   showPrompt() {
     const { action, ar, en } = this.promptInfo;
-    const keys = this.input.bindings()[action] || [];
-    this.text.prompt(keys.map(keyLabel).slice(0, 2).join(' / '), ar, en);
+    const keys = this.input.device === 'keys' || !this.input.device ? (this.input.bindings()[action] || []).map(keyLabel).slice(0, 2).join(' / ') : this.input.label(action);
+    this.text.prompt(keys, ar, en);
     this.promptAt = this.time;
     this.promptVisible = true;
     this.idleT = 0;
@@ -317,7 +345,8 @@ export class Game {
     c.clearRect(0, 0, W, H);
     R.layer(1);
     const m = R.layers.emit.x.getTransform();
-    const a = k * (0.8 + 0.2 * Math.sin(this.time * 3));
+    const flash = this.usedAt && this.time - this.usedAt < 0.4 ? 1 + 1.2 * (1 - (this.time - this.usedAt) / 0.4) : 1;
+    const a = Math.min(1.6, k * (0.8 + 0.2 * Math.sin(this.time * 3)) * flash);
     const cx = t.x + (t.bx || 0);
     const cy = t.y + (t.by || 0);
     if (t.sil) {
@@ -387,6 +416,7 @@ export class Game {
   update(dt) {
     if (this.paused) return;
     this.time += dt;
+    this.text.tick(dt);
     const input = this.input;
     const p = this.player;
 
@@ -401,6 +431,17 @@ export class Game {
         this.text.choiceEl.dataset.timed = 'on';
         if (left <= 0) this.pick(this.choiceDefault);
       } else this.text.choiceEl.dataset.timed = '';
+    }
+
+    // looking at what he's examining: the head goes to it (and a lean, if it's low)
+    const la = this.lookAt;
+    if (la && this.time < la.until && Math.abs(p.vx) < 20 && !p.override) {
+      p.gaze = clamp((la.y + 150) / 260, -0.55, 0.5);
+      p.gazeLean = la.y > -70 ? 0.2 : 0;
+    } else {
+      p.gaze = 0;
+      p.gazeLean = 0;
+      if (la && this.time >= la.until) this.lookAt = null;
     }
 
     // the player
@@ -473,8 +514,8 @@ export class Game {
     // Skip: one press moves on to the next line (never past a choice), and
     // holding it keeps going, a line at a time
     if (!this.text.choiceOpen && this.text.lineUp()) {
-      const up = performance.now() - (this.text.lineStart || 0);
-      if ((input.hit('skip') && up > 150) || (input.held('skip') && up > 550)) {
+      const up = this.text.clock - (this.text.lineStart || 0);
+      if ((input.hit('skip') && up > 0.15) || (input.held('skip') && up > 0.55)) {
         this.skipId = this.text.lineId;
         this.text.clearLine();
       }
@@ -526,11 +567,34 @@ export class Game {
       return;
     }
     const [u, v] = this.R.cam.toUv(t.x, t.y, this.R.W, this.R.H);
-    const key = keyLabel(this.input.bindings().interact?.[0]);
+    const key = this.input.label('interact');
     this.text.hint(u, v, key, t.label);
     if (this.input.hit('interact')) {
       this.anchor = t;
       this.anchorAt = this.time;
+      // a response in the body and the world: he turns to it, the outline
+      // brightens, a soft tick
+      this.usedAt = this.time;
+      this.sound.tone(1650, 0.035, { vol: 0.03 });
+      if (t.look) {
+        const tx = t.x + (t.bx || 0);
+        const f = tx >= p.x ? 1 : -1;
+        if (f !== p.f && Math.abs(tx - p.x) > 12) {
+          p.rig.pivot?.();
+          p.f = f;
+        }
+        this.lookAt = { x: tx, y: t.y + (t.by || 0), until: this.time + 4 };
+      } else {
+        // someone to talk to turns to face him, if they're standing still
+        for (const w of this.npcs) {
+          if (w.goal != null || w.hidden || Math.abs(w.x - t.x) > 70 || Math.abs(w.y - p.y) > 40) continue;
+          const f = p.x >= w.x ? 1 : -1;
+          if (f !== w.f && Math.abs(p.x - w.x) > 12) {
+            w.rig.pivot?.();
+            w.f = f;
+          }
+        }
+      }
       t.use(this);
       // an examine point: remember it, and what Sami made of it
       if (t.look) this.onNotice?.(t.id, t.lookText || this.text.log[this.text.log.length - 1]?.line);

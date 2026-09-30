@@ -92,6 +92,7 @@ export const LINES = {
   building: d(null, 'ست طوابق، ونصها ع الأرض. أنا مهندس. بعرف إنو ما لازم كون هون.', 'Six storeys, and half of it on the ground. I’m an engineer. I know I shouldn’t be in here.', 'examine', 5.5),
   dark: d(null, 'عتمة. بلا ضو ما بشوف وين الأرض.', 'Dark. Without light I can’t see where the floor is.', 'examine', 3.6),
   table: s(null, 'طاولة محطوط عليها صحون. كانوا عم يتعشّوا، أو رايحين يتعشّوا. ما رجعوا.', 'A table with plates set on it. They were eating dinner, or about to. They didn’t come back.', 'examine', 6),
+  stove: d(null, 'صوبة من تنكة. الحيط فوقها أسود. كانوا يحرقوا نايلون وبلاستيك ليطبخوا. الريحة لسّا بالحيطان.', 'A stove made from a tin. The wall above it is black. They were burning plastic to cook. The smell is still in the walls.', 'examine', 5.5),
   drawing: d(null, 'رسمة ولد ع الحيط. بيت، وشمس، وأربع أشخاص ماسكين إيدين بعض.', 'A child’s drawing on the wall. A house, a sun, four people holding hands.', 'examine', 5),
   slab: d(null, 'بلاطة سقف واقعة ع الدرج. بطلع من فوقها، ع الحديد.', 'A ceiling slab has fallen across the stairs. I’ll climb over it, on the rebar.', 'examine', 4.5),
   slab_holds: d(null, 'تحرّكت. وثبتت.', 'It shifted. And held.', 'examine', 2.6),
@@ -116,5 +117,5 @@ export const LINES = {
 // Title cards (scene intros, in Aref Ruqaa).
 export const CARDS = {
   open: [['الليل وصل.', 'Night has arrived.'], ['بالحصار، الليل مش بس عتمة. الليل هوي المكان يلي بتطلع فيه الأشياء يلي الشمس بتخبّيها.', 'Under siege, night isn’t just darkness. Night is the place where the things the sun hides come out.']],
-  after: [['قبل الفجر.', 'Before dawn.'], ['والليل لسّا طويل.', 'And the night is still long.']],
+  after: [['الساعة عشرة بالليل.', 'Ten o’clock at night.'], ['والليل لسّا طويل.', 'And the night is still long.']],
 };

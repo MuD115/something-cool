@@ -30,8 +30,11 @@ export const DEFAULT_KEYS = {
   menu: ['Escape', 'KeyP'],
 };
 
-// Standard gamepad mapping.
+// Standard gamepad mapping, and what each button is called on the pad.
 const PAD = { jump: 0, prone: 1, interact: 2, tool: 3, use: 5, crouch: 4, menu: 9, run: 7, skip: 6 };
+const PAD_NAMES = { jump: 'A', prone: 'B', interact: 'X', tool: 'Y', use: 'RB', crouch: 'LB', menu: 'Start', run: 'RT', skip: 'LT', left: '◀', right: '▶' };
+// On a touchscreen, the on-screen button's own symbol.
+const TOUCH_NAMES = { jump: '⤒', prone: '▁', crouch: '◣', interact: '✋', tool: '⇄', use: '◉', skip: '⏭', left: '◀', right: '▶', menu: '≡' };
 
 export function keyLabel(code) {
   if (!code) return '·';
@@ -59,6 +62,7 @@ export class Input {
     this.capture = null; // rebinding: next key goes here
 
     window.addEventListener('keydown', (e) => {
+      this.device = 'keys';
       if (this.capture) {
         e.preventDefault();
         const fn = this.capture;
@@ -104,6 +108,7 @@ export class Input {
 
   // Touch buttons call these.
   touchDown(a) {
+    this.device = 'touch';
     if (!this.touch.has(a)) this.pressed.add(a);
     this.touch.add(a);
   }
@@ -128,12 +133,23 @@ export class Input {
       for (const a in PAD) {
         const on = !!pad.buttons[PAD[a]]?.pressed;
         if (on) this.down.add(a);
-        if (on && !this.padPrev[a]) this.pressed.add(a);
+        if (on && !this.padPrev[a]) {
+          this.pressed.add(a);
+          this.device = 'pad';
+        }
         this.padPrev[a] = on;
       }
       if (pad.buttons[13]?.pressed && !this.padPrev.dpadDown) this.pressed.add('crouch');
       this.padPrev.dpadDown = !!pad.buttons[13]?.pressed;
     }
+  }
+
+  // How an action should be shown in a prompt, for the device last used:
+  // a key, a pad button, or the on-screen button's symbol.
+  label(action) {
+    if (this.device === 'pad') return PAD_NAMES[action] || '·';
+    if (this.device === 'touch') return TOUCH_NAMES[action] || '·';
+    return keyLabel(this.bindings()[action]?.[0]);
   }
 
   // Anything at all held or pressed this frame (for idle detection).

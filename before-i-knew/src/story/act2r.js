@@ -339,13 +339,11 @@ export const ACT2R = {
     g.text.objective(OBJ.sheet);
     L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, box: [112, 112], bx: -3, by: 7, outline: [[-47,-49],[43,-49],[45,47],[23,39],[-7,49],[-45,43]], label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
     yield () => a.pull;
+    yield* g.reach(X.sheet, -200, () => {
+      a.hasSheet = true;
+      g.sound.noise({ dur: 0.45, freq: 2400, q: 0.6, vol: 0.12 }); // it tears at one edge
+    });
     g.lock();
-    p.f = 1;
-    p.override = POSES.reachUp;
-    yield 0.6;
-    a.hasSheet = true;
-    g.sound.noise({ dur: 0.45, freq: 2400, q: 0.6, vol: 0.12 }); // it tears at one edge
-    p.override = null;
     yield* say(g, 'sheet');
     g.lock(false);
     g.text.objective(OBJ.rod);
@@ -353,8 +351,8 @@ export const ACT2R = {
     L.add({ id: 'rail', x: X.rebar, y: -60, range: 80, urgent: true, box: [160, 60], bx: 5, by: 35, label: ['التقط', 'Pick up'], enabled: () => a.hasSheet && !a.hasRod, use: () => (a.hasRod = true) });
     yield () => a.hasRod;
     a.rebarGlint = false;
+    yield* g.reach(X.rebar, -20, () => g.sound.click());
     g.lock();
-    g.sound.click();
     yield* say(g, 'rail');
     g.giveTool('whitecloth');
     g.sound.cloth();

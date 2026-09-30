@@ -620,7 +620,7 @@
 
 *Movement at the edge of the opening. A shape on the rubble — low, fluid, picking its way over broken concrete with the care of something that has learned every surface in this terrain.*
 
-*The **cat**. The thin tabby with the torn ear. It appears at the room's open edge, pauses, regards Sami. The same cat from Act 1, from the night walk. Two meetings before; this is the third.*
+*The **cat**. The thin black cat with the torn ear. It appears at the room's open edge, pauses, regards Sami. The same cat from Act 1, from the night walk. Two meetings before; this is the third.*
 
 *It picks its way across the rubble toward Sami — not rushing, not cautious. The movement of an animal that has assessed the situation and found it acceptable. It reaches the slab where Sami sits. It sniffs the air near his hand. Then it settles — not touching him, not in his lap, but near. Close enough to feel. It sits upright, facing the opening, the way cats sit when they have agreed to share a space but not to acknowledge it.*
 

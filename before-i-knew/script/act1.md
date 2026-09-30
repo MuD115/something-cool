@@ -753,8 +753,8 @@ The screen fades. The ambient sound fades. A moment of darkness.
 > الساعة أربعة وربع. ١٤ آب، ٢٠١٤.
 > *Quarter past four. 14 August 2014.*
 
-> بقيت الشمس ساعتين بالسما.
-> *Two hours of sun left in the sky.*
+> بقيت الشمس تلات ساعات بالسما.
+> *Three hours of sun left in the sky.*
 
 **[FADE TO ACT 2]**
 

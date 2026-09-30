@@ -17,6 +17,24 @@ const HALF_W = 14;
 const MANTLE_MIN = 34;
 const MANTLE_MAX = 150;
 const MANTLE_TIME = 0.95;
+// Forgiving jumps (see README): a jump still counts just after walking off
+// an edge (coyote time) and just before landing (a buffer).
+const COYOTE = 0.12;
+const JUMP_BUFFER = 0.14;
+// The body's side of a jump: a brief gather before it, a give after it.
+const TAKEOFF_POSE = { torso: 0.32, head: -0.12, thighN: 0.95, shinN: -0.9, thighF: 0.75, shinF: -1.0, armN: -0.55, foreN: 0.3, armF: -0.6, foreF: 0.25 };
+const LAND_POSE = { torso: 0.42, head: 0.05, thighN: 1.15, shinN: -1.05, thighF: 0.95, shinF: -1.15, armN: 0.55, foreN: 0.9, armF: 0.45, foreF: 0.8 };
+// Mantling, in four: hands on the ledge, pulling up, a knee over and a push, standing.
+const M_REACH = { torso: 0.1, head: -0.35, thighN: 0.1, shinN: 0.05, thighF: -0.1, shinF: -0.1, armN: 2.8, foreN: 3.0, armF: 2.6, foreF: 2.9 };
+const M_PULL = { torso: 0.35, head: -0.2, thighN: 0.9, shinN: -0.7, thighF: 0.5, shinF: -1.0, armN: 1.9, foreN: 2.7, armF: 1.8, foreF: 2.6 };
+const M_PUSH = { torso: 0.95, head: -0.1, thighN: 1.7, shinN: -0.6, thighF: 0.4, shinF: -0.9, armN: 0.35, foreN: 0.25, armF: 0.3, foreF: 0.2 };
+// Idle actions, after standing still a while: a look at the watch, a
+// glance back over the shoulder, a hand to the pouch at his hip.
+const IDLES = [
+  { dur: 2.2, pose: { head: 0.5, armF: 0.35, foreF: 1.75, armN: 0.3, foreN: 1.55 } },
+  { dur: 2.0, pose: { head: -0.25, torso: -0.06, armN: 0.1, armF: -0.1 } },
+  { dur: 1.6, pose: { head: 0.35, torso: 0.08, armN: -0.35, foreN: 0.75 } },
+];
 
 export class Walker {
   constructor(level, outfit = 'sami', scale = 1) {
@@ -43,6 +61,14 @@ export class Walker {
     this.time = 0;
     this.blocked = null; // why we couldn't move this frame: 'ceiling' | 'wall' | null
     this.seed = Math.random() * 100; // so idle glances aren't in step
+    this.coyote = 0;
+    this.jumpBuf = 0;
+    this.takeoff = 0; // seconds of the take-off gather left
+    this.landing = 0; // how hard the last landing was, fading
+    this.leanS = 0; // lean with acceleration, smoothed
+    this.stillT = 0;
+    this.idleAct = null;
+    this.idles = false; // the player's idle actions (NPCs have their own lives)
   }
 
   // 'side' | 'front' | 'back': see Person.face.
@@ -144,10 +170,15 @@ export class Walker {
       this.f = f;
     }
 
-    if (intent.jump && this.onGround && this.stance === 'stand' && !this.carry) {
-      if (!this.tryMantle()) {
+    this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
+    this.jumpBuf = intent.jump ? JUMP_BUFFER : Math.max(0, this.jumpBuf - dt);
+    if (this.jumpBuf > 0 && (this.onGround || this.coyote > 0) && this.stance === 'stand' && !this.carry) {
+      this.jumpBuf = 0;
+      if (!(this.onGround && this.tryMantle())) {
         this.vy = -JUMP_V;
         this.onGround = false;
+        this.coyote = 0;
+        this.takeoff = 0.09;
         this.onJump?.();
       }
       if (this.mantle) {
@@ -196,6 +227,7 @@ export class Walker {
         this.y = g2;
         this.vy = 0;
         this.onGround = true;
+        this.landing = Math.max(this.landing, clamp(hard / 1300));
         this.onLand?.(clamp(hard / 1400));
       }
     } else {
@@ -228,13 +260,16 @@ export class Walker {
     if (this.mantle) {
       const k = clamp(this.mantle.t);
       target =
-        k < 0.35
-          ? blendPose(POSES.stand, POSES.reachUp, smooth(0, 0.3, k))
-          : k < 0.7
-            ? blendPose(POSES.reachUp, { ...POSES.crouch, armN: 1.9, foreN: 2.3, armF: 1.7, foreF: 2.2 }, smooth(0.35, 0.65, k))
-            : blendPose({ ...POSES.crouch, armN: 1.9, foreN: 2.3, armF: 1.7, foreF: 2.2 }, POSES.stand, smooth(0.7, 1, k));
+        k < 0.25
+          ? blendPose(POSES.stand, M_REACH, smooth(0, 0.22, k))
+          : k < 0.5
+            ? blendPose(M_REACH, M_PULL, smooth(0.25, 0.48, k))
+            : k < 0.75
+              ? blendPose(M_PULL, M_PUSH, smooth(0.5, 0.72, k))
+              : blendPose(M_PUSH, POSES.stand, smooth(0.75, 1, k));
     } else if (!this.onGround) {
-      target = POSES.jump;
+      // a brief gather at take-off, then the jump itself
+      target = this.takeoff > 0 ? TAKEOFF_POSE : POSES.jump;
     } else if (this.stance === 'prone') {
       target = speed > 4 ? crawlPose(phase * 0.8) : POSES.prone;
     } else if (this.stance === 'crouch') {
@@ -262,6 +297,41 @@ export class Walker {
         armF: target.armF + 0.02 * Math.sin(tt * 1.7 + 0.4),
       };
     }
+
+    this.takeoff = Math.max(0, this.takeoff - dt);
+    if (!this.mantle && this.onGround) {
+      // the give of a landing, fading (movement is never held up by it)
+      if (this.landing > 0.02 && this.stance === 'stand') target = blendPose(target, LAND_POSE, Math.min(1, this.landing * 1.4));
+      this.landing = Math.max(0, this.landing - dt * 4);
+      // lean into a start, settle back from a stop
+      const acc = ((this.vx - (this.lastVx ?? this.vx)) / Math.max(dt, 1e-4)) * this.f;
+      this.leanS = lerp(this.leanS, clamp(acc / 1400, -1, 1), 1 - Math.exp(-dt * 9));
+      if (this.stance === 'stand') target = { ...target, torso: target.torso + this.leanS * 0.12, head: target.head - this.leanS * 0.05 };
+      // standing still a while: now and then, one small thing
+      if (this.idles && this.stance === 'stand' && speed <= 4 && !this.override && !this.carry) {
+        this.stillT += dt;
+        if (!this.idleAct && this.stillT > 6.5 + (this.seed % 2)) {
+          this.idleAct = { ...IDLES[Math.floor(Math.random() * IDLES.length)], t: 0 };
+          this.stillT = -4 - Math.random() * 4; // and not again for a while
+        }
+      } else {
+        this.stillT = 0;
+        this.idleAct = null;
+      }
+      if (this.idleAct) {
+        const ia = this.idleAct;
+        ia.t += dt;
+        const w = Math.sin(clamp(ia.t / ia.dur) * Math.PI);
+        const q = w * w * (3 - 2 * w);
+        target = blendPose(target, { ...target, ...ia.pose }, q);
+        if (ia.t >= ia.dur) this.idleAct = null;
+      }
+    }
+    // his gaze on what he's looking at (set by the game)
+    this.gazeS = lerp(this.gazeS || 0, this.gaze || 0, 1 - Math.exp(-dt * 5));
+    this.gazeLeanS = lerp(this.gazeLeanS || 0, this.gazeLean || 0, 1 - Math.exp(-dt * 4));
+    if (Math.abs(this.gazeS) > 0.005 || this.gazeLeanS > 0.005) target = { ...target, head: target.head + this.gazeS, torso: target.torso + this.gazeLeanS };
+    this.lastVx = this.vx;
 
     // footsteps
     if (this.onGround && speed > 4 && this.stance !== 'prone') {
@@ -296,6 +366,8 @@ export class Walker {
     } else this.overrideBlend = 0;
 
     const r = this.rig;
+    // any change of facing is a quick turn, never a flip (scripts too)
+    if (r.f !== undefined && r.f !== this.f && r.flipK >= 1) r.pivot();
     r.tick(dt);
     r.setPose(final);
     r.x = this.x;

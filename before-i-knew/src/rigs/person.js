@@ -190,6 +190,29 @@ export function crawlPose(p) {
   };
 }
 
+// Climbing stairs, one step per half cycle. Stair ascent asks far more of
+// the leading leg than walking: hip flexed about 60° and knee about 95° as
+// it lifts to the next tread, the trailing leg straightening to push, the
+// body leaning a little forward, the near hand on the rail.
+export function stairPose(p) {
+  const c = POSES.stand;
+  const kN = (1 + Math.sin(p)) / 2;
+  const kF = 1 - kN;
+  return {
+    ...c,
+    torso: 0.16 + 0.03 * Math.sin(2 * p),
+    head: -0.05,
+    thighN: lerp(-0.25, 1.05, kN),
+    shinN: lerp(-0.3, -0.62, kN) - 0.25 * Math.max(0, Math.cos(p)),
+    thighF: lerp(-0.25, 1.05, kF),
+    shinF: lerp(-0.3, -0.62, kF) - 0.25 * Math.max(0, -Math.cos(p)),
+    armN: 0.95,
+    foreN: 1.25,
+    armF: 0.25 - 0.2 * Math.sin(p),
+    foreF: 0.45,
+  };
+}
+
 const down = (a) => [Math.sin(a), Math.cos(a)];
 
 // How the foot sits for a given shin angle: a shin swept back lifts the heel

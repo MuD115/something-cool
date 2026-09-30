@@ -46,6 +46,7 @@ export const X2 = {
   stairs1: [820, 1040], // F1 → F2 (in the stairwell, behind)
   table: 420,
   drawing: 300,
+  stove: 640,
   stairs2: [40, 300], // F2 → F3 (in the stairwell, behind): the slab across them
   slab: [150, 210],
   wardrobe: [470, 580],
@@ -395,6 +396,7 @@ export function drawBuilding(R, g) {
   // furniture and what the rooms still hold
   if (near(X2.table - 100, X2.table + 100)) diningTable(R, X2.table, floorY(2));
   if (near(X2.drawing - 50, X2.drawing + 50)) childsDrawing(R, X2.drawing, floorY(2) - 120);
+  if (near(X2.stove - 60, X2.stove + 60)) tinStove(R, X2.stove, floorY(2));
   if (near(X2.wardrobe[0], X2.wardrobe[1])) wardrobe(R, X2.wardrobe[0], floorY(3));
   if (near(X2.heights - 60, X2.heights + 60)) doorFrame(R, X2.heights, floorY(4));
 
@@ -581,6 +583,30 @@ function diningTable(R, x, fy) {
     c.fillRect(x + 98, fy - 90, 4, 90);
     c.fillStyle = 'rgba(200,190,170,0.18)';
     c.fillRect(x - 60, fy - 76, 120, 4); // plaster dust
+  });
+}
+
+// A stove cut from a paraffin tin, its pipe out through the wall,
+// and the wall above it black: under the siege, plastic was the fuel.
+function tinStove(R, x, fy) {
+  R.paint((c) => {
+    const g = c.createRadialGradient(x, fy - 120, 6, x, fy - 110, 90);
+    g.addColorStop(0, 'rgba(8,7,6,0.75)');
+    g.addColorStop(1, 'rgba(8,7,6,0)');
+    c.fillStyle = g;
+    c.fillRect(x - 90, fy - 210, 180, 190);
+  });
+  R.cast((c) => {
+    c.fillStyle = '#3c3a36';
+    c.fillRect(x - 16, fy - 34, 32, 34); // the tin
+    c.fillStyle = '#2a2826';
+    c.fillRect(x - 16, fy - 34, 32, 4);
+    c.fillRect(x - 10, fy - 16, 12, 8); // the fire door
+    c.fillStyle = '#4a4640';
+    c.fillRect(x + 4, fy - 150, 6, 118); // the pipe, up
+    c.fillRect(x + 4, fy - 150, 60, 6); // and out
+    c.fillStyle = '#1c1a18';
+    c.fillRect(x - 24, fy - 4, 12, 4); // a melted bottle beside it
   });
 }
 

@@ -2805,6 +2805,9 @@ class Text {
     this.toolsEl = $('tools');
     this.lineTimer = 0;
     this.lineId = 0;
+    // Lines and cards run on game time (tick), so a pause holds them up.
+    this.clock = 0;
+    this.due = { line: null, float: null, card: null };
     this.queue = [];
     this.log = []; // every line said this session: { who, line, style }
     this.apply();
@@ -2838,7 +2841,7 @@ class Text {
   // who: [arabic, english] | null; line: [arabic, english]; style: '' | 'examine' | 'radio' | 'thought'
   say(who, line, dur = 4, style = '') {
     const id = ++this.lineId;
-    this.lineStart = performance.now();
+    this.lineStart = this.clock;
     const last = this.log[this.log.length - 1];
     if (!last || last.line[1] !== line[1]) {
       this.log.push({ who, line, style });
@@ -2866,11 +2869,7 @@ class Text {
     en.textContent = line[1];
     box.append(ar, en);
     this.sub.hidden = false;
-    this.lineUntil = performance.now() + dur * 1000;
-    clearTimeout(this.lineTimer);
-    this.lineTimer = setTimeout(() => {
-      if (this.lineId === id) this.sub.hidden = true;
-    }, dur * 1000);
+    this.due.line = { at: this.clock + dur, id };
     return id;
   }
 
@@ -2889,7 +2888,7 @@ class Text {
   // placeFloat() keeps it over the thing each frame.
   float(line, dur = 4, style = 'examine') {
     const id = ++this.lineId;
-    this.lineStart = performance.now();
+    this.lineStart = this.clock;
     const last = this.log[this.log.length - 1];
     if (!last || last.line[1] !== line[1]) {
       this.log.push({ who: null, line, style });
@@ -2915,10 +2914,7 @@ class Text {
     void el.offsetWidth;
     el.style.animation = '';
     this.sub.hidden = true;
-    clearTimeout(this.floatTimer);
-    this.floatTimer = setTimeout(() => {
-      if (this.lineId === id) this.hideFloat();
-    }, dur * 1000);
+    this.due.float = { at: this.clock + dur, id };
     return id;
   }
 
@@ -2952,11 +2948,29 @@ class Text {
       this.card.appendChild(p);
     }
     this.card.classList.add('show');
-    clearTimeout(this.cardTimer);
-    this.cardTimer = setTimeout(() => this.card.classList.remove('show'), dur * 1000);
+    this.due.card = { at: this.clock + dur };
+  }
+
+  // Advance the text clock; whatever's run its time steps aside.
+  tick(dt) {
+    this.clock += dt;
+    const d = this.due;
+    if (d.line && this.clock >= d.line.at) {
+      if (this.lineId === d.line.id) this.sub.hidden = true;
+      d.line = null;
+    }
+    if (d.float && this.clock >= d.float.at) {
+      if (this.lineId === d.float.id) this.hideFloat();
+      d.float = null;
+    }
+    if (d.card && this.clock >= d.card.at) {
+      this.card.classList.remove('show');
+      d.card = null;
+    }
   }
 
   hideCard() {
+    this.due.card = null;
     this.card.classList.remove('show');
   }
 
@@ -3157,8 +3171,11 @@ const DEFAULT_KEYS = {
   menu: ['Escape', 'KeyP'],
 };
 
-// Standard gamepad mapping.
+// Standard gamepad mapping, and what each button is called on the pad.
 const PAD = { jump: 0, prone: 1, interact: 2, tool: 3, use: 5, crouch: 4, menu: 9, run: 7, skip: 6 };
+const PAD_NAMES = { jump: 'A', prone: 'B', interact: 'X', tool: 'Y', use: 'RB', crouch: 'LB', menu: 'Start', run: 'RT', skip: 'LT', left: '◀', right: '▶' };
+// On a touchscreen, the on-screen button's own symbol.
+const TOUCH_NAMES = { jump: '⤒', prone: '▁', crouch: '◣', interact: '✋', tool: '⇄', use: '◉', skip: '⏭', left: '◀', right: '▶', menu: '≡' };
 
 function keyLabel(code) {
   if (!code) return '·';
@@ -3186,6 +3203,7 @@ class Input {
     this.capture = null; // rebinding: next key goes here
 
     window.addEventListener('keydown', (e) => {
+      this.device = 'keys';
       if (this.capture) {
         e.preventDefault();
         const fn = this.capture;
@@ -3231,6 +3249,7 @@ class Input {
 
   // Touch buttons call these.
   touchDown(a) {
+    this.device = 'touch';
     if (!this.touch.has(a)) this.pressed.add(a);
     this.touch.add(a);
   }
@@ -3255,12 +3274,23 @@ class Input {
       for (const a in PAD) {
         const on = !!pad.buttons[PAD[a]]?.pressed;
         if (on) this.down.add(a);
-        if (on && !this.padPrev[a]) this.pressed.add(a);
+        if (on && !this.padPrev[a]) {
+          this.pressed.add(a);
+          this.device = 'pad';
+        }
         this.padPrev[a] = on;
       }
       if (pad.buttons[13]?.pressed && !this.padPrev.dpadDown) this.pressed.add('crouch');
       this.padPrev.dpadDown = !!pad.buttons[13]?.pressed;
     }
+  }
+
+  // How an action should be shown in a prompt, for the device last used:
+  // a key, a pad button, or the on-screen button's symbol.
+  label(action) {
+    if (this.device === 'pad') return PAD_NAMES[action] || '·';
+    if (this.device === 'touch') return TOUCH_NAMES[action] || '·';
+    return keyLabel(this.bindings()[action]?.[0]);
   }
 
   // Anything at all held or pressed this frame (for idle detection).
@@ -4109,6 +4139,29 @@ function crawlPose(p) {
     shinF: c.shinF - 0.7 * reachN,
     thighN: c.thighN + 0.3 * reachF,
     shinN: c.shinN - 0.7 * reachF,
+  };
+}
+
+// Climbing stairs, one step per half cycle. Stair ascent asks far more of
+// the leading leg than walking: hip flexed about 60° and knee about 95° as
+// it lifts to the next tread, the trailing leg straightening to push, the
+// body leaning a little forward, the near hand on the rail.
+function stairPose(p) {
+  const c = POSES.stand;
+  const kN = (1 + Math.sin(p)) / 2;
+  const kF = 1 - kN;
+  return {
+    ...c,
+    torso: 0.16 + 0.03 * Math.sin(2 * p),
+    head: -0.05,
+    thighN: lerp(-0.25, 1.05, kN),
+    shinN: lerp(-0.3, -0.62, kN) - 0.25 * Math.max(0, Math.cos(p)),
+    thighF: lerp(-0.25, 1.05, kF),
+    shinF: lerp(-0.3, -0.62, kF) - 0.25 * Math.max(0, -Math.cos(p)),
+    armN: 0.95,
+    foreN: 1.25,
+    armF: 0.25 - 0.2 * Math.sin(p),
+    foreF: 0.45,
   };
 }
 
@@ -5348,7 +5401,7 @@ function mixHex(a, b, t) {
   return `#${((m(16) << 16) | (m(8) << 8) | m(0)).toString(16).padStart(6, '0')}`;
 }
 
-return { OUTFITS, POSES, walkPose, crouchWalkPose, crawlPose, Person, blendPose };
+return { OUTFITS, POSES, walkPose, crouchWalkPose, crawlPose, stairPose, Person, blendPose };
 })();
 
 // ---- src/world/walker.js
@@ -5371,6 +5424,24 @@ const HALF_W = 14;
 const MANTLE_MIN = 34;
 const MANTLE_MAX = 150;
 const MANTLE_TIME = 0.95;
+// Forgiving jumps (see README): a jump still counts just after walking off
+// an edge (coyote time) and just before landing (a buffer).
+const COYOTE = 0.12;
+const JUMP_BUFFER = 0.14;
+// The body's side of a jump: a brief gather before it, a give after it.
+const TAKEOFF_POSE = { torso: 0.32, head: -0.12, thighN: 0.95, shinN: -0.9, thighF: 0.75, shinF: -1.0, armN: -0.55, foreN: 0.3, armF: -0.6, foreF: 0.25 };
+const LAND_POSE = { torso: 0.42, head: 0.05, thighN: 1.15, shinN: -1.05, thighF: 0.95, shinF: -1.15, armN: 0.55, foreN: 0.9, armF: 0.45, foreF: 0.8 };
+// Mantling, in four: hands on the ledge, pulling up, a knee over and a push, standing.
+const M_REACH = { torso: 0.1, head: -0.35, thighN: 0.1, shinN: 0.05, thighF: -0.1, shinF: -0.1, armN: 2.8, foreN: 3.0, armF: 2.6, foreF: 2.9 };
+const M_PULL = { torso: 0.35, head: -0.2, thighN: 0.9, shinN: -0.7, thighF: 0.5, shinF: -1.0, armN: 1.9, foreN: 2.7, armF: 1.8, foreF: 2.6 };
+const M_PUSH = { torso: 0.95, head: -0.1, thighN: 1.7, shinN: -0.6, thighF: 0.4, shinF: -0.9, armN: 0.35, foreN: 0.25, armF: 0.3, foreF: 0.2 };
+// Idle actions, after standing still a while: a look at the watch, a
+// glance back over the shoulder, a hand to the pouch at his hip.
+const IDLES = [
+  { dur: 2.2, pose: { head: 0.5, armF: 0.35, foreF: 1.75, armN: 0.3, foreN: 1.55 } },
+  { dur: 2.0, pose: { head: -0.25, torso: -0.06, armN: 0.1, armF: -0.1 } },
+  { dur: 1.6, pose: { head: 0.35, torso: 0.08, armN: -0.35, foreN: 0.75 } },
+];
 
 class Walker {
   constructor(level, outfit = 'sami', scale = 1) {
@@ -5397,6 +5468,14 @@ class Walker {
     this.time = 0;
     this.blocked = null; // why we couldn't move this frame: 'ceiling' | 'wall' | null
     this.seed = Math.random() * 100; // so idle glances aren't in step
+    this.coyote = 0;
+    this.jumpBuf = 0;
+    this.takeoff = 0; // seconds of the take-off gather left
+    this.landing = 0; // how hard the last landing was, fading
+    this.leanS = 0; // lean with acceleration, smoothed
+    this.stillT = 0;
+    this.idleAct = null;
+    this.idles = false; // the player's idle actions (NPCs have their own lives)
   }
 
   // 'side' | 'front' | 'back': see Person.face.
@@ -5498,10 +5577,15 @@ class Walker {
       this.f = f;
     }
 
-    if (intent.jump && this.onGround && this.stance === 'stand' && !this.carry) {
-      if (!this.tryMantle()) {
+    this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
+    this.jumpBuf = intent.jump ? JUMP_BUFFER : Math.max(0, this.jumpBuf - dt);
+    if (this.jumpBuf > 0 && (this.onGround || this.coyote > 0) && this.stance === 'stand' && !this.carry) {
+      this.jumpBuf = 0;
+      if (!(this.onGround && this.tryMantle())) {
         this.vy = -JUMP_V;
         this.onGround = false;
+        this.coyote = 0;
+        this.takeoff = 0.09;
         this.onJump?.();
       }
       if (this.mantle) {
@@ -5550,6 +5634,7 @@ class Walker {
         this.y = g2;
         this.vy = 0;
         this.onGround = true;
+        this.landing = Math.max(this.landing, clamp(hard / 1300));
         this.onLand?.(clamp(hard / 1400));
       }
     } else {
@@ -5582,13 +5667,16 @@ class Walker {
     if (this.mantle) {
       const k = clamp(this.mantle.t);
       target =
-        k < 0.35
-          ? blendPose(POSES.stand, POSES.reachUp, smooth(0, 0.3, k))
-          : k < 0.7
-            ? blendPose(POSES.reachUp, { ...POSES.crouch, armN: 1.9, foreN: 2.3, armF: 1.7, foreF: 2.2 }, smooth(0.35, 0.65, k))
-            : blendPose({ ...POSES.crouch, armN: 1.9, foreN: 2.3, armF: 1.7, foreF: 2.2 }, POSES.stand, smooth(0.7, 1, k));
+        k < 0.25
+          ? blendPose(POSES.stand, M_REACH, smooth(0, 0.22, k))
+          : k < 0.5
+            ? blendPose(M_REACH, M_PULL, smooth(0.25, 0.48, k))
+            : k < 0.75
+              ? blendPose(M_PULL, M_PUSH, smooth(0.5, 0.72, k))
+              : blendPose(M_PUSH, POSES.stand, smooth(0.75, 1, k));
     } else if (!this.onGround) {
-      target = POSES.jump;
+      // a brief gather at take-off, then the jump itself
+      target = this.takeoff > 0 ? TAKEOFF_POSE : POSES.jump;
     } else if (this.stance === 'prone') {
       target = speed > 4 ? crawlPose(phase * 0.8) : POSES.prone;
     } else if (this.stance === 'crouch') {
@@ -5616,6 +5704,41 @@ class Walker {
         armF: target.armF + 0.02 * Math.sin(tt * 1.7 + 0.4),
       };
     }
+
+    this.takeoff = Math.max(0, this.takeoff - dt);
+    if (!this.mantle && this.onGround) {
+      // the give of a landing, fading (movement is never held up by it)
+      if (this.landing > 0.02 && this.stance === 'stand') target = blendPose(target, LAND_POSE, Math.min(1, this.landing * 1.4));
+      this.landing = Math.max(0, this.landing - dt * 4);
+      // lean into a start, settle back from a stop
+      const acc = ((this.vx - (this.lastVx ?? this.vx)) / Math.max(dt, 1e-4)) * this.f;
+      this.leanS = lerp(this.leanS, clamp(acc / 1400, -1, 1), 1 - Math.exp(-dt * 9));
+      if (this.stance === 'stand') target = { ...target, torso: target.torso + this.leanS * 0.12, head: target.head - this.leanS * 0.05 };
+      // standing still a while: now and then, one small thing
+      if (this.idles && this.stance === 'stand' && speed <= 4 && !this.override && !this.carry) {
+        this.stillT += dt;
+        if (!this.idleAct && this.stillT > 6.5 + (this.seed % 2)) {
+          this.idleAct = { ...IDLES[Math.floor(Math.random() * IDLES.length)], t: 0 };
+          this.stillT = -4 - Math.random() * 4; // and not again for a while
+        }
+      } else {
+        this.stillT = 0;
+        this.idleAct = null;
+      }
+      if (this.idleAct) {
+        const ia = this.idleAct;
+        ia.t += dt;
+        const w = Math.sin(clamp(ia.t / ia.dur) * Math.PI);
+        const q = w * w * (3 - 2 * w);
+        target = blendPose(target, { ...target, ...ia.pose }, q);
+        if (ia.t >= ia.dur) this.idleAct = null;
+      }
+    }
+    // his gaze on what he's looking at (set by the game)
+    this.gazeS = lerp(this.gazeS || 0, this.gaze || 0, 1 - Math.exp(-dt * 5));
+    this.gazeLeanS = lerp(this.gazeLeanS || 0, this.gazeLean || 0, 1 - Math.exp(-dt * 4));
+    if (Math.abs(this.gazeS) > 0.005 || this.gazeLeanS > 0.005) target = { ...target, head: target.head + this.gazeS, torso: target.torso + this.gazeLeanS };
+    this.lastVx = this.vx;
 
     // footsteps
     if (this.onGround && speed > 4 && this.stance !== 'prone') {
@@ -5650,6 +5773,8 @@ class Walker {
     } else this.overrideBlend = 0;
 
     const r = this.rig;
+    // any change of facing is a quick turn, never a flip (scripts too)
+    if (r.f !== undefined && r.f !== this.f && r.flipK >= 1) r.pivot();
     r.tick(dt);
     r.setPose(final);
     r.x = this.x;
@@ -5828,6 +5953,7 @@ const { Effects } = __src_sets_effects;
 const { keyLabel } = __src_engine_input;
 const { clamp, lerp, smooth } = __src_engine_util;
 const { writeSave } = __src_engine_save;
+const { POSES } = __src_rigs_person;
 const TOOLS = {
   torch: { id: 'torch', ar: 'مصباح يدوي', en: 'Hand-crank torch' },
   mirror: { id: 'mirror', ar: 'شظية مرآة', en: 'Mirror shard' },
@@ -5855,6 +5981,7 @@ class Game {
     this.runner = new Runner();
     this.effects = new Effects();
     this.player = new Walker(this.level, 'sami');
+    this.player.idles = true;
     this.player.onStep = (stance) => {
       const p = this.player;
       const surface = this.scene === 'stairwell' ? 'hollow' : this.surface?.(p.x) || 'grit';
@@ -6022,6 +6149,32 @@ class Game {
     this.text.pick(i);
   }
 
+  // Reach for something at (x, y) and take it: a squat for things on the
+  // ground, a reach for things at hand height, arms up for things above.
+  // onGrab runs at the moment the hand gets there.
+  *reach(x, y, onGrab) {
+    const p = this.player;
+    const was = this.locked;
+    this.lock();
+    const f = x >= p.x ? 1 : -1;
+    if (f !== p.f) p.rig.pivot?.();
+    p.f = f;
+    const pose =
+      y > -70
+        ? { ...POSES.squat, torso: 0.6, head: 0.4, armN: 1.2, foreN: 1.3, armF: 0.85, foreF: 1.15 }
+        : y < -190
+          ? { ...POSES.reachUp, head: -0.45, armF: 0.35, foreF: 0.55 }
+          : { ...POSES.stand, torso: 0.18, head: 0.15, armN: 1.45, foreN: 1.5 };
+    p.override = pose;
+    yield 0.42;
+    onGrab?.();
+    this.sound.cloth();
+    yield 0.16;
+    p.override = null;
+    yield 0.3;
+    if (!was) this.lock(false);
+  }
+
   *walkNpc(w, x, opts = {}) {
     w.goal = x;
     w.goalOpts = opts;
@@ -6050,8 +6203,8 @@ class Game {
 
   showPrompt() {
     const { action, ar, en } = this.promptInfo;
-    const keys = this.input.bindings()[action] || [];
-    this.text.prompt(keys.map(keyLabel).slice(0, 2).join(' / '), ar, en);
+    const keys = this.input.device === 'keys' || !this.input.device ? (this.input.bindings()[action] || []).map(keyLabel).slice(0, 2).join(' / ') : this.input.label(action);
+    this.text.prompt(keys, ar, en);
     this.promptAt = this.time;
     this.promptVisible = true;
     this.idleT = 0;
@@ -6137,7 +6290,8 @@ class Game {
     c.clearRect(0, 0, W, H);
     R.layer(1);
     const m = R.layers.emit.x.getTransform();
-    const a = k * (0.8 + 0.2 * Math.sin(this.time * 3));
+    const flash = this.usedAt && this.time - this.usedAt < 0.4 ? 1 + 1.2 * (1 - (this.time - this.usedAt) / 0.4) : 1;
+    const a = Math.min(1.6, k * (0.8 + 0.2 * Math.sin(this.time * 3)) * flash);
     const cx = t.x + (t.bx || 0);
     const cy = t.y + (t.by || 0);
     if (t.sil) {
@@ -6207,6 +6361,7 @@ class Game {
   update(dt) {
     if (this.paused) return;
     this.time += dt;
+    this.text.tick(dt);
     const input = this.input;
     const p = this.player;
 
@@ -6221,6 +6376,17 @@ class Game {
         this.text.choiceEl.dataset.timed = 'on';
         if (left <= 0) this.pick(this.choiceDefault);
       } else this.text.choiceEl.dataset.timed = '';
+    }
+
+    // looking at what he's examining: the head goes to it (and a lean, if it's low)
+    const la = this.lookAt;
+    if (la && this.time < la.until && Math.abs(p.vx) < 20 && !p.override) {
+      p.gaze = clamp((la.y + 150) / 260, -0.55, 0.5);
+      p.gazeLean = la.y > -70 ? 0.2 : 0;
+    } else {
+      p.gaze = 0;
+      p.gazeLean = 0;
+      if (la && this.time >= la.until) this.lookAt = null;
     }
 
     // the player
@@ -6293,8 +6459,8 @@ class Game {
     // Skip: one press moves on to the next line (never past a choice), and
     // holding it keeps going, a line at a time
     if (!this.text.choiceOpen && this.text.lineUp()) {
-      const up = performance.now() - (this.text.lineStart || 0);
-      if ((input.hit('skip') && up > 150) || (input.held('skip') && up > 550)) {
+      const up = this.text.clock - (this.text.lineStart || 0);
+      if ((input.hit('skip') && up > 0.15) || (input.held('skip') && up > 0.55)) {
         this.skipId = this.text.lineId;
         this.text.clearLine();
       }
@@ -6346,11 +6512,34 @@ class Game {
       return;
     }
     const [u, v] = this.R.cam.toUv(t.x, t.y, this.R.W, this.R.H);
-    const key = keyLabel(this.input.bindings().interact?.[0]);
+    const key = this.input.label('interact');
     this.text.hint(u, v, key, t.label);
     if (this.input.hit('interact')) {
       this.anchor = t;
       this.anchorAt = this.time;
+      // a response in the body and the world: he turns to it, the outline
+      // brightens, a soft tick
+      this.usedAt = this.time;
+      this.sound.tone(1650, 0.035, { vol: 0.03 });
+      if (t.look) {
+        const tx = t.x + (t.bx || 0);
+        const f = tx >= p.x ? 1 : -1;
+        if (f !== p.f && Math.abs(tx - p.x) > 12) {
+          p.rig.pivot?.();
+          p.f = f;
+        }
+        this.lookAt = { x: tx, y: t.y + (t.by || 0), until: this.time + 4 };
+      } else {
+        // someone to talk to turns to face him, if they're standing still
+        for (const w of this.npcs) {
+          if (w.goal != null || w.hidden || Math.abs(w.x - t.x) > 70 || Math.abs(w.y - p.y) > 40) continue;
+          const f = p.x >= w.x ? 1 : -1;
+          if (f !== w.f && Math.abs(p.x - w.x) > 12) {
+            w.rig.pivot?.();
+            w.f = f;
+          }
+        }
+      }
       t.use(this);
       // an examine point: remember it, and what Sami made of it
       if (t.look) this.onNotice?.(t.id, t.lookText || this.text.log[this.text.log.length - 1]?.line);
@@ -9403,10 +9592,12 @@ const ACT1 = {
       by: 40,
       enabled: () => !g.hasTool('mirror'),
       use: () => {
-        g.giveTool('mirror');
-        g.sound.click();
         g.runner.run(
           (function* () {
+            yield* g.reach(X.shard, -20, () => {
+              g.giveTool('mirror');
+              g.sound.click();
+            });
             yield* g.say(null, ['شقفة مراية. بتشوف فيها حالك، أو بتشوف فيها شو ورا الحيطان.', 'A shard of mirror. You can see yourself in it, or you can see what’s around walls.'], 5, 'examine');
             yield* g.say(null, ['شقفة مراية. بتبيّن فيها الطريق اللي ما عم تشوفها.', 'Mirror shard. It shows the road you can’t see.'], 4, 'item');
           })(),
@@ -9805,8 +9996,11 @@ const ACT1 = {
     yield () => taken.v;
     g.level.remove('walkie');
     g.prompt(null);
+    yield* g.reach(X.spotter - 10, -170, () => {
+      g.giveTool('walkie');
+      g.a.rope = 2;
+    });
     g.lock();
-    g.giveTool('walkie');
     g.sound.squelch();
     g.a.rope = 2;
     yield* g.say(null, ['لاسلكي. بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.', 'Walkie-talkie. You hear the spotters’ warnings. Receive only.'], 4.5, 'item');
@@ -9981,12 +10175,23 @@ const ACT1 = {
 
   *laylaTalk(g) {
     g.lock();
-    g.player.f = -1;
+    const p = g.player;
+    const l = g.layla;
+    // they turn to each other; she looks up from her sorting
+    p.f = l.x < p.x ? -1 : 1;
+    const was = { f: l.f, override: l.override };
+    l.f = p.x < l.x ? -1 : 1;
+    l.override = { ...(was.override || POSES.sort), torso: 0.55, head: -0.45 };
+    yield 0.4;
     yield* g.say(LAYLA, ['بتعرف قدّيش كيلو حديد لازم الواحد يلمّ لحتى يشتري كيس برغل؟', 'Do you know how many kilos of scrap metal you need to collect for a bag of bulgur?'], 5);
     yield GAP;
     yield* g.say(SAMI, ['كم؟', 'How many?']);
     yield GAP;
     yield* g.say(LAYLA, ['كتير.', 'A lot.']);
+    yield 0.6;
+    // and back to it
+    l.f = was.f;
+    l.override = was.override;
     g.lock(false);
   },
 
@@ -10283,6 +10488,14 @@ const ACT1 = {
     const x0 = cat.x;
     const y0 = cat.y;
     cat.f = -f;
+    // it gets up, and gathers itself before it jumps
+    const tg = g.time;
+    yield () => {
+      const k = clamp((g.time - tg) / 0.5);
+      cat.sit = 1 - k;
+      cat.y = y0 + Math.sin(clamp((k - 0.6) / 0.4) * Math.PI) * 3;
+      return k >= 1;
+    };
     const t1 = g.time;
     yield () => {
       const k = clamp((g.time - t1) / 0.7);
@@ -10294,7 +10507,15 @@ const ACT1 = {
     };
     cat.speed = 0;
     g.sound.step('grit', 0.05, { pan: g.sound.panFor(cat.x) });
-    yield 0.35;
+    // the give of the landing
+    const tl = g.time;
+    yield () => {
+      const k = clamp((g.time - tl) / 0.3);
+      cat.sit = 0.35 * Math.sin(k * Math.PI);
+      return k >= 1;
+    };
+    cat.sit = 0;
+    yield 0.1;
     // it turns, and offers its back
     cat.f = f;
     yield 0.3;
@@ -10489,7 +10710,7 @@ const ACT1 = {
     g.sound.life(0); // the town goes quiet around the news
     g.lock();
     g.text.objective(null);
-    // He lets Sami come to him: the walk toward is the last of not knowing.
+    // He lets Sami come to him: the walk towards him is the last of not knowing.
     yield* g.walkPlayer(X.kerb + 30);
     yield () => g.a.abuArrived !== false;
     p.f = 1;
@@ -10611,7 +10832,7 @@ const ACT1 = {
     g.sound.ney(293.66, 12, 0.2);
     g.text.titleCard([
       ['الساعة أربعة وربع. ١٤ آب، ٢٠١٤.', 'Quarter past four. 14 August 2014.'],
-      ['بقيت الشمس ساعتين بالسما.', 'Two hours of sun left in the sky.'],
+      ['بقيت الشمس تلات ساعات بالسما.', 'Three hours of sun left in the sky.'],
     ], 7);
     yield 7.5;
     g.onEnd?.(s);
@@ -11848,7 +12069,7 @@ const LINES = {
   // the sniper lanes (gameplay barks, not in the script)
   lane_intro: d(null, 'فتحة بين بنايتين. من هون بيشوف القنّاص الشارع.', 'A gap between two buildings. From here the sniper can see the street.', 'examine', 5),
   lane_light: d(null, 'وين في شمس، في عين.', 'Where the sun gets through, so does his eye.', 'examine', 3.6),
-  lane1_wall: d(null, 'حيط البناية اللي انهدّت. ما ضل منها غير هالحيط، لنص الإجر.', 'All that’s left of the flattened building: this wall, waist-high.', 'examine', 4.5),
+  lane1_wall: d(null, 'حيط البناية اللي انهدّت. ما ضل منها غير هالحيط، لحد الخصر.', 'All that’s left of the flattened building: this wall, waist-high.', 'examine', 4.5),
   warn_1: d(null, 'الطلقة ضربت بالحيط، شبر عن راسك. ما كان عم يحذّر.', 'The round hit the wall a hand’s width from your head. He wasn’t warning you.', 'examine', 4.5),
   warn_2: d(null, 'عم يشوفك. وعم يقوّص ليقتل.', 'He can see you. He shoots to kill.', 'examine', 3.4),
   warn_3: d(null, 'مرة تانية، شبر. لازم تستنّى.', 'A hand’s width, again. You have to wait.', 'examine', 3.4),
@@ -12258,13 +12479,11 @@ const ACT2R = {
     g.text.objective(OBJ.sheet);
     L.add({ id: 'sheet', x: X.sheet, y: -150, range: 90, urgent: true, box: [112, 112], bx: -3, by: 7, outline: [[-47,-49],[43,-49],[45,47],[23,39],[-7,49],[-45,43]], label: ['خذ', 'Take'], enabled: () => !a.hasSheet, use: () => (a.pull = true) });
     yield () => a.pull;
+    yield* g.reach(X.sheet, -200, () => {
+      a.hasSheet = true;
+      g.sound.noise({ dur: 0.45, freq: 2400, q: 0.6, vol: 0.12 }); // it tears at one edge
+    });
     g.lock();
-    p.f = 1;
-    p.override = POSES.reachUp;
-    yield 0.6;
-    a.hasSheet = true;
-    g.sound.noise({ dur: 0.45, freq: 2400, q: 0.6, vol: 0.12 }); // it tears at one edge
-    p.override = null;
     yield* say(g, 'sheet');
     g.lock(false);
     g.text.objective(OBJ.rod);
@@ -12272,8 +12491,8 @@ const ACT2R = {
     L.add({ id: 'rail', x: X.rebar, y: -60, range: 80, urgent: true, box: [160, 60], bx: 5, by: 35, label: ['التقط', 'Pick up'], enabled: () => a.hasSheet && !a.hasRod, use: () => (a.hasRod = true) });
     yield () => a.hasRod;
     a.rebarGlint = false;
+    yield* g.reach(X.rebar, -20, () => g.sound.click());
     g.lock();
-    g.sound.click();
     yield* say(g, 'rail');
     g.giveTool('whitecloth');
     g.sound.cloth();
@@ -12611,6 +12830,7 @@ const X2 = {
   stairs1: [820, 1040], // F1 → F2 (in the stairwell, behind)
   table: 420,
   drawing: 300,
+  stove: 640,
   stairs2: [40, 300], // F2 → F3 (in the stairwell, behind): the slab across them
   slab: [150, 210],
   wardrobe: [470, 580],
@@ -12960,6 +13180,7 @@ function drawBuilding(R, g) {
   // furniture and what the rooms still hold
   if (near(X2.table - 100, X2.table + 100)) diningTable(R, X2.table, floorY(2));
   if (near(X2.drawing - 50, X2.drawing + 50)) childsDrawing(R, X2.drawing, floorY(2) - 120);
+  if (near(X2.stove - 60, X2.stove + 60)) tinStove(R, X2.stove, floorY(2));
   if (near(X2.wardrobe[0], X2.wardrobe[1])) wardrobe(R, X2.wardrobe[0], floorY(3));
   if (near(X2.heights - 60, X2.heights + 60)) doorFrame(R, X2.heights, floorY(4));
 
@@ -13146,6 +13367,30 @@ function diningTable(R, x, fy) {
     c.fillRect(x + 98, fy - 90, 4, 90);
     c.fillStyle = 'rgba(200,190,170,0.18)';
     c.fillRect(x - 60, fy - 76, 120, 4); // plaster dust
+  });
+}
+
+// A stove cut from a paraffin tin, its pipe out through the wall,
+// and the wall above it black: under the siege, plastic was the fuel.
+function tinStove(R, x, fy) {
+  R.paint((c) => {
+    const g = c.createRadialGradient(x, fy - 120, 6, x, fy - 110, 90);
+    g.addColorStop(0, 'rgba(8,7,6,0.75)');
+    g.addColorStop(1, 'rgba(8,7,6,0)');
+    c.fillStyle = g;
+    c.fillRect(x - 90, fy - 210, 180, 190);
+  });
+  R.cast((c) => {
+    c.fillStyle = '#3c3a36';
+    c.fillRect(x - 16, fy - 34, 32, 34); // the tin
+    c.fillStyle = '#2a2826';
+    c.fillRect(x - 16, fy - 34, 32, 4);
+    c.fillRect(x - 10, fy - 16, 12, 8); // the fire door
+    c.fillStyle = '#4a4640';
+    c.fillRect(x + 4, fy - 150, 6, 118); // the pipe, up
+    c.fillRect(x + 4, fy - 150, 60, 6); // and out
+    c.fillStyle = '#1c1a18';
+    c.fillRect(x - 24, fy - 4, 12, 4); // a melted bottle beside it
   });
 }
 
@@ -13375,6 +13620,7 @@ const LINES = {
   building: d(null, 'ست طوابق، ونصها ع الأرض. أنا مهندس. بعرف إنو ما لازم كون هون.', 'Six storeys, and half of it on the ground. I’m an engineer. I know I shouldn’t be in here.', 'examine', 5.5),
   dark: d(null, 'عتمة. بلا ضو ما بشوف وين الأرض.', 'Dark. Without light I can’t see where the floor is.', 'examine', 3.6),
   table: s(null, 'طاولة محطوط عليها صحون. كانوا عم يتعشّوا، أو رايحين يتعشّوا. ما رجعوا.', 'A table with plates set on it. They were eating dinner, or about to. They didn’t come back.', 'examine', 6),
+  stove: d(null, 'صوبة من تنكة. الحيط فوقها أسود. كانوا يحرقوا نايلون وبلاستيك ليطبخوا. الريحة لسّا بالحيطان.', 'A stove made from a tin. The wall above it is black. They were burning plastic to cook. The smell is still in the walls.', 'examine', 5.5),
   drawing: d(null, 'رسمة ولد ع الحيط. بيت، وشمس، وأربع أشخاص ماسكين إيدين بعض.', 'A child’s drawing on the wall. A house, a sun, four people holding hands.', 'examine', 5),
   slab: d(null, 'بلاطة سقف واقعة ع الدرج. بطلع من فوقها، ع الحديد.', 'A ceiling slab has fallen across the stairs. I’ll climb over it, on the rebar.', 'examine', 4.5),
   slab_holds: d(null, 'تحرّكت. وثبتت.', 'It shifted. And held.', 'examine', 2.6),
@@ -13399,7 +13645,7 @@ const LINES = {
 // Title cards (scene intros, in Aref Ruqaa).
 const CARDS = {
   open: [['الليل وصل.', 'Night has arrived.'], ['بالحصار، الليل مش بس عتمة. الليل هوي المكان يلي بتطلع فيه الأشياء يلي الشمس بتخبّيها.', 'Under siege, night isn’t just darkness. Night is the place where the things the sun hides come out.']],
-  after: [['قبل الفجر.', 'Before dawn.'], ['والليل لسّا طويل.', 'And the night is still long.']],
+  after: [['الساعة عشرة بالليل.', 'Ten o’clock at night.'], ['والليل لسّا طويل.', 'And the night is still long.']],
 };
 
 return { WHO, LINES, CARDS };
@@ -13423,7 +13669,7 @@ const __src_story_act3r = (() => {
 // labels here are in Modern Standard Arabic.
 
 const { lerp, clamp } = __src_engine_util;
-const { POSES, crawlPose } = __src_rigs_person;
+const { POSES, crawlPose, stairPose } = __src_rigs_person;
 const { writeSave } = __src_engine_save;
 const { X1, X2, floorY, nightLook, surfaceAt, drawApproach, drawBuilding, buildBuilding } = __src_story_act3r_set;
 const { LINES, WHO, CARDS } = __src_story_act3r_lines;
@@ -13487,6 +13733,7 @@ function rifle(c, hand) {
 // Move a walker along a path of [x, y] points at a speed, with a pose
 // for the gait (the walker's own, or a function of the distance so far).
 function* along(g, w, pts, speed, pose = null) {
+  const before = w.override;
   w.scripted = true;
   let seg = 0;
   let u = 0;
@@ -13520,7 +13767,7 @@ function* along(g, w, pts, speed, pose = null) {
   };
   w.scripted = false;
   w.scriptedSpeed = 0;
-  w.override = null;
+  w.override = before;
   w.vx = 0;
   w.vy = 0;
   w.onGround = true;
@@ -13659,9 +13906,12 @@ const ACT3R = {
     g.s1.f = -1;
     yield* g.walkNpc(g.s2, p.x + 120, { speedScale: 0.45 });
     g.s2.f = -1;
-    g.s1.override = { ...POSES.hands, torso: 0.3 };
+    // the pat-down: hands down his sides, his pockets
+    g.s1.override = (t) => ({ ...POSES.hands, torso: 0.45, head: 0.25, armN: 1.0 + 0.35 * Math.sin(t * 7), foreN: 1.15, armF: 0.85 + 0.35 * Math.sin(t * 7 + 1.4), foreF: 1.05 });
     g.sound.cloth();
-    yield 1.4;
+    yield 0.7;
+    g.sound.cloth();
+    yield 0.8;
     g.state.tools = g.state.tools.filter((id) => id !== 'walkie' && id !== 'lighter');
     g.active = 'whitecloth';
     g.s1.override = RIFLE;
@@ -13698,9 +13948,12 @@ const ACT3R = {
     yield 1.2;
     yield* talk(g, ['m_1', 'sa_1', 'm_2', 'sa_2', 'm_3', 'sa_3', 'm_4', 'sa_4', 'm_5', 'sa_5', 'm_6']);
     // Beat 1: tea, and the terms
+    // he pours, and drinks: the glass to his mouth
     m.override = { ...SIT, armN: 0.9, foreN: 1.8 };
     g.sound.slosh?.();
     yield 0.8;
+    m.override = { ...SIT, head: -0.15, armN: 0.75, foreN: 2.85 };
+    yield 1.1;
     m.override = SIT;
     yield* talk(g, ['m_7', 'sa_7', 'm_8', 'sa_8', 'm_9', 'sa_9', 'm_10', 'sa_10', 'm_11']);
     // Beat 2
@@ -13810,6 +14063,7 @@ const ACT3R = {
     const look = (id, x, y, key, box) => L.add({ id, x, y, range: 90, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key), ...box });
     look('table', X2.table, floorY(2) - 90, 'table', { box: [150, 90], by: 45 });
     look('drawing', X2.drawing, floorY(2) - 130, 'drawing', { box: [60, 44], by: 10 });
+    look('stove', X2.stove, floorY(2) - 40, 'stove', { box: [50, 50], by: 20 });
     look('heights', X2.heights, floorY(4) - 110, 'heights', { box: [84, 196], by: 18 });
     L.add({ id: 'stairs1', x: X2.stairs1[0] + 30, y: -100, range: 70, urgent: true, label: ['اصعد الدرج', 'Climb the stairs'], box: [80, 160], by: 20, enabled: () => !a.climbing && g.player.y > -30, use: () => g.runner.run(this.flight(g, X2.stairs1, 1, 2)) });
     L.add({ id: 'stairs2', x: X2.stairs2[0] + 30, y: floorY(2) - 100, range: 70, urgent: true, label: ['اصعد الدرج', 'Climb the stairs'], box: [80, 160], by: 20, enabled: () => !a.climbing && g.player.y > floorY(3) + 50 && g.player.y < floorY(2) + 50, use: () => g.runner.run(this.climb2(g)) });
@@ -13822,6 +14076,7 @@ const ACT3R = {
     else if (cp === 'descent') {
       a.viewed = true;
       a.inside = false;
+      a.stillGrace = 6;
       p.place(X2.balc5[0] + 20, floorY(5));
     } else p.place(X2.door + 30, 0);
     p.f = 1;
@@ -13866,7 +14121,9 @@ const ACT3R = {
     a.climbing = true;
     g.lock();
     yield* g.walkPlayer(xa + 10);
-    yield* along(g, p, [[xa + 10, floorY(from)], [xb, floorY(to)], [xb + 20, floorY(to)]], 90);
+    const stairs = (d) => stairPose(d * 0.1);
+    yield* along(g, p, [[xa + 10, floorY(from)], [xb, floorY(to)]], 80, stairs);
+    yield* along(g, p, [[xb, floorY(to)], [xb + 20, floorY(to)]], 90);
     p.place(xb + 20, floorY(to));
     p.f = -1;
     a.climbing = false;
@@ -13884,7 +14141,7 @@ const ACT3R = {
     const yb = floorY(3);
     yield* g.walkPlayer(xa + 10);
     const mid = [lerp(xa, xb, 0.45), lerp(ya, yb, 0.45)];
-    yield* along(g, p, [[xa + 10, ya], mid], 70);
+    yield* along(g, p, [[xa + 10, ya], mid], 70, (d) => stairPose(d * 0.1));
     yield* say(g, 'slab');
     // over it, on the rebar: a mantle, the slab grinding under him
     p.override = POSES.reachUp;
@@ -13896,7 +14153,8 @@ const ACT3R = {
     yield* along(g, p, [mid, [mid[0] + 40, mid[1] - 70], [mid[0] + 80, mid[1] - 60]], 60, () => POSES.hands);
     yield* say(g, 'slab_holds');
     a.slabCrossed = true;
-    yield* along(g, p, [[mid[0] + 80, mid[1] - 60], [xb, yb], [xb + 30, yb]], 80);
+    yield* along(g, p, [[mid[0] + 80, mid[1] - 60], [xb, yb]], 80, (d) => stairPose(d * 0.1));
+    yield* along(g, p, [[xb, yb], [xb + 30, yb]], 90);
     p.place(xb + 30, yb);
     a.climbing = false;
     g.lock(false);
@@ -13914,7 +14172,7 @@ const ACT3R = {
     yield* g.walkPlayer(xa + 10);
     const k = 0.45;
     const mid = [lerp(xa, xb, k), lerp(ya, yb, k)];
-    yield* along(g, p, [[xa + 10, ya], mid], 60);
+    yield* along(g, p, [[xa + 10, ya], mid], 60, (d) => stairPose(d * 0.1));
     // the step breaks: he drops, catches the rail
     a.stepGone = true;
     g.sound.noise({ dur: 0.25, freq: 900, q: 0.8, vol: 0.5 });
@@ -13924,7 +14182,8 @@ const ACT3R = {
     p.override = { ...POSES.reachUp, armF: 0.3, foreF: 0.5 };
     yield* along(g, p, [mid, [mid[0], mid[1] + 16]], 120, () => ({ ...POSES.reachUp, armF: 0.3, foreF: 0.5 }));
     yield* say(g, 'step_gives');
-    yield* along(g, p, [[mid[0], mid[1] + 16], [mid[0] + 20, mid[1] - 20], [xb, yb], [xb + 30, yb]], 60);
+    yield* along(g, p, [[mid[0], mid[1] + 16], [mid[0] + 20, mid[1] - 20], [xb, yb]], 60, (d) => stairPose(d * 0.1));
+    yield* along(g, p, [[xb, yb], [xb + 30, yb]], 90);
     p.place(xb + 30, yb);
     a.climbing = false;
     g.lock(false);
@@ -13948,6 +14207,7 @@ const ACT3R = {
     a.inside = false;
     g.checkpoint('descent');
     g.lock(false);
+    a.stillGrace = g.time + 4;
     g.text.objective(OBJ.down);
     yield* say(g, 'balcony');
     g.prompt('crouch', 'انحنِ', 'Crouch');
@@ -13993,8 +14253,20 @@ const ACT3R = {
     p.f = 1;
     const x0 = p.x;
     const tx = X2.shade - 40;
-    // backwards on his belly, the weight coming after him
-    yield* along(g, p, [[x0, 0], [tx, 0]], 26, (dist) => crawlPose(dist * 0.08));
+    // backwards on his belly, the weight coming after him: a pull, a rest,
+    // the blanket scraping on the gravel with each pull
+    let stroke = -1;
+    const pull = (dist) => {
+      const n = Math.floor(dist / 38);
+      if (n !== stroke) {
+        stroke = n;
+        g.sound.noise({ dur: 0.5, freq: 1300, q: 0.7, vol: 0.09, attack: 0.08 });
+        g.sound.noise({ dur: 0.3, freq: 300, type: 'lowpass', vol: 0.12, buf: g.sound.brownBuf });
+      }
+      a.blanketX = p.x + 64;
+      return crawlPose(-dist * 0.083);
+    };
+    yield* along(g, p, [[x0, 0], [tx, 0]], 24, pull);
     p.f = 1;
     yield 0.2;
     g.line(null, [LINES.drag.ar, LINES.drag.en], LINES.drag.dur, 'examine');
@@ -14107,13 +14379,15 @@ const ACT3R = {
     }
     // the balconies are in the open: stay low
     const onBalcony = p.x > X2.b1 && p.y < floorY(3);
-    if (onBalcony && p.stance === 'stand' && Math.abs(p.vx) > 5) {
-      a.expose = (a.expose || 0) + dt;
+    // (standing still up there is seen too, only a little more slowly)
+    if (onBalcony && p.stance === 'stand' && !g.locked) {
+      a.expose = (a.expose || 0) + dt * (Math.abs(p.vx) > 5 ? 1 : g.time > (a.stillGrace || 0) ? 0.6 : 0);
       if (a.expose > 0.8) {
         a.expose = 0;
         g.runner.run(this.nearMiss(g, { x: X2.hole - 30, y: floorY(5), stance: 'crouch' }, 'miss_1'));
       }
     } else if (!onBalcony) a.expose = 0;
+    else a.expose = Math.max(0, (a.expose || 0) - dt);
     // the moonlit street: only on his belly
     if (a.down && !a.dragged && p.x > X2.shade && p.y > -5) {
       once('moon', true);
@@ -14704,7 +14978,7 @@ function showEnd(s) {
   const act3 = key === 'act3r';
   const rows = act1 ? summary(s) : act3 ? summary3(s) : summary2(s);
   const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : act3 ? [ar ? '٨:٠٠' : '8:00', ar ? 'الليل وصل.' : 'Night had arrived.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
-  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : act3 ? [ar ? '١٠:٠٠' : '10:00', ar ? 'والليل لسّا طويل.' : 'And the night is still long.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
+  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ثلاث ساعات في السماء.' : 'Three hours of sun left in the sky.'] : act3 ? [ar ? '١٠:٠٠' : '10:00', ar ? 'والليل لسّا طويل.' : 'And the night is still long.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
   const next = NEXT[key]; // Act One (any ending) → Act Two → Act Three
   const end = $('end');
   sheetDir(end);

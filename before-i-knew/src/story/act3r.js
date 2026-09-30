@@ -14,7 +14,7 @@
 // labels here are in Modern Standard Arabic.
 
 import { lerp, clamp } from '../engine/util.js';
-import { POSES, crawlPose } from '../rigs/person.js';
+import { POSES, crawlPose, stairPose } from '../rigs/person.js';
 import { writeSave } from '../engine/save.js';
 import { X1, X2, floorY, nightLook, surfaceAt, drawApproach, drawBuilding, buildBuilding } from './act3r-set.js';
 import { LINES, WHO, CARDS } from './act3r-lines.js';
@@ -79,6 +79,7 @@ function rifle(c, hand) {
 // Move a walker along a path of [x, y] points at a speed, with a pose
 // for the gait (the walker's own, or a function of the distance so far).
 function* along(g, w, pts, speed, pose = null) {
+  const before = w.override;
   w.scripted = true;
   let seg = 0;
   let u = 0;
@@ -112,7 +113,7 @@ function* along(g, w, pts, speed, pose = null) {
   };
   w.scripted = false;
   w.scriptedSpeed = 0;
-  w.override = null;
+  w.override = before;
   w.vx = 0;
   w.vy = 0;
   w.onGround = true;
@@ -251,9 +252,12 @@ export const ACT3R = {
     g.s1.f = -1;
     yield* g.walkNpc(g.s2, p.x + 120, { speedScale: 0.45 });
     g.s2.f = -1;
-    g.s1.override = { ...POSES.hands, torso: 0.3 };
+    // the pat-down: hands down his sides, his pockets
+    g.s1.override = (t) => ({ ...POSES.hands, torso: 0.45, head: 0.25, armN: 1.0 + 0.35 * Math.sin(t * 7), foreN: 1.15, armF: 0.85 + 0.35 * Math.sin(t * 7 + 1.4), foreF: 1.05 });
     g.sound.cloth();
-    yield 1.4;
+    yield 0.7;
+    g.sound.cloth();
+    yield 0.8;
     g.state.tools = g.state.tools.filter((id) => id !== 'walkie' && id !== 'lighter');
     g.active = 'whitecloth';
     g.s1.override = RIFLE;
@@ -290,9 +294,12 @@ export const ACT3R = {
     yield 1.2;
     yield* talk(g, ['m_1', 'sa_1', 'm_2', 'sa_2', 'm_3', 'sa_3', 'm_4', 'sa_4', 'm_5', 'sa_5', 'm_6']);
     // Beat 1: tea, and the terms
+    // he pours, and drinks: the glass to his mouth
     m.override = { ...SIT, armN: 0.9, foreN: 1.8 };
     g.sound.slosh?.();
     yield 0.8;
+    m.override = { ...SIT, head: -0.15, armN: 0.75, foreN: 2.85 };
+    yield 1.1;
     m.override = SIT;
     yield* talk(g, ['m_7', 'sa_7', 'm_8', 'sa_8', 'm_9', 'sa_9', 'm_10', 'sa_10', 'm_11']);
     // Beat 2
@@ -402,6 +409,7 @@ export const ACT3R = {
     const look = (id, x, y, key, box) => L.add({ id, x, y, range: 90, look: true, label: ['تفحّص', 'Examine'], use: () => line(g, key), ...box });
     look('table', X2.table, floorY(2) - 90, 'table', { box: [150, 90], by: 45 });
     look('drawing', X2.drawing, floorY(2) - 130, 'drawing', { box: [60, 44], by: 10 });
+    look('stove', X2.stove, floorY(2) - 40, 'stove', { box: [50, 50], by: 20 });
     look('heights', X2.heights, floorY(4) - 110, 'heights', { box: [84, 196], by: 18 });
     L.add({ id: 'stairs1', x: X2.stairs1[0] + 30, y: -100, range: 70, urgent: true, label: ['اصعد الدرج', 'Climb the stairs'], box: [80, 160], by: 20, enabled: () => !a.climbing && g.player.y > -30, use: () => g.runner.run(this.flight(g, X2.stairs1, 1, 2)) });
     L.add({ id: 'stairs2', x: X2.stairs2[0] + 30, y: floorY(2) - 100, range: 70, urgent: true, label: ['اصعد الدرج', 'Climb the stairs'], box: [80, 160], by: 20, enabled: () => !a.climbing && g.player.y > floorY(3) + 50 && g.player.y < floorY(2) + 50, use: () => g.runner.run(this.climb2(g)) });
@@ -414,6 +422,7 @@ export const ACT3R = {
     else if (cp === 'descent') {
       a.viewed = true;
       a.inside = false;
+      a.stillGrace = 6;
       p.place(X2.balc5[0] + 20, floorY(5));
     } else p.place(X2.door + 30, 0);
     p.f = 1;
@@ -458,7 +467,9 @@ export const ACT3R = {
     a.climbing = true;
     g.lock();
     yield* g.walkPlayer(xa + 10);
-    yield* along(g, p, [[xa + 10, floorY(from)], [xb, floorY(to)], [xb + 20, floorY(to)]], 90);
+    const stairs = (d) => stairPose(d * 0.1);
+    yield* along(g, p, [[xa + 10, floorY(from)], [xb, floorY(to)]], 80, stairs);
+    yield* along(g, p, [[xb, floorY(to)], [xb + 20, floorY(to)]], 90);
     p.place(xb + 20, floorY(to));
     p.f = -1;
     a.climbing = false;
@@ -476,7 +487,7 @@ export const ACT3R = {
     const yb = floorY(3);
     yield* g.walkPlayer(xa + 10);
     const mid = [lerp(xa, xb, 0.45), lerp(ya, yb, 0.45)];
-    yield* along(g, p, [[xa + 10, ya], mid], 70);
+    yield* along(g, p, [[xa + 10, ya], mid], 70, (d) => stairPose(d * 0.1));
     yield* say(g, 'slab');
     // over it, on the rebar: a mantle, the slab grinding under him
     p.override = POSES.reachUp;
@@ -488,7 +499,8 @@ export const ACT3R = {
     yield* along(g, p, [mid, [mid[0] + 40, mid[1] - 70], [mid[0] + 80, mid[1] - 60]], 60, () => POSES.hands);
     yield* say(g, 'slab_holds');
     a.slabCrossed = true;
-    yield* along(g, p, [[mid[0] + 80, mid[1] - 60], [xb, yb], [xb + 30, yb]], 80);
+    yield* along(g, p, [[mid[0] + 80, mid[1] - 60], [xb, yb]], 80, (d) => stairPose(d * 0.1));
+    yield* along(g, p, [[xb, yb], [xb + 30, yb]], 90);
     p.place(xb + 30, yb);
     a.climbing = false;
     g.lock(false);
@@ -506,7 +518,7 @@ export const ACT3R = {
     yield* g.walkPlayer(xa + 10);
     const k = 0.45;
     const mid = [lerp(xa, xb, k), lerp(ya, yb, k)];
-    yield* along(g, p, [[xa + 10, ya], mid], 60);
+    yield* along(g, p, [[xa + 10, ya], mid], 60, (d) => stairPose(d * 0.1));
     // the step breaks: he drops, catches the rail
     a.stepGone = true;
     g.sound.noise({ dur: 0.25, freq: 900, q: 0.8, vol: 0.5 });
@@ -516,7 +528,8 @@ export const ACT3R = {
     p.override = { ...POSES.reachUp, armF: 0.3, foreF: 0.5 };
     yield* along(g, p, [mid, [mid[0], mid[1] + 16]], 120, () => ({ ...POSES.reachUp, armF: 0.3, foreF: 0.5 }));
     yield* say(g, 'step_gives');
-    yield* along(g, p, [[mid[0], mid[1] + 16], [mid[0] + 20, mid[1] - 20], [xb, yb], [xb + 30, yb]], 60);
+    yield* along(g, p, [[mid[0], mid[1] + 16], [mid[0] + 20, mid[1] - 20], [xb, yb]], 60, (d) => stairPose(d * 0.1));
+    yield* along(g, p, [[xb, yb], [xb + 30, yb]], 90);
     p.place(xb + 30, yb);
     a.climbing = false;
     g.lock(false);
@@ -540,6 +553,7 @@ export const ACT3R = {
     a.inside = false;
     g.checkpoint('descent');
     g.lock(false);
+    a.stillGrace = g.time + 4;
     g.text.objective(OBJ.down);
     yield* say(g, 'balcony');
     g.prompt('crouch', 'انحنِ', 'Crouch');
@@ -585,8 +599,20 @@ export const ACT3R = {
     p.f = 1;
     const x0 = p.x;
     const tx = X2.shade - 40;
-    // backwards on his belly, the weight coming after him
-    yield* along(g, p, [[x0, 0], [tx, 0]], 26, (dist) => crawlPose(dist * 0.08));
+    // backwards on his belly, the weight coming after him: a pull, a rest,
+    // the blanket scraping on the gravel with each pull
+    let stroke = -1;
+    const pull = (dist) => {
+      const n = Math.floor(dist / 38);
+      if (n !== stroke) {
+        stroke = n;
+        g.sound.noise({ dur: 0.5, freq: 1300, q: 0.7, vol: 0.09, attack: 0.08 });
+        g.sound.noise({ dur: 0.3, freq: 300, type: 'lowpass', vol: 0.12, buf: g.sound.brownBuf });
+      }
+      a.blanketX = p.x + 64;
+      return crawlPose(-dist * 0.083);
+    };
+    yield* along(g, p, [[x0, 0], [tx, 0]], 24, pull);
     p.f = 1;
     yield 0.2;
     g.line(null, [LINES.drag.ar, LINES.drag.en], LINES.drag.dur, 'examine');
@@ -699,13 +725,15 @@ export const ACT3R = {
     }
     // the balconies are in the open: stay low
     const onBalcony = p.x > X2.b1 && p.y < floorY(3);
-    if (onBalcony && p.stance === 'stand' && Math.abs(p.vx) > 5) {
-      a.expose = (a.expose || 0) + dt;
+    // (standing still up there is seen too, only a little more slowly)
+    if (onBalcony && p.stance === 'stand' && !g.locked) {
+      a.expose = (a.expose || 0) + dt * (Math.abs(p.vx) > 5 ? 1 : g.time > (a.stillGrace || 0) ? 0.6 : 0);
       if (a.expose > 0.8) {
         a.expose = 0;
         g.runner.run(this.nearMiss(g, { x: X2.hole - 30, y: floorY(5), stance: 'crouch' }, 'miss_1'));
       }
     } else if (!onBalcony) a.expose = 0;
+    else a.expose = Math.max(0, (a.expose || 0) - dt);
     // the moonlit street: only on his belly
     if (a.down && !a.dragged && p.x > X2.shade && p.y > -5) {
       once('moon', true);

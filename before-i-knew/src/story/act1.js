@@ -70,10 +70,12 @@ export const ACT1 = {
       by: 40,
       enabled: () => !g.hasTool('mirror'),
       use: () => {
-        g.giveTool('mirror');
-        g.sound.click();
         g.runner.run(
           (function* () {
+            yield* g.reach(X.shard, -20, () => {
+              g.giveTool('mirror');
+              g.sound.click();
+            });
             yield* g.say(null, ['شقفة مراية. بتشوف فيها حالك، أو بتشوف فيها شو ورا الحيطان.', 'A shard of mirror. You can see yourself in it, or you can see what’s around walls.'], 5, 'examine');
             yield* g.say(null, ['شقفة مراية. بتبيّن فيها الطريق اللي ما عم تشوفها.', 'Mirror shard. It shows the road you can’t see.'], 4, 'item');
           })(),
@@ -472,8 +474,11 @@ export const ACT1 = {
     yield () => taken.v;
     g.level.remove('walkie');
     g.prompt(null);
+    yield* g.reach(X.spotter - 10, -170, () => {
+      g.giveTool('walkie');
+      g.a.rope = 2;
+    });
     g.lock();
-    g.giveTool('walkie');
     g.sound.squelch();
     g.a.rope = 2;
     yield* g.say(null, ['لاسلكي. بتسمع فيه تحذيرات الرصد. ما بيبعت، بس بيستقبل.', 'Walkie-talkie. You hear the spotters’ warnings. Receive only.'], 4.5, 'item');
@@ -648,12 +653,23 @@ export const ACT1 = {
 
   *laylaTalk(g) {
     g.lock();
-    g.player.f = -1;
+    const p = g.player;
+    const l = g.layla;
+    // they turn to each other; she looks up from her sorting
+    p.f = l.x < p.x ? -1 : 1;
+    const was = { f: l.f, override: l.override };
+    l.f = p.x < l.x ? -1 : 1;
+    l.override = { ...(was.override || POSES.sort), torso: 0.55, head: -0.45 };
+    yield 0.4;
     yield* g.say(LAYLA, ['بتعرف قدّيش كيلو حديد لازم الواحد يلمّ لحتى يشتري كيس برغل؟', 'Do you know how many kilos of scrap metal you need to collect for a bag of bulgur?'], 5);
     yield GAP;
     yield* g.say(SAMI, ['كم؟', 'How many?']);
     yield GAP;
     yield* g.say(LAYLA, ['كتير.', 'A lot.']);
+    yield 0.6;
+    // and back to it
+    l.f = was.f;
+    l.override = was.override;
     g.lock(false);
   },
 
@@ -950,6 +966,14 @@ export const ACT1 = {
     const x0 = cat.x;
     const y0 = cat.y;
     cat.f = -f;
+    // it gets up, and gathers itself before it jumps
+    const tg = g.time;
+    yield () => {
+      const k = clamp((g.time - tg) / 0.5);
+      cat.sit = 1 - k;
+      cat.y = y0 + Math.sin(clamp((k - 0.6) / 0.4) * Math.PI) * 3;
+      return k >= 1;
+    };
     const t1 = g.time;
     yield () => {
       const k = clamp((g.time - t1) / 0.7);
@@ -961,7 +985,15 @@ export const ACT1 = {
     };
     cat.speed = 0;
     g.sound.step('grit', 0.05, { pan: g.sound.panFor(cat.x) });
-    yield 0.35;
+    // the give of the landing
+    const tl = g.time;
+    yield () => {
+      const k = clamp((g.time - tl) / 0.3);
+      cat.sit = 0.35 * Math.sin(k * Math.PI);
+      return k >= 1;
+    };
+    cat.sit = 0;
+    yield 0.1;
     // it turns, and offers its back
     cat.f = f;
     yield 0.3;
@@ -1156,7 +1188,7 @@ export const ACT1 = {
     g.sound.life(0); // the town goes quiet around the news
     g.lock();
     g.text.objective(null);
-    // He lets Sami come to him: the walk toward is the last of not knowing.
+    // He lets Sami come to him: the walk towards him is the last of not knowing.
     yield* g.walkPlayer(X.kerb + 30);
     yield () => g.a.abuArrived !== false;
     p.f = 1;
@@ -1278,7 +1310,7 @@ export const ACT1 = {
     g.sound.ney(293.66, 12, 0.2);
     g.text.titleCard([
       ['الساعة أربعة وربع. ١٤ آب، ٢٠١٤.', 'Quarter past four. 14 August 2014.'],
-      ['بقيت الشمس ساعتين بالسما.', 'Two hours of sun left in the sky.'],
+      ['بقيت الشمس تلات ساعات بالسما.', 'Three hours of sun left in the sky.'],
     ], 7);
     yield 7.5;
     g.onEnd?.(s);

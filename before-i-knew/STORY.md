@@ -34,9 +34,11 @@ Early fifties. A small, precise woman. Before the siege she was a seamstress. No
 
 ### الضابط ماهر / Officer Maher — *the regime officer*
 
-Thirty-five. From a village near Tartous. Career military — not Ba'athist ideologue but a man from a poor family for whom the army was the only ladder. Has a wife, Rima, and two daughters, aged six and four. He has been posted at the siege perimeter for eight months. He is tired. He does not enjoy the shelling. He also does not stop it. His justification is the oldest one: if the regime falls, his family — Alawite, military-connected — will be killed. He may be right. He may be using that fear to avoid looking at what he is part of. In the negotiation scene, he is not a villain. He is a man standing on the other side of a line that history drew through both of them.
+Thirty-five. From a village near Tartous. Career military: not an ideologue, a man from a poor family for whom the army was the only ladder, and who has climbed it by being useful. He has been posted at the siege perimeter for eight months, and the siege has been good to him: the checkpoint is a toll gate, and everything that passes through it, flour, fuel, medicine, bodies, has a price. He is not torn and he is not cruel for its own sake. He is bored, and he is doing sums. To him every man killed on the other side was armed, whatever he was; that is the regime's line, and he repeats it without thinking.
 
-**Inner life:** Maher dreams about his daughters' school. He keeps a photo of them in his chest pocket. He rations his cigarettes. He has not spoken to his wife in eleven days because the signal is bad. He thinks about this more than he thinks about the people on the other side of his checkpoint.
+In the negotiation he is never moved. Sami's words do not change him; they only change what Sami can be made to pay. The decent men of his army are not at his table: they are the ones who defected.
+
+**Inner life:** There is no photograph to soften him, and the game never offers one. He counts his cigarettes, and the lighters, watches and rings that come across his table. He thinks about what the posting will have bought by the time it ends.
 
 ### ليلى / Layla — *the child*
 
@@ -230,12 +232,12 @@ The longest act. The night paths share certain scenes — the moonlight walk, th
 
 Sami approaches the regime checkpoint under the white cloth. Two soldiers watch him. He is brought to Officer Maher.
 
-The negotiation is a dialogue scene with limited but meaningful choices. Maher is cautious, not hostile. He calls Ahmad a "مسلح" (armed fighter). Sami says he was a teacher. Maher is unimpressed — everyone claims that. But something shifts when Sami describes Ahmad's students, their names, the poems he taught them. Maher has daughters.
+The negotiation is a dialogue scene with limited but meaningful choices. Maher is cold and transactional. He calls Ahmad a "مسلح" (armed fighter). Sami says he was a teacher. Maher is unimpressed: everyone claims that. Names and poems buy nothing; the only question at this table is what Sami has to trade. Before anything is said, a soldier takes the lighter from Sami's pocket and Maher keeps it.
 
 **Negotiation approach (Choice G):**
-- **G1: Dignity.** Sami remains calm, appeals to Maher's humanity. The conversation turns real. Maher admits he's tired. Sami doesn't absolve him. Maher lets Sami retrieve the body at dawn, under cover. → Leads to Ending 2.
-- **G2: Anger.** Sami can't contain himself. He challenges Maher directly: you are starving children. Maher hardens. The negotiation nearly collapses but is rescued by a moment — Sami sees the photo of Maher's daughters fall from his pocket. A silence. → Partial success; body may or may not be retrieved.
-- **G3: Pragmatic deal.** Sami offers something — information, a route, a concession. Morally compromising. Maher accepts quickly. The body is returned, but Sami is left with what he traded. → Leads to a variant of Ending 2, shadowed by cost.
+- **G1: Dignity.** Sami speaks plainly about the children and asks only that Ahmad be buried. Maher calls it a nice speech that buys nothing, then lets it be enough, on his terms: twenty minutes before dawn, and if his men see Sami, it's not his business. → Leads to Ending 2.
+- **G2: Anger.** Sami can't contain himself: you are starving children, and selling bodies. Maher answers with a threat, not a change of heart. Two men, five minutes, at dawn, and the sniper "isn't his". → Partial success; the body is retrieved at real risk.
+- **G3: Pragmatic deal.** Sami trades a map of the water valves for the southern quarter. Maher accepts at once: take your friend, tonight, now. The body is returned, and Sami is left with what he traded. → Leads to a variant of Ending 2, shadowed by cost.
 
 #### The Dangerous Route (Retrieval path, D2)
 

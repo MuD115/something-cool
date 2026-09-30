@@ -80,12 +80,13 @@ From 8 pm, whichever way Choice D went. Each route is about 8 minutes to play.
   conditions: two men, five minutes, and the sniper is "not his"), or with a deal (you draw
   him the valves that control the southern quarter's water).
 - **The back route.** Up through the ruined building in the dark, torch in hand. A flight of
-  stairs, then a table still set for dinner and a child's drawing. A ceiling slab has fallen
+  stairs, then a table still set for dinner, a stove cut from a tin with the wall black above it
+  (under the siege, plastic was the fuel), and a child's drawing. A ceiling slab has fallen
   across the next flight. A wardrobe on its side has a crawl space under it, and part of the
   ceiling has come down to knee height. Where the stairs are gone, you jump from the rubble
   and pull yourself up. There are height marks on a door frame (2009, 2010, 2011, and no
   2012), and a step gives way. From the fifth floor you see what the sniper saw. Then out: a
-  balcony (stay low), a drop, a drainpipe, the alley, and a belly crawl across the moonlit
+  balcony (stay low: standing still up there is seen too), a drop, a drainpipe, the alley, and a belly crawl across the moonlit
   street to the blanket. You take its edges and pull him back into the shadow.
 
 Officer Maher is written as the regime's checkpoints were: he trades in what he controls, and
@@ -158,6 +159,16 @@ The outline never crosses anyone standing in front of it. Both can be switched o
 Accessibility. What Sami makes of a thing floats above it in a small caption, not in the
 subtitles; spoken lines stay at the bottom, each speaker's name in their own colour. Press Skip
 to move on to the next line (never past a choice); hold it to keep going.
+
+**How Sami moves.** Jumps gather a moment before take-off and give on landing, deeper the
+further he falls, without ever holding up the controls. A jump still works for a moment after
+stepping off an edge, and one pressed just before landing fires as he lands. He leans into a
+run and settles when he stops; left standing in a quiet moment he checks his watch, glances
+back or touches the pouch at his hip. He climbs stairs with a real stair gait, pulls himself
+up a ledge hand over hand, bends to pick things up and reaches up for high ones. When he looks
+at something he turns to it and tips his head to its height; the people he talks to turn to
+face him. Using a thing gives a soft click and a brief brighter outline. Control prompts show
+the keys, gamepad buttons or touch buttons, whichever you used last.
 
 Control prompts step aside once you've done what they ask, or after a few seconds. They come
 back if you stand idle while the story is still waiting on them.

@@ -347,7 +347,7 @@ function showEnd(s) {
   const act3 = key === 'act3r';
   const rows = act1 ? summary(s) : act3 ? summary3(s) : summary2(s);
   const first = act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : act3 ? [ar ? '٨:٠٠' : '8:00', ar ? 'الليل وصل.' : 'Night had arrived.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
-  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ساعتان في السماء.' : 'Two hours of sun left in the sky.'] : act3 ? [ar ? '١٠:٠٠' : '10:00', ar ? 'والليل لسّا طويل.' : 'And the night is still long.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
+  const last = act1 ? [ar ? '٤:١٥' : '4:15', ar ? 'بقيت للشمس ثلاث ساعات في السماء.' : 'Three hours of sun left in the sky.'] : act3 ? [ar ? '١٠:٠٠' : '10:00', ar ? 'والليل لسّا طويل.' : 'And the night is still long.'] : [ar ? '٧:٠٠' : '7:00', ar ? 'الشمس تغيب. الليل قادم.' : 'The sun is setting. Night is coming.'];
   const next = NEXT[key]; // Act One (any ending) → Act Two → Act Three
   const end = $('end');
   sheetDir(end);

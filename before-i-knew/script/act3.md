@@ -540,7 +540,7 @@ This is the game's most demanding physical sequence. Sami must navigate upward t
 **Location:** A narrow alley between two buildings
 **Time:** ~10:30 PM
 
-*Sami walks through a narrow alley. Ahead, on a low wall, a shape. The flashlight catches it: the **cat**. The same tabby, torn ear, amber eyes. It's sitting exactly as before — still, watching.*
+*Sami walks through a narrow alley. Ahead, on a low wall, a shape. The flashlight catches it: the **cat**. The same black cat, torn ear, amber eyes. It's sitting exactly as before — still, watching.*
 
 *The cat looks at Sami. Sami stops. They regard each other.*
 

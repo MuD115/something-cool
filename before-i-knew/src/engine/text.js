@@ -32,6 +32,9 @@ export class Text {
     this.toolsEl = $('tools');
     this.lineTimer = 0;
     this.lineId = 0;
+    // Lines and cards run on game time (tick), so a pause holds them up.
+    this.clock = 0;
+    this.due = { line: null, float: null, card: null };
     this.queue = [];
     this.log = []; // every line said this session: { who, line, style }
     this.apply();
@@ -65,7 +68,7 @@ export class Text {
   // who: [arabic, english] | null; line: [arabic, english]; style: '' | 'examine' | 'radio' | 'thought'
   say(who, line, dur = 4, style = '') {
     const id = ++this.lineId;
-    this.lineStart = performance.now();
+    this.lineStart = this.clock;
     const last = this.log[this.log.length - 1];
     if (!last || last.line[1] !== line[1]) {
       this.log.push({ who, line, style });
@@ -93,11 +96,7 @@ export class Text {
     en.textContent = line[1];
     box.append(ar, en);
     this.sub.hidden = false;
-    this.lineUntil = performance.now() + dur * 1000;
-    clearTimeout(this.lineTimer);
-    this.lineTimer = setTimeout(() => {
-      if (this.lineId === id) this.sub.hidden = true;
-    }, dur * 1000);
+    this.due.line = { at: this.clock + dur, id };
     return id;
   }
 
@@ -116,7 +115,7 @@ export class Text {
   // placeFloat() keeps it over the thing each frame.
   float(line, dur = 4, style = 'examine') {
     const id = ++this.lineId;
-    this.lineStart = performance.now();
+    this.lineStart = this.clock;
     const last = this.log[this.log.length - 1];
     if (!last || last.line[1] !== line[1]) {
       this.log.push({ who: null, line, style });
@@ -142,10 +141,7 @@ export class Text {
     void el.offsetWidth;
     el.style.animation = '';
     this.sub.hidden = true;
-    clearTimeout(this.floatTimer);
-    this.floatTimer = setTimeout(() => {
-      if (this.lineId === id) this.hideFloat();
-    }, dur * 1000);
+    this.due.float = { at: this.clock + dur, id };
     return id;
   }
 
@@ -179,11 +175,29 @@ export class Text {
       this.card.appendChild(p);
     }
     this.card.classList.add('show');
-    clearTimeout(this.cardTimer);
-    this.cardTimer = setTimeout(() => this.card.classList.remove('show'), dur * 1000);
+    this.due.card = { at: this.clock + dur };
+  }
+
+  // Advance the text clock; whatever's run its time steps aside.
+  tick(dt) {
+    this.clock += dt;
+    const d = this.due;
+    if (d.line && this.clock >= d.line.at) {
+      if (this.lineId === d.line.id) this.sub.hidden = true;
+      d.line = null;
+    }
+    if (d.float && this.clock >= d.float.at) {
+      if (this.lineId === d.float.id) this.hideFloat();
+      d.float = null;
+    }
+    if (d.card && this.clock >= d.card.at) {
+      this.card.classList.remove('show');
+      d.card = null;
+    }
   }
 
   hideCard() {
+    this.due.card = null;
     this.card.classList.remove('show');
   }
 
