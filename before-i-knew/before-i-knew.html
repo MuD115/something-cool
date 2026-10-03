@@ -6819,11 +6819,14 @@ function idlePose(t) {
   let p = c.time(u);
   const fadeT = 0.8;
   if (u > T - fadeT) p = blendPose(p, c.time(0), smooth(T - fadeT, T, u));
-  // arms mostly at rest: take a little of the capture's arm movement
+  // arms mostly at rest: take a little of the capture's arm movement; and
+  // the subject stood leaning back a touch, so his sways are kept but
+  // about an upright stance
   const s = POSES.stand;
+  const mean = (c.meanTorso ??= c.frames.reduce((acc, f) => acc + f.torso, 0) / c.frames.length);
   return {
     ...p,
-    torso: p.torso * 0.8 + s.torso * 0.2,
+    torso: s.torso + 0.03 + (p.torso - mean) * 0.7,
     armN: lerp(s.armN, p.armN, 0.4),
     foreN: lerp(s.foreN, p.foreN, 0.4),
     armF: lerp(s.armF, p.armF, 0.4),
@@ -7068,11 +7071,14 @@ class Walker {
     // ease in and out of a walk rather than snapping to speed
     const acc = this.onGround ? (Math.abs(target) > Math.abs(this.vx) ? 900 : 1300) : 600;
     this.vx += clamp(target - this.vx, -acc * dt, acc * dt);
-    if (move !== 0) {
+    if (move !== 0 && !this.faceLock) {
       const f = move > 0 ? 1 : -1;
       if (f !== this.f) this.rig.pivot(); // a quick turn, not a flip
       this.f = f;
     }
+    // facing held (dragging something, backing away from it): he goes
+    // backwards, and his limbs go backwards too (see pose)
+    if (this.faceLock) this.f = this.faceLock;
 
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = intent.jump ? JUMP_BUFFER : Math.max(0, this.jumpBuf - dt);
@@ -7175,7 +7181,7 @@ class Walker {
       poses.push([g, k, w]);
     }
     eff /= wsum || 1;
-    this.gphase = (this.gphase || 0) + (speed * dt) / Math.max(eff, 1);
+    this.gphase = (this.gphase || 0) + ((this.backing ? -1 : 1) * speed * dt) / Math.max(eff, 1);
     let out = null;
     let acc = 0;
     for (const [g, k, w] of poses) {
@@ -7188,6 +7194,8 @@ class Walker {
 
   pose(dt, speed, run = false) {
     let target;
+    // moving against the way he faces: the cycles run in reverse
+    this.backing = !!this.faceLock && Math.abs(this.vx) > 4 && Math.sign(this.vx) === -this.faceLock;
     const phase = (this.stride / (this.stance === 'stand' ? 74 : this.stance === 'crouch' ? 34 : 52)) * Math.PI;
     if (this.mantle) {
       const k = clamp(this.mantle.t);
@@ -7203,7 +7211,7 @@ class Walker {
       // a brief gather at take-off, then the jump itself
       target = this.takeoff > 0 ? TAKEOFF_POSE : POSES.jump;
     } else if (this.stance === 'prone') {
-      target = speed > 4 ? crawlPose(phase * 0.8) : POSES.prone;
+      target = speed > 4 ? crawlPose((this.backing ? -phase : phase) * 0.8) : POSES.prone;
     } else if (this.stance === 'crouch') {
       if (speed > 4) target = this.gait(dt, speed, [[GAITS.crouch, 1]]);
       else {
@@ -8213,15 +8221,47 @@ return { TOOLS, Game };
 const __src_rigs_cat = (() => {
 // A lean black street cat with a notched left ear. Sits, blinks slowly,
 // stands, walks and drops off walls. Local frame: facing right, ground at
-// y = 0. Black fur is drawn near-black with a cool sheen along the spine, the
-// crown and the shoulder, so the shape still reads against dark stone.
+// y = 0, drawn at real size (1 unit is about a centimetre), so at scale 1 a
+// standing cat's back is ~25 up, nose to tail base ~47, tail ~28, and seated
+// it is ~24 to the crown (~29 with the ears), next to a 170 man. Proportions
+// follow a domestic shorthair: rounded skull, short ears about a third of the
+// head's height, a short neck, a deep chest, a gently S-curved back and
+// round haunches. The walk is the lateral-sequence gait seen in Muybridge's
+// cat plates (hind left, fore left, hind right, fore right), with the body
+// held level. Black fur is drawn near-black with a cool sheen along the spine,
+// the crown and the shoulder, so the shape still reads against dark stone.
 
 const { ik2, noise1, lerp, clamp } = __src_engine_util;
 const { smoothPath } = __src_rigs_shapes;
 const FUR = '#141416';
 const FAR = '#0a0a0c';
+const NEAR = '#1b1c20'; // legs and head a shade off the body, so they read against it
+const RIM = 'rgba(120,128,150,0.2)';
 const SHEEN = 'rgba(120,128,150,0.32)';
-const EYE = '#c2c83c';
+const EYE = '#d8a824';
+const STRIDE = 33; // ground covered by one full walking cycle, so the paws do not skate
+
+// A tapered limb segment from a (width wa) to b (width wb), round at both
+// ends; filled with the current fill style.
+function limb(ctx, a, b, wa, wb) {
+  const dx = b[0] - a[0];
+  const dy = b[1] - a[1];
+  const l = Math.hypot(dx, dy) || 1;
+  const nx = -dy / l;
+  const ny = dx / l;
+  ctx.beginPath();
+  ctx.moveTo(a[0] + (nx * wa) / 2, a[1] + (ny * wa) / 2);
+  ctx.lineTo(b[0] + (nx * wb) / 2, b[1] + (ny * wb) / 2);
+  ctx.lineTo(b[0] - (nx * wb) / 2, b[1] - (ny * wb) / 2);
+  ctx.lineTo(a[0] - (nx * wa) / 2, a[1] - (ny * wa) / 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(a[0], a[1], wa / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.beginPath();
+  ctx.arc(b[0], b[1], wb / 2, 0, Math.PI * 2);
+  ctx.fill();
+}
 
 const mixp = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
 const ease = (t) => clamp(t) * clamp(t) * (3 - 2 * clamp(t));
@@ -8234,6 +8274,7 @@ class Cat {
     this.x = 0;
     this.y = 0;
     this.f = 1;
+    this.scale = 1; // 1 is real size
     this.sit = 1; // 1 sitting … 0 standing
     this.speed = 0;
     this.phase = 0;
@@ -8253,23 +8294,26 @@ class Cat {
 
   update(dt) {
     this.time += dt;
-    if (this.speed > 1) this.phase = (this.phase + dt * this.speed * 0.014) % 1;
+    // one cycle per STRIDE of ground covered, so the feet keep up with the body
+    if (this.speed > 1) this.phase = (this.phase + (dt * this.speed) / STRIDE) % 1;
   }
 
-  // Key points of the body, blended between standing and sitting: an
-  // outline (tail root, rump, back, withers, neck, chest, belly, thigh,
-  // haunch), the head, and where the legs join.
-  shape() {
+  // Key points of the body in the cat's own frame at real size, blended
+  // between standing and sitting: an outline (tail root, rump, back, withers,
+  // neck, chest, belly, thigh, haunch, rear), the head, and where the legs join.
+  pose() {
     const s = this.sit;
-    const breathe = Math.sin(this.time * 1.9) * 0.6;
+    const breathe = Math.sin(this.time * 1.9) * 0.3;
     const walking = this.speed > 1 && s < 0.5;
-    const bob = walking ? Math.sin(this.phase * Math.PI * 4) * 1.2 : 0;
-    const STAND = [[-34, -34], [-28, -41], [-6, -38], [14, -42], [22, -45], [30, -29], [21, -16], [-2, -20], [-17, -19], [-33, -23]];
-    const SIT = [[-26, -6], [-27, -22], [-15, -38], [2, -50], [9, -55], [19, -37], [17, -14], [7, -5], [-6, -2], [-24, 0]];
+    const bob = walking ? Math.sin(this.phase * Math.PI * 4) * 0.35 : 0; // the body stays level
+    // tail root, rump, back, withers, neck, breast, sternum, waist, stifle, buttock
+    const STAND = [[-17, -22.5], [-14, -25.5], [-3, -24.2], [9, -25], [14, -23], [16, -17], [9, -11.8], [-3, -14.2], [-9, -12], [-18, -17.5]];
+    // seated: the chest upright under the head, the back one smooth curve down to the haunch
+    const SIT = [[-14, -2.5], [-14, -7.5], [-7.5, -13], [2, -17.5], [6.5, -17.5], [10.2, -12.5], [9.8, -4], [0, -1], [-9, -0.8], [-13.5, -1.5]];
     // leaning into a hand, standing: the back and rump rise to meet it
-    const arch = [0, 3, 4, 2, 0, 0, 0, 0, 0, 1];
+    const arch = [0, 1.6, 2.2, 1.2, 0, 0, 0, 0, 0, 0.6];
     // curled up: a low loaf, back rounded, chest and belly on the ground
-    const LOAF = [[-30, -5], [-32, -13], [-18, -21], [-2, -24], [8, -23], [19, -14], [18, -5], [8, -1], [-8, -1], [-27, -1]];
+    const LOAF = [[-17, -3], [-18, -8], [-8, -12.5], [4, -13.5], [10, -12], [15, -7], [14, -2.5], [5, -0.5], [-8, -0.5], [-16, -1]];
     const ce = ease(this.curl);
     const yw = ease(this.yawn);
     const outline = STAND.map((q, k) => [lerp(q[0], SIT[k][0], s), lerp(q[1] + bob - arch[k] * this.lean, SIT[k][1] + (k >= 2 && k <= 5 ? breathe * 0.4 : 0), s)]);
@@ -8280,9 +8324,9 @@ class Cat {
         if (k >= 1 && k <= 5) outline[k][1] += breathe * 1.3 * ce;
       }
     }
-    let head = mixp([35 + this.lean * 3, -52 + bob - this.lean * 2], [17 + this.lean * 4, -69 + breathe * 0.3 + this.lean * 3], s);
-    head = mixp(head, [27, -14 + breathe * 0.6], ce); // chin down, resting on the paws
-    head = [head[0] - 2.5 * yw, head[1] - 0.5 * yw]; // tipped back on the neck
+    let head = mixp([21.5 + this.lean * 1.4, -27.5 + bob - this.lean * 0.8], [10.5 + this.lean * 1.6, -21.5 + breathe * 0.3 + this.lean * 1.2], s);
+    head = mixp(head, [19, -6.5 + breathe * 0.4], ce); // chin down, resting on the paws
+    head = [head[0] - 1.2 * yw, head[1] - 0.3 * yw]; // tipped back on the neck
     return {
       s,
       ce,
@@ -8290,31 +8334,46 @@ class Cat {
       walking,
       outline,
       head,
-      shoulder: mixp(mixp([20, -30 + bob], [12, -28], s), [10, -12], ce),
-      hip: mixp(mixp([-24, -30 + bob], [-14, -12], s), [-14, -6], ce),
+      shoulder: mixp(mixp([11, -19 + bob], [8, -11], s), [11, -5], ce),
+      hip: mixp(mixp([-11, -19 + bob], [-8, -7], s), [-10, -4], ce),
       breathe,
     };
   }
 
+  // The same, in the world's units: scaled by this.scale (still the cat's own
+  // frame, before the mirror and the offset).
+  shape() {
+    const b = this.pose();
+    const k = this.scale;
+    const sc = (p) => [p[0] * k, p[1] * k];
+    return { ...b, outline: b.outline.map(sc), head: sc(b.head), shoulder: sc(b.shoulder), hip: sc(b.hip), breathe: b.breathe * k };
+  }
+
+  headAngle() {
+    const yw = ease(this.yawn);
+    const ce = ease(this.curl);
+    return noise1(this.time * 0.3) * 0.05 * (1 - this.lean) * (1 - ce) - this.lean * 0.32 - yw * 0.42 + ce * 0.42;
+  }
+
   draw(ctx) {
     if (this.hidden) return;
-    const b = this.shape();
+    const b = this.pose();
     const { s } = b;
     const O = b.outline;
     ctx.save();
     ctx.translate(this.x, this.y);
-    ctx.scale(this.f * 0.9, 0.9);
+    ctx.scale(this.f * this.scale, this.scale);
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    // curled, the tail lies over the body instead, so it is drawn later
-    const wrapped = b.ce > 0.4;
+    // sitting or curled, the tail lies in front of the body, so it is drawn later
+    const wrapped = b.ce > 0.4 || s > 0.5;
     if (!wrapped) this.tail(ctx, b);
     // far legs first, darker; curling tucks them away
     const tucked = b.ce > 0.55;
     if (!tucked) {
-      this.frontLeg(ctx, b, 0.5, false);
-      this.hindLeg(ctx, b, 0.0, false);
+      this.frontLeg(ctx, b, 0.75, false);
+      this.hindLeg(ctx, b, 0.5, false);
     }
 
     // body: deep chest, tucked waist, round haunch
@@ -8322,61 +8381,69 @@ class Cat {
     smoothPath(ctx, O, true);
     ctx.fillStyle = FUR;
     ctx.fill();
+    ctx.strokeStyle = RIM;
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
     // sheen along the spine and over the shoulder
     ctx.strokeStyle = SHEEN;
-    ctx.lineWidth = 2.2;
+    ctx.lineWidth = 1.1;
     ctx.beginPath();
-    ctx.moveTo(O[1][0] + 1, O[1][1] + 1.5);
-    ctx.quadraticCurveTo(O[2][0], O[2][1] + 1, O[3][0] - 1, O[3][1] + 1.5);
+    ctx.moveTo(O[1][0] + 0.5, O[1][1] + 0.8);
+    ctx.quadraticCurveTo(O[2][0], O[2][1] + 0.5, O[3][0] - 0.5, O[3][1] + 0.8);
     ctx.stroke();
-    ctx.lineWidth = 1.4;
+    ctx.lineWidth = 0.8;
     ctx.beginPath();
-    ctx.arc(b.shoulder[0] - 2, b.shoulder[1] - 2, 7, -2.6, -1.0);
+    ctx.arc(b.shoulder[0] - 1, b.shoulder[1] - 1, 4, -2.6, -1.0);
     ctx.stroke();
 
     // near legs
     if (!tucked) {
-      this.hindLeg(ctx, b, 0.5, true);
-      this.frontLeg(ctx, b, 0.0, true);
+      this.hindLeg(ctx, b, 0.0, true);
+      this.frontLeg(ctx, b, 0.25, true);
     }
     // sitting: the haunch as a round mass over the folded hind leg
     if (s > 0.05) {
-      ctx.globalAlpha = s;
+      const hy = lerp(-6.8, -4.6, b.ce);
+      // grows in as it sits, rather than fading (a see-through haunch shows grey)
+      const g = ease(s);
+      const rx = lerp(7.6, 9, b.ce) * g;
+      const ry = lerp(6.8, 4.6, b.ce) * g;
       ctx.fillStyle = FUR;
       ctx.beginPath();
-      ctx.ellipse(-14, lerp(-12, -8, b.ce), lerp(13, 16, b.ce), lerp(12, 8, b.ce), 0, 0, Math.PI * 2);
+      ctx.ellipse(-8.5, hy, rx, ry, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = SHEEN;
-      ctx.lineWidth = 1.4;
+      ctx.lineWidth = 0.8;
       ctx.beginPath();
-      ctx.arc(-14, lerp(-12, -8, b.ce), lerp(11, 14, b.ce), -2.7, -1.1);
+      if (ry > 1.5) ctx.arc(-8.5, hy, ry - 1.2, -2.7, -1.1);
       ctx.stroke();
-      ctx.globalAlpha = 1;
     }
+
+    // neck into head: short, thick, the chest rising straight under the chin
+    ctx.fillStyle = FUR;
+    ctx.beginPath();
+    ctx.moveTo(O[3][0] - 3, O[3][1] + 1.5);
+    ctx.quadraticCurveTo(lerp(O[3][0], b.head[0], 0.6), O[3][1] + 1.8, b.head[0] - 4.4, b.head[1] - 0.5);
+    ctx.lineTo(b.head[0] + 0.5, b.head[1] + 4.5);
+    ctx.quadraticCurveTo(O[5][0] + 0.5, O[5][1] - 4, O[5][0], O[5][1] + 1);
+    ctx.closePath();
+    ctx.fill();
+
     if (wrapped) {
       this.tail(ctx, b);
       // front paws folded under the chest, just a hint of them
       const pw = clamp((b.ce - 0.4) * 2);
-      ctx.fillStyle = FAR;
-      ctx.beginPath();
-      ctx.ellipse(27, -2.2, 5 * pw, 2.4 * pw, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = FUR;
-      ctx.beginPath();
-      ctx.ellipse(21, -2.6, 5.5 * pw, 2.8 * pw, 0, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.globalAlpha = 1;
+      if (pw > 0) {
+        ctx.fillStyle = FAR;
+        ctx.beginPath();
+        ctx.ellipse(18, -1.4, 3.4 * pw, 1.5 * pw, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = FUR;
+        ctx.beginPath();
+        ctx.ellipse(14, -1.6, 3.6 * pw, 1.7 * pw, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
-
-    // neck into head
-    ctx.fillStyle = FUR;
-    ctx.beginPath();
-    ctx.moveTo(O[3][0] - 2, O[3][1] + 2);
-    ctx.quadraticCurveTo(b.head[0] - 8, b.head[1] - 2, b.head[0] - 4, b.head[1] + 2);
-    ctx.lineTo(b.head[0] + 4, b.head[1] + 10);
-    ctx.quadraticCurveTo(O[5][0] + 2, O[5][1] - 8, O[5][0], O[5][1] + 2);
-    ctx.closePath();
-    ctx.fill();
     this.headDraw(ctx, b.head);
     ctx.restore();
   }
@@ -8387,66 +8454,64 @@ class Cat {
     ctx.save();
     ctx.translate(h[0], h[1]);
     // a yawn tips the nose up; sleep drops it onto the paws
-    ctx.rotate(noise1(this.time * 0.3) * 0.05 * (1 - this.lean) * (1 - ce) - this.lean * 0.32 - yw * 0.42 + ce * 0.42);
-    ctx.scale(1.2, 1.2);
+    ctx.rotate(this.headAngle());
     // ears lie back a little in a yawn, and slacken in sleep
     const back = Math.max(yw * 0.55, ce * 0.22);
     // far ear, then the lower jaw, the skull and muzzle
     ctx.save();
-    ctx.translate(-3, -6);
+    ctx.translate(1, -3.8);
     ctx.rotate(-back);
-    ctx.translate(3, 6);
+    ctx.translate(-1, 3.8);
     ctx.fillStyle = FAR;
     ctx.beginPath();
-    ctx.moveTo(-6, -6);
-    ctx.lineTo(-7, -18);
-    ctx.lineTo(0, -8);
+    ctx.moveTo(-0.4, -4.8);
+    ctx.lineTo(3.2, -8.9);
+    ctx.lineTo(5, -2.6);
     ctx.fill();
     ctx.restore();
-    let jaw = null;
     if (yw > 0.01) {
       // the jaw swings down on a hinge under the cheek; pale pink inside
       const a = yw * 0.8;
       const ca = Math.cos(a);
       const sa = Math.sin(a);
-      const hx = -3;
-      const hy = 4;
-      jaw = (x, y) => [hx + (x - hx) * ca - (y - hy) * sa, hy + (x - hx) * sa + (y - hy) * ca];
-      const lip = jaw(9.5, 6.4);
-      const chin = jaw(8, 10.5);
-      const c1 = jaw(2, 11);
-      const c2 = jaw(-6, 9);
-      ctx.fillStyle = FUR;
+      const hx = -2.5;
+      const hy = 2;
+      const jaw = (x, y) => [hx + (x - hx) * ca - (y - hy) * sa, hy + (x - hx) * sa + (y - hy) * ca];
+      const lip = jaw(6, 2.6);
+      const chin = jaw(4.8, 5);
+      const c1 = jaw(0.5, 5.4);
+      const c2 = jaw(-3.5, 4.2);
+      ctx.fillStyle = NEAR;
       ctx.beginPath();
-      ctx.moveTo(hx - 2, hy - 1);
+      ctx.moveTo(hx - 1, hy - 0.5);
       ctx.lineTo(lip[0], lip[1]);
-      ctx.quadraticCurveTo(chin[0] + 1.5, chin[1] - 1, chin[0], chin[1]);
+      ctx.quadraticCurveTo(chin[0] + 0.8, chin[1] - 0.5, chin[0], chin[1]);
       ctx.quadraticCurveTo(c1[0], c1[1], c2[0], c2[1]);
       ctx.closePath();
       ctx.fill();
       ctx.fillStyle = MOUTH;
       ctx.beginPath();
-      ctx.moveTo(hx, hy - 1);
-      ctx.lineTo(9.6, 5.8);
-      ctx.lineTo(lip[0] - 0.4, lip[1] - 0.3);
-      ctx.lineTo(hx + 1, hy + 2);
+      ctx.moveTo(hx, hy - 0.4);
+      ctx.lineTo(6, 2.3);
+      ctx.lineTo(lip[0] - 0.2, lip[1] - 0.2);
+      ctx.lineTo(hx + 0.5, hy + 1);
       ctx.closePath();
       ctx.fill();
       // tongue, curled up from the floor of the mouth
-      const t0 = jaw(0, 6.2);
-      const t1 = jaw(5, 5.6);
-      const t2 = jaw(8, 5.4);
+      const t0 = jaw(-0.5, 3.1);
+      const t1 = jaw(2.5, 2.8);
+      const t2 = jaw(4.6, 2.7);
       ctx.fillStyle = TONGUE;
       ctx.beginPath();
       ctx.moveTo(t0[0], t0[1]);
-      ctx.quadraticCurveTo(t1[0], t1[1] - 2.2 * yw, t2[0], t2[1]);
-      ctx.lineTo(t2[0] - 1, t2[1] + 0.8);
-      ctx.lineTo(t0[0], t0[1] + 1);
+      ctx.quadraticCurveTo(t1[0], t1[1] - 1.2 * yw, t2[0], t2[1]);
+      ctx.lineTo(t2[0] - 0.5, t2[1] + 0.5);
+      ctx.lineTo(t0[0], t0[1] + 0.6);
       ctx.fill();
       // lower fang
-      const f0 = jaw(7.3, 6.4);
-      const f1 = jaw(8.1, 3.2);
-      const f2 = jaw(8.9, 6.3);
+      const f0 = jaw(4.1, 3);
+      const f1 = jaw(4.6, 1.4);
+      const f2 = jaw(5.1, 3);
       ctx.fillStyle = TOOTH;
       ctx.beginPath();
       ctx.moveTo(f0[0], f0[1]);
@@ -8454,65 +8519,67 @@ class Cat {
       ctx.lineTo(f2[0], f2[1]);
       ctx.fill();
     }
-    ctx.fillStyle = FUR;
+    // skull: rounded, a short blunt muzzle, a little ruff at the cheek
+    ctx.fillStyle = NEAR;
     ctx.beginPath();
-    ctx.moveTo(-9, 2);
-    ctx.quadraticCurveTo(-10, -9, -1, -9);
-    ctx.quadraticCurveTo(6, -9, 9, -3); // brow
-    ctx.lineTo(13, 1); // nose bridge
-    ctx.quadraticCurveTo(14, 3, 12.5, 4.5); // nose
-    ctx.quadraticCurveTo(10, 5.5, 9, 7); // mouth
+    ctx.moveTo(-5, 2.8);
+    ctx.quadraticCurveTo(-6, -1.8, -3.2, -4.4); // back of the skull
+    ctx.quadraticCurveTo(0.8, -5.6, 4, -3.8); // crown to brow
+    ctx.lineTo(5.5, -1.8); // stop
+    ctx.lineTo(7.3, -0.1); // nose bridge
+    ctx.quadraticCurveTo(7.9, 0.7, 7.2, 1.4); // nose
+    ctx.quadraticCurveTo(6.9, 1.9, 6.1, 2.1); // mouth
     // in a yawn the skull ends at the upper lip and the jaw hangs below
-    ctx.quadraticCurveTo(lerp(6, 6, yw), lerp(9, 5.8, yw), lerp(1, 0, yw), lerp(8, 4.6, yw)); // chin
-    ctx.quadraticCurveTo(lerp(-6, -6, yw), lerp(8, 5, yw), -9, 2); // jaw
+    ctx.quadraticCurveTo(lerp(5.6, 4.6, yw), lerp(3.6, 2.4, yw), lerp(4.2, 0.5, yw), lerp(4.3, 2.1, yw)); // chin
+    ctx.quadraticCurveTo(lerp(-0.5, -2.5, yw), lerp(5.8, 3, yw), -5, 2.8); // jaw and cheek
     ctx.fill();
     if (yw > 0.01) {
       // upper fang
       ctx.fillStyle = TOOTH;
       ctx.beginPath();
-      ctx.moveTo(7.2, 6.2);
-      ctx.lineTo(8, 9.4);
-      ctx.lineTo(8.8, 6.3);
+      ctx.moveTo(4.1, 2.3);
+      ctx.lineTo(4.5, 4.3);
+      ctx.lineTo(4.95, 2.3);
       ctx.fill();
       // a few small teeth along the lip
-      for (const tx of [4.6, 2.6, 0.6]) {
+      for (const tx of [2.7, 1.5, 0.4]) {
         ctx.beginPath();
-        ctx.moveTo(tx - 0.7, 5.2);
-        ctx.lineTo(tx, 6.7);
-        ctx.lineTo(tx + 0.7, 5.2);
+        ctx.moveTo(tx - 0.4, 2.8);
+        ctx.lineTo(tx, 3.7);
+        ctx.lineTo(tx + 0.4, 2.8);
         ctx.fill();
       }
-      ctx.fillStyle = FUR;
+      ctx.fillStyle = NEAR;
     }
-    // near ear, tall, with a notch out of its tip (the left ear)
+    // near ear, short and triangular, with a notch out of its tip (the left ear)
     ctx.save();
-    ctx.translate(1.5, -7);
+    ctx.translate(-2, -4);
     ctx.rotate(-back);
-    ctx.translate(-1.5, 7);
+    ctx.translate(2, 4);
     ctx.beginPath();
-    ctx.moveTo(-3, -7);
-    ctx.lineTo(0, -19);
-    ctx.lineTo(1.5, -16);
-    ctx.lineTo(3, -18);
-    ctx.lineTo(6, -7);
+    ctx.moveTo(-5.4, -2.4);
+    ctx.lineTo(-4.6, -8.6);
+    ctx.lineTo(-3.5, -7.2);
+    ctx.lineTo(-2.4, -9.1);
+    ctx.lineTo(1.4, -4.4);
     ctx.fill();
     ctx.fillStyle = 'rgba(80,58,62,0.5)'; // inner ear, a little warmth
     ctx.beginPath();
-    ctx.moveTo(0, -8);
-    ctx.lineTo(1.5, -14);
-    ctx.lineTo(4, -8);
+    ctx.moveTo(-4.1, -3.4);
+    ctx.lineTo(-3.5, -6.4);
+    ctx.lineTo(-0.6, -4);
     ctx.fill();
     ctx.restore();
     // sheen on the crown and the bridge of the nose
     ctx.strokeStyle = SHEEN;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 0.7;
     ctx.beginPath();
-    ctx.moveTo(-7, -5);
-    ctx.quadraticCurveTo(-1, -9.5, 7, -6);
-    ctx.moveTo(9.5, -2);
-    ctx.lineTo(12.5, 1);
+    ctx.moveTo(-3.8, -3.6);
+    ctx.quadraticCurveTo(0, -5, 3.6, -3.4);
+    ctx.moveTo(5.6, -1.4);
+    ctx.lineTo(7, 0);
     ctx.stroke();
-    // eye: yellow-green almond with a slit pupil; lids close on a blink
+    // eye: yellow-amber almond with a slit pupil; lids close on a blink
     const squeeze = clamp(this.yawn * 3.3);
     const drowse = clamp((this.curl - 0.3) / 0.3);
     const open = 1 - Math.max(clamp(this.blink), squeeze, drowse);
@@ -8521,156 +8588,274 @@ class Cat {
       // downward crescent in sleep
       const up = squeeze >= drowse ? -1 : 1;
       ctx.strokeStyle = 'rgba(170,178,198,0.75)';
-      ctx.lineWidth = 1.1;
+      ctx.lineWidth = 0.6;
       ctx.beginPath();
-      ctx.moveTo(2.8, -2.4);
-      ctx.quadraticCurveTo(5.6, -2.4 + 2.6 * up, 8.4, -2.4);
+      ctx.moveTo(1.4, -0.5);
+      ctx.quadraticCurveTo(2.9, -0.5 + 1.4 * up, 4.4, -0.5);
       ctx.stroke();
       if (up < 0) {
-        ctx.lineWidth = 0.6;
+        ctx.lineWidth = 0.35;
         ctx.beginPath();
-        ctx.moveTo(3, -4.4);
-        ctx.lineTo(5, -3.6);
-        ctx.moveTo(4.5, -6);
-        ctx.lineTo(6, -4.6);
+        ctx.moveTo(1.5, -1.8);
+        ctx.lineTo(2.6, -1.4);
+        ctx.moveTo(2.3, -2.7);
+        ctx.lineTo(3.2, -2);
         ctx.stroke();
       }
     } else {
       ctx.fillStyle = EYE;
       ctx.beginPath();
-      ctx.ellipse(5.5, -2.5, 2.8, 2.1 * open + 0.15, -0.15, 0, Math.PI * 2);
+      ctx.ellipse(2.9, -0.5, 1.55, 1.2 * open + 0.1, -0.15, 0, Math.PI * 2);
       ctx.fill();
     }
     if (open > 0.3) {
       ctx.fillStyle = '#050505';
       ctx.beginPath();
-      ctx.ellipse(6, -2.5, 0.55, 1.7 * open, 0, 0, Math.PI * 2);
+      ctx.ellipse(3.1, -0.5, 0.3, 0.95 * open, 0, 0, Math.PI * 2);
       ctx.fill();
     }
     // whiskers
     ctx.strokeStyle = 'rgba(200,200,205,0.45)';
-    ctx.lineWidth = 0.5;
+    ctx.lineWidth = 0.3;
     ctx.beginPath();
-    for (const [dy, len, a] of [[3.5, 14, -0.12], [5, 15, 0.05], [6.2, 12, 0.22]]) {
-      ctx.moveTo(10, dy);
-      ctx.quadraticCurveTo(10 + len * 0.6, dy + a * 6 - 1, 10 + len, dy + a * len);
+    for (const [dy, len, a] of [[1.2, 8, -0.12], [1.9, 8.5, 0.05], [2.5, 7, 0.22]]) {
+      ctx.moveTo(6.2, dy);
+      ctx.quadraticCurveTo(6.2 + len * 0.6, dy + a * 3 - 0.5, 6.2 + len, dy + a * len);
     }
     ctx.stroke();
     ctx.restore();
   }
 
-  // Front leg: shoulder, elbow (pointing back), wrist, paw.
+  // Front leg: shoulder, elbow (pointing back), wrist, paw. Straight, set
+  // under the shoulder; in the walk it swings from the shoulder, the paw
+  // lifting only a little. Drawn as tapered solid limbs in the body's own
+  // colour, growing out of it, so the cat reads as one silhouette.
   frontLeg(ctx, b, off, near) {
     const s = b.s;
-    const top = [b.shoulder[0] + (near ? 1 : -3), b.shoulder[1]];
+    const top = [b.shoulder[0] + (near ? 0.5 : -1.2), b.shoulder[1]];
     let paw;
     let lift = 0;
     if (b.walking) {
       const ph = (this.phase + off) % 1;
       const swing = ph < 0.4;
       const k = swing ? ph / 0.4 : (ph - 0.4) / 0.6;
-      paw = [top[0] + (swing ? lerp(-9, 11, k) : lerp(11, -9, k)), 0];
-      lift = swing ? Math.sin(k * Math.PI) * 7 : 0;
-    } else paw = [lerp(top[0] + 2, near ? 14 : 18, s), 0];
+      paw = [top[0] + (swing ? lerp(-7, 8, k) : lerp(8, -7, k)), 0];
+      lift = swing ? Math.sin(k * Math.PI) * 3 : 0;
+    } else paw = [lerp(top[0] - 0.5, near ? 10.2 : 12.8, s), 0];
     paw[1] -= lift;
-    const j = ik2(top[0], top[1], paw[0], paw[1] - 3, 15, 16, -1);
+    const j = ik2(top[0], top[1], paw[0], paw[1] - 1.3, lerp(8.5, 5, s), lerp(10, 5.4, s), 1);
     const col = near ? FUR : FAR;
-    ctx.strokeStyle = col;
-    ctx.lineWidth = near ? 8 : 7;
-    ctx.beginPath();
-    ctx.moveTo(top[0], top[1]);
-    ctx.lineTo(j.jx, j.jy);
-    ctx.stroke();
-    ctx.lineWidth = near ? 5 : 4.5;
-    ctx.beginPath();
-    ctx.moveTo(j.jx, j.jy);
-    ctx.lineTo(j.ex, j.ey);
-    ctx.stroke();
     ctx.fillStyle = col;
+    limb(ctx, top, [j.jx, j.jy], lerp(7, 4.4, s), 4.2);
+    limb(ctx, [j.jx, j.jy], [j.ex, j.ey], 3.9, 2.7);
     ctx.beginPath();
-    ctx.ellipse(j.ex + 2, j.ey + 1.5, 3.8, 2.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(j.ex + 0.8, j.ey + 0.6, 2.2, 1.3, 0, 0, Math.PI * 2);
     ctx.fill();
     if (near) {
+      // a thin sheen down the front of the leg, so it reads against the chest
       ctx.strokeStyle = SHEEN;
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 0.5;
       ctx.beginPath();
-      ctx.moveTo(top[0] + 2, top[1]);
-      ctx.lineTo(j.jx + 2, j.jy);
+      ctx.moveTo(j.jx + 1.6, j.jy - 1);
+      ctx.lineTo(j.ex + 1.1, j.ey - 0.4);
       ctx.stroke();
     }
   }
 
-  // Hind leg, digitigrade: hip, knee (forward), hock (back), paw.
+  // Hind leg, digitigrade: hip, knee (forward), hock (back), paw. A heavy
+  // thigh tapering to a slim shank and a long foot standing on its toes.
   hindLeg(ctx, b, off, near) {
     const s = b.s;
-    const hip = [b.hip[0] + (near ? 2 : -2), b.hip[1]];
+    const hip = [b.hip[0] + (near ? 1 : -1), b.hip[1]];
     const col = near ? FUR : FAR;
     let paw;
     let lift = 0;
     if (b.walking) {
-      const ph = (this.phase + off + 0.25) % 1;
+      const ph = (this.phase + off) % 1;
       const swing = ph < 0.4;
       const k = swing ? ph / 0.4 : (ph - 0.4) / 0.6;
-      paw = [hip[0] + (swing ? lerp(-10, 12, k) : lerp(12, -10, k)), 0];
-      lift = swing ? Math.sin(k * Math.PI) * 7 : 0;
-    } else paw = [lerp(hip[0] + 2, hip[0] + 16, s), 0];
+      paw = [hip[0] + 1 + (swing ? lerp(-8, 8, k) : lerp(8, -8, k)), 0];
+      lift = swing ? Math.sin(k * Math.PI) * 3.2 : 0;
+    } else paw = [lerp(hip[0] + 1, hip[0] + 10, s), 0];
     paw[1] -= lift;
     // sitting folds the leg flat: hock on the ground behind the paw
-    const hock = [paw[0] - lerp(7, 16, s), paw[1] - lerp(12, 3, s)];
-    const j = ik2(hip[0], hip[1], hock[0], hock[1], 17, 16, 1);
-    ctx.strokeStyle = col;
-    ctx.lineWidth = near ? 12 : 10;
-    ctx.beginPath();
-    ctx.moveTo(hip[0], hip[1]);
-    ctx.lineTo(j.jx, j.jy);
-    ctx.stroke();
-    ctx.lineWidth = near ? 5.4 : 4.8;
-    ctx.beginPath();
-    ctx.moveTo(j.jx, j.jy);
-    ctx.lineTo(hock[0], hock[1]);
-    ctx.lineTo(paw[0], paw[1] - 2);
-    ctx.stroke();
+    const hock = [paw[0] - lerp(2.6, 7, s), paw[1] - lerp(7, 1.4, s)];
+    const j = ik2(hip[0], hip[1], hock[0], hock[1], lerp(8.2, 6, s), lerp(8, 6, s), -1);
     ctx.fillStyle = col;
+    limb(ctx, hip, [j.jx, j.jy], lerp(11, 6, s), lerp(5.2, 3.4, s));
+    limb(ctx, [j.jx, j.jy], hock, 3.8, 2.4);
+    limb(ctx, hock, [paw[0], paw[1] - 1.1], 2.2, 2);
     ctx.beginPath();
-    ctx.ellipse(paw[0] + 1.5, paw[1] - 1, 4, 2.4, 0, 0, Math.PI * 2);
+    ctx.ellipse(paw[0] + 1, paw[1] - 0.9, lerp(2.3, 4, s), 1.25, 0, 0, Math.PI * 2);
     ctx.fill();
   }
 
-  // Tail: curled round the paws when sitting; up and swaying in a slow S
-  // when walking.
+  // Tail: curled round the paws when sitting; held low with an upturned tip
+  // and a slow sway when walking.
   tail(ctx, b) {
     const s = b.s;
     const r = b.outline[0];
-    const sway = noise1(this.time * 0.7) * 6;
-    const flick = Math.max(0, noise1(this.time * 2.3 + 4)) * 5;
+    const sway = noise1(this.time * 0.7) * 3;
+    const flick = Math.max(0, noise1(this.time * 2.3 + 4)) * 2.5;
     ctx.strokeStyle = FUR;
-    ctx.lineWidth = 5;
+    ctx.lineWidth = 2.9;
     ctx.beginPath();
-    ctx.moveTo(r[0] + 2, r[1]);
+    ctx.moveTo(r[0] + 1, r[1]);
     if (s > 0.5) {
       // out behind the haunch and round the front of the paws; curled up,
       // it hugs the ground right round the body and tucks under the chin
       const ce = b.ce;
-      const curl = this.lean * 9;
-      ctx.bezierCurveTo(r[0] - lerp(14, 8, ce), r[1] + lerp(4, 4, ce), lerp(-20, -34, ce), lerp(1, -1.5, ce), lerp(2, -6, ce), lerp(-1.5, -2.2, ce));
-      ctx.quadraticCurveTo(lerp(20 + sway * 0.5, 12, ce), lerp(-2 - curl * 0.3, -1.4, ce), lerp(27 + flick - curl * 0.3, 25, ce), lerp(-7 - flick * 0.4 - curl, -3.5, ce));
+      const curl = this.lean * 4;
+      ctx.bezierCurveTo(r[0] - 3, r[1] + 1.5, lerp(-19, -22, ce), lerp(-1.4, -2, ce), lerp(-12, -14, ce), lerp(-1.6, -1.5, ce));
+      ctx.quadraticCurveTo(lerp(8 + sway * 0.3, -2, ce), lerp(-0.6, -1.2, ce), lerp(14.5 + flick * 0.4 - curl * 0.3, 11, ce), lerp(-3.4 - flick * 0.4 - curl, -1.8, ce));
     } else {
-      ctx.bezierCurveTo(r[0] - 16, r[1] + 2, r[0] - 26 + sway, r[1] - 22, r[0] - 16 + sway, r[1] - 40 - flick);
+      ctx.bezierCurveTo(r[0] - 8, r[1] + 2, r[0] - 15 + sway, r[1] - 3, r[0] - 15 + sway, r[1] - 12 - flick);
     }
     ctx.stroke();
     ctx.strokeStyle = SHEEN;
-    ctx.lineWidth = 1.2;
+    ctx.lineWidth = 0.7;
     ctx.stroke();
   }
 
   // Eye position in world space, for a glint.
   eye() {
-    const h = this.shape().head;
-    return [this.x + (h[0] + 6.6) * this.f * 0.9, this.y + (h[1] - 3) * 0.9];
+    const h = this.pose().head;
+    const a = this.headAngle();
+    const ex = 3;
+    const ey = -0.5;
+    const lx = h[0] + ex * Math.cos(a) - ey * Math.sin(a);
+    const ly = h[1] + ex * Math.sin(a) + ey * Math.cos(a);
+    return [this.x + lx * this.f * this.scale, this.y + ly * this.scale];
   }
 }
 
 return { Cat };
+})();
+
+// ---- src/sets/depth.js
+const __src_sets_depth = (() => {
+// Depth for flat shapes. The world is drawn side-on, so a wall is a flat
+// face; to give it a thickness we show, behind its outline, the faces a
+// viewer a little below and to the left would see: the tops of things, and
+// their right-hand sides. One oblique direction for the whole game, so every
+// wall, slab and heap agrees about where "back" is.
+
+// One unit of thickness goes this far on screen: back, up and to the right.
+const DEPTH = { x: 0.55, y: -0.4 };
+
+const hexRgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const shadeRgb = ([r, g, b], k) => `rgb(${Math.min(255, r * k) | 0},${Math.min(255, g * k) | 0},${Math.min(255, b * k) | 0})`;
+
+// The thickness of a polygon (points [[x, y], …], either winding), `d`
+// world units deep, drawn behind it: call before filling the face itself.
+// Each edge whose outward side faces back along the depth direction gets a
+// quad, shaded by which way it faces: tops lighter (the sky lights them),
+// right-hand sides darker. `color` is the face colour (hex); or give `top`
+// and `side` colours directly.
+function extrudePoly(c, pts, d, { color = '#8a8072', top = null, side = null, topK = 1.12, sideK = 0.6 } = {}) {
+  const n = pts.length;
+  if (n < 2 || d <= 0) return;
+  let area = 0;
+  for (let i = 0; i < n; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[(i + 1) % n];
+    area += x0 * y1 - x1 * y0;
+  }
+  const s = area >= 0 ? 1 : -1;
+  const vx = DEPTH.x * d;
+  const vy = DEPTH.y * d;
+  const base = color ? hexRgb(color) : null;
+  const vl = Math.hypot(DEPTH.x, DEPTH.y);
+  for (let i = 0; i < n; i++) {
+    const [ax, ay] = pts[i];
+    const [bx, by] = pts[(i + 1) % n];
+    const ex = bx - ax;
+    const ey = by - ay;
+    const len = Math.hypot(ex, ey);
+    if (len < 0.01) continue;
+    // outward normal (screen y down)
+    const nx = (s * ey) / len;
+    const ny = (-s * ex) / len;
+    if ((nx * DEPTH.x + ny * DEPTH.y) / vl <= 0.02) continue;
+    // how much this face looks up (a top) rather than right (a side)
+    const up = Math.max(0, -ny);
+    c.fillStyle = base ? shadeRgb(base, sideK + (topK - sideK) * up) : up > 0.5 ? top || side : side || top;
+    c.beginPath();
+    c.moveTo(ax, ay);
+    c.lineTo(bx, by);
+    c.lineTo(bx + vx, by + vy);
+    c.lineTo(ax + vx, ay + vy);
+    c.closePath();
+    c.fill();
+  }
+}
+
+// A rectangle's thickness (x, y top-left, w, h).
+function extrudeRect(c, x, y, w, h, d, opts) {
+  extrudePoly(
+    c,
+    [
+      [x, y],
+      [x + w, y],
+      [x + w, y + h],
+      [x, y + h],
+    ],
+    d,
+    opts,
+  );
+}
+
+// Any path's thickness, for shapes that aren't polygons (arcs, curves):
+// the path stamped a few times back along the depth direction, darker,
+// with its far rim lit. path(c) builds the path. Cheaper to call with few
+// steps; fine for small things.
+function extrudePath(c, path, d, { side = 'rgba(0,0,0,0.55)', top = null, steps = 3, rule = 'nonzero' } = {}) {
+  c.save();
+  c.fillStyle = side;
+  for (let i = steps; i >= 1; i--) {
+    const k = (d * i) / steps;
+    c.save();
+    c.translate(DEPTH.x * k, DEPTH.y * k);
+    c.beginPath();
+    path(c);
+    c.fill(rule);
+    c.restore();
+  }
+  if (top) {
+    c.translate(DEPTH.x * d, DEPTH.y * d);
+    c.beginPath();
+    path(c);
+    c.strokeStyle = top;
+    c.lineWidth = 1.5;
+    c.stroke();
+  }
+  c.restore();
+}
+
+// Inside a hole in a wall `d` thick: the reveal, the wall's own thickness
+// seen through the hole's lower-left edges. Clipped to the hole; call after
+// filling the hole dark.
+function holeReveal(c, pts, d, color = '#6a6256') {
+  c.save();
+  c.beginPath();
+  c.moveTo(...pts[0]);
+  for (const p of pts.slice(1)) c.lineTo(...p);
+  c.closePath();
+  c.clip();
+  // the far opening, shifted back: what isn't covered by it is the reveal
+  c.fillStyle = color;
+  c.fill();
+  c.globalCompositeOperation = 'destination-out';
+  c.translate(DEPTH.x * d, DEPTH.y * d);
+  c.beginPath();
+  c.moveTo(...pts[0]);
+  for (const p of pts.slice(1)) c.lineTo(...p);
+  c.closePath();
+  c.fill();
+  c.restore();
+}
+
+return { DEPTH, extrudePoly, extrudeRect, extrudePath, holeReveal };
 })();
 
 // ---- src/sets/town.js
@@ -8683,6 +8868,7 @@ const __src_sets_town = (() => {
 const { rng, lerp, noise1 } = __src_engine_util;
 const { smoothPath } = __src_rigs_shapes;
 const { textureWall, heightWall, cloudCanvas } = __src_engine_materials;
+const { extrudePoly, extrudeRect, holeReveal, DEPTH } = __src_sets_depth;
 const CONCRETE = ['#a99d89', '#9f9480', '#948874', '#ada390', '#91857a', '#a2977f'];
 
 // ------------------------------------------------------------ sky & far --
@@ -8919,12 +9105,47 @@ function weathering(w, H, seed) {
 }
 
 // ------------------------------------------------------------ façades --
+// How thick a block's outer wall is (world units): enough to read as
+// masonry where it's been torn open.
+const WALL = 24;
+const hexOf = (c) => (c && c[0] === '#' && c.length === 7 ? c : '#8f857a');
+
+// A torn edge seen in section: the broken block-work and concrete core
+// between the face and the back of the wall, rough, with the dark of the
+// hollow cores and the pale of fresh breaks.
+function brokenSection(c, pts, d, seed) {
+  const r = rng(seed * 3 + 1);
+  const vx = DEPTH.x * d;
+  const vy = DEPTH.y * d;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i];
+    const [bx, by] = pts[i + 1];
+    // only the ragged edges (the straight walls are smooth render)
+    if (Math.abs(bx - ax) < 1 || Math.abs(by - ay) < 1) continue;
+    const len = Math.hypot(bx - ax, by - ay);
+    for (let k = 0; k < len / 9; k++) {
+      const t = r();
+      const px = ax + (bx - ax) * t + vx * r();
+      const py = ay + (by - ay) * t + vy * r();
+      c.fillStyle = r() < 0.5 ? 'rgba(25,20,16,0.5)' : 'rgba(230,220,200,0.18)';
+      c.fillRect(px - 2, py - 1.5, 3 + r() * 5, 2 + r() * 3);
+    }
+  }
+}
+
 // A building's face is drawn once, at a little over screen resolution, into
 // two canvases: its colour (with the wall's material and all its windows,
 // doors, holes and weathering) and its relief (the material's height, with
 // windows and holes sunk in and the floor slabs standing proud).
 const FACADES = new Map();
-const FACADE_RES = 1.25;
+let FACADE_RES = 1.25;
+// High quality bakes façades sharper (they hold up close in); the cache
+// starts again at the new resolution.
+function setFacadeRes(k) {
+  if (k === FACADE_RES) return;
+  FACADE_RES = k;
+  FACADES.clear();
+}
 function facade(spec, H, draw, mat, matSeed) {
   const key = JSON.stringify(spec) + mat;
   let F = FACADES.get(key);
@@ -9096,30 +9317,28 @@ function block(R, spec, t = 0) {
       const r = rng(seed);
       c.save();
       // outline with a torn corner
-      c.beginPath();
+      let pts;
       if (torn > 0) {
         const tw = w * (0.3 + torn * 0.4);
         const th = H * (0.25 + torn * 0.45);
+        const n = 7;
         if (tornLeft) {
-          c.moveTo(x, 0);
-          c.lineTo(x, top + th);
-          const n = 7;
-          for (let i = 1; i < n; i++) c.lineTo(x + (tw * i) / n + (r() - 0.5) * 20, top + th - (th * i) / n + (r() - 0.5) * 30);
-          c.lineTo(x + tw, top);
-          c.lineTo(x + w, top);
-          c.lineTo(x + w, 0);
+          pts = [[x, 0], [x, top + th]];
+          for (let i = 1; i < n; i++) pts.push([x + (tw * i) / n + (r() - 0.5) * 20, top + th - (th * i) / n + (r() - 0.5) * 30]);
+          pts.push([x + tw, top], [x + w, top], [x + w, 0]);
         } else {
-          c.moveTo(x, 0);
-          c.lineTo(x, top);
-          c.lineTo(x + w - tw, top);
-          const n = 7;
-          for (let i = 1; i < n; i++) c.lineTo(x + w - tw + (tw * i) / n + (r() - 0.5) * 20, top + (th * i) / n + (r() - 0.5) * 30);
-          c.lineTo(x + w, top + th);
-          c.lineTo(x + w, 0);
+          pts = [[x, 0], [x, top], [x + w - tw, top]];
+          for (let i = 1; i < n; i++) pts.push([x + w - tw + (tw * i) / n + (r() - 0.5) * 20, top + (th * i) / n + (r() - 0.5) * 30]);
+          pts.push([x + w, top + th], [x + w, 0]);
         }
-      } else {
-        c.rect(x, top, w, H);
-      }
+      } else pts = [[x, top], [x + w, top], [x + w, 0], [x, 0]];
+      // the wall's thickness behind it: the parapet's top, the end wall, and
+      // where it was torn, the broken section through the block-work
+      extrudePoly(c, pts, WALL, { color: hexOf(color) });
+      if (torn > 0) brokenSection(c, pts, WALL, seed);
+      c.beginPath();
+      c.moveTo(...pts[0]);
+      for (const q of pts.slice(1)) c.lineTo(...q);
       c.closePath();
       c.fillStyle = color;
       c.fill();
@@ -9277,6 +9496,8 @@ function block(R, spec, t = 0) {
         c.closePath();
         c.fill();
         recess.push({ poly: pts, ring: [hx, hy, hr] });
+        // through the hole, the thickness of the wall it was punched through
+        holeReveal(c, pts, WALL, shade(hexOf(color), 0.62));
         // broken render ring around the hole
         c.fillStyle = 'rgba(120,108,92,0.5)';
         c.beginPath();
@@ -9340,6 +9561,7 @@ function block(R, spec, t = 0) {
           const sy = -f * fh;
           if (sy > top + H * (0.25 + torn * 0.45)) continue;
           const sx = tornLeft ? x + r() * w * 0.4 : x + w - r() * w * 0.4;
+          extrudeRect(c, sx - 30, sy - 8, 60, 10, WALL * 0.8, { color: hexOf(color) });
           c.fillStyle = color;
           c.fillRect(sx - 30, sy - 8, 60, 10);
           for (let i = 0; i < 4; i++) {
@@ -9703,6 +9925,10 @@ function rubble(R, x, w, h, { seed = 5, color = '#a89b86', rebar = true, cast = 
       pts.push([x + k * w + (r() - 0.5) * 16, -h * Math.sin(k * Math.PI) * (0.75 + r() * 0.35)]);
     }
     pts.push([x + w + 10, 2]);
+    // the heap goes back as far as it goes across, near enough
+    extrudePoly(c, pts, 14, { color: hexOf(color) });
+    c.fillStyle = color;
+    c.beginPath();
     c.moveTo(...pts[0]);
     for (const p of pts.slice(1)) c.lineTo(...p);
     c.closePath();
@@ -9714,8 +9940,13 @@ function rubble(R, x, w, h, { seed = 5, color = '#a89b86', rebar = true, cast = 
       c.save();
       c.translate(sx, sy);
       c.rotate((r() - 0.5) * 1.2);
-      c.fillStyle = shade(color.startsWith('#') ? color : '#a89b86', 0.75 + r() * 0.35);
-      c.fillRect(-20 - r() * 20, -6, 40 + r() * 30, 10 + r() * 6);
+      const cc = shade(color.startsWith('#') ? color : '#a89b86', 0.75 + r() * 0.35);
+      const cw = 40 + r() * 30;
+      const cx0 = -20 - r() * 20;
+      const ch = 10 + r() * 6;
+      extrudeRect(c, cx0, -6, cw, ch, 8, { top: 'rgba(255,248,235,0.22)', side: 'rgba(0,0,0,0.35)' });
+      c.fillStyle = cc;
+      c.fillRect(cx0, -6, cw, ch);
       c.restore();
     }
     if (rebar) {
@@ -10028,6 +10259,7 @@ function deadOlive(R, x) {
 
 function lowWall(R, x, w, h = 70, color = '#a3967f') {
   R.cast((c) => {
+    extrudeRect(c, x, -h, w, h, 16, { color: hexOf(color) });
     c.fillStyle = color;
     c.fillRect(x, -h, w, h);
     c.fillStyle = 'rgba(0,0,0,0.15)';
@@ -10329,7 +10561,7 @@ function syrianDoor(c, x, w, h, kind, seed = 1) {
   c.fillRect(x + 3, top + h * 0.55, 6, 2);
 }
 
-return { CONCRETE, sky, skyline, minaret, plume, block, shade, street, cables, foreground, motes, rubble, sniperCurtain, shop, vine, school, roomDoor, jerryCan, scrapPiles, crater, deadOlive, lowWall, jet, jetShadowShape, syrianDoor };
+return { CONCRETE, sky, skyline, minaret, plume, setFacadeRes, block, shade, street, cables, foreground, motes, rubble, sniperCurtain, shop, vine, school, roomDoor, jerryCan, scrapPiles, crater, deadOlive, lowWall, jet, jetShadowShape, syrianDoor };
 })();
 
 // ---- src/sets/horizon.js
@@ -10811,6 +11043,7 @@ const { lerp, clamp, rng, noise1, mixc, smooth } = __src_engine_util;
 const T = __src_sets_town;
 const { horizon, rgbOf } = __src_sets_horizon;
 const { depthCast, deepScenery, figureBox } = __src_engine_dof;
+const { DEPTH, extrudePoly, extrudeRect } = __src_sets_depth;
 const { Person, POSES } = __src_rigs_person;
 const X = {
   start: 150,
@@ -11153,6 +11386,7 @@ function drawStreet(R, g) {
       // the basement stairwell
       c.fillStyle = '#0c0a08';
       c.fillRect(X.stairs - 40, -110, 80, 110);
+      extrudeRect(c, X.stairs - 48, -118, 96, 10, 16, { color: '#8f846e' });
       c.fillStyle = '#8f846e';
       c.fillRect(X.stairs - 48, -118, 96, 10);
       // classroom windows on the ground floor
@@ -11170,6 +11404,8 @@ function drawStreet(R, g) {
   }
   if (near(X.catWall - 80, X.catWall + 80)) {
     R.cast((c) => {
+      // a broken garden wall, 24 thick: its torn top and right-hand end show
+      extrudePoly(c, [[X.catWall - 60, 2], [X.catWall - 55, -150], [X.catWall - 10, -140], [X.catWall + 20, -155], [X.catWall + 55, -120], [X.catWall + 60, 2]], 24, { color: '#a99c86' });
       c.fillStyle = '#a99c86';
       c.beginPath();
       c.moveTo(X.catWall - 60, 2);
@@ -11185,6 +11421,7 @@ function drawStreet(R, g) {
     T.roomDoor(R, X.battery, { w: 120, h: 180, light: 'rgba(160,190,220,0.12)' });
     R.paint((c) => {
       // the table, the battery, the tangle of cables
+      extrudeRect(c, X.battery + 20, -70, 80, 6, 18, { color: '#4a3b2e', topK: 1.2, sideK: 0.55 });
       c.fillStyle = '#2c231b';
       c.fillRect(X.battery + 20, -70, 80, 6);
       c.fillRect(X.battery + 26, -64, 4, 64);
@@ -11212,12 +11449,15 @@ function drawStreet(R, g) {
     R.cast((c) => {
       const x0 = X.kerb + 100;
       const x1 = X.kerb + 222;
+      extrudeRect(c, x0 + 6, -24, 22, 24, 12, { color: '#8e8676' });
+      extrudeRect(c, x1 - 30, -24, 22, 24, 12, { color: '#8e8676' });
       c.fillStyle = '#8e8676';
       c.fillRect(x0 + 6, -24, 22, 24);
       c.fillRect(x1 - 30, -24, 22, 24);
       c.fillStyle = 'rgba(0,0,0,0.2)';
       c.fillRect(x0 + 6, -24, 22, 3);
       c.fillRect(x1 - 30, -24, 22, 3);
+      extrudePoly(c, [[x0, -40], [x1, -41], [x1 + 3, -24], [x0 - 2, -23]], 22, { color: '#a39b8a' });
       c.fillStyle = '#a39b8a';
       c.beginPath();
       c.moveTo(x0, -40);
@@ -11239,6 +11479,7 @@ function drawStreet(R, g) {
     });
     // the walkie-talkie man's upturned crate
     R.cast((c) => {
+      extrudeRect(c, X.olive - 30, -30, 40, 30, 14, { color: '#6a5238' });
       c.fillStyle = '#6a5238';
       c.fillRect(X.olive - 30, -30, 40, 30);
       c.fillStyle = 'rgba(0,0,0,0.25)';
@@ -11309,6 +11550,9 @@ function drawStreet(R, g) {
   if (near(X.spotter - 300, X.spotter + 300)) {
     R.cast((c) => {
       const W = SPOT_WIN;
+      // the wall is 26 thick: its top and right-hand end, and the window's
+      // left jamb and sill seen through the opening
+      extrudeRect(c, W.x0 - 110, W.top - 70, W.x1 - W.x0 + 220, W.floor - W.top + 82, 26, { color: '#b5a892' });
       c.fillStyle = '#b5a892';
       c.beginPath();
       c.rect(W.x0 - 110, W.top - 70, W.x1 - W.x0 + 220, W.floor - W.top + 82);
@@ -11324,6 +11568,18 @@ function drawStreet(R, g) {
       c.lineTo(W.x1 + 44, W.top - 20);
       c.lineTo(W.x1 + 38, W.top + 30);
       c.stroke();
+      c.save();
+      c.beginPath();
+      c.rect(W.x0, W.top, W.x1 - W.x0, W.sill - W.top);
+      c.clip();
+      c.fillStyle = '#7d725f';
+      c.beginPath();
+      c.moveTo(W.x0, W.top);
+      c.lineTo(W.x0 + DEPTH.x * 26, W.top + DEPTH.y * 26);
+      c.lineTo(W.x0 + DEPTH.x * 26, W.sill + DEPTH.y * 26);
+      c.lineTo(W.x0, W.sill);
+      c.fill();
+      c.restore();
       // the sill and the slab edge
       c.fillStyle = '#cfc3ab';
       c.fillRect(W.x0 - 8, W.sill, W.x1 - W.x0 + 16, 7);
@@ -11485,6 +11741,9 @@ function drawFlashback(R, g) {
   });
   // the arbour: posts, beams, vines and ripe grapes
   R.cast((c) => {
+    extrudeRect(c, -420, -330, 12, 334, 8, { color: '#5a4332' });
+    extrudeRect(c, 400, -330, 12, 334, 8, { color: '#5a4332' });
+    extrudeRect(c, -460, -340, 900, 10, 12, { color: '#5a4332' });
     c.fillStyle = '#5a4332';
     c.fillRect(-420, -330, 12, 334);
     c.fillRect(400, -330, 12, 334);
@@ -11521,6 +11780,7 @@ function drawFlashback(R, g) {
       for (let k = cx - w / 2 + 10; k < cx + w / 2 - 10; k += 14) c.fillRect(k, -6, 6, 3);
     }
     // low table with tea
+    extrudeRect(c, -60, -44, 120, 8, 16, { color: '#6a4a30' });
     c.fillStyle = '#6a4a30';
     c.fillRect(-60, -44, 120, 8);
     c.fillRect(-50, -36, 6, 36);
@@ -11944,16 +12204,38 @@ const ACT1 = {
       yield* g.say(SAMI, ['لوين بدك توصّلهن؟', 'Where do you need to get these?']);
       yield GAP;
       yield* g.say(OLD, ['هون، ع آخر الزقاق. بنتي وولادها. ما عندهن مي من مبارح.', 'Here, at the end of the alley. My daughter and her children. They’ve had no water since yesterday.']);
-      // walk together, slowly
-      g.runner.run(g.walkNpc(old, X.door + 70, { speedScale: 0.6 }));
+      // and they walk together, at Sami's pace (the player's): slowly, the
+      // jug heavy, no running with it; the old man keeps beside him
+      const prevObj = g.text.current;
+      g.text.objective(['احمل الماء إلى الباب', 'Carry the water to the door']);
+      g.stanceLock = 'stand';
+      g.gate = (m) => (m < 0 && p.x < X.oldMan - 160 ? 0 : m);
+      const a = g.a;
+      a.carryWalk = true;
       g.runner.run(
         (function* () {
-          yield 2;
+          while (a.carryWalk) {
+            // a step behind him, never ahead, and never faster than he can
+            old.goal = Math.min(X.door + 70, Math.max(old.x, p.x - 46));
+            old.goalOpts = { speedScale: 0.6 };
+            yield 0.15;
+          }
+        })(),
+      );
+      g.runner.run(
+        (function* () {
+          yield () => p.x > X.oldMan + 90;
           yield* g.say(OLD, ['كنت بشيل زيتون من الضيعة، شوالين عكتافي، وما كنت حسّ فيهن. هلّق غالون مي بيكسرني.', 'I used to carry olives from the village, sacks on my shoulders, and feel nothing. Now a jug of water breaks me.'], 6);
         })(),
       );
-      yield* g.walkPlayer(X.door - 40);
-      yield () => old.goal === null;
+      g.lock(false);
+      yield () => p.x >= X.door - 60;
+      g.lock();
+      a.carryWalk = false;
+      g.gate = null;
+      g.stanceLock = null;
+      g.text.objective(prevObj || null);
+      yield* g.walkNpc(old, X.door + 70, { speedScale: 0.6 });
       p.f = 1;
       old.f = -1;
       g.sound.noise({ dur: 0.08, freq: 400, q: 2, vol: 0.3 });
@@ -12188,14 +12470,12 @@ const ACT1 = {
     L.add({
       id: 'cat',
       x: X.catWall,
-      y: -200,
+      y: -163,
       range: 110,
       label: ['القطة', 'The cat'],
       look: true,
       sil: (c) => cat.draw(c),
-      box: [74, 84],
-      bx: 2,
-      by: 19,
+      box: [40, 38],
       lookText: CAT_LINE,
       enabled: () => !cat.hidden && !g.a.catDone,
       use: () => g.runner.run(this.catScene(g)),
@@ -12204,14 +12484,12 @@ const ACT1 = {
     L.add({
       id: 'catStroke',
       x: X.catWall,
-      y: -200,
+      y: -163,
       range: 130,
       urgent: true,
       label: ['ملّس عليها', 'Stroke it'],
       sil: (c) => cat.draw(c),
-      box: [74, 84],
-      bx: 2,
-      by: 19,
+      box: [40, 38],
       look: true,
       lookText: STROKE_LINE,
       enabled: () => g.a.catWait && !g.a.stroke,
@@ -12546,7 +12824,8 @@ const ACT1 = {
     p.f = f;
     g.camOverride = { x: X.catWall - f * 90, y: -150, view: 820 };
     // his hand, low and forward, at the height of a standing cat's back
-    const backY = p.y - 34 * 0.9 - 2;
+    // (about 25 up, rising a little as it pushes into his hand)
+    const backY = p.y - 27.5;
     const reach = handTo(p, 'sami', 0, backY, f, { ...POSES.crouch, head: 0.3 });
     const handX = p.x - reach.x;
     const rest = { ...reach.pose, armN: 0.45, foreN: 1.0 };
@@ -12557,7 +12836,7 @@ const ACT1 = {
     yield 0.6;
 
     // down off the wall, landing where its back will be under his hand
-    const landX = handX + 18 * f; // his hand on its lower back, its rump clear of his knees
+    const landX = handX + 4 * f; // his hand on the middle of its back, its rump clear of his knees
     const x0 = cat.x;
     const y0 = cat.y;
     cat.f = -f;
@@ -12783,7 +13062,24 @@ const ACT1 = {
     g.sound.life(0); // the town goes quiet around the news
     g.lock();
     g.text.objective(null);
-    // He lets Sami come to him: the walk towards him is the last of not knowing.
+    // He lets Sami come to him: the walk towards him is the last of not
+    // knowing. The player walks it, slowly, and can't turn back.
+    g.stanceLock = 'stand';
+    g.gate = (m) => Math.max(0, m) * 0.55;
+    g.lock(false);
+    const t0w = g.time;
+    let hinted = false;
+    yield () => {
+      if (!hinted && g.time - t0w > 4 && p.x < X.kerb - 60) {
+        hinted = true;
+        g.prompt('right', 'امشِ', 'Walk');
+      }
+      return p.x >= X.kerb + 10;
+    };
+    g.lock();
+    g.prompt(null);
+    g.gate = null;
+    g.stanceLock = null;
     yield* g.walkPlayer(X.kerb + 30);
     yield () => g.a.abuArrived !== false;
     p.f = 1;
@@ -13188,6 +13484,7 @@ const { lerp, clamp, rng, mixc, smooth } = __src_engine_util;
 const T = __src_sets_town;
 const { horizon, rgbOf } = __src_sets_horizon;
 const { depthCast, deepScenery, figureBox } = __src_engine_dof;
+const { DEPTH, extrudePoly, extrudeRect } = __src_sets_depth;
 const X = {
   start: 150,
   lanesCp: 900,
@@ -13422,9 +13719,19 @@ function sandbags(R, x, w, rows = 3, { color = '#9c8a68', cast = true } = {}) {
       const off = row % 2 ? 22 : 0;
       for (let bx = x + off; bx < x + w - 20; bx += 44) {
         const sh = 0.82 + r() * 0.3;
+        const tilt = (r() - 0.5) * 0.08;
+        // the far side of the bag, a darker twin set back up and to the right
+        c.fillStyle = T.shade(color, sh * 0.45);
+        c.beginPath();
+        c.ellipse(bx + 22 + DEPTH.x * 18, y - 11 + DEPTH.y * 18, 24, 12, tilt, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = T.shade(color, sh * 0.62);
+        c.beginPath();
+        c.ellipse(bx + 22 + DEPTH.x * 9, y - 11 + DEPTH.y * 9, 24, 12, tilt, 0, Math.PI * 2);
+        c.fill();
         c.fillStyle = T.shade(color, sh);
         c.beginPath();
-        c.ellipse(bx + 22, y - 11, 24, 12, (r() - 0.5) * 0.08, 0, Math.PI * 2);
+        c.ellipse(bx + 22, y - 11, 24, 12, tilt, 0, Math.PI * 2);
         c.fill();
         c.strokeStyle = 'rgba(40,30,20,0.35)';
         c.lineWidth = 1;
@@ -13442,6 +13749,8 @@ function sandbags(R, x, w, rows = 3, { color = '#9c8a68', cast = true } = {}) {
 function concreteBlocks(c, x, n, s = 1, color = '#8d877c') {
   for (let i = 0; i < n; i++) {
     const bx = x + i * 46 * s;
+    // each block is a slab 30 deep: its top and right-hand face show
+    extrudePoly(c, [[bx, 0], [bx + 8 * s, -40 * s], [bx + 32 * s, -40 * s], [bx + 40 * s, 0]], 30 * s, { color });
     c.fillStyle = color;
     c.beginPath();
     c.moveTo(bx, 0);
@@ -13458,6 +13767,8 @@ function concreteBlocks(c, x, n, s = 1, color = '#8d877c') {
 function burntCar(R, x, w = 240) {
   R.cast((c) => {
     const h = 112;
+    // its far side, just visible over the roof and past the tail
+    extrudePoly(c, [[x, -24], [x + 8, -64], [x + w * 0.24, -70], [x + w * 0.34, -h], [x + w * 0.7, -h + 2], [x + w * 0.82, -68], [x + w - 4, -60], [x + w, -24]], 34, { color: '#4a382d', sideK: 0.5, topK: 1.05 });
     c.fillStyle = '#3b2c24';
     c.beginPath();
     c.moveTo(x, -24);
@@ -13574,6 +13885,7 @@ function fieldHospital(R, x0, x1, t) {
     c.fillStyle = '#3a332b';
     c.fillRect(ox, -30, ow, 30);
     // the table and its supplies
+    extrudeRect(c, ox + 40, -78, 110, 5, 14, { color: '#5d5a52' });
     c.fillStyle = '#5d5a52';
     c.fillRect(ox + 40, -78, 110, 5);
     c.fillRect(ox + 46, -73, 3, 73);
@@ -13599,6 +13911,7 @@ function fieldHospital(R, x0, x1, t) {
     c.quadraticCurveTo(ox + 214, -90, ox + 200, -60);
     c.stroke();
     // the fridge, and the generator's cable to the lamp
+    extrudeRect(c, ox + 238, -80, 44, 80, 16, { color: '#b8b4aa' });
     c.fillStyle = '#b8b4aa';
     c.fillRect(ox + 238, -80, 44, 80);
     c.fillStyle = '#8c887e';
@@ -13623,7 +13936,8 @@ function fieldHospital(R, x0, x1, t) {
     // a Red Crescent daubed by the door
   });
   R.cast((c) => {
-    // what's left of the front wall either side of the opening
+    // what's left of the front wall either side of the opening: a wall 24 thick
+    extrudePoly(c, [[ox - 4, 2], [ox - 4, -190], [ox + 40, -196], [ox + 30, -150], [ox + 12, -120], [ox + 10, 2]], 24, { color: '#a2967f' });
     c.fillStyle = '#a2967f';
     c.beginPath();
     c.moveTo(ox - 4, 2);
@@ -13665,18 +13979,17 @@ function crawlWall(R) {
   const [x0, x1] = X.crawl;
   R.cast((c) => {
     const r = rng(52);
+    const pts = [[x0 - 30, 2], [x0 - 20, -300], [x0 + 40, -340], [x1 - 20, -310], [x1 + 30, -260], [x1 + 40, 2], [x1 - 6, 2]];
+    // the gap: a ragged lip of concrete hanging over it
+    for (let i = 0; i <= 8; i++) pts.push([x1 - 6 - ((x1 - x0 - 12) * i) / 8, -52 - r() * 10]);
+    pts.push([x0 + 6, 2]);
+    // the wall is 26 thick: its torn top, the stump's right-hand end and the
+    // left jamb of the gap all show their depth
+    extrudePoly(c, pts, 26, { color: '#958a76' });
     c.fillStyle = '#958a76';
     c.beginPath();
-    c.moveTo(x0 - 30, 2);
-    c.lineTo(x0 - 20, -300);
-    c.lineTo(x0 + 40, -340);
-    c.lineTo(x1 - 20, -310);
-    c.lineTo(x1 + 30, -260);
-    c.lineTo(x1 + 40, 2);
-    c.lineTo(x1 - 6, 2);
-    // the gap: a ragged lip of concrete hanging over it
-    for (let i = 0; i <= 8; i++) c.lineTo(x1 - 6 - ((x1 - x0 - 12) * i) / 8, -52 - r() * 10);
-    c.lineTo(x0 + 6, 2);
+    c.moveTo(...pts[0]);
+    for (let i = 1; i < pts.length; i++) c.lineTo(...pts[i]);
     c.closePath();
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.18)';
@@ -13696,8 +14009,20 @@ function crawlWall(R) {
 // A first-floor balcony, and on its rail a sheet drying in the last sun.
 function balcony(R, x, t, sheet) {
   R.cast((c) => {
+    extrudeRect(c, x - 70, -150, 140, 10, 22, { color: '#8a7f6c' });
     c.fillStyle = '#8a7f6c';
     c.fillRect(x - 70, -150, 140, 10);
+    // the far rail, set back across the slab
+    c.strokeStyle = 'rgba(40,32,26,0.55)';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(x - 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
+    c.lineTo(x + 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
+    c.moveTo(x + 70, -190);
+    c.lineTo(x + 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
+    c.moveTo(x + 70, -150);
+    c.lineTo(x + 70 + DEPTH.x * 22, -150 + DEPTH.y * 22);
+    c.stroke();
     c.strokeStyle = '#3a312a';
     c.lineWidth = 2;
     c.beginPath();
@@ -13731,6 +14056,19 @@ function guttedFlat(R, x) {
   R.paint((c) => {
     c.fillStyle = '#0f0c0a';
     c.fillRect(x - 45, -175, 90, 175);
+    // the burnt reveal: the wall's thickness down the left-hand side
+    c.save();
+    c.beginPath();
+    c.rect(x - 45, -175, 90, 175);
+    c.clip();
+    c.fillStyle = '#2a211b';
+    c.beginPath();
+    c.moveTo(x - 45, -175);
+    c.lineTo(x - 45 + DEPTH.x * 24, -175 + DEPTH.y * 24);
+    c.lineTo(x - 45 + DEPTH.x * 24, DEPTH.y * 24);
+    c.lineTo(x - 45, 0);
+    c.fill();
+    c.restore();
     const grd = c.createLinearGradient(0, -175, 0, -420);
     grd.addColorStop(0, 'rgba(18,14,12,0.85)');
     grd.addColorStop(1, 'rgba(18,14,12,0)');
@@ -13750,6 +14088,9 @@ function ruin(R, t, cut) {
   const [x0, x1] = X.ruin;
   const w = x1 - x0;
   R.paint((c) => {
+    // the torn outline has a thickness: the broken top edges and the right-hand
+    // end of the standing walls, 28 deep, behind the façade
+    extrudePoly(c, [[x0, 4], [x0, -520], [x0 + w * 0.45, -520], [x0 + w * 0.6, -430], [x0 + w * 0.8, -300], [x1, -220], [x1, 4]], 28, { color: '#8f846f' });
     c.fillStyle = '#8f846f';
     c.beginPath();
     c.moveTo(x0, 4);
@@ -13764,6 +14105,8 @@ function ruin(R, t, cut) {
     // the slabs, sagging towards the street
     c.fillStyle = '#6f6656';
     for (const [y, drop] of [[-380, 60], [-250, 90], [-130, 40]]) {
+      extrudePoly(c, [[x0 + w * 0.3, y], [x1 + 20, y + drop], [x1 + 20, y + drop + 14], [x0 + w * 0.3, y + 14]], 14, { color: '#6f6656', topK: 1.3, sideK: 0.5 });
+      c.fillStyle = '#6f6656';
       c.beginPath();
       c.moveTo(x0 + w * 0.3, y);
       c.lineTo(x1 + 20, y + drop);
@@ -13771,10 +14114,17 @@ function ruin(R, t, cut) {
       c.lineTo(x0 + w * 0.3, y + 14);
       c.fill();
     }
-    c.strokeStyle = '#3a2e24';
-    c.lineWidth = 2;
     for (let i = 0; i < 8; i++) {
       const rx = x1 + 16 - i * 7;
+      // the stays have a far twin, dim, so they read as bars not lines
+      c.strokeStyle = 'rgba(30,24,18,0.45)';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(rx + 5, -250 + 90 + 12 - 4);
+      c.quadraticCurveTo(rx + 13, -124, rx - 1, -94 + i * 4);
+      c.stroke();
+      c.strokeStyle = '#3a2e24';
+      c.lineWidth = 2;
       c.beginPath();
       c.moveTo(rx, -250 + 90 + 12);
       c.quadraticCurveTo(rx + 8, -120, rx - 6, -90 + i * 4);
@@ -13786,6 +14136,19 @@ function ruin(R, t, cut) {
     // the doorway
     c.fillStyle = '#0b0908';
     c.fillRect(X.ruinDoor - 36, -160, 72, 160);
+    // the doorway cut through a 28 thick wall: its left jamb
+    c.save();
+    c.beginPath();
+    c.rect(X.ruinDoor - 36, -160, 72, 160);
+    c.clip();
+    c.fillStyle = '#5a5143';
+    c.beginPath();
+    c.moveTo(X.ruinDoor - 36, -160);
+    c.lineTo(X.ruinDoor - 36 + DEPTH.x * 28, -160 + DEPTH.y * 28);
+    c.lineTo(X.ruinDoor - 36 + DEPTH.x * 28, DEPTH.y * 28);
+    c.lineTo(X.ruinDoor - 36, 0);
+    c.fill();
+    c.restore();
   });
   R.surface((c) => {
     c.moveTo(x0, 4);
@@ -14254,6 +14617,7 @@ const OBJ = {
   rod: ['ابحث عن قضيب معدني', 'Find a metal rod'],
   back: ['عُد إلى المتراس', 'Go back to the sandbags'],
   raise: ['ارفع القماشة البيضاء', 'Raise the white cloth'],
+  out: ['امشِ إلى الشارع والقماشة مرفوعة', 'Walk out into the street, the cloth held high'],
   ruin: ['ادخل المبنى نصف المنهار', 'Go into the half-collapsed building'],
 };
 
@@ -14629,7 +14993,20 @@ const ACT2R = {
     a.stepOut = true;
     g.camOverride = { x: X.stop + 160, y: -230, view: 1150 };
     const xc = (X.mouth[0] + X.mouth[1]) / 2;
+    // the walk out is his: arms up, slow, no going back
+    p.override = null;
+    p.arms = { head: P_RAISE.head, armN: P_RAISE.armN, foreN: P_RAISE.foreN };
+    g.stanceLock = 'stand';
+    g.gate = (m) => Math.max(0, m) * 0.5;
+    g.text.objective(OBJ.out);
+    g.lock(false);
+    yield () => p.x >= xc - 20;
+    g.lock();
+    g.text.objective(null);
+    g.gate = null;
+    g.stanceLock = null;
     yield* g.walkPlayer(xc);
+    p.arms = null;
     p.override = P_RAISE;
     yield* intoDepth(g, p, xc, 0.07, 0.3);
     yield* this.finish(g);
@@ -14894,6 +15271,15 @@ const { lerp, clamp, rng, mixc } = __src_engine_util;
 const T = __src_sets_town;
 const { horizon } = __src_sets_horizon;
 const { sandbags } = __src_story_act2r_set;
+const { extrudePoly, extrudeRect } = __src_sets_depth;
+// A rectangle turned about its centre (cx, cy) by `ang`, as world points, so
+// a tilted slab can be extruded in the game's one depth direction.
+const tiltRect = (cx, cy, ang, x, y, w, h) => {
+  const co = Math.cos(ang);
+  const si = Math.sin(ang);
+  return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([px, py]) => [cx + px * co - py * si, cy + px * si + py * co]);
+};
+
 // ------------------------------------------------------------- Part 1 --
 
 const X1 = {
@@ -15135,6 +15521,7 @@ function checkpoint(R, g, t) {
   // the camp table, two folding chairs, the radio, the thermos, glasses
   R.cast((c) => {
     c.fillStyle = '#4a4638';
+    extrudeRect(c, X1.table - 50, -82, 100, 6, 20, { color: '#4a4638' }); // the table top, seen a little from above
     c.fillRect(X1.table - 50, -82, 100, 6);
     c.fillRect(X1.table - 44, -76, 4, 76);
     c.fillRect(X1.table + 40, -76, 4, 76);
@@ -15146,6 +15533,7 @@ function checkpoint(R, g, t) {
       c.fillRect(cx - f * 18, -96, 3, 56);
     }
     // radio
+    extrudeRect(c, X1.table + 14, -104, 30, 22, 9, { color: '#2c2e27' });
     c.fillStyle = '#2c2e27';
     c.fillRect(X1.table + 14, -104, 30, 22);
     c.fillStyle = '#6e7560';
@@ -15340,13 +15728,34 @@ function drawBuilding(R, g) {
     for (const s of g.level.solids) {
       if (!near(s.x0, s.x1) || s.hidden) continue;
       if (s.kind === 'step') {
+        extrudeRect(c, s.x0, s.y0, s.x1 - s.x0, Math.min(s.y1 - s.y0, 200), 12, { color: '#5b5750' });
         c.fillStyle = '#5b5750';
         c.fillRect(s.x0, s.y0, s.x1 - s.x0, 8);
         c.fillStyle = '#403d38';
         c.fillRect(s.x0, s.y0 + 8, s.x1 - s.x0, Math.min(s.y1 - s.y0, 200) - 8);
       } else if (s.kind === 'floor') {
+        // the slab 18 deep: its top shows, and a broken end is a ragged section
+        const jag = (ex) => (s.raw?.includes(ex) ? 1 : 0);
+        const fp = [[s.x0, s.y0], [s.x1, s.y0]];
+        if (jag(s.x1)) fp.push([s.x1 + 5, s.y0 + 3], [s.x1 - 3, s.y0 + 7], [s.x1 + 7, s.y0 + 11], [s.x1 - 2, s.y0 + 16]);
+        else fp.push([s.x1, s.y0 + 16]);
+        fp.push([s.x0, s.y0 + 16]);
+        extrudePoly(c, fp, 18, { top: '#85806f', side: '#3a3733' });
+        if (jag(s.x1)) {
+          // the section itself, paler where the concrete is fresh
+          c.fillStyle = '#7a7568';
+          c.beginPath();
+          c.moveTo(s.x1 + 5, s.y0 + 3);
+          c.lineTo(s.x1 + 5 + 10, s.y0 + 3 - 7);
+          c.lineTo(s.x1 + 7 + 10, s.y0 + 11 - 7);
+          c.lineTo(s.x1 + 7, s.y0 + 11);
+          c.fill();
+        }
         c.fillStyle = '#6a655c';
-        c.fillRect(s.x0, s.y0, s.x1 - s.x0, 16);
+        c.beginPath();
+        c.moveTo(fp[0][0], fp[0][1]);
+        for (const q of fp.slice(1)) c.lineTo(q[0], q[1]);
+        c.fill();
         // floor tiles along the top edge, the slab's section below
         c.fillStyle = 'rgba(200,190,170,0.18)';
         for (let tx = s.x0; tx < s.x1; tx += 30) c.fillRect(tx + 1, s.y0, 28, 3);
@@ -15366,6 +15775,7 @@ function drawBuilding(R, g) {
           }
         }
       } else if (s.kind === 'slab') {
+        extrudePoly(c, tiltRect((s.x0 + s.x1) / 2, s.y0 + 20, -0.25 + (a.slabShift || 0) * 0.04, -70, -18, 140, 26), 16, { top: '#8a8576', side: '#3a3733' });
         c.fillStyle = '#6f6a61';
         c.save();
         c.translate((s.x0 + s.x1) / 2, s.y0 + 20);
@@ -15383,6 +15793,7 @@ function drawBuilding(R, g) {
       } else if (s.kind === 'mound') {
         T.rubble(R, s.x0 - 10, s.x1 - s.x0 + 20, 70, { seed: 5, color: '#5d5850', cast: false });
       } else if (s.kind === 'balcony') {
+        extrudeRect(c, s.x0, s.y0, s.x1 - s.x0, 12, 14, { top: '#7a7568', side: '#34312c' });
         c.fillStyle = '#5f5a52';
         c.fillRect(s.x0, s.y0, s.x1 - s.x0, 12);
         c.strokeStyle = '#2a2724';
@@ -15400,6 +15811,7 @@ function drawBuilding(R, g) {
     // the dropped ceiling on the third floor, and the wardrobe's bulk
     for (const k of g.level.ceilings) {
       if (!near(k.x0, k.x1)) continue;
+      extrudePoly(c, [[k.x0 - 10, k.y - 40], [k.x1 + 10, k.y - 50], [k.x1, k.y], [k.x0, k.y + 2]], 14, { color: '#5a554d' });
       c.fillStyle = '#5a554d';
       c.beginPath();
       c.moveTo(k.x0 - 10, k.y - 40);
@@ -15413,6 +15825,8 @@ function drawBuilding(R, g) {
   // the outside wall on the right, with the hole on the fifth floor, and the
   // drainpipe down it
   R.cast((c) => {
+    // the wall is 18 thick: its torn top and outer face show past the edge
+    extrudeRect(c, X2.b1 - 18, floorY(6), 18, -floorY(6), 16, { color: '#4a4740' });
     c.fillStyle = '#4a4740';
     c.beginPath();
     c.rect(X2.b1 - 18, floorY(6), 18, -floorY(6));
@@ -15504,6 +15918,7 @@ function drawBuilding(R, g) {
 
 function diningTable(R, x, fy) {
   R.cast((c) => {
+    extrudeRect(c, x - 60, fy - 70, 120, 6, 24, { color: '#4a3a2c' }); // the table top
     c.fillStyle = '#4a3a2c';
     c.fillRect(x - 60, fy - 70, 120, 6);
     c.fillRect(x - 54, fy - 64, 4, 64);
@@ -15579,6 +15994,7 @@ function childsDrawing(R, x, y) {
 function wardrobe(R, x0, fy) {
   R.cast((c) => {
     // on its side, propped on the tilted floor: there's a crawl space under it
+    extrudeRect(c, x0 - 10, fy - 174, 130, 44, 24, { color: '#5a4432' });
     c.fillStyle = '#5a4432';
     c.fillRect(x0 - 10, fy - 174, 130, 44);
     c.fillStyle = 'rgba(0,0,0,0.25)';
@@ -15590,6 +16006,7 @@ function wardrobe(R, x0, fy) {
 
 function doorFrame(R, x, fy) {
   R.cast((c) => {
+    for (const [rx, ry, rw, rh] of [[x - 36, fy - 180, 6, 180], [x + 30, fy - 180, 6, 180], [x - 36, fy - 186, 72, 8]]) extrudeRect(c, rx, ry, rw, rh, 12, { color: '#6a5a48' });
     c.fillStyle = '#6a5a48';
     c.fillRect(x - 36, fy - 180, 6, 180);
     c.fillRect(x + 30, fy - 180, 6, 180);
@@ -15643,6 +16060,7 @@ function stairFlight(R, xa, ya, xb, yb, { broken = -1, slab = false, t = 0 } = {
       const sx = lerp(xa, xb, k / n);
       const sy = lerp(ya, yb, (k + 1) / n);
       const sw = (xb - xa) / n;
+      extrudeRect(c, Math.min(sx, sx + sw), sy, Math.abs(sw) + 1, 6 + (ya - yb) / n, 12, { color: '#4c4943' });
       c.fillStyle = '#4c4943';
       c.fillRect(Math.min(sx, sx + sw), sy, Math.abs(sw) + 1, 6);
       c.fillStyle = '#3a3733';
@@ -15658,6 +16076,7 @@ function stairFlight(R, xa, ya, xb, yb, { broken = -1, slab = false, t = 0 } = {
   });
   if (slab) {
     R.cast((c) => {
+      extrudePoly(c, tiltRect(lerp(xa, xb, 0.5), lerp(ya, yb, 0.5) - 20, -0.28, -80, -20, 160, 28), 16, { top: '#8a8576', side: '#3a3733' });
       c.save();
       c.translate(lerp(xa, xb, 0.5), lerp(ya, yb, 0.5) - 20);
       c.rotate(-0.28);
@@ -15845,6 +16264,7 @@ const OBJ = {
   hole: ['اخرج من الفتحة في الجدار', 'Go out through the hole in the wall'],
   down: ['انزل إلى الزقاق', 'Get down to the alley'],
   crawl: ['ازحف إلى أحمد', 'Crawl to Ahmad'],
+  drag: ['اسحبه إلى الظل', 'Pull him back into the shadow'],
 };
 
 // A line by key, as a script step: shows it, tags placeholders in the log.
@@ -16416,12 +16836,22 @@ const ACT3R = {
     // the weight under the blanket, head towards him
     a.body = new Shroud(g.level, X2.blanket - 62, 0, 1);
     p.f = 1;
-    const x0 = p.x;
     const tx = X2.shade - 40;
-    // backwards on his belly, the weight coming after him: a pull, a rest,
-    // the blanket scraping on the gravel with each pull
+    // Now he pulls: the player backs him away on his belly, facing the body
+    // (only backwards, only crawling, slowly: it's heavy), the weight coming
+    // after his hands a moment late, the blanket scraping with each pull.
+    p.faceLock = 1;
+    g.stanceLock = 'prone';
+    g.gate = (m) => Math.min(0, m) * 0.6;
+    g.text.objective(OBJ.drag);
+    g.prompt('left', 'اسحب للخلف', 'Pull back');
+    g.lock(false);
     let stroke = -1;
-    const pull = (dist) => {
+    let dist = 0;
+    let lastX = p.x;
+    yield () => {
+      dist += Math.abs(p.x - lastX);
+      lastX = p.x;
       const n = Math.floor(dist / 38);
       if (n !== stroke) {
         stroke = n;
@@ -16429,14 +16859,17 @@ const ACT3R = {
         g.sound.noise({ dur: 0.3, freq: 300, type: 'lowpass', vol: 0.12, buf: g.sound.brownBuf });
       }
       a.blanketX = p.x + 64;
-      // his hands on its edges at the shoulders: each pull a surge, then the
-      // weight comes after
+      // his hands on its edges at the shoulders: each pull a surge
       const surge = Math.max(0, Math.sin((dist / 38) * Math.PI * 2)) * 6;
       a.body.pull([p.x + 44 - surge, -16]);
-      return crawlPose(-dist * 0.083);
+      if (dist > 0) g.prompt(null);
+      return p.x <= tx;
     };
-    // (facing the body the whole way: he goes backwards)
-    yield* along(g, p, [[x0, 0], [tx, 0]], 24, pull, 1);
+    g.lock();
+    g.gate = null;
+    g.stanceLock = null;
+    p.faceLock = 0;
+    g.text.objective(null);
     a.body.pull(null);
     p.f = 1;
     yield 0.2;
@@ -16620,6 +17053,15 @@ const __src_story_act3w_set = (() => {
 const { lerp, rng, smooth } = __src_engine_util;
 const T = __src_sets_town;
 const { nightSky } = __src_story_act3r_set;
+const { extrudePoly, extrudeRect, holeReveal } = __src_sets_depth;
+// A rectangle turned by `ang` about (cx, cy), as world points, so a tilted
+// slab or door can be extruded in the game's one depth direction.
+const tiltRect = (cx, cy, ang, x, y, w, h) => {
+  const co = Math.cos(ang);
+  const si = Math.sin(ang);
+  return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([px, py]) => [cx + px * co - py * si, cy + px * si + py * co]);
+};
+
 const X3 = {
   start: 0,
   ruin: [380, 860], // the bombed building, its front torn open: moonlight fills its open rooms
@@ -16745,21 +17187,17 @@ function ruin(R, g) {
   const room = (n) => [-n * fh, -(n - 1) * fh]; // [top, bottom] of room n (1 = ground)
 
   // the back wall, with the roofline broken
+  const outPts = [
+    [x0, 0], [x0, topL], [x0 + 70, topL - 6], [x0 + 110, topL + 38], [x0 + 190, topL + 22], [x0 + 250, topL - 24],
+    [x0 + 330, topL + 18], [x0 + 380, topL + 70], [x1 - 60, topR + 10], [x1, topR - 6], [x1, 0],
+  ];
   const outline = (c) => {
-    c.moveTo(x0, 0);
-    c.lineTo(x0, topL);
-    c.lineTo(x0 + 70, topL - 6);
-    c.lineTo(x0 + 110, topL + 38);
-    c.lineTo(x0 + 190, topL + 22);
-    c.lineTo(x0 + 250, topL - 24);
-    c.lineTo(x0 + 330, topL + 18);
-    c.lineTo(x0 + 380, topL + 70);
-    c.lineTo(x1 - 60, topR + 10);
-    c.lineTo(x1, topR - 6);
-    c.lineTo(x1, 0);
+    outPts.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
     c.closePath();
   };
   R.paint((c) => {
+    // the wall is 22 thick: its torn top shows as a lit edge behind the break
+    extrudePoly(c, outPts, 22, { top: '#8a90a2', side: '#2c2f3a' });
     c.beginPath();
     outline(c);
     c.fillStyle = '#5b5f6a';
@@ -16867,21 +17305,24 @@ function ruin(R, g) {
 
   // floors: slabs with a broken front edge and hanging rebar
   R.cast((c) => {
-    const slab = (n, xa, xb, tilt) => {
+    const slab = (n, xa, xb, tilt, ragged = false) => {
       const y = -n * fh;
+      // 18 deep: the top of the slab shows, and a broken end is a jagged section
+      const sp = [[xa, y], [xb, y + tilt]];
+      if (ragged) sp.push([xb + 6, y + tilt + 4], [xb - 4, y + tilt + 8], [xb + 7, y + tilt + 12]);
+      sp.push([xb, y + tilt + 15], [xa, y + 15]);
+      extrudePoly(c, sp, 18, { top: '#9094a2', side: '#2e313b' });
       c.fillStyle = '#6c707c';
       c.beginPath();
-      c.moveTo(xa, y);
-      c.lineTo(xb, y + tilt);
-      c.lineTo(xb, y + tilt + 15);
-      c.lineTo(xa, y + 15);
+      sp.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
       c.fill();
       c.fillStyle = 'rgba(0,0,0,0.3)';
       c.fillRect(xa, y + 11, xb - xa, 4);
     };
     slab(1, x0 + 18, x1 - 18, 0);
-    slab(2, x0 + 18, x1 - 150, 0);
+    slab(2, x0 + 18, x1 - 150, 0, true);
     // the end of floor two has sheared and hangs from its rebar
+    extrudePoly(c, tiltRect(x1 - 150, -2 * fh, 0.55, 0, 0, 110, 15), 18, { top: '#9094a2', side: '#2e313b' });
     c.save();
     c.translate(x1 - 150, -2 * fh);
     c.rotate(0.55);
@@ -16889,7 +17330,7 @@ function ruin(R, g) {
     c.fillRect(0, 0, 110, 15);
     c.restore();
     // the third floor is a shelf of slab with the ceiling gone
-    slab(3, x0 + 18, x0 + 300, 0);
+    slab(3, x0 + 18, x0 + 300, 0, true);
     c.strokeStyle = '#2a2420';
     c.lineWidth = 2;
     const r = rng(9);
@@ -16911,6 +17352,12 @@ function ruin(R, g) {
 
   // the two side walls, torn
   R.cast((c) => {
+    const wl = [[x0 - 6, 0], [x0 - 6, topL - 40], [x0 + 10, topL - 56], [x0 + 22, topL + 6], [x0 + 18, -2 * fh - 20], [x0 + 24, -fh - 40], [x0 + 18, 0]];
+    const wr = [[x1 - 20, 0], [x1 - 22, topR + 40], [x1 - 8, topR + 20], [x1 + 8, topR + 70], [x1 + 8, 0]];
+    // walls 22 thick: the torn tops and the outer faces catch the moon
+    extrudePoly(c, wl, 22, { top: '#9a9cac', side: '#30323c' });
+    extrudePoly(c, wr, 22, { top: '#9a9cac', side: '#30323c' });
+    extrudePoly(c, [[x0 + 18, -2 * fh - 16], [x0 + 96, -2 * fh - 12], [x0 + 70, -2 * fh + 24], [x0 + 18, -2 * fh + 4]], 14, { top: '#8c8f9c', side: '#2e313b' });
     c.fillStyle = '#70727c';
     c.beginPath();
     c.moveTo(x0 - 6, 0);
@@ -17065,6 +17512,8 @@ function ruin(R, g) {
   T.rubble(R, x1 - 170, 250, 66, { seed: 19, color: '#8a8a90' });
   // a slab standing on its edge, a door leaning on it
   R.cast((c) => {
+    extrudePoly(c, tiltRect(x0 + 520, 2, -0.42, -4, -96, 60, 96), 14, { top: '#9a9da6', side: '#383a42' });
+    extrudePoly(c, tiltRect(x1 - 40, 2, 0.32, -6, -104, 40, 104), 8, { color: '#5b4a3c' });
     c.save();
     c.translate(x0 + 520, 2);
     c.rotate(-0.42);
@@ -17101,6 +17550,10 @@ function vineWall(R, g) {
   const x = X3.vine;
   // rubble spilled from the wall, and from the building behind
   T.rubble(R, x - 190, 140, 38, { seed: 23, color: '#8d8c90' });
+  // the wall under the vine is a good 18 thick: its torn top and far side
+  R.cast((c) => {
+    extrudePoly(c, [[x - 70, 0], [x - 70, -90], [x - 30, -110], [x + 10, -80], [x + 40, -102], [x + 70, -70], [x + 70, 0]], 18, { color: '#b3a58f' });
+  });
   T.vine(R, x, t, { wallH: 110, lush: 1 });
   T.rubble(R, x + 40, 150, 52, { seed: 29, color: '#929196' });
   // the vine's leaves catch the moon: silver on the tops of every leaf
@@ -17218,6 +17671,9 @@ function alleyBack(R, g) {
 function catWall(R) {
   const [w0, w1] = X3.catWall;
   R.cast((c) => {
+    // a low wall 16 deep, its coping a little proud: tops and the far end show
+    extrudeRect(c, w0, -70, w1 - w0, 70, 16, { color: '#9c9a96' });
+    extrudeRect(c, w0 - 4, -76, w1 - w0 + 8, 8, 18, { color: '#b4b2ae' });
     c.fillStyle = '#9c9a96';
     c.fillRect(w0, -70, w1 - w0, 70);
     c.fillStyle = '#b4b2ae'; // coping
@@ -17318,12 +17774,16 @@ function basementWell(R) {
   R.paint((c) => {
     c.fillStyle = '#04050a';
     c.fillRect(b - 50, -5, 100, 140);
+    // the well is cut 24 deep into the ground: its far wall catches a little moon
+    holeReveal(c, [[b - 50, -5], [b + 50, -5], [b + 50, 135], [b - 50, 135]], 24, '#1c2030');
     // the stairs going down, each step a shade paler where the moon reaches
     for (let i = 0; i < 6; i++) {
       c.fillStyle = `rgb(${70 - i * 8},${80 - i * 8},${108 - i * 11})`;
       c.fillRect(b - 46 + i * 14, 2 + i * 14, 14, 3);
     }
     // the kerb stones either side
+    extrudeRect(c, b - 56, -5, 8, 12, 16, { color: '#6d7080' });
+    extrudeRect(c, b + 48, -5, 8, 12, 16, { color: '#6d7080' });
     c.fillStyle = '#6d7080';
     c.fillRect(b - 56, -5, 8, 12);
     c.fillRect(b + 48, -5, 8, 12);
@@ -17499,6 +17959,7 @@ const __src_sets_night_props = (() => {
 // Shapes come from seeded rng, so nothing shivers between frames.
 
 const { rng, clamp, lerp, smooth, noise1, mixc, rgb } = __src_engine_util;
+const { extrudePoly, extrudeRect } = __src_sets_depth;
 const TAU = Math.PI * 2;
 
 // ------------------------------------------------------------ basement --
@@ -17549,6 +18010,8 @@ function basementDoor(R, x, { open = 0, t = 0 } = {}) {
 
   // the steps: tread tops at 10, 20, 30, then the landing at the sill
   R.cast((c) => {
+    // the flight is 18 deep: each tread shows its top, the end wall its far side
+    extrudePoly(c, [[xl, 0], [xl, 10], [xl + 22, 10], [xl + 22, 20], [xl + 44, 20], [xl + 44, 30], [xl + 66, 30], [xl + 66, SILL], [xr, SILL], [xr, SILL + 8], [xl, SILL + 8]], 18, { top: '#7c786d', side: '#24221f' });
     c.fillStyle = '#58554e';
     c.beginPath();
     c.moveTo(xl, 0);
@@ -17777,6 +18240,9 @@ function basementDoor(R, x, { open = 0, t = 0 } = {}) {
 
   // the parapet at the far end of the well, and a rail along its street edge
   R.cast((c) => {
+    // the parapet is a brick-and-a-half thick (16), the coping a little proud
+    extrudeRect(c, xr - 2, -34, 17, 34 + SILL + 8, 16, { color: '#625f57' });
+    extrudeRect(c, xr - 4, -38, 21, 5, 18, { color: '#6e6b62' });
     c.fillStyle = '#625f57';
     c.fillRect(xr - 2, -34, 17, 34 + SILL + 8);
     c.fillStyle = '#6e6b62';
@@ -18268,6 +18734,10 @@ function nightGarden(R, x0, x1, { wet = 0, t = 0 } = {}) {
   };
   for (const side of [-1, 1]) {
     R.cast((c) => {
+      // a wall stub 20 thick: its broken top and inner side show
+      const a = side < 0 ? x0 : x1;
+      const s = -side;
+      extrudePoly(c, [[a, 0], [a, -75], [a + s * 50, -75], [a + s * 56, -63], [a + s * 63, -66], [a + s * 66, -44], [a + s * 70, -30], [a + s * 66, -14], [a + s * 66, 0]], 20, { color: '#6f6554' });
       c.fillStyle = '#6f6554';
       c.beginPath();
       stub(side)(c);
@@ -18870,6 +19340,13 @@ const CROUCH_LOOK = { ...POSES.crouch, head: -0.15, armN: 0.7, foreN: 1.2 };
 const POCKET = { ...CROUCH_LOOK, armN: -0.15, foreN: 0.5 };
 const POUR = { ...POSES.stand, torso: 0.18, head: 0.35, armN: 1.05, foreN: 1.3, armF: 0.3, foreF: 0.7 };
 const CAN_X = X3.garden[1] - 30;
+// the four beds: the courgettes, the aubergines, the tomatoes, the mint
+const BEDS = [X3.garden[1] - 80, X3.garden[1] - 170, X3.garden[0] + 150, X3.garden[0] + 70];
+const OBJ = {
+  cat: ['قف قليلاً', 'Stop a while'],
+  water: ['اسقِ الأحواض', 'Water the beds'],
+  canBack: ['أعِد السطل إلى مكانه', 'Put the can back where it was'],
+};
 
 // A line by key, as a script step; and the same said in passing.
 function* say(g, key) {
@@ -18908,7 +19385,7 @@ const ACT3W = {
     const s = g.state;
     const L = g.level;
     const p = g.player;
-    g.a = { part: 3, nextChirp: 0, nextShot: 18, nextDog: 9, nextCreak: 5, nextNey: 12, doorOpen: 0, doorGlow: 0, wet: 0, canTaken: false };
+    g.a = { part: 3, beds: [false, false, false, false], nextChirp: 0, nextShot: 18, nextDog: 9, nextCreak: 5, nextNey: 12, doorOpen: 0, doorGlow: 0, wet: 0, canTaken: false };
     g.surface = surfaceAt;
     for (const id of ['torch']) if (!s.tools.includes(id)) s.tools.push(id);
     g.active = 'torch';
@@ -18924,7 +19401,9 @@ const ACT3W = {
     look('vine', X3.vine, -110, 'vine', { box: [90, 150], by: 40 });
     look('garden', (X3.garden[0] + X3.garden[1]) / 2 - 40, -40, 'garden', { box: [260, 80], by: 10 });
     L.add({ id: 'door', x: X3.basement, y: -10, range: 90, label: ['افتح الباب قليلاً', 'Open the door a crack'], box: [70, 120], by: 30, enabled: () => !g.a.doorDone, use: () => g.runner.run(this.wedding(g)) });
-    L.add({ id: 'can', x: CAN_X, y: -20, range: 80, label: ['اسقِ الحديقة', 'Water the garden'], box: [40, 40], by: 6, enabled: () => !g.a.wateredDone && !g.locked, use: () => g.runner.run(this.water(g)) });
+    L.add({ id: 'can', x: CAN_X, y: -20, range: 80, label: ['خذ سطل السقاية', 'Take the watering can'], box: [40, 40], by: 6, enabled: () => !g.a.wateredDone && !g.a.carrying && !g.locked, use: () => g.runner.run(this.takeCan(g)) });
+    L.add({ id: 'canBack', x: CAN_X, y: -20, range: 80, label: ['أعِد السطل', 'Put the can back'], box: [40, 40], by: 6, enabled: () => g.a.carrying && g.a.beds.every(Boolean) && !g.locked, use: () => g.runner.run(this.putCan(g)) });
+    BEDS.forEach((bx, i) => L.add({ id: `bed${i}`, x: bx, y: -30, range: 60, urgent: true, label: ['اسقِ', 'Water it'], box: [70, 50], by: 10, enabled: () => g.a.carrying && !g.a.beds[i] && !g.locked, use: () => g.runner.run(this.pour(g, i)) }));
 
     // the black cat, on the low wall in the alley, as if it had been waiting
     const cat = new Cat();
@@ -18980,9 +19459,12 @@ const ACT3W = {
     const p = g.player;
     const cat = g.cat;
     a.catDone = true;
+    g.state.cat_seen = true;
+    g.text.objective(null);
     g.lock();
-    yield* g.walkPlayer(X3.catWall[0] - 70);
-    p.f = 1;
+    // he faces it from wherever he stopped
+    p.f = cat.x >= p.x ? 1 : -1;
+    cat.f = -p.f;
     cat.headTurn = 0.3;
     yield 0.8;
     yield* say(g, 'cat_seen');
@@ -19017,8 +19499,7 @@ const ACT3W = {
     a.doorDone = true;
     g.state.wedding_seen = true;
     g.lock();
-    yield* g.walkPlayer(X3.basement - 46);
-    p.f = 1;
+    p.f = X3.basement >= p.x ? 1 : -1;
     yield* say(g, 'door');
     yield 0.3;
     g.sound.noise({ dur: 0.5, freq: 260, q: 0.8, vol: 0.18 }); // the steel door scraping
@@ -19042,53 +19523,77 @@ const ACT3W = {
     g.lock(false);
   },
 
-  // 3C-4: the watering can, half full. He waters someone else's garden.
-  *water(g) {
+  // 3C-4: the watering can, half full. He picks it up, and it's his to
+  // carry: bed by bed, at his own pace, and back to where it was.
+  *takeCan(g) {
+    const a = g.a;
+    const p = g.player;
+    g.lock();
+    p.f = CAN_X >= p.x ? 1 : -1;
+    yield* g.reach(CAN_X, -10, () => {
+      a.canTaken = true;
+    });
+    a.tilt = 0;
+    p.rig.prop = (c, hand) => wateringCan(c, hand[0] + 6, hand[1] + 8, { tilt: a.tilt, s: 0.9 });
+    // carried low at his side, walking (no running, no jumping with it)
+    p.arms = { armN: 0.35, foreN: 0.75 };
+    a.carrying = true;
+    g.stanceLock = 'stand';
+    g.gate = (m) => {
+      // it's someone else's can: it stays in their garden
+      const x = p.x;
+      if ((m < 0 && x < X3.garden[0] - 40) || (m > 0 && x > X3.garden[1] + 30)) return 0;
+      return m;
+    };
+    g.text.objective(OBJ.water);
+    g.lock(false);
+  },
+
+  // One bed: he tips the can over it, and the soil darkens.
+  *pour(g, i) {
+    const a = g.a;
+    const p = g.player;
+    g.lock();
+    p.f = BEDS[i] >= p.x ? 1 : -1;
+    p.override = POUR;
+    const t0 = g.time;
+    g.sound.slosh?.();
+    yield () => {
+      const k = clamp((g.time - t0) / 1.6);
+      a.tilt = 0.9 * Math.sin(k * Math.PI);
+      // the spout: the can sits at the hand (+6, +8 in his own frame,
+      // scale 0.9), its tip 51 along and 48 up from its base, tipped
+      const [hx, hy] = p.rig.world('handN');
+      const sx = 0.9 * (51 * Math.cos(a.tilt) - 4.5 * Math.sin(a.tilt));
+      const sy = 0.9 * (-48 + 51 * Math.sin(a.tilt) + 4.5 * Math.cos(a.tilt));
+      a.pour = { x: hx + p.f * (6 + sx), y: hy + 8 + sy, k: Math.sin(k * Math.PI) };
+      return k >= 1;
+    };
+    a.pour = null;
+    a.tilt = 0;
+    p.override = null;
+    a.beds[i] = true;
+    a.wet = a.beds.filter(Boolean).length / a.beds.length;
+    if (a.beds.every(Boolean)) g.text.objective(OBJ.canBack);
+    g.lock(false);
+  },
+
+  // And back where he found it: someone will come for it at night.
+  *putCan(g) {
     const a = g.a;
     const p = g.player;
     const s = g.state;
     g.lock();
-    yield* g.walkPlayer(CAN_X - 34);
-    p.f = 1;
-    yield* g.reach(CAN_X, -10, () => {
-      a.canTaken = true;
-    });
-    // the can in his near hand, tipped to pour
-    let tilt = 0;
-    p.rig.prop = (c, hand) => wateringCan(c, hand[0] + 6, hand[1] + 8, { tilt, s: 0.9 });
-    // carried low at his side between the beds, tipped over each one
-    p.arms = { armN: 0.35, foreN: 0.75 };
-    const beds = [X3.garden[1] - 80, X3.garden[1] - 170, X3.garden[0] + 150, X3.garden[0] + 70];
-    for (const bx of beds) {
-      p.override = null;
-      yield* g.walkPlayer(bx + 26);
-      p.f = -1;
-      p.override = POUR;
-      const t0 = g.time;
-      g.sound.slosh?.();
-      yield () => {
-        const k = clamp((g.time - t0) / 1.6);
-        tilt = 0.9 * Math.sin(k * Math.PI);
-        // the spout: the can sits at the hand (+6, +8 in his own frame,
-        // scale 0.9), its tip 51 along and 48 up from its base, tipped
-        const [hx, hy] = p.rig.world('handN');
-        const sx = 0.9 * (51 * Math.cos(tilt) - 4.5 * Math.sin(tilt));
-        const sy = 0.9 * (-48 + 51 * Math.sin(tilt) + 4.5 * Math.cos(tilt));
-        a.pour = { x: hx + p.f * (6 + sx), y: hy + 8 + sy, k: Math.sin(k * Math.PI) };
-        a.wet = Math.min(1, a.wet + g.lastDt * 0.16);
-        return k >= 1;
-      };
-      a.pour = null;
-    }
-    tilt = 0;
-    p.override = null;
-    yield* g.walkPlayer(CAN_X - 34);
+    p.f = CAN_X >= p.x ? 1 : -1;
     p.arms = null;
-    p.f = 1;
     yield* g.reach(CAN_X, -10, () => {
       a.canTaken = false;
       p.rig.prop = null;
     });
+    a.carrying = false;
+    g.gate = null;
+    g.stanceLock = null;
+    g.text.objective(null);
     a.wetT = g.time;
     a.wateredDone = true;
     s.watered_garden = true;
@@ -19164,7 +19669,14 @@ const ACT3W = {
     }
 
     if (g.locked) return;
-    if (!a.catDone && p.x > X3.catWall[0] - 170 && p.x < X3.catWall[1]) g.runner.run(this.catScene(g));
+    // the cat: when he stops near its wall (or gets down to its level)
+    const nearCat = p.x > X3.catWall[0] - 190 && p.x < X3.catWall[1] + 120;
+    a.stillT = nearCat && Math.abs(p.vx) < 5 ? (a.stillT || 0) + dt : 0;
+    if (!a.catDone && nearCat && (a.stillT > 0.6 || p.stance === 'crouch')) g.runner.run(this.catScene(g));
+    if (!a.catDone && nearCat && !a.catHint) {
+      a.catHint = true;
+      g.text.objective(OBJ.cat);
+    }
     if (!a.saidMusic && dW < 520 && p.x < X3.basement) {
       a.saidMusic = true;
       line(g, 'music');
@@ -19457,6 +19969,7 @@ const { ACT3W } = __src_story_act3w;
 const { ITEMS, JOURNAL } = __src_story_items;
 const { Photo } = __src_engine_photo;
 const { setMaterialSize } = __src_engine_materials;
+const { setFacadeRes } = __src_sets_town;
 // The chapters. A save names its act; old saves (act: 1) are Act One.
 const ACTS = { act1: ACT1, act2r: ACT2R, act3r: ACT3R, act3w: ACT3W };
 const actKey = (s) => (s && ACTS[s.act] ? s.act : 'act1');
@@ -19593,6 +20106,7 @@ function resize() {
   R.fx.relief = q !== 'low';
   R.fx.dirt = q === 'high';
   setMaterialSize(q === 'low' ? 128 : 256);
+  setFacadeRes(q === 'high' ? 2 : q === 'low' ? 1 : 1.25);
 }
 window.addEventListener('resize', resize);
 resize();
@@ -19731,7 +20245,9 @@ function summary3(s) {
 
 function summary3w(s) {
   const ar = lang() === 'ar';
-  const rows = [[ar ? '١٠:٣٠' : '10:30', ar ? 'القطة السوداء على الجدار. تثاءبت، ونامت.' : 'The black cat on the wall. It yawned, and slept.']];
+  const rows = [];
+  if (s.cat_seen) rows.push([ar ? '١٠:٣٠' : '10:30', ar ? 'القطة السوداء على الجدار. تثاءبت، ونامت.' : 'The black cat on the wall. It yawned, and slept.']);
+  else rows.push([ar ? '١٠:٣٠' : '10:30', ar ? 'مررتَ بالقطة السوداء على الجدار، ولم تتوقّف.' : 'You passed the black cat on the wall, and didn’t stop.']);
   if (s.wedding_seen) rows.push([ar ? '١١:٠٠' : '11:00', ar ? 'عرس في قبو. فتحتَ الباب قليلاً، ولم تدخل.' : 'A wedding in a basement. You opened the door a crack, and didn’t go in.']);
   else rows.push([ar ? '١١:٠٠' : '11:00', ar ? 'موسيقى عرس من تحت الأرض. مررتَ بها.' : 'Wedding music from under the ground. You walked on past it.']);
   rows.push([ar ? '١١:٣٠' : '11:30', optionFor(DECISIONS.find((d) => d.key === 'watered_garden'), !!s.watered_garden)[ar ? 2 : 1]]);
