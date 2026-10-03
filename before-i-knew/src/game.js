@@ -31,7 +31,10 @@ export class Game {
   }
 
   start(act, state) {
+    // the act being left lets go of anything still running (a band playing)
+    if (this.act && this.a) this.act.leave?.(this);
     this.act = act;
+    this.onPart = null;
     this.state = state;
     this.level = new Level(act.bounds ? { bounds: act.bounds } : undefined);
     this.runner = new Runner();

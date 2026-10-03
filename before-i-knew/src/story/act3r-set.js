@@ -119,7 +119,7 @@ function moon(R, u, v) {
   });
 }
 
-function nightSky(R, g, { moonUv = [0.12, 0.26] } = {}) {
+export function nightSky(R, g, { moonUv = [0.12, 0.26] } = {}) {
   T.sky(R, NIGHT, { sun: moonUv, warmth: 0, clouds: 0.35, cloudLit: [70, 80, 110], cloudShade: [14, 16, 26] });
   stars(R, g.time);
   moon(R, moonUv[0], moonUv[1]);

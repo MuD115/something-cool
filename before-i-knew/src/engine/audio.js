@@ -841,6 +841,184 @@ export class Sound {
     for (let i = 0; i < 5; i++) this.noise({ when: this.t + 2 + i * 0.22, dur: 0.06, freq: 1200 + Math.random() * 800, q: 1.5, vol: 0.08 });
   }
 
+  // One dog, far off: a single bark and the ghost of it coming back off the
+  // buildings. (dogFar is a run of two to four.)
+  dogBarkFar(pan) {
+    if (!this.ctx) return;
+    const w = this.t;
+    const f = 380 + Math.random() * 90;
+    this.noise({ when: w, dur: 0.15, freq: 640 + Math.random() * 120, q: 3, vol: 0.05, dest: this.amb, pan, sweep: 480 });
+    this.tone(f, 0.13, { when: w, type: 'sawtooth', vol: 0.007, to: f * 0.7, dest: this.amb, pan });
+    this.noise({ when: w + 0.28, dur: 0.14, freq: 480, q: 2, vol: 0.012, dest: this.amb, pan: pan == null ? null : -pan * 0.6, sweep: 360 });
+  }
+
+  // A building settling at night: old timber easing in stages, a low
+  // shifting underneath it, and a few small ticks as it comes to rest. Quiet.
+  buildingCreak(pan) {
+    if (!this.ctx) return;
+    const w = this.t;
+    const base = 105 + Math.random() * 45;
+    const n = 3 + Math.floor(Math.random() * 3);
+    let at = w;
+    for (let i = 0; i < n; i++) {
+      // each give of the beam: a slow, wavering slide in pitch
+      const d = 0.28 + Math.random() * 0.3;
+      const f = base * (1 + Math.random() * 0.35);
+      this.tone(f, d, { when: at, type: 'sawtooth', vol: 0.005, to: f * (Math.random() < 0.5 ? 0.85 : 1.2), attack: d * 0.5, dest: this.amb, pan });
+      this.noise({ when: at, dur: d, freq: 700 + Math.random() * 500, q: 8, vol: 0.006, attack: d * 0.5, dest: this.amb, pan, sweep: 500 + Math.random() * 600 });
+      at += d * (0.7 + Math.random() * 0.5);
+    }
+    this.noise({ when: w, dur: at - w + 0.8, freq: 190, type: 'lowpass', vol: 0.035, attack: 0.5, buf: this.brownBuf, dest: this.amb, pan });
+    for (let i = 0; i < 3; i++) this.noise({ when: at + 0.1 + Math.random() * 0.9, dur: 0.03, freq: 1100 + Math.random() * 900, q: 5, vol: 0.012, dest: this.amb, pan });
+  }
+
+  // A wedding in a hall below: darbuka in maqsum, an oud over maqam Hijaz,
+  // hand-claps on the off-beats and the odd zaghrouta. Plays until stopped.
+  // set(level, muffle): level 0…1 is loudness; muffle 0…1 closes the door
+  // (bright and open → heard through a steel door and a floor).
+  // Notes are scheduled a bar at a time, just ahead of the audio clock.
+  wedding() {
+    if (!this.ctx) return null;
+    if (this.weddingCtl) return this.weddingCtl;
+    const ctx = this.ctx;
+    const bus = ctx.createGain();
+    bus.gain.value = 0;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 350;
+    lp.Q.value = 0.5;
+    bus.connect(lp).connect(this.music); // the music bus, so the music slider applies
+
+    // D Hijaz, D3 to G4: the augmented second (Eb to F#) is what makes it
+    const H = [146.83, 155.56, 185.0, 196.0, 220.0, 233.08, 261.63, 293.66, 311.13, 369.99, 392.0];
+    const TONIC = 7;
+    const eighth = 60 / 106 / 2;
+    // maqsum over eight eighths: doum, tak, tak, doum, doum, tak
+    const pattern = ['D', 0, 'T', 't', 'D', 0, 'T', 0];
+
+    const doum = (w, v) => {
+      this.tone(150, 0.2, { when: w, vol: 0.34 * v, to: 78, dest: bus });
+      this.noise({ when: w, dur: 0.04, freq: 400, q: 0.8, vol: 0.06 * v, dest: bus });
+    };
+    const tak = (w, v) => {
+      this.noise({ when: w, dur: 0.05, freq: 3200 + Math.random() * 500, q: 2.5, vol: 0.16 * v, dest: bus });
+      this.tone(980, 0.04, { when: w, vol: 0.04 * v, to: 760, dest: bus });
+    };
+    const clap = (w, v) => {
+      // several people, none quite together
+      const people = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < people; i++) {
+        this.noise({ when: w + Math.random() * 0.03, dur: 0.04 + Math.random() * 0.04, freq: 1500 + Math.random() * 1400, q: 1.2, vol: (0.04 + Math.random() * 0.03) * v, dest: bus, pan: (Math.random() * 2 - 1) * 0.5 });
+      }
+    };
+    const zaghrouta = (w) => {
+      // a high voice trilling on one vowel, climbing a little, then falling away
+      const dur = 1 + Math.random() * 0.5;
+      const f = 880 + Math.random() * 120;
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f, w);
+      o.frequency.linearRampToValueAtTime(f * 1.3, w + dur * 0.4);
+      o.frequency.linearRampToValueAtTime(f * 1.1, w + dur);
+      const trill = ctx.createOscillator();
+      trill.frequency.value = 7 + Math.random() * 1.5;
+      const td = ctx.createGain();
+      td.gain.value = f * 0.07;
+      trill.connect(td).connect(o.frequency);
+      const vowel = ctx.createBiquadFilter();
+      vowel.type = 'bandpass';
+      vowel.frequency.value = 1500;
+      vowel.Q.value = 2.5;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, w);
+      g.gain.linearRampToValueAtTime(0.05, w + 0.18);
+      g.gain.setValueAtTime(0.05, w + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
+      o.connect(vowel).connect(g).connect(this.out(bus, (Math.random() * 2 - 1) * 0.5));
+      for (const n of [o, trill]) {
+        n.start(w);
+        n.stop(w + dur + 0.05);
+      }
+    };
+
+    let bar = 0;
+    let idx = TONIC;
+    let next = this.t + 0.1;
+    let sinceZ = 4; // bars since the last zaghrouta
+    const schedule = () => {
+      if (ctx.state !== 'running') return;
+      next = Math.max(next, this.t + 0.05);
+      while (next < this.t + 1.2) {
+        const last = bar % 4 === 3; // every fourth bar closes on the fill and the tonic
+        const fill = last && Math.random() < 0.5;
+        for (let s = 0; s < 8; s++) {
+          const w = next + s * eighth + (Math.random() - 0.5) * 0.014;
+          const k = pattern[s];
+          if (fill && s >= 6) continue;
+          if (k === 'D') doum(w, 0.9 + Math.random() * 0.2);
+          else if (k === 'T') tak(w, 0.85 + Math.random() * 0.3);
+          else if (k === 't') tak(w, 0.45);
+          else if (Math.random() < 0.25) tak(w, 0.25); // ghost note
+          if (s === 2 || s === 6) clap(w + 0.006, 0.9 + Math.random() * 0.2);
+          // the oud: lands on the strong steps, ornaments between
+          const strong = s === 0 || s === 2 || s === 3 || s === 4 || s === 6;
+          if (strong ? Math.random() < 0.72 : Math.random() < 0.22) {
+            idx += Math.floor(Math.random() * 5) - 2 + (idx > 9 ? -1 : idx < 3 ? 1 : 0);
+            idx = Math.max(0, Math.min(H.length - 1, idx));
+            if (last && s === 6) idx = TONIC;
+            const f = H[idx];
+            this.pluck(f, w, 0.1 + Math.random() * 0.05, bus, 2200);
+            if (s === 0 && Math.random() < 0.5) this.pluck(H[0], w, 0.07, bus, 900); // a low D under it
+          }
+        }
+        if (fill) {
+          // a roll of sixteenths up to the next bar
+          for (let j = 0; j < 4; j++) {
+            const w = next + 6 * eighth + j * eighth * 0.5;
+            if (j % 2) tak(w, 0.7 + Math.random() * 0.3);
+            else doum(w, 0.6);
+          }
+        }
+        sinceZ++;
+        if (sinceZ > 5 && Math.random() < 0.18) {
+          zaghrouta(next + eighth * (1 + Math.random() * 3));
+          sinceZ = 0;
+        }
+        next += 8 * eighth;
+        bar++;
+      }
+    };
+    schedule();
+    const timer = setInterval(schedule, 400);
+
+    const ctl = {
+      set: (level = 0, muffle = 0) => {
+        const w = this.t;
+        const l = Math.max(0, Math.min(1, level));
+        const m = Math.max(0, Math.min(1, muffle));
+        bus.gain.cancelScheduledValues(w);
+        bus.gain.setTargetAtTime(l * 0.9, w, 0.1);
+        lp.frequency.cancelScheduledValues(w);
+        lp.frequency.setTargetAtTime(6000 * Math.pow(350 / 6000, m), w, 0.1);
+      },
+      stop: () => {
+        if (this.weddingCtl !== ctl) return;
+        this.weddingCtl = null;
+        clearInterval(timer);
+        const w = this.t;
+        bus.gain.cancelScheduledValues(w);
+        bus.gain.setTargetAtTime(0, w, 0.25); // about a second to nothing
+        // notes already queued are silent by now; let them finish, then unhook
+        setTimeout(() => {
+          bus.disconnect();
+          lp.disconnect();
+        }, 5000);
+      },
+    };
+    this.weddingCtl = ctl;
+    return ctl;
+  }
+
   // A soft, woody tick.
   click() {
     this.noise({ dur: 0.025, freq: 2200, q: 3, vol: 0.12 });

@@ -2755,6 +2755,184 @@ class Sound {
     for (let i = 0; i < 5; i++) this.noise({ when: this.t + 2 + i * 0.22, dur: 0.06, freq: 1200 + Math.random() * 800, q: 1.5, vol: 0.08 });
   }
 
+  // One dog, far off: a single bark and the ghost of it coming back off the
+  // buildings. (dogFar is a run of two to four.)
+  dogBarkFar(pan) {
+    if (!this.ctx) return;
+    const w = this.t;
+    const f = 380 + Math.random() * 90;
+    this.noise({ when: w, dur: 0.15, freq: 640 + Math.random() * 120, q: 3, vol: 0.05, dest: this.amb, pan, sweep: 480 });
+    this.tone(f, 0.13, { when: w, type: 'sawtooth', vol: 0.007, to: f * 0.7, dest: this.amb, pan });
+    this.noise({ when: w + 0.28, dur: 0.14, freq: 480, q: 2, vol: 0.012, dest: this.amb, pan: pan == null ? null : -pan * 0.6, sweep: 360 });
+  }
+
+  // A building settling at night: old timber easing in stages, a low
+  // shifting underneath it, and a few small ticks as it comes to rest. Quiet.
+  buildingCreak(pan) {
+    if (!this.ctx) return;
+    const w = this.t;
+    const base = 105 + Math.random() * 45;
+    const n = 3 + Math.floor(Math.random() * 3);
+    let at = w;
+    for (let i = 0; i < n; i++) {
+      // each give of the beam: a slow, wavering slide in pitch
+      const d = 0.28 + Math.random() * 0.3;
+      const f = base * (1 + Math.random() * 0.35);
+      this.tone(f, d, { when: at, type: 'sawtooth', vol: 0.005, to: f * (Math.random() < 0.5 ? 0.85 : 1.2), attack: d * 0.5, dest: this.amb, pan });
+      this.noise({ when: at, dur: d, freq: 700 + Math.random() * 500, q: 8, vol: 0.006, attack: d * 0.5, dest: this.amb, pan, sweep: 500 + Math.random() * 600 });
+      at += d * (0.7 + Math.random() * 0.5);
+    }
+    this.noise({ when: w, dur: at - w + 0.8, freq: 190, type: 'lowpass', vol: 0.035, attack: 0.5, buf: this.brownBuf, dest: this.amb, pan });
+    for (let i = 0; i < 3; i++) this.noise({ when: at + 0.1 + Math.random() * 0.9, dur: 0.03, freq: 1100 + Math.random() * 900, q: 5, vol: 0.012, dest: this.amb, pan });
+  }
+
+  // A wedding in a hall below: darbuka in maqsum, an oud over maqam Hijaz,
+  // hand-claps on the off-beats and the odd zaghrouta. Plays until stopped.
+  // set(level, muffle): level 0…1 is loudness; muffle 0…1 closes the door
+  // (bright and open → heard through a steel door and a floor).
+  // Notes are scheduled a bar at a time, just ahead of the audio clock.
+  wedding() {
+    if (!this.ctx) return null;
+    if (this.weddingCtl) return this.weddingCtl;
+    const ctx = this.ctx;
+    const bus = ctx.createGain();
+    bus.gain.value = 0;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 350;
+    lp.Q.value = 0.5;
+    bus.connect(lp).connect(this.music); // the music bus, so the music slider applies
+
+    // D Hijaz, D3 to G4: the augmented second (Eb to F#) is what makes it
+    const H = [146.83, 155.56, 185.0, 196.0, 220.0, 233.08, 261.63, 293.66, 311.13, 369.99, 392.0];
+    const TONIC = 7;
+    const eighth = 60 / 106 / 2;
+    // maqsum over eight eighths: doum, tak, tak, doum, doum, tak
+    const pattern = ['D', 0, 'T', 't', 'D', 0, 'T', 0];
+
+    const doum = (w, v) => {
+      this.tone(150, 0.2, { when: w, vol: 0.34 * v, to: 78, dest: bus });
+      this.noise({ when: w, dur: 0.04, freq: 400, q: 0.8, vol: 0.06 * v, dest: bus });
+    };
+    const tak = (w, v) => {
+      this.noise({ when: w, dur: 0.05, freq: 3200 + Math.random() * 500, q: 2.5, vol: 0.16 * v, dest: bus });
+      this.tone(980, 0.04, { when: w, vol: 0.04 * v, to: 760, dest: bus });
+    };
+    const clap = (w, v) => {
+      // several people, none quite together
+      const people = 3 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < people; i++) {
+        this.noise({ when: w + Math.random() * 0.03, dur: 0.04 + Math.random() * 0.04, freq: 1500 + Math.random() * 1400, q: 1.2, vol: (0.04 + Math.random() * 0.03) * v, dest: bus, pan: (Math.random() * 2 - 1) * 0.5 });
+      }
+    };
+    const zaghrouta = (w) => {
+      // a high voice trilling on one vowel, climbing a little, then falling away
+      const dur = 1 + Math.random() * 0.5;
+      const f = 880 + Math.random() * 120;
+      const o = ctx.createOscillator();
+      o.type = 'sawtooth';
+      o.frequency.setValueAtTime(f, w);
+      o.frequency.linearRampToValueAtTime(f * 1.3, w + dur * 0.4);
+      o.frequency.linearRampToValueAtTime(f * 1.1, w + dur);
+      const trill = ctx.createOscillator();
+      trill.frequency.value = 7 + Math.random() * 1.5;
+      const td = ctx.createGain();
+      td.gain.value = f * 0.07;
+      trill.connect(td).connect(o.frequency);
+      const vowel = ctx.createBiquadFilter();
+      vowel.type = 'bandpass';
+      vowel.frequency.value = 1500;
+      vowel.Q.value = 2.5;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(0.0001, w);
+      g.gain.linearRampToValueAtTime(0.05, w + 0.18);
+      g.gain.setValueAtTime(0.05, w + dur * 0.7);
+      g.gain.exponentialRampToValueAtTime(0.0001, w + dur);
+      o.connect(vowel).connect(g).connect(this.out(bus, (Math.random() * 2 - 1) * 0.5));
+      for (const n of [o, trill]) {
+        n.start(w);
+        n.stop(w + dur + 0.05);
+      }
+    };
+
+    let bar = 0;
+    let idx = TONIC;
+    let next = this.t + 0.1;
+    let sinceZ = 4; // bars since the last zaghrouta
+    const schedule = () => {
+      if (ctx.state !== 'running') return;
+      next = Math.max(next, this.t + 0.05);
+      while (next < this.t + 1.2) {
+        const last = bar % 4 === 3; // every fourth bar closes on the fill and the tonic
+        const fill = last && Math.random() < 0.5;
+        for (let s = 0; s < 8; s++) {
+          const w = next + s * eighth + (Math.random() - 0.5) * 0.014;
+          const k = pattern[s];
+          if (fill && s >= 6) continue;
+          if (k === 'D') doum(w, 0.9 + Math.random() * 0.2);
+          else if (k === 'T') tak(w, 0.85 + Math.random() * 0.3);
+          else if (k === 't') tak(w, 0.45);
+          else if (Math.random() < 0.25) tak(w, 0.25); // ghost note
+          if (s === 2 || s === 6) clap(w + 0.006, 0.9 + Math.random() * 0.2);
+          // the oud: lands on the strong steps, ornaments between
+          const strong = s === 0 || s === 2 || s === 3 || s === 4 || s === 6;
+          if (strong ? Math.random() < 0.72 : Math.random() < 0.22) {
+            idx += Math.floor(Math.random() * 5) - 2 + (idx > 9 ? -1 : idx < 3 ? 1 : 0);
+            idx = Math.max(0, Math.min(H.length - 1, idx));
+            if (last && s === 6) idx = TONIC;
+            const f = H[idx];
+            this.pluck(f, w, 0.1 + Math.random() * 0.05, bus, 2200);
+            if (s === 0 && Math.random() < 0.5) this.pluck(H[0], w, 0.07, bus, 900); // a low D under it
+          }
+        }
+        if (fill) {
+          // a roll of sixteenths up to the next bar
+          for (let j = 0; j < 4; j++) {
+            const w = next + 6 * eighth + j * eighth * 0.5;
+            if (j % 2) tak(w, 0.7 + Math.random() * 0.3);
+            else doum(w, 0.6);
+          }
+        }
+        sinceZ++;
+        if (sinceZ > 5 && Math.random() < 0.18) {
+          zaghrouta(next + eighth * (1 + Math.random() * 3));
+          sinceZ = 0;
+        }
+        next += 8 * eighth;
+        bar++;
+      }
+    };
+    schedule();
+    const timer = setInterval(schedule, 400);
+
+    const ctl = {
+      set: (level = 0, muffle = 0) => {
+        const w = this.t;
+        const l = Math.max(0, Math.min(1, level));
+        const m = Math.max(0, Math.min(1, muffle));
+        bus.gain.cancelScheduledValues(w);
+        bus.gain.setTargetAtTime(l * 0.9, w, 0.1);
+        lp.frequency.cancelScheduledValues(w);
+        lp.frequency.setTargetAtTime(6000 * Math.pow(350 / 6000, m), w, 0.1);
+      },
+      stop: () => {
+        if (this.weddingCtl !== ctl) return;
+        this.weddingCtl = null;
+        clearInterval(timer);
+        const w = this.t;
+        bus.gain.cancelScheduledValues(w);
+        bus.gain.setTargetAtTime(0, w, 0.25); // about a second to nothing
+        // notes already queued are silent by now; let them finish, then unhook
+        setTimeout(() => {
+          bus.disconnect();
+          lp.disconnect();
+        }, 5000);
+      },
+    };
+    this.weddingCtl = ctl;
+    return ctl;
+  }
+
   // A soft, woody tick.
   click() {
     this.noise({ dur: 0.025, freq: 2200, q: 3, vol: 0.12 });
@@ -7396,6 +7574,8 @@ class Game {
   }
 
   start(act, state) {
+    // the act being left lets go of anything still running (a band playing)
+    if (this.act && this.a) this.act.leave?.(this);
     this.act = act;
     this.state = state;
     this.level = new Level(act.bounds ? { bounds: act.bounds } : undefined);
@@ -8033,6 +8213,10 @@ const SHEEN = 'rgba(120,128,150,0.32)';
 const EYE = '#c2c83c';
 
 const mixp = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
+const ease = (t) => clamp(t) * clamp(t) * (3 - 2 * clamp(t));
+const MOUTH = '#d98a98';
+const TONGUE = '#b95d70';
+const TOOTH = '#f1ece4';
 
 class Cat {
   constructor() {
@@ -8046,7 +8230,14 @@ class Cat {
     this.time = 0;
     this.headTurn = 0; // kept for the scene scripts
     this.lean = 0; // 0 … 1: leaning its head into a hand
+    this.yawn = 0; // 0 … 1: a wide yawn, at its widest at 1
+    this.curl = 0; // 0 … 1: from sitting down into a sleeping loaf
     this.hidden = false;
+  }
+
+  // True whenever the lids are shut, so scripts can skip the eye glint.
+  get eyesClosed() {
+    return this.blink >= 0.5 || this.yawn > 0.3 || this.curl > 0.6;
   }
 
   update(dt) {
@@ -8066,14 +8257,30 @@ class Cat {
     const SIT = [[-26, -6], [-27, -22], [-15, -38], [2, -50], [9, -55], [19, -37], [17, -14], [7, -5], [-6, -2], [-24, 0]];
     // leaning into a hand, standing: the back and rump rise to meet it
     const arch = [0, 3, 4, 2, 0, 0, 0, 0, 0, 1];
+    // curled up: a low loaf, back rounded, chest and belly on the ground
+    const LOAF = [[-30, -5], [-32, -13], [-18, -21], [-2, -24], [8, -23], [19, -14], [18, -5], [8, -1], [-8, -1], [-27, -1]];
+    const ce = ease(this.curl);
+    const yw = ease(this.yawn);
     const outline = STAND.map((q, k) => [lerp(q[0], SIT[k][0], s), lerp(q[1] + bob - arch[k] * this.lean, SIT[k][1] + (k >= 2 && k <= 5 ? breathe * 0.4 : 0), s)]);
+    if (ce > 0) {
+      for (let k = 0; k < outline.length; k++) {
+        outline[k] = mixp(outline[k], LOAF[k], ce);
+        // the slow breath lifts the whole back of the loaf
+        if (k >= 1 && k <= 5) outline[k][1] += breathe * 1.3 * ce;
+      }
+    }
+    let head = mixp([35 + this.lean * 3, -52 + bob - this.lean * 2], [17 + this.lean * 4, -69 + breathe * 0.3 + this.lean * 3], s);
+    head = mixp(head, [27, -14 + breathe * 0.6], ce); // chin down, resting on the paws
+    head = [head[0] - 2.5 * yw, head[1] - 0.5 * yw]; // tipped back on the neck
     return {
       s,
+      ce,
+      yw,
       walking,
       outline,
-      head: mixp([35 + this.lean * 3, -52 + bob - this.lean * 2], [17 + this.lean * 4, -69 + breathe * 0.3 + this.lean * 3], s),
-      shoulder: mixp([20, -30 + bob], [12, -28], s),
-      hip: mixp([-24, -30 + bob], [-14, -12], s),
+      head,
+      shoulder: mixp(mixp([20, -30 + bob], [12, -28], s), [10, -12], ce),
+      hip: mixp(mixp([-24, -30 + bob], [-14, -12], s), [-14, -6], ce),
       breathe,
     };
   }
@@ -8089,10 +8296,15 @@ class Cat {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    this.tail(ctx, b);
-    // far legs first, darker
-    this.frontLeg(ctx, b, 0.5, false);
-    this.hindLeg(ctx, b, 0.0, false);
+    // curled, the tail lies over the body instead, so it is drawn later
+    const wrapped = b.ce > 0.4;
+    if (!wrapped) this.tail(ctx, b);
+    // far legs first, darker; curling tucks them away
+    const tucked = b.ce > 0.55;
+    if (!tucked) {
+      this.frontLeg(ctx, b, 0.5, false);
+      this.hindLeg(ctx, b, 0.0, false);
+    }
 
     // body: deep chest, tucked waist, round haunch
     ctx.beginPath();
@@ -8112,20 +8324,36 @@ class Cat {
     ctx.stroke();
 
     // near legs
-    this.hindLeg(ctx, b, 0.5, true);
-    this.frontLeg(ctx, b, 0.0, true);
+    if (!tucked) {
+      this.hindLeg(ctx, b, 0.5, true);
+      this.frontLeg(ctx, b, 0.0, true);
+    }
     // sitting: the haunch as a round mass over the folded hind leg
     if (s > 0.05) {
       ctx.globalAlpha = s;
       ctx.fillStyle = FUR;
       ctx.beginPath();
-      ctx.ellipse(-14, -12, 13, 12, 0, 0, Math.PI * 2);
+      ctx.ellipse(-14, lerp(-12, -8, b.ce), lerp(13, 16, b.ce), lerp(12, 8, b.ce), 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = SHEEN;
       ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.arc(-14, -12, 11, -2.7, -1.1);
+      ctx.arc(-14, lerp(-12, -8, b.ce), lerp(11, 14, b.ce), -2.7, -1.1);
       ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (wrapped) {
+      this.tail(ctx, b);
+      // front paws folded under the chest, just a hint of them
+      const pw = clamp((b.ce - 0.4) * 2);
+      ctx.fillStyle = FAR;
+      ctx.beginPath();
+      ctx.ellipse(27, -2.2, 5 * pw, 2.4 * pw, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = FUR;
+      ctx.beginPath();
+      ctx.ellipse(21, -2.6, 5.5 * pw, 2.8 * pw, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.globalAlpha = 1;
     }
 
@@ -8143,17 +8371,78 @@ class Cat {
   }
 
   headDraw(ctx, h) {
+    const yw = ease(this.yawn);
+    const ce = ease(this.curl);
     ctx.save();
     ctx.translate(h[0], h[1]);
-    ctx.rotate(noise1(this.time * 0.3) * 0.05 * (1 - this.lean) - this.lean * 0.32);
+    // a yawn tips the nose up; sleep drops it onto the paws
+    ctx.rotate(noise1(this.time * 0.3) * 0.05 * (1 - this.lean) * (1 - ce) - this.lean * 0.32 - yw * 0.42 + ce * 0.42);
     ctx.scale(1.2, 1.2);
-    // far ear, then the skull, muzzle and chin
+    // ears lie back a little in a yawn, and slacken in sleep
+    const back = Math.max(yw * 0.55, ce * 0.22);
+    // far ear, then the lower jaw, the skull and muzzle
+    ctx.save();
+    ctx.translate(-3, -6);
+    ctx.rotate(-back);
+    ctx.translate(3, 6);
     ctx.fillStyle = FAR;
     ctx.beginPath();
     ctx.moveTo(-6, -6);
     ctx.lineTo(-7, -18);
     ctx.lineTo(0, -8);
     ctx.fill();
+    ctx.restore();
+    let jaw = null;
+    if (yw > 0.01) {
+      // the jaw swings down on a hinge under the cheek; pale pink inside
+      const a = yw * 0.8;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const hx = -3;
+      const hy = 4;
+      jaw = (x, y) => [hx + (x - hx) * ca - (y - hy) * sa, hy + (x - hx) * sa + (y - hy) * ca];
+      const lip = jaw(9.5, 6.4);
+      const chin = jaw(8, 10.5);
+      const c1 = jaw(2, 11);
+      const c2 = jaw(-6, 9);
+      ctx.fillStyle = FUR;
+      ctx.beginPath();
+      ctx.moveTo(hx - 2, hy - 1);
+      ctx.lineTo(lip[0], lip[1]);
+      ctx.quadraticCurveTo(chin[0] + 1.5, chin[1] - 1, chin[0], chin[1]);
+      ctx.quadraticCurveTo(c1[0], c1[1], c2[0], c2[1]);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = MOUTH;
+      ctx.beginPath();
+      ctx.moveTo(hx, hy - 1);
+      ctx.lineTo(9.6, 5.8);
+      ctx.lineTo(lip[0] - 0.4, lip[1] - 0.3);
+      ctx.lineTo(hx + 1, hy + 2);
+      ctx.closePath();
+      ctx.fill();
+      // tongue, curled up from the floor of the mouth
+      const t0 = jaw(0, 6.2);
+      const t1 = jaw(5, 5.6);
+      const t2 = jaw(8, 5.4);
+      ctx.fillStyle = TONGUE;
+      ctx.beginPath();
+      ctx.moveTo(t0[0], t0[1]);
+      ctx.quadraticCurveTo(t1[0], t1[1] - 2.2 * yw, t2[0], t2[1]);
+      ctx.lineTo(t2[0] - 1, t2[1] + 0.8);
+      ctx.lineTo(t0[0], t0[1] + 1);
+      ctx.fill();
+      // lower fang
+      const f0 = jaw(7.3, 6.4);
+      const f1 = jaw(8.1, 3.2);
+      const f2 = jaw(8.9, 6.3);
+      ctx.fillStyle = TOOTH;
+      ctx.beginPath();
+      ctx.moveTo(f0[0], f0[1]);
+      ctx.lineTo(f1[0], f1[1]);
+      ctx.lineTo(f2[0], f2[1]);
+      ctx.fill();
+    }
     ctx.fillStyle = FUR;
     ctx.beginPath();
     ctx.moveTo(-9, 2);
@@ -8162,10 +8451,33 @@ class Cat {
     ctx.lineTo(13, 1); // nose bridge
     ctx.quadraticCurveTo(14, 3, 12.5, 4.5); // nose
     ctx.quadraticCurveTo(10, 5.5, 9, 7); // mouth
-    ctx.quadraticCurveTo(6, 9, 1, 8); // chin
-    ctx.quadraticCurveTo(-6, 8, -9, 2); // jaw
+    // in a yawn the skull ends at the upper lip and the jaw hangs below
+    ctx.quadraticCurveTo(lerp(6, 6, yw), lerp(9, 5.8, yw), lerp(1, 0, yw), lerp(8, 4.6, yw)); // chin
+    ctx.quadraticCurveTo(lerp(-6, -6, yw), lerp(8, 5, yw), -9, 2); // jaw
     ctx.fill();
+    if (yw > 0.01) {
+      // upper fang
+      ctx.fillStyle = TOOTH;
+      ctx.beginPath();
+      ctx.moveTo(7.2, 6.2);
+      ctx.lineTo(8, 9.4);
+      ctx.lineTo(8.8, 6.3);
+      ctx.fill();
+      // a few small teeth along the lip
+      for (const tx of [4.6, 2.6, 0.6]) {
+        ctx.beginPath();
+        ctx.moveTo(tx - 0.7, 5.2);
+        ctx.lineTo(tx, 6.7);
+        ctx.lineTo(tx + 0.7, 5.2);
+        ctx.fill();
+      }
+      ctx.fillStyle = FUR;
+    }
     // near ear, tall, with a notch out of its tip (the left ear)
+    ctx.save();
+    ctx.translate(1.5, -7);
+    ctx.rotate(-back);
+    ctx.translate(-1.5, 7);
     ctx.beginPath();
     ctx.moveTo(-3, -7);
     ctx.lineTo(0, -19);
@@ -8179,6 +8491,7 @@ class Cat {
     ctx.lineTo(1.5, -14);
     ctx.lineTo(4, -8);
     ctx.fill();
+    ctx.restore();
     // sheen on the crown and the bridge of the nose
     ctx.strokeStyle = SHEEN;
     ctx.lineWidth = 1.2;
@@ -8189,11 +8502,34 @@ class Cat {
     ctx.lineTo(12.5, 1);
     ctx.stroke();
     // eye: yellow-green almond with a slit pupil; lids close on a blink
-    const open = 1 - clamp(this.blink);
-    ctx.fillStyle = EYE;
-    ctx.beginPath();
-    ctx.ellipse(5.5, -2.5, 2.8, 2.1 * open + 0.15, -0.15, 0, Math.PI * 2);
-    ctx.fill();
+    const squeeze = clamp(this.yawn * 3.3);
+    const drowse = clamp((this.curl - 0.3) / 0.3);
+    const open = 1 - Math.max(clamp(this.blink), squeeze, drowse);
+    if (open < 0.12 && (squeeze > 0.9 || drowse > 0.9)) {
+      // shut tight: a pale curved lid line, hard-creased in a yawn, a soft
+      // downward crescent in sleep
+      const up = squeeze >= drowse ? -1 : 1;
+      ctx.strokeStyle = 'rgba(170,178,198,0.75)';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(2.8, -2.4);
+      ctx.quadraticCurveTo(5.6, -2.4 + 2.6 * up, 8.4, -2.4);
+      ctx.stroke();
+      if (up < 0) {
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(3, -4.4);
+        ctx.lineTo(5, -3.6);
+        ctx.moveTo(4.5, -6);
+        ctx.lineTo(6, -4.6);
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = EYE;
+      ctx.beginPath();
+      ctx.ellipse(5.5, -2.5, 2.8, 2.1 * open + 0.15, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
     if (open > 0.3) {
       ctx.fillStyle = '#050505';
       ctx.beginPath();
@@ -8301,10 +8637,12 @@ class Cat {
     ctx.beginPath();
     ctx.moveTo(r[0] + 2, r[1]);
     if (s > 0.5) {
-      // out behind the haunch and round the front of the paws
-      ctx.bezierCurveTo(r[0] - 14, r[1] + 4, -20, 1, 2, -1.5);
+      // out behind the haunch and round the front of the paws; curled up,
+      // it hugs the ground right round the body and tucks under the chin
+      const ce = b.ce;
       const curl = this.lean * 9;
-      ctx.quadraticCurveTo(20 + sway * 0.5, -2 - curl * 0.3, 27 + flick - curl * 0.3, -7 - flick * 0.4 - curl);
+      ctx.bezierCurveTo(r[0] - lerp(14, 8, ce), r[1] + lerp(4, 4, ce), lerp(-20, -34, ce), lerp(1, -1.5, ce), lerp(2, -6, ce), lerp(-1.5, -2.2, ce));
+      ctx.quadraticCurveTo(lerp(20 + sway * 0.5, 12, ce), lerp(-2 - curl * 0.3, -1.4, ce), lerp(27 + flick - curl * 0.3, 25, ce), lerp(-7 - flick * 0.4 - curl, -3.5, ce));
     } else {
       ctx.bezierCurveTo(r[0] - 16, r[1] + 2, r[0] - 26 + sway, r[1] - 22, r[0] - 16 + sway, r[1] - 40 - flick);
     }
@@ -15322,7 +15660,7 @@ function stairFlight(R, xa, ya, xb, yb, { broken = -1, slab = false, t = 0 } = {
   }
 }
 
-return { X1, FH, floorY, X2, nightLook, surfaceAt, drawApproach, blanketShape, drawBuilding, buildBuilding, stairFlight };
+return { X1, FH, floorY, X2, nightSky, nightLook, surfaceAt, drawApproach, blanketShape, drawBuilding, buildBuilding, stairFlight };
 })();
 
 // ---- src/story/act3r-lines.js

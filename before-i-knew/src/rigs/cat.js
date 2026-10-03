@@ -12,6 +12,10 @@ const SHEEN = 'rgba(120,128,150,0.32)';
 const EYE = '#c2c83c';
 
 const mixp = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t)];
+const ease = (t) => clamp(t) * clamp(t) * (3 - 2 * clamp(t));
+const MOUTH = '#d98a98';
+const TONGUE = '#b95d70';
+const TOOTH = '#f1ece4';
 
 export class Cat {
   constructor() {
@@ -25,7 +29,14 @@ export class Cat {
     this.time = 0;
     this.headTurn = 0; // kept for the scene scripts
     this.lean = 0; // 0 … 1: leaning its head into a hand
+    this.yawn = 0; // 0 … 1: a wide yawn, at its widest at 1
+    this.curl = 0; // 0 … 1: from sitting down into a sleeping loaf
     this.hidden = false;
+  }
+
+  // True whenever the lids are shut, so scripts can skip the eye glint.
+  get eyesClosed() {
+    return this.blink >= 0.5 || this.yawn > 0.3 || this.curl > 0.6;
   }
 
   update(dt) {
@@ -45,14 +56,30 @@ export class Cat {
     const SIT = [[-26, -6], [-27, -22], [-15, -38], [2, -50], [9, -55], [19, -37], [17, -14], [7, -5], [-6, -2], [-24, 0]];
     // leaning into a hand, standing: the back and rump rise to meet it
     const arch = [0, 3, 4, 2, 0, 0, 0, 0, 0, 1];
+    // curled up: a low loaf, back rounded, chest and belly on the ground
+    const LOAF = [[-30, -5], [-32, -13], [-18, -21], [-2, -24], [8, -23], [19, -14], [18, -5], [8, -1], [-8, -1], [-27, -1]];
+    const ce = ease(this.curl);
+    const yw = ease(this.yawn);
     const outline = STAND.map((q, k) => [lerp(q[0], SIT[k][0], s), lerp(q[1] + bob - arch[k] * this.lean, SIT[k][1] + (k >= 2 && k <= 5 ? breathe * 0.4 : 0), s)]);
+    if (ce > 0) {
+      for (let k = 0; k < outline.length; k++) {
+        outline[k] = mixp(outline[k], LOAF[k], ce);
+        // the slow breath lifts the whole back of the loaf
+        if (k >= 1 && k <= 5) outline[k][1] += breathe * 1.3 * ce;
+      }
+    }
+    let head = mixp([35 + this.lean * 3, -52 + bob - this.lean * 2], [17 + this.lean * 4, -69 + breathe * 0.3 + this.lean * 3], s);
+    head = mixp(head, [27, -14 + breathe * 0.6], ce); // chin down, resting on the paws
+    head = [head[0] - 2.5 * yw, head[1] - 0.5 * yw]; // tipped back on the neck
     return {
       s,
+      ce,
+      yw,
       walking,
       outline,
-      head: mixp([35 + this.lean * 3, -52 + bob - this.lean * 2], [17 + this.lean * 4, -69 + breathe * 0.3 + this.lean * 3], s),
-      shoulder: mixp([20, -30 + bob], [12, -28], s),
-      hip: mixp([-24, -30 + bob], [-14, -12], s),
+      head,
+      shoulder: mixp(mixp([20, -30 + bob], [12, -28], s), [10, -12], ce),
+      hip: mixp(mixp([-24, -30 + bob], [-14, -12], s), [-14, -6], ce),
       breathe,
     };
   }
@@ -68,10 +95,15 @@ export class Cat {
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
 
-    this.tail(ctx, b);
-    // far legs first, darker
-    this.frontLeg(ctx, b, 0.5, false);
-    this.hindLeg(ctx, b, 0.0, false);
+    // curled, the tail lies over the body instead, so it is drawn later
+    const wrapped = b.ce > 0.4;
+    if (!wrapped) this.tail(ctx, b);
+    // far legs first, darker; curling tucks them away
+    const tucked = b.ce > 0.55;
+    if (!tucked) {
+      this.frontLeg(ctx, b, 0.5, false);
+      this.hindLeg(ctx, b, 0.0, false);
+    }
 
     // body: deep chest, tucked waist, round haunch
     ctx.beginPath();
@@ -91,20 +123,36 @@ export class Cat {
     ctx.stroke();
 
     // near legs
-    this.hindLeg(ctx, b, 0.5, true);
-    this.frontLeg(ctx, b, 0.0, true);
+    if (!tucked) {
+      this.hindLeg(ctx, b, 0.5, true);
+      this.frontLeg(ctx, b, 0.0, true);
+    }
     // sitting: the haunch as a round mass over the folded hind leg
     if (s > 0.05) {
       ctx.globalAlpha = s;
       ctx.fillStyle = FUR;
       ctx.beginPath();
-      ctx.ellipse(-14, -12, 13, 12, 0, 0, Math.PI * 2);
+      ctx.ellipse(-14, lerp(-12, -8, b.ce), lerp(13, 16, b.ce), lerp(12, 8, b.ce), 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.strokeStyle = SHEEN;
       ctx.lineWidth = 1.4;
       ctx.beginPath();
-      ctx.arc(-14, -12, 11, -2.7, -1.1);
+      ctx.arc(-14, lerp(-12, -8, b.ce), lerp(11, 14, b.ce), -2.7, -1.1);
       ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    if (wrapped) {
+      this.tail(ctx, b);
+      // front paws folded under the chest, just a hint of them
+      const pw = clamp((b.ce - 0.4) * 2);
+      ctx.fillStyle = FAR;
+      ctx.beginPath();
+      ctx.ellipse(27, -2.2, 5 * pw, 2.4 * pw, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = FUR;
+      ctx.beginPath();
+      ctx.ellipse(21, -2.6, 5.5 * pw, 2.8 * pw, 0, 0, Math.PI * 2);
+      ctx.fill();
       ctx.globalAlpha = 1;
     }
 
@@ -122,17 +170,78 @@ export class Cat {
   }
 
   headDraw(ctx, h) {
+    const yw = ease(this.yawn);
+    const ce = ease(this.curl);
     ctx.save();
     ctx.translate(h[0], h[1]);
-    ctx.rotate(noise1(this.time * 0.3) * 0.05 * (1 - this.lean) - this.lean * 0.32);
+    // a yawn tips the nose up; sleep drops it onto the paws
+    ctx.rotate(noise1(this.time * 0.3) * 0.05 * (1 - this.lean) * (1 - ce) - this.lean * 0.32 - yw * 0.42 + ce * 0.42);
     ctx.scale(1.2, 1.2);
-    // far ear, then the skull, muzzle and chin
+    // ears lie back a little in a yawn, and slacken in sleep
+    const back = Math.max(yw * 0.55, ce * 0.22);
+    // far ear, then the lower jaw, the skull and muzzle
+    ctx.save();
+    ctx.translate(-3, -6);
+    ctx.rotate(-back);
+    ctx.translate(3, 6);
     ctx.fillStyle = FAR;
     ctx.beginPath();
     ctx.moveTo(-6, -6);
     ctx.lineTo(-7, -18);
     ctx.lineTo(0, -8);
     ctx.fill();
+    ctx.restore();
+    let jaw = null;
+    if (yw > 0.01) {
+      // the jaw swings down on a hinge under the cheek; pale pink inside
+      const a = yw * 0.8;
+      const ca = Math.cos(a);
+      const sa = Math.sin(a);
+      const hx = -3;
+      const hy = 4;
+      jaw = (x, y) => [hx + (x - hx) * ca - (y - hy) * sa, hy + (x - hx) * sa + (y - hy) * ca];
+      const lip = jaw(9.5, 6.4);
+      const chin = jaw(8, 10.5);
+      const c1 = jaw(2, 11);
+      const c2 = jaw(-6, 9);
+      ctx.fillStyle = FUR;
+      ctx.beginPath();
+      ctx.moveTo(hx - 2, hy - 1);
+      ctx.lineTo(lip[0], lip[1]);
+      ctx.quadraticCurveTo(chin[0] + 1.5, chin[1] - 1, chin[0], chin[1]);
+      ctx.quadraticCurveTo(c1[0], c1[1], c2[0], c2[1]);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = MOUTH;
+      ctx.beginPath();
+      ctx.moveTo(hx, hy - 1);
+      ctx.lineTo(9.6, 5.8);
+      ctx.lineTo(lip[0] - 0.4, lip[1] - 0.3);
+      ctx.lineTo(hx + 1, hy + 2);
+      ctx.closePath();
+      ctx.fill();
+      // tongue, curled up from the floor of the mouth
+      const t0 = jaw(0, 6.2);
+      const t1 = jaw(5, 5.6);
+      const t2 = jaw(8, 5.4);
+      ctx.fillStyle = TONGUE;
+      ctx.beginPath();
+      ctx.moveTo(t0[0], t0[1]);
+      ctx.quadraticCurveTo(t1[0], t1[1] - 2.2 * yw, t2[0], t2[1]);
+      ctx.lineTo(t2[0] - 1, t2[1] + 0.8);
+      ctx.lineTo(t0[0], t0[1] + 1);
+      ctx.fill();
+      // lower fang
+      const f0 = jaw(7.3, 6.4);
+      const f1 = jaw(8.1, 3.2);
+      const f2 = jaw(8.9, 6.3);
+      ctx.fillStyle = TOOTH;
+      ctx.beginPath();
+      ctx.moveTo(f0[0], f0[1]);
+      ctx.lineTo(f1[0], f1[1]);
+      ctx.lineTo(f2[0], f2[1]);
+      ctx.fill();
+    }
     ctx.fillStyle = FUR;
     ctx.beginPath();
     ctx.moveTo(-9, 2);
@@ -141,10 +250,33 @@ export class Cat {
     ctx.lineTo(13, 1); // nose bridge
     ctx.quadraticCurveTo(14, 3, 12.5, 4.5); // nose
     ctx.quadraticCurveTo(10, 5.5, 9, 7); // mouth
-    ctx.quadraticCurveTo(6, 9, 1, 8); // chin
-    ctx.quadraticCurveTo(-6, 8, -9, 2); // jaw
+    // in a yawn the skull ends at the upper lip and the jaw hangs below
+    ctx.quadraticCurveTo(lerp(6, 6, yw), lerp(9, 5.8, yw), lerp(1, 0, yw), lerp(8, 4.6, yw)); // chin
+    ctx.quadraticCurveTo(lerp(-6, -6, yw), lerp(8, 5, yw), -9, 2); // jaw
     ctx.fill();
+    if (yw > 0.01) {
+      // upper fang
+      ctx.fillStyle = TOOTH;
+      ctx.beginPath();
+      ctx.moveTo(7.2, 6.2);
+      ctx.lineTo(8, 9.4);
+      ctx.lineTo(8.8, 6.3);
+      ctx.fill();
+      // a few small teeth along the lip
+      for (const tx of [4.6, 2.6, 0.6]) {
+        ctx.beginPath();
+        ctx.moveTo(tx - 0.7, 5.2);
+        ctx.lineTo(tx, 6.7);
+        ctx.lineTo(tx + 0.7, 5.2);
+        ctx.fill();
+      }
+      ctx.fillStyle = FUR;
+    }
     // near ear, tall, with a notch out of its tip (the left ear)
+    ctx.save();
+    ctx.translate(1.5, -7);
+    ctx.rotate(-back);
+    ctx.translate(-1.5, 7);
     ctx.beginPath();
     ctx.moveTo(-3, -7);
     ctx.lineTo(0, -19);
@@ -158,6 +290,7 @@ export class Cat {
     ctx.lineTo(1.5, -14);
     ctx.lineTo(4, -8);
     ctx.fill();
+    ctx.restore();
     // sheen on the crown and the bridge of the nose
     ctx.strokeStyle = SHEEN;
     ctx.lineWidth = 1.2;
@@ -168,11 +301,34 @@ export class Cat {
     ctx.lineTo(12.5, 1);
     ctx.stroke();
     // eye: yellow-green almond with a slit pupil; lids close on a blink
-    const open = 1 - clamp(this.blink);
-    ctx.fillStyle = EYE;
-    ctx.beginPath();
-    ctx.ellipse(5.5, -2.5, 2.8, 2.1 * open + 0.15, -0.15, 0, Math.PI * 2);
-    ctx.fill();
+    const squeeze = clamp(this.yawn * 3.3);
+    const drowse = clamp((this.curl - 0.3) / 0.3);
+    const open = 1 - Math.max(clamp(this.blink), squeeze, drowse);
+    if (open < 0.12 && (squeeze > 0.9 || drowse > 0.9)) {
+      // shut tight: a pale curved lid line, hard-creased in a yawn, a soft
+      // downward crescent in sleep
+      const up = squeeze >= drowse ? -1 : 1;
+      ctx.strokeStyle = 'rgba(170,178,198,0.75)';
+      ctx.lineWidth = 1.1;
+      ctx.beginPath();
+      ctx.moveTo(2.8, -2.4);
+      ctx.quadraticCurveTo(5.6, -2.4 + 2.6 * up, 8.4, -2.4);
+      ctx.stroke();
+      if (up < 0) {
+        ctx.lineWidth = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(3, -4.4);
+        ctx.lineTo(5, -3.6);
+        ctx.moveTo(4.5, -6);
+        ctx.lineTo(6, -4.6);
+        ctx.stroke();
+      }
+    } else {
+      ctx.fillStyle = EYE;
+      ctx.beginPath();
+      ctx.ellipse(5.5, -2.5, 2.8, 2.1 * open + 0.15, -0.15, 0, Math.PI * 2);
+      ctx.fill();
+    }
     if (open > 0.3) {
       ctx.fillStyle = '#050505';
       ctx.beginPath();
@@ -280,10 +436,12 @@ export class Cat {
     ctx.beginPath();
     ctx.moveTo(r[0] + 2, r[1]);
     if (s > 0.5) {
-      // out behind the haunch and round the front of the paws
-      ctx.bezierCurveTo(r[0] - 14, r[1] + 4, -20, 1, 2, -1.5);
+      // out behind the haunch and round the front of the paws; curled up,
+      // it hugs the ground right round the body and tucks under the chin
+      const ce = b.ce;
       const curl = this.lean * 9;
-      ctx.quadraticCurveTo(20 + sway * 0.5, -2 - curl * 0.3, 27 + flick - curl * 0.3, -7 - flick * 0.4 - curl);
+      ctx.bezierCurveTo(r[0] - lerp(14, 8, ce), r[1] + lerp(4, 4, ce), lerp(-20, -34, ce), lerp(1, -1.5, ce), lerp(2, -6, ce), lerp(-1.5, -2.2, ce));
+      ctx.quadraticCurveTo(lerp(20 + sway * 0.5, 12, ce), lerp(-2 - curl * 0.3, -1.4, ce), lerp(27 + flick - curl * 0.3, 25, ce), lerp(-7 - flick * 0.4 - curl, -3.5, ce));
     } else {
       ctx.bezierCurveTo(r[0] - 16, r[1] + 2, r[0] - 26 + sway, r[1] - 22, r[0] - 16 + sway, r[1] - 40 - flick);
     }

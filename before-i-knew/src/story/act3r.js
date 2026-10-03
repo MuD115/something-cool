@@ -687,7 +687,9 @@ export const ACT3R = {
     g.sound.ney(196, 10, 0.16);
     g.text.titleCard(CARDS.after, 6);
     yield 6.5;
-    g.onEnd?.(s);
+    // and on into the night walk (Part 3), straight on
+    if (g.onPart) g.onPart(s);
+    else g.onEnd?.(s);
   },
 
   // ============================================== per-frame extras ==
