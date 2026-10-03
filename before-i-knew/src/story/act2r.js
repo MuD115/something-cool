@@ -29,6 +29,7 @@ const OBJ = {
   rod: ['ابحث عن قضيب معدني', 'Find a metal rod'],
   back: ['عُد إلى المتراس', 'Go back to the sandbags'],
   raise: ['ارفع القماشة البيضاء', 'Raise the white cloth'],
+  out: ['امشِ إلى الشارع والقماشة مرفوعة', 'Walk out into the street, the cloth held high'],
   ruin: ['ادخل المبنى نصف المنهار', 'Go into the half-collapsed building'],
 };
 
@@ -404,7 +405,20 @@ export const ACT2R = {
     a.stepOut = true;
     g.camOverride = { x: X.stop + 160, y: -230, view: 1150 };
     const xc = (X.mouth[0] + X.mouth[1]) / 2;
+    // the walk out is his: arms up, slow, no going back
+    p.override = null;
+    p.arms = { head: P_RAISE.head, armN: P_RAISE.armN, foreN: P_RAISE.foreN };
+    g.stanceLock = 'stand';
+    g.gate = (m) => Math.max(0, m) * 0.5;
+    g.text.objective(OBJ.out);
+    g.lock(false);
+    yield () => p.x >= xc - 20;
+    g.lock();
+    g.text.objective(null);
+    g.gate = null;
+    g.stanceLock = null;
     yield* g.walkPlayer(xc);
+    p.arms = null;
     p.override = P_RAISE;
     yield* intoDepth(g, p, xc, 0.07, 0.3);
     yield* this.finish(g);

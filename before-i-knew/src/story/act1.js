@@ -1226,7 +1226,24 @@ export const ACT1 = {
     g.sound.life(0); // the town goes quiet around the news
     g.lock();
     g.text.objective(null);
-    // He lets Sami come to him: the walk towards him is the last of not knowing.
+    // He lets Sami come to him: the walk towards him is the last of not
+    // knowing. The player walks it, slowly, and can't turn back.
+    g.stanceLock = 'stand';
+    g.gate = (m) => Math.max(0, m) * 0.55;
+    g.lock(false);
+    const t0w = g.time;
+    let hinted = false;
+    yield () => {
+      if (!hinted && g.time - t0w > 4 && p.x < X.kerb - 60) {
+        hinted = true;
+        g.prompt('right', 'امشِ', 'Walk');
+      }
+      return p.x >= X.kerb + 10;
+    };
+    g.lock();
+    g.prompt(null);
+    g.gate = null;
+    g.stanceLock = null;
     yield* g.walkPlayer(X.kerb + 30);
     yield () => g.a.abuArrived !== false;
     p.f = 1;
