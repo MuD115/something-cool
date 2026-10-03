@@ -14,6 +14,7 @@ import { lerp, clamp, rng, mixc, smooth } from '../engine/util.js';
 import * as T from '../sets/town.js';
 import { horizon, rgbOf } from '../sets/horizon.js';
 import { depthCast, deepScenery, figureBox } from '../engine/dof.js';
+import { DEPTH, extrudePoly, extrudeRect } from '../sets/depth.js';
 
 export const X = {
   start: 150,
@@ -249,9 +250,19 @@ export function sandbags(R, x, w, rows = 3, { color = '#9c8a68', cast = true } =
       const off = row % 2 ? 22 : 0;
       for (let bx = x + off; bx < x + w - 20; bx += 44) {
         const sh = 0.82 + r() * 0.3;
+        const tilt = (r() - 0.5) * 0.08;
+        // the far side of the bag, a darker twin set back up and to the right
+        c.fillStyle = T.shade(color, sh * 0.45);
+        c.beginPath();
+        c.ellipse(bx + 22 + DEPTH.x * 18, y - 11 + DEPTH.y * 18, 24, 12, tilt, 0, Math.PI * 2);
+        c.fill();
+        c.fillStyle = T.shade(color, sh * 0.62);
+        c.beginPath();
+        c.ellipse(bx + 22 + DEPTH.x * 9, y - 11 + DEPTH.y * 9, 24, 12, tilt, 0, Math.PI * 2);
+        c.fill();
         c.fillStyle = T.shade(color, sh);
         c.beginPath();
-        c.ellipse(bx + 22, y - 11, 24, 12, (r() - 0.5) * 0.08, 0, Math.PI * 2);
+        c.ellipse(bx + 22, y - 11, 24, 12, tilt, 0, Math.PI * 2);
         c.fill();
         c.strokeStyle = 'rgba(40,30,20,0.35)';
         c.lineWidth = 1;
@@ -269,6 +280,8 @@ export function sandbags(R, x, w, rows = 3, { color = '#9c8a68', cast = true } =
 export function concreteBlocks(c, x, n, s = 1, color = '#8d877c') {
   for (let i = 0; i < n; i++) {
     const bx = x + i * 46 * s;
+    // each block is a slab 30 deep: its top and right-hand face show
+    extrudePoly(c, [[bx, 0], [bx + 8 * s, -40 * s], [bx + 32 * s, -40 * s], [bx + 40 * s, 0]], 30 * s, { color });
     c.fillStyle = color;
     c.beginPath();
     c.moveTo(bx, 0);
@@ -285,6 +298,8 @@ export function concreteBlocks(c, x, n, s = 1, color = '#8d877c') {
 export function burntCar(R, x, w = 240) {
   R.cast((c) => {
     const h = 112;
+    // its far side, just visible over the roof and past the tail
+    extrudePoly(c, [[x, -24], [x + 8, -64], [x + w * 0.24, -70], [x + w * 0.34, -h], [x + w * 0.7, -h + 2], [x + w * 0.82, -68], [x + w - 4, -60], [x + w, -24]], 34, { color: '#4a382d', sideK: 0.5, topK: 1.05 });
     c.fillStyle = '#3b2c24';
     c.beginPath();
     c.moveTo(x, -24);
@@ -401,6 +416,7 @@ function fieldHospital(R, x0, x1, t) {
     c.fillStyle = '#3a332b';
     c.fillRect(ox, -30, ow, 30);
     // the table and its supplies
+    extrudeRect(c, ox + 40, -78, 110, 5, 14, { color: '#5d5a52' });
     c.fillStyle = '#5d5a52';
     c.fillRect(ox + 40, -78, 110, 5);
     c.fillRect(ox + 46, -73, 3, 73);
@@ -426,6 +442,7 @@ function fieldHospital(R, x0, x1, t) {
     c.quadraticCurveTo(ox + 214, -90, ox + 200, -60);
     c.stroke();
     // the fridge, and the generator's cable to the lamp
+    extrudeRect(c, ox + 238, -80, 44, 80, 16, { color: '#b8b4aa' });
     c.fillStyle = '#b8b4aa';
     c.fillRect(ox + 238, -80, 44, 80);
     c.fillStyle = '#8c887e';
@@ -450,7 +467,8 @@ function fieldHospital(R, x0, x1, t) {
     // a Red Crescent daubed by the door
   });
   R.cast((c) => {
-    // what's left of the front wall either side of the opening
+    // what's left of the front wall either side of the opening: a wall 24 thick
+    extrudePoly(c, [[ox - 4, 2], [ox - 4, -190], [ox + 40, -196], [ox + 30, -150], [ox + 12, -120], [ox + 10, 2]], 24, { color: '#a2967f' });
     c.fillStyle = '#a2967f';
     c.beginPath();
     c.moveTo(ox - 4, 2);
@@ -492,18 +510,17 @@ function crawlWall(R) {
   const [x0, x1] = X.crawl;
   R.cast((c) => {
     const r = rng(52);
+    const pts = [[x0 - 30, 2], [x0 - 20, -300], [x0 + 40, -340], [x1 - 20, -310], [x1 + 30, -260], [x1 + 40, 2], [x1 - 6, 2]];
+    // the gap: a ragged lip of concrete hanging over it
+    for (let i = 0; i <= 8; i++) pts.push([x1 - 6 - ((x1 - x0 - 12) * i) / 8, -52 - r() * 10]);
+    pts.push([x0 + 6, 2]);
+    // the wall is 26 thick: its torn top, the stump's right-hand end and the
+    // left jamb of the gap all show their depth
+    extrudePoly(c, pts, 26, { color: '#958a76' });
     c.fillStyle = '#958a76';
     c.beginPath();
-    c.moveTo(x0 - 30, 2);
-    c.lineTo(x0 - 20, -300);
-    c.lineTo(x0 + 40, -340);
-    c.lineTo(x1 - 20, -310);
-    c.lineTo(x1 + 30, -260);
-    c.lineTo(x1 + 40, 2);
-    c.lineTo(x1 - 6, 2);
-    // the gap: a ragged lip of concrete hanging over it
-    for (let i = 0; i <= 8; i++) c.lineTo(x1 - 6 - ((x1 - x0 - 12) * i) / 8, -52 - r() * 10);
-    c.lineTo(x0 + 6, 2);
+    c.moveTo(...pts[0]);
+    for (let i = 1; i < pts.length; i++) c.lineTo(...pts[i]);
     c.closePath();
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.18)';
@@ -523,8 +540,20 @@ function crawlWall(R) {
 // A first-floor balcony, and on its rail a sheet drying in the last sun.
 function balcony(R, x, t, sheet) {
   R.cast((c) => {
+    extrudeRect(c, x - 70, -150, 140, 10, 22, { color: '#8a7f6c' });
     c.fillStyle = '#8a7f6c';
     c.fillRect(x - 70, -150, 140, 10);
+    // the far rail, set back across the slab
+    c.strokeStyle = 'rgba(40,32,26,0.55)';
+    c.lineWidth = 1.5;
+    c.beginPath();
+    c.moveTo(x - 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
+    c.lineTo(x + 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
+    c.moveTo(x + 70, -190);
+    c.lineTo(x + 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
+    c.moveTo(x + 70, -150);
+    c.lineTo(x + 70 + DEPTH.x * 22, -150 + DEPTH.y * 22);
+    c.stroke();
     c.strokeStyle = '#3a312a';
     c.lineWidth = 2;
     c.beginPath();
@@ -558,6 +587,19 @@ function guttedFlat(R, x) {
   R.paint((c) => {
     c.fillStyle = '#0f0c0a';
     c.fillRect(x - 45, -175, 90, 175);
+    // the burnt reveal: the wall's thickness down the left-hand side
+    c.save();
+    c.beginPath();
+    c.rect(x - 45, -175, 90, 175);
+    c.clip();
+    c.fillStyle = '#2a211b';
+    c.beginPath();
+    c.moveTo(x - 45, -175);
+    c.lineTo(x - 45 + DEPTH.x * 24, -175 + DEPTH.y * 24);
+    c.lineTo(x - 45 + DEPTH.x * 24, DEPTH.y * 24);
+    c.lineTo(x - 45, 0);
+    c.fill();
+    c.restore();
     const grd = c.createLinearGradient(0, -175, 0, -420);
     grd.addColorStop(0, 'rgba(18,14,12,0.85)');
     grd.addColorStop(1, 'rgba(18,14,12,0)');
@@ -577,6 +619,9 @@ function ruin(R, t, cut) {
   const [x0, x1] = X.ruin;
   const w = x1 - x0;
   R.paint((c) => {
+    // the torn outline has a thickness: the broken top edges and the right-hand
+    // end of the standing walls, 28 deep, behind the façade
+    extrudePoly(c, [[x0, 4], [x0, -520], [x0 + w * 0.45, -520], [x0 + w * 0.6, -430], [x0 + w * 0.8, -300], [x1, -220], [x1, 4]], 28, { color: '#8f846f' });
     c.fillStyle = '#8f846f';
     c.beginPath();
     c.moveTo(x0, 4);
@@ -591,6 +636,8 @@ function ruin(R, t, cut) {
     // the slabs, sagging towards the street
     c.fillStyle = '#6f6656';
     for (const [y, drop] of [[-380, 60], [-250, 90], [-130, 40]]) {
+      extrudePoly(c, [[x0 + w * 0.3, y], [x1 + 20, y + drop], [x1 + 20, y + drop + 14], [x0 + w * 0.3, y + 14]], 14, { color: '#6f6656', topK: 1.3, sideK: 0.5 });
+      c.fillStyle = '#6f6656';
       c.beginPath();
       c.moveTo(x0 + w * 0.3, y);
       c.lineTo(x1 + 20, y + drop);
@@ -598,10 +645,17 @@ function ruin(R, t, cut) {
       c.lineTo(x0 + w * 0.3, y + 14);
       c.fill();
     }
-    c.strokeStyle = '#3a2e24';
-    c.lineWidth = 2;
     for (let i = 0; i < 8; i++) {
       const rx = x1 + 16 - i * 7;
+      // the stays have a far twin, dim, so they read as bars not lines
+      c.strokeStyle = 'rgba(30,24,18,0.45)';
+      c.lineWidth = 2;
+      c.beginPath();
+      c.moveTo(rx + 5, -250 + 90 + 12 - 4);
+      c.quadraticCurveTo(rx + 13, -124, rx - 1, -94 + i * 4);
+      c.stroke();
+      c.strokeStyle = '#3a2e24';
+      c.lineWidth = 2;
       c.beginPath();
       c.moveTo(rx, -250 + 90 + 12);
       c.quadraticCurveTo(rx + 8, -120, rx - 6, -90 + i * 4);
@@ -613,6 +667,19 @@ function ruin(R, t, cut) {
     // the doorway
     c.fillStyle = '#0b0908';
     c.fillRect(X.ruinDoor - 36, -160, 72, 160);
+    // the doorway cut through a 28 thick wall: its left jamb
+    c.save();
+    c.beginPath();
+    c.rect(X.ruinDoor - 36, -160, 72, 160);
+    c.clip();
+    c.fillStyle = '#5a5143';
+    c.beginPath();
+    c.moveTo(X.ruinDoor - 36, -160);
+    c.lineTo(X.ruinDoor - 36 + DEPTH.x * 28, -160 + DEPTH.y * 28);
+    c.lineTo(X.ruinDoor - 36 + DEPTH.x * 28, DEPTH.y * 28);
+    c.lineTo(X.ruinDoor - 36, 0);
+    c.fill();
+    c.restore();
   });
   R.surface((c) => {
     c.moveTo(x0, 4);

@@ -7,6 +7,7 @@ import { lerp, clamp, rng, noise1, mixc, smooth } from '../engine/util.js';
 import * as T from '../sets/town.js';
 import { horizon, rgbOf } from '../sets/horizon.js';
 import { depthCast, deepScenery, figureBox } from '../engine/dof.js';
+import { DEPTH, extrudePoly, extrudeRect } from '../sets/depth.js';
 import { Person, POSES } from '../rigs/person.js';
 
 export const X = {
@@ -350,6 +351,7 @@ export function drawStreet(R, g) {
       // the basement stairwell
       c.fillStyle = '#0c0a08';
       c.fillRect(X.stairs - 40, -110, 80, 110);
+      extrudeRect(c, X.stairs - 48, -118, 96, 10, 16, { color: '#8f846e' });
       c.fillStyle = '#8f846e';
       c.fillRect(X.stairs - 48, -118, 96, 10);
       // classroom windows on the ground floor
@@ -367,6 +369,8 @@ export function drawStreet(R, g) {
   }
   if (near(X.catWall - 80, X.catWall + 80)) {
     R.cast((c) => {
+      // a broken garden wall, 24 thick: its torn top and right-hand end show
+      extrudePoly(c, [[X.catWall - 60, 2], [X.catWall - 55, -150], [X.catWall - 10, -140], [X.catWall + 20, -155], [X.catWall + 55, -120], [X.catWall + 60, 2]], 24, { color: '#a99c86' });
       c.fillStyle = '#a99c86';
       c.beginPath();
       c.moveTo(X.catWall - 60, 2);
@@ -382,6 +386,7 @@ export function drawStreet(R, g) {
     T.roomDoor(R, X.battery, { w: 120, h: 180, light: 'rgba(160,190,220,0.12)' });
     R.paint((c) => {
       // the table, the battery, the tangle of cables
+      extrudeRect(c, X.battery + 20, -70, 80, 6, 18, { color: '#4a3b2e', topK: 1.2, sideK: 0.55 });
       c.fillStyle = '#2c231b';
       c.fillRect(X.battery + 20, -70, 80, 6);
       c.fillRect(X.battery + 26, -64, 4, 64);
@@ -409,12 +414,15 @@ export function drawStreet(R, g) {
     R.cast((c) => {
       const x0 = X.kerb + 100;
       const x1 = X.kerb + 222;
+      extrudeRect(c, x0 + 6, -24, 22, 24, 12, { color: '#8e8676' });
+      extrudeRect(c, x1 - 30, -24, 22, 24, 12, { color: '#8e8676' });
       c.fillStyle = '#8e8676';
       c.fillRect(x0 + 6, -24, 22, 24);
       c.fillRect(x1 - 30, -24, 22, 24);
       c.fillStyle = 'rgba(0,0,0,0.2)';
       c.fillRect(x0 + 6, -24, 22, 3);
       c.fillRect(x1 - 30, -24, 22, 3);
+      extrudePoly(c, [[x0, -40], [x1, -41], [x1 + 3, -24], [x0 - 2, -23]], 22, { color: '#a39b8a' });
       c.fillStyle = '#a39b8a';
       c.beginPath();
       c.moveTo(x0, -40);
@@ -436,6 +444,7 @@ export function drawStreet(R, g) {
     });
     // the walkie-talkie man's upturned crate
     R.cast((c) => {
+      extrudeRect(c, X.olive - 30, -30, 40, 30, 14, { color: '#6a5238' });
       c.fillStyle = '#6a5238';
       c.fillRect(X.olive - 30, -30, 40, 30);
       c.fillStyle = 'rgba(0,0,0,0.25)';
@@ -506,6 +515,9 @@ export function drawStreet(R, g) {
   if (near(X.spotter - 300, X.spotter + 300)) {
     R.cast((c) => {
       const W = SPOT_WIN;
+      // the wall is 26 thick: its top and right-hand end, and the window's
+      // left jamb and sill seen through the opening
+      extrudeRect(c, W.x0 - 110, W.top - 70, W.x1 - W.x0 + 220, W.floor - W.top + 82, 26, { color: '#b5a892' });
       c.fillStyle = '#b5a892';
       c.beginPath();
       c.rect(W.x0 - 110, W.top - 70, W.x1 - W.x0 + 220, W.floor - W.top + 82);
@@ -521,6 +533,18 @@ export function drawStreet(R, g) {
       c.lineTo(W.x1 + 44, W.top - 20);
       c.lineTo(W.x1 + 38, W.top + 30);
       c.stroke();
+      c.save();
+      c.beginPath();
+      c.rect(W.x0, W.top, W.x1 - W.x0, W.sill - W.top);
+      c.clip();
+      c.fillStyle = '#7d725f';
+      c.beginPath();
+      c.moveTo(W.x0, W.top);
+      c.lineTo(W.x0 + DEPTH.x * 26, W.top + DEPTH.y * 26);
+      c.lineTo(W.x0 + DEPTH.x * 26, W.sill + DEPTH.y * 26);
+      c.lineTo(W.x0, W.sill);
+      c.fill();
+      c.restore();
       // the sill and the slab edge
       c.fillStyle = '#cfc3ab';
       c.fillRect(W.x0 - 8, W.sill, W.x1 - W.x0 + 16, 7);
@@ -682,6 +706,9 @@ export function drawFlashback(R, g) {
   });
   // the arbour: posts, beams, vines and ripe grapes
   R.cast((c) => {
+    extrudeRect(c, -420, -330, 12, 334, 8, { color: '#5a4332' });
+    extrudeRect(c, 400, -330, 12, 334, 8, { color: '#5a4332' });
+    extrudeRect(c, -460, -340, 900, 10, 12, { color: '#5a4332' });
     c.fillStyle = '#5a4332';
     c.fillRect(-420, -330, 12, 334);
     c.fillRect(400, -330, 12, 334);
@@ -718,6 +745,7 @@ export function drawFlashback(R, g) {
       for (let k = cx - w / 2 + 10; k < cx + w / 2 - 10; k += 14) c.fillRect(k, -6, 6, 3);
     }
     // low table with tea
+    extrudeRect(c, -60, -44, 120, 8, 16, { color: '#6a4a30' });
     c.fillStyle = '#6a4a30';
     c.fillRect(-60, -44, 120, 8);
     c.fillRect(-50, -36, 6, 36);
