@@ -221,8 +221,12 @@ export const ACT3W = {
       yield () => {
         const k = clamp((g.time - t0) / 1.6);
         tilt = 0.9 * Math.sin(k * Math.PI);
+        // the spout: the can sits at the hand (+6, +8 in his own frame,
+        // scale 0.9), its tip 51 along and 48 up from its base, tipped
         const [hx, hy] = p.rig.world('handN');
-        a.pour = { x: hx - 22, y: hy + 4, k: Math.sin(k * Math.PI) };
+        const sx = 0.9 * (51 * Math.cos(tilt) - 4.5 * Math.sin(tilt));
+        const sy = 0.9 * (-48 + 51 * Math.sin(tilt) + 4.5 * Math.cos(tilt));
+        a.pour = { x: hx + p.f * (6 + sx), y: hy + 8 + sy, k: Math.sin(k * Math.PI) };
         a.wet = Math.min(1, a.wet + g.lastDt * 0.16);
         return k >= 1;
       };
@@ -337,8 +341,9 @@ export const ACT3W = {
     const t = g.time;
     const cx = R.cam.x;
     if (Math.abs(cx - X3.basement) < 1500) {
-      if (a.doorOpen > 0.01) weddingGlimpse(R, X3.basement, { open: a.doorOpen, t });
+      // the door first: the glimpse of the room paints into its gap
       basementDoor(R, X3.basement, { open: a.doorOpen || 0, t });
+      if (a.doorOpen > 0.01) weddingGlimpse(R, X3.basement, { open: a.doorOpen, t });
     }
     if (Math.abs(cx - (X3.garden[0] + X3.garden[1]) / 2) < 1600) {
       const dry = a.wetT ? 1 - clamp((t - a.wetT) / 600) * 0.3 : 1; // it stays wet a long while
