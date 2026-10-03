@@ -93,8 +93,8 @@ From 8 pm, whichever way Choice D went. Each route is about 8 minutes to play.
   about six minutes, and for a long while nothing asked of you at all. The moon is high and
   the town is silver: the bombed building with moonlight filling its open rooms, the vine from
   the afternoon, crickets, a single far-off shot, a dog, a breath of ney now and then. In an
-  alley the black cat is waiting on a low wall; you crouch and find nothing in your pocket for
-  it, and it yawns, every tooth, and curls up and sleeps. Music under the street grows into a
+  alley the black cat is waiting on a low wall; stop by it (or crouch) and find nothing in your
+  pocket for it, and it yawns, every tooth, and curls up and sleeps. Music under the street grows into a
   wedding: open the basement door a crack and see thirty people in candlelight, a bride in a
   dress made from curtains, an old man with an oud; you shake your head when they wave you
   in, and close the door. Past it, someone's vegetable garden, watered at night, and a can
@@ -243,7 +243,22 @@ people walk, run, crouch and bend is motion-captured (below).
   them, for anyone walking into or out of a side street. Idle figures breathe, blink and glance
   around, and passers-by cross the side streets in the calm stretches. They walk in from beyond
   the edge of the frame, run across ground the sniper can see, never use the exposed corner, and
-  hurry off (never vanish) when the shelling starts. The black cat is a separate small rig.
+  hurry off (never vanish) when the shelling starts. The black cat is a separate small rig at
+  real size beside Sami (about 25 cm at the shoulder, after the
+  [American Shorthair's dimensions](https://www.dimensions.com/element/american-shorthair-cat)):
+  one silhouette, its legs tapering solids in the body's colour, the walk a lateral-sequence
+  gait. Its silhouette checks used Google's
+  [Noto Emoji](https://github.com/googlefonts/noto-emoji) black-cat artwork (open licence) as
+  a reference; none of it is drawn into the game.
+- **Depth** ([`src/sets/depth.js`](src/sets/depth.js)): the world is side-on, so walls,
+  slabs, kerbs, sandbags and rubble get their thickness drawn behind them along one oblique
+  direction for the whole game (back, up and to the right): tops lit, sides darker. Torn
+  corners of buildings show a broken section of block and concrete, exposed slab ends show
+  their rebar, and shell holes show the wall's thickness inside them.
+- **In your hands**: when Sami carries or pulls something, you walk it: the water jugs to the
+  old man's door (he keeps pace beside you), the walk out into School Street with the white
+  cloth held high, the last walk to Abu Yazan, the blanket pulled back into the shadow (hold
+  away from the body), and the watering can from bed to bed in the night garden.
 - **The street** ([`src/sets/town.js`](src/sets/town.js)): blocks of flats with Syrian doors on
   the ground floor (painted steel double doors with a grille, old studded wooden doors under a
   pointed arch, rolling shop shutters, wrought-iron gates), and tarred wooden electricity poles,
