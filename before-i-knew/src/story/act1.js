@@ -631,14 +631,12 @@ export const ACT1 = {
     L.add({
       id: 'cat',
       x: X.catWall,
-      y: -200,
+      y: -163,
       range: 110,
       label: ['القطة', 'The cat'],
       look: true,
       sil: (c) => cat.draw(c),
-      box: [74, 84],
-      bx: 2,
-      by: 19,
+      box: [40, 38],
       lookText: CAT_LINE,
       enabled: () => !cat.hidden && !g.a.catDone,
       use: () => g.runner.run(this.catScene(g)),
@@ -647,14 +645,12 @@ export const ACT1 = {
     L.add({
       id: 'catStroke',
       x: X.catWall,
-      y: -200,
+      y: -163,
       range: 130,
       urgent: true,
       label: ['ملّس عليها', 'Stroke it'],
       sil: (c) => cat.draw(c),
-      box: [74, 84],
-      bx: 2,
-      by: 19,
+      box: [40, 38],
       look: true,
       lookText: STROKE_LINE,
       enabled: () => g.a.catWait && !g.a.stroke,
@@ -989,7 +985,8 @@ export const ACT1 = {
     p.f = f;
     g.camOverride = { x: X.catWall - f * 90, y: -150, view: 820 };
     // his hand, low and forward, at the height of a standing cat's back
-    const backY = p.y - 34 * 0.9 - 2;
+    // (about 25 up, rising a little as it pushes into his hand)
+    const backY = p.y - 27.5;
     const reach = handTo(p, 'sami', 0, backY, f, { ...POSES.crouch, head: 0.3 });
     const handX = p.x - reach.x;
     const rest = { ...reach.pose, armN: 0.45, foreN: 1.0 };
@@ -1000,7 +997,7 @@ export const ACT1 = {
     yield 0.6;
 
     // down off the wall, landing where its back will be under his hand
-    const landX = handX + 18 * f; // his hand on its lower back, its rump clear of his knees
+    const landX = handX + 4 * f; // his hand on the middle of its back, its rump clear of his knees
     const x0 = cat.x;
     const y0 = cat.y;
     cat.f = -f;
