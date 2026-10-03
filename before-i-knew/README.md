@@ -65,7 +65,7 @@ play.
    rail), or look for another way, through the half-collapsed building.
 4. **Abu Yazan** has followed you south. He gives you Ahmad's lighter and his journal.
 
-## Act Three: The Night (Retrieval), Parts One and Two
+## Act Three: The Night (Retrieval), Parts One to Three
 
 From 8 pm, whichever way Choice D went. Each route is about 8 minutes to play.
 
@@ -89,9 +89,20 @@ From 8 pm, whichever way Choice D went. Each route is about 8 minutes to play.
   balcony (stay low: standing still up there is seen too), a drop, a drainpipe, the alley, and a belly crawl across the moonlit
   street to the blanket. You take its edges and pull him back into the shadow.
 
+- **The night walk** (Part Three, both routes, straight on from either): 10 pm to midnight,
+  about six minutes, and for a long while nothing asked of you at all. The moon is high and
+  the town is silver: the bombed building with moonlight filling its open rooms, the vine from
+  the afternoon, crickets, a single far-off shot, a dog, a breath of ney now and then. In an
+  alley the black cat is waiting on a low wall; you crouch and find nothing in your pocket for
+  it, and it yawns, every tooth, and curls up and sleeps. Music under the street grows into a
+  wedding: open the basement door a crack and see thirty people in candlelight, a bride in a
+  dress made from curtains, an old man with an oud; you shake your head when they wave you
+  in, and close the door. Past it, someone's vegetable garden, watered at night, and a can
+  half full: you can water it. It ends at midnight; the end card tells the whole night.
+
 Officer Maher is written as the regime's checkpoints were: he trades in what he controls, and
-the game doesn't ask you to understand him. The night walk, the visions, the flashbacks and
-the rooftop (Parts Three to Six) are still to come.
+the game doesn't ask you to understand him. The visions, the flashbacks and the rooftop
+(Parts Four to Six) are still to come.
 
 Your choices set the story state that later acts build on: compassion, courage, isolation,
 the children and the path. It's saved in the browser.
