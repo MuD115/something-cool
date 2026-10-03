@@ -707,6 +707,18 @@ function alleyWalls(R, g) {
       // slab edges
       c.fillStyle = 'rgba(70,74,92,0.5)';
       for (let f = 0; f < 6; f++) c.fillRect(xa, -f * 170 - 62, xb - xa, 7);
+      // the wall's return at the corner: its thickness, turned towards the
+      // alley, so the near walls read as buildings and not as flat panels
+      const rw = 34 * k;
+      const r0x = side < 0 ? edge : edge - rw;
+      const rg = c.createLinearGradient(edge, 0, edge - side * rw, 0);
+      rg.addColorStop(0, '#2c3040');
+      rg.addColorStop(1, '#1e2130');
+      c.fillStyle = rg;
+      c.fillRect(r0x, -900, rw, 1200);
+      // the slab ends and window reveals carry round the corner
+      c.fillStyle = 'rgba(90,96,120,0.45)';
+      for (let f = 0; f < 6; f++) c.fillRect(r0x, -f * 170 - 62, rw, 7);
     });
     R.surface(wall, 'plaster', { scale: 1.6, seed: 5 + (side > 0 ? 1 : 0), alpha: 0.55 });
     // the moon on the inner edge: a thread of silver, and a lit crest

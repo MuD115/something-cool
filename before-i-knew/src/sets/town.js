@@ -922,16 +922,26 @@ export function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000 }
           c.fillStyle = 'rgba(60,50,42,0.9)';
           c.fillRect(wx - 5, wy + 3, 11, 2.5);
         } else {
-          // snapped: each end hangs from its pole, down to the ground
-          for (const [px, py, dir] of [[ax, ay, 1], [bx, by, -1]]) {
-            const len = (bx - ax) * (0.18 + s.k * 0.2 + n * 0.05);
-            c.beginPath();
+          // snapped: one wire hangs from one pole down to the ground; the
+          // rest are cut short and dangle, and the far pole keeps a stub
+          const [px, py, dir] = s.k < 0.5 ? [ax, ay, 1] : [bx, by, -1];
+          const [qx, qy] = s.k < 0.5 ? [bx, by] : [ax, ay];
+          c.beginPath();
+          if (n === 0) {
+            const len = Math.abs(bx - ax) * (0.16 + s.k * 0.12);
             c.moveTo(px, py);
             c.bezierCurveTo(px + dir * len * 0.5, py + 40, px + dir * len * 0.9, py * 0.35, px + dir * len, -2);
             // the last of it lying along the ground
-            c.lineTo(px + dir * (len + 30 + n * 12), 0);
-            c.stroke();
+            c.lineTo(px + dir * (len + 30), 0);
+          } else {
+            const drop = 50 + n * 22 + s.k * 30;
+            c.moveTo(px, py);
+            c.quadraticCurveTo(px + dir * 22, py + drop * 0.5, px + dir * (14 + n * 6), py + drop);
           }
+          // the cut end left on the other pole
+          c.moveTo(qx, qy);
+          c.quadraticCurveTo(qx - dir * 10, qy + 14 + n * 6, qx - dir * (6 + n * 3), qy + 26 + n * 10);
+          c.stroke();
         }
       }
     }
@@ -1215,17 +1225,55 @@ export function shop(R, x, { w = 220, sign = 'دكّان أبو ريّان', ope
 
 // A grape vine climbing a broken garden wall.
 export function vine(R, x, t, { wallH = 110, lush = 1, ripe = false } = {}) {
+  // a broken garden wall of dressed stone: ragged where blocks fell off
+  // the top, with its thickness showing, courses, and a damp foot
+  const pts = [
+    [x - 72, 0],
+    [x - 72, -wallH + 22],
+    [x - 58, -wallH + 22],
+    [x - 58, -wallH + 4],
+    [x - 30, -wallH],
+    [x - 14, -wallH + 6],
+    [x - 6, -wallH + 30],
+    [x + 18, -wallH + 30],
+    [x + 22, -wallH + 10],
+    [x + 44, -wallH + 10],
+    [x + 48, -wallH + 40],
+    [x + 72, -wallH + 44],
+    [x + 72, 0],
+  ];
   R.cast((c) => {
-    c.fillStyle = '#b3a58f';
+    extrudePoly(c, pts, 18, { color: '#b3a58f' });
+    c.save();
     c.beginPath();
-    c.moveTo(x - 70, 0);
-    c.lineTo(x - 70, -wallH + 20);
-    c.lineTo(x - 30, -wallH);
-    c.lineTo(x + 10, -wallH + 30);
-    c.lineTo(x + 40, -wallH + 8);
-    c.lineTo(x + 70, -wallH + 40);
-    c.lineTo(x + 70, 0);
+    c.moveTo(...pts[0]);
+    for (const p of pts.slice(1)) c.lineTo(...p);
+    c.closePath();
+    c.fillStyle = '#b3a58f';
     c.fill();
+    c.clip();
+    // courses of stone, each block a shade apart
+    const r = rng(31);
+    for (let row = 0; row * 22 < wallH + 4; row++) {
+      const y0 = -22 - row * 22;
+      for (let bx = x - 72 - (row % 2) * 18; bx < x + 72; bx += 36) {
+        const v = (r() - 0.5) * 0.12;
+        c.fillStyle = v > 0 ? `rgba(255,248,230,${v})` : `rgba(40,30,20,${-v})`;
+        c.fillRect(bx + 1, y0 + 1, 34, 20);
+      }
+      c.fillStyle = 'rgba(70,58,44,0.35)';
+      c.fillRect(x - 72, y0 + 21, 144, 1.5);
+    }
+    for (let row = 0; row * 22 < wallH + 4; row++) {
+      for (let bx = x - 72 - (row % 2) * 18; bx < x + 72; bx += 36) c.fillRect(bx, -22 - row * 22, 1.5, 22);
+    }
+    // damp at the foot
+    const dg = c.createLinearGradient(0, 0, 0, -30);
+    dg.addColorStop(0, 'rgba(50,40,30,0.35)');
+    dg.addColorStop(1, 'rgba(50,40,30,0)');
+    c.fillStyle = dg;
+    c.fillRect(x - 72, -30, 144, 30);
+    c.restore();
   });
   R.cast((c) => {
     const r = rng(12);

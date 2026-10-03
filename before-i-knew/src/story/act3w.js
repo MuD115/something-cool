@@ -356,10 +356,18 @@ export const ACT3W = {
     // the cat: when he stops near its wall (or gets down to its level)
     const nearCat = p.x > X3.catWall[0] - 190 && p.x < X3.catWall[1] + 120;
     a.stillT = nearCat && Math.abs(p.vx) < 5 ? (a.stillT || 0) + dt : 0;
-    if (!a.catDone && nearCat && (a.stillT > 0.6 || p.stance === 'crouch')) g.runner.run(this.catScene(g));
+    if (!a.catDone && nearCat && (a.stillT > 0.6 || p.stance === 'crouch')) {
+      a.catDone = true; // once: the scene starts on the next step
+      g.runner.run(this.catScene(g));
+    }
     if (!a.catDone && nearCat && !a.catHint) {
       a.catHint = true;
       g.text.objective(OBJ.cat);
+    }
+    // walked on past without stopping: the cat is left to itself
+    if (a.catHint && !a.catPassed && !nearCat && p.x > X3.catWall[1] + 120) {
+      a.catPassed = true;
+      if (!a.catDone) g.text.objective(null);
     }
     if (!a.saidMusic && dW < 520 && p.x < X3.basement) {
       a.saidMusic = true;

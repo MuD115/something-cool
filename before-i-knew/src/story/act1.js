@@ -987,8 +987,7 @@ export const ACT1 = {
     // his hand, low and forward, at the height of a standing cat's back
     // (about 25 up, rising a little as it pushes into his hand)
     const backY = p.y - 27.5;
-    const reach = handTo(p, 'sami', 0, backY, f, { ...POSES.crouch, head: 0.3 });
-    const handX = p.x - reach.x;
+    const reach = handTo(p, 'sami', 0, backY, f, { ...POSES.kneel, torso: 0.85, head: 0.55 });
     const rest = { ...reach.pose, armN: 0.45, foreN: 1.0 };
     p.override = rest;
     g.sound.cloth();
@@ -997,7 +996,9 @@ export const ACT1 = {
     yield 0.6;
 
     // down off the wall, landing where its back will be under his hand
-    const landX = handX + 4 * f; // his hand on the middle of its back, its rump clear of his knees
+    // where his hand really is, now he is down: its back goes under it
+    const handX = p.rig.world('handN')[0];
+    const landX = handX + 3 * f; // his hand on the middle of its back, its rump clear of his knees
     const x0 = cat.x;
     const y0 = cat.y;
     cat.f = -f;

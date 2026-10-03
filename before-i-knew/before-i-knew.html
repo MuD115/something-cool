@@ -9783,16 +9783,26 @@ function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000 } = {}) 
           c.fillStyle = 'rgba(60,50,42,0.9)';
           c.fillRect(wx - 5, wy + 3, 11, 2.5);
         } else {
-          // snapped: each end hangs from its pole, down to the ground
-          for (const [px, py, dir] of [[ax, ay, 1], [bx, by, -1]]) {
-            const len = (bx - ax) * (0.18 + s.k * 0.2 + n * 0.05);
-            c.beginPath();
+          // snapped: one wire hangs from one pole down to the ground; the
+          // rest are cut short and dangle, and the far pole keeps a stub
+          const [px, py, dir] = s.k < 0.5 ? [ax, ay, 1] : [bx, by, -1];
+          const [qx, qy] = s.k < 0.5 ? [bx, by] : [ax, ay];
+          c.beginPath();
+          if (n === 0) {
+            const len = Math.abs(bx - ax) * (0.16 + s.k * 0.12);
             c.moveTo(px, py);
             c.bezierCurveTo(px + dir * len * 0.5, py + 40, px + dir * len * 0.9, py * 0.35, px + dir * len, -2);
             // the last of it lying along the ground
-            c.lineTo(px + dir * (len + 30 + n * 12), 0);
-            c.stroke();
+            c.lineTo(px + dir * (len + 30), 0);
+          } else {
+            const drop = 50 + n * 22 + s.k * 30;
+            c.moveTo(px, py);
+            c.quadraticCurveTo(px + dir * 22, py + drop * 0.5, px + dir * (14 + n * 6), py + drop);
           }
+          // the cut end left on the other pole
+          c.moveTo(qx, qy);
+          c.quadraticCurveTo(qx - dir * 10, qy + 14 + n * 6, qx - dir * (6 + n * 3), qy + 26 + n * 10);
+          c.stroke();
         }
       }
     }
@@ -10076,17 +10086,55 @@ function shop(R, x, { w = 220, sign = 'دكّان أبو ريّان', open = 0.4
 
 // A grape vine climbing a broken garden wall.
 function vine(R, x, t, { wallH = 110, lush = 1, ripe = false } = {}) {
+  // a broken garden wall of dressed stone: ragged where blocks fell off
+  // the top, with its thickness showing, courses, and a damp foot
+  const pts = [
+    [x - 72, 0],
+    [x - 72, -wallH + 22],
+    [x - 58, -wallH + 22],
+    [x - 58, -wallH + 4],
+    [x - 30, -wallH],
+    [x - 14, -wallH + 6],
+    [x - 6, -wallH + 30],
+    [x + 18, -wallH + 30],
+    [x + 22, -wallH + 10],
+    [x + 44, -wallH + 10],
+    [x + 48, -wallH + 40],
+    [x + 72, -wallH + 44],
+    [x + 72, 0],
+  ];
   R.cast((c) => {
-    c.fillStyle = '#b3a58f';
+    extrudePoly(c, pts, 18, { color: '#b3a58f' });
+    c.save();
     c.beginPath();
-    c.moveTo(x - 70, 0);
-    c.lineTo(x - 70, -wallH + 20);
-    c.lineTo(x - 30, -wallH);
-    c.lineTo(x + 10, -wallH + 30);
-    c.lineTo(x + 40, -wallH + 8);
-    c.lineTo(x + 70, -wallH + 40);
-    c.lineTo(x + 70, 0);
+    c.moveTo(...pts[0]);
+    for (const p of pts.slice(1)) c.lineTo(...p);
+    c.closePath();
+    c.fillStyle = '#b3a58f';
     c.fill();
+    c.clip();
+    // courses of stone, each block a shade apart
+    const r = rng(31);
+    for (let row = 0; row * 22 < wallH + 4; row++) {
+      const y0 = -22 - row * 22;
+      for (let bx = x - 72 - (row % 2) * 18; bx < x + 72; bx += 36) {
+        const v = (r() - 0.5) * 0.12;
+        c.fillStyle = v > 0 ? `rgba(255,248,230,${v})` : `rgba(40,30,20,${-v})`;
+        c.fillRect(bx + 1, y0 + 1, 34, 20);
+      }
+      c.fillStyle = 'rgba(70,58,44,0.35)';
+      c.fillRect(x - 72, y0 + 21, 144, 1.5);
+    }
+    for (let row = 0; row * 22 < wallH + 4; row++) {
+      for (let bx = x - 72 - (row % 2) * 18; bx < x + 72; bx += 36) c.fillRect(bx, -22 - row * 22, 1.5, 22);
+    }
+    // damp at the foot
+    const dg = c.createLinearGradient(0, 0, 0, -30);
+    dg.addColorStop(0, 'rgba(50,40,30,0.35)');
+    dg.addColorStop(1, 'rgba(50,40,30,0)');
+    c.fillStyle = dg;
+    c.fillRect(x - 72, -30, 144, 30);
+    c.restore();
   });
   R.cast((c) => {
     const r = rng(12);
@@ -12826,8 +12874,7 @@ const ACT1 = {
     // his hand, low and forward, at the height of a standing cat's back
     // (about 25 up, rising a little as it pushes into his hand)
     const backY = p.y - 27.5;
-    const reach = handTo(p, 'sami', 0, backY, f, { ...POSES.crouch, head: 0.3 });
-    const handX = p.x - reach.x;
+    const reach = handTo(p, 'sami', 0, backY, f, { ...POSES.kneel, torso: 0.85, head: 0.55 });
     const rest = { ...reach.pose, armN: 0.45, foreN: 1.0 };
     p.override = rest;
     g.sound.cloth();
@@ -12836,7 +12883,9 @@ const ACT1 = {
     yield 0.6;
 
     // down off the wall, landing where its back will be under his hand
-    const landX = handX + 4 * f; // his hand on the middle of its back, its rump clear of his knees
+    // where his hand really is, now he is down: its back goes under it
+    const handX = p.rig.world('handN')[0];
+    const landX = handX + 3 * f; // his hand on the middle of its back, its rump clear of his knees
     const x0 = cat.x;
     const y0 = cat.y;
     cat.f = -f;
@@ -17745,6 +17794,18 @@ function alleyWalls(R, g) {
       // slab edges
       c.fillStyle = 'rgba(70,74,92,0.5)';
       for (let f = 0; f < 6; f++) c.fillRect(xa, -f * 170 - 62, xb - xa, 7);
+      // the wall's return at the corner: its thickness, turned towards the
+      // alley, so the near walls read as buildings and not as flat panels
+      const rw = 34 * k;
+      const r0x = side < 0 ? edge : edge - rw;
+      const rg = c.createLinearGradient(edge, 0, edge - side * rw, 0);
+      rg.addColorStop(0, '#2c3040');
+      rg.addColorStop(1, '#1e2130');
+      c.fillStyle = rg;
+      c.fillRect(r0x, -900, rw, 1200);
+      // the slab ends and window reveals carry round the corner
+      c.fillStyle = 'rgba(90,96,120,0.45)';
+      for (let f = 0; f < 6; f++) c.fillRect(r0x, -f * 170 - 62, rw, 7);
     });
     R.surface(wall, 'plaster', { scale: 1.6, seed: 5 + (side > 0 ? 1 : 0), alpha: 0.55 });
     // the moon on the inner edge: a thread of silver, and a lit crest
@@ -19672,10 +19733,18 @@ const ACT3W = {
     // the cat: when he stops near its wall (or gets down to its level)
     const nearCat = p.x > X3.catWall[0] - 190 && p.x < X3.catWall[1] + 120;
     a.stillT = nearCat && Math.abs(p.vx) < 5 ? (a.stillT || 0) + dt : 0;
-    if (!a.catDone && nearCat && (a.stillT > 0.6 || p.stance === 'crouch')) g.runner.run(this.catScene(g));
+    if (!a.catDone && nearCat && (a.stillT > 0.6 || p.stance === 'crouch')) {
+      a.catDone = true; // once: the scene starts on the next step
+      g.runner.run(this.catScene(g));
+    }
     if (!a.catDone && nearCat && !a.catHint) {
       a.catHint = true;
       g.text.objective(OBJ.cat);
+    }
+    // walked on past without stopping: the cat is left to itself
+    if (a.catHint && !a.catPassed && !nearCat && p.x > X3.catWall[1] + 120) {
+      a.catPassed = true;
+      if (!a.catDone) g.text.objective(null);
     }
     if (!a.saidMusic && dW < 520 && p.x < X3.basement) {
       a.saidMusic = true;
