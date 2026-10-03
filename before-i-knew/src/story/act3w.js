@@ -176,13 +176,15 @@ export const ACT3W = {
     yield* say(g, 'door');
     yield 0.3;
     g.sound.noise({ dur: 0.5, freq: 260, q: 0.8, vol: 0.18 }); // the steel door scraping
-    g.camOverride = { x: X3.basement + 20, y: -70, view: 620 };
+    g.camOverride = { x: X3.basement + 10, y: -40, view: 440 };
+    // looking down the steps into the crack of light
+    p.override = { ...POSES.stand, head: 0.42, torso: 0.06 };
     yield* tween(g, 'doorOpen', 1, 1.1);
     a.wedding?.set(1, 0.05);
     yield 4.5;
     // she smiles, and waves him in; he shakes his head, gently
     const t0 = p.time;
-    p.override = (t) => ({ ...POSES.stand, head: 0.12 + 0.22 * Math.sin((t - t0) * 7) * Math.max(0, 1 - (t - t0) / 1.4) });
+    p.override = (t) => ({ ...POSES.stand, torso: 0.06, head: 0.3 + 0.22 * Math.sin((t - t0) * 7) * Math.max(0, 1 - (t - t0) / 1.4) });
     yield 1.6;
     p.override = null;
     yield 0.6;

@@ -105,11 +105,16 @@ function moon(R, u, v) {
     c.beginPath();
     c.arc(x, y, r, 0, Math.PI * 2);
     c.fill();
-    // the dark quarter
+    // the dark quarter, only ever on the moon itself
+    c.save();
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.clip();
     c.fillStyle = 'rgba(12,16,30,0.92)';
     c.beginPath();
     c.arc(x - r * 1.35, y - r * 0.1, r * 0.95, 0, Math.PI * 2);
     c.fill();
+    c.restore();
     c.fillStyle = 'rgba(160,170,190,0.25)';
     c.beginPath();
     c.arc(x + r * 0.3, y - r * 0.25, r * 0.22, 0, Math.PI * 2);

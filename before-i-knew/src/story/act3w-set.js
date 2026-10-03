@@ -11,7 +11,7 @@
 // The moon is high and to the upper left, so the shadows are short, sharp and
 // black, and lie to the right. World units: ground at y = 0, up is negative.
 
-import { lerp, clamp, rng, smooth } from '../engine/util.js';
+import { lerp, rng, smooth } from '../engine/util.js';
 import * as T from '../sets/town.js';
 import { nightSky } from './act3r-set.js';
 
@@ -715,7 +715,7 @@ function basementWell(R) {
     c.fillRect(b - 50, -5, 100, 140);
     // the stairs going down, each step a shade paler where the moon reaches
     for (let i = 0; i < 6; i++) {
-      c.fillStyle = `rgba(${40 - i * 4},${46 - i * 4},${64 - i * 6},1)`;
+      c.fillStyle = `rgb(${70 - i * 8},${80 - i * 8},${108 - i * 11})`;
       c.fillRect(b - 46 + i * 14, 2 + i * 14, 14, 3);
     }
     // the kerb stones either side
@@ -822,7 +822,7 @@ export function drawWalk(R, g) {
     R.layer(d);
     const dx = (d - 1) * 3180;
     T.block(R, { ...GARDEN_WALL, x: GARDEN_WALL.x + dx }, t);
-    // the dark mouth of the gate in it, and a mulberry showing over the top
+    // the dark mouth of the gate in it
     R.paint((c) => {
       const gx = X3.garden[0] + 150 + dx;
       c.fillStyle = '#0a0b10';
@@ -849,7 +849,7 @@ export function drawWalk(R, g) {
   if (near(X3.vine - 200, X3.vine + 200)) vineWall(R, g);
   if (near(X3.catWall[0], X3.catWall[1])) catWall(R);
   streetDebris(R, near);
-  T.cables(R, cx, { seed: 63, from: -400, to: 4200, y: -390 });
+  T.cables(R, cx, { seed: 165, from: -400, to: 4200 }); // (one span snapped, the rest still strung)
 
   // the scene's own props: the basement door, the wedding glimpse, the garden
   g.act?.drawProps?.(R, g);

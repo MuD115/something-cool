@@ -14982,11 +14982,16 @@ function moon(R, u, v) {
     c.beginPath();
     c.arc(x, y, r, 0, Math.PI * 2);
     c.fill();
-    // the dark quarter
+    // the dark quarter, only ever on the moon itself
+    c.save();
+    c.beginPath();
+    c.arc(x, y, r, 0, Math.PI * 2);
+    c.clip();
     c.fillStyle = 'rgba(12,16,30,0.92)';
     c.beginPath();
     c.arc(x - r * 1.35, y - r * 0.1, r * 0.95, 0, Math.PI * 2);
     c.fill();
+    c.restore();
     c.fillStyle = 'rgba(160,170,190,0.25)';
     c.beginPath();
     c.arc(x + r * 0.3, y - r * 0.25, r * 0.22, 0, Math.PI * 2);
@@ -16612,7 +16617,7 @@ const __src_story_act3w_set = (() => {
 // The moon is high and to the upper left, so the shadows are short, sharp and
 // black, and lie to the right. World units: ground at y = 0, up is negative.
 
-const { lerp, clamp, rng, smooth } = __src_engine_util;
+const { lerp, rng, smooth } = __src_engine_util;
 const T = __src_sets_town;
 const { nightSky } = __src_story_act3r_set;
 const X3 = {
@@ -17315,7 +17320,7 @@ function basementWell(R) {
     c.fillRect(b - 50, -5, 100, 140);
     // the stairs going down, each step a shade paler where the moon reaches
     for (let i = 0; i < 6; i++) {
-      c.fillStyle = `rgba(${40 - i * 4},${46 - i * 4},${64 - i * 6},1)`;
+      c.fillStyle = `rgb(${70 - i * 8},${80 - i * 8},${108 - i * 11})`;
       c.fillRect(b - 46 + i * 14, 2 + i * 14, 14, 3);
     }
     // the kerb stones either side
@@ -17422,7 +17427,7 @@ function drawWalk(R, g) {
     R.layer(d);
     const dx = (d - 1) * 3180;
     T.block(R, { ...GARDEN_WALL, x: GARDEN_WALL.x + dx }, t);
-    // the dark mouth of the gate in it, and a mulberry showing over the top
+    // the dark mouth of the gate in it
     R.paint((c) => {
       const gx = X3.garden[0] + 150 + dx;
       c.fillStyle = '#0a0b10';
@@ -17449,7 +17454,7 @@ function drawWalk(R, g) {
   if (near(X3.vine - 200, X3.vine + 200)) vineWall(R, g);
   if (near(X3.catWall[0], X3.catWall[1])) catWall(R);
   streetDebris(R, near);
-  T.cables(R, cx, { seed: 63, from: -400, to: 4200, y: -390 });
+  T.cables(R, cx, { seed: 165, from: -400, to: 4200 }); // (one span snapped, the rest still strung)
 
   // the scene's own props: the basement door, the wedding glimpse, the garden
   g.act?.drawProps?.(R, g);
@@ -19017,13 +19022,15 @@ const ACT3W = {
     yield* say(g, 'door');
     yield 0.3;
     g.sound.noise({ dur: 0.5, freq: 260, q: 0.8, vol: 0.18 }); // the steel door scraping
-    g.camOverride = { x: X3.basement + 20, y: -70, view: 620 };
+    g.camOverride = { x: X3.basement + 10, y: -40, view: 440 };
+    // looking down the steps into the crack of light
+    p.override = { ...POSES.stand, head: 0.42, torso: 0.06 };
     yield* tween(g, 'doorOpen', 1, 1.1);
     a.wedding?.set(1, 0.05);
     yield 4.5;
     // she smiles, and waves him in; he shakes his head, gently
     const t0 = p.time;
-    p.override = (t) => ({ ...POSES.stand, head: 0.12 + 0.22 * Math.sin((t - t0) * 7) * Math.max(0, 1 - (t - t0) / 1.4) });
+    p.override = (t) => ({ ...POSES.stand, torso: 0.06, head: 0.3 + 0.22 * Math.sin((t - t0) * 7) * Math.max(0, 1 - (t - t0) / 1.4) });
     yield 1.6;
     p.override = null;
     yield 0.6;
