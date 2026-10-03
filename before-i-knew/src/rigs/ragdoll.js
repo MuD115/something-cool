@@ -95,20 +95,26 @@ export class Ragdoll {
     this.still = e < 0.6 ? this.still + dt : 0;
   }
 
+  // At rest: still for a moment, or simply down long enough (a body that
+  // fell has stopped falling by then, and a stubborn jitter mustn't keep it
+  // a ragdoll for ever).
   get settled() {
-    return this.t > 0.7 && this.still > 0.35;
+    return (this.t > 0.7 && this.still > 0.35) || this.t > 2.5;
   }
 
   step(h) {
     const P = this.p;
     const Q = this.q;
     const level = this.w.level;
-    // integrate
+    // integrate (damping harder once the fall is over, and capping speed,
+    // so constraint corrections can never pump energy in)
+    const damp = this.t > 0.6 ? 0.96 : 0.995;
+    const vmax = 1500 * h;
     for (const n of POINTS) {
       const p = P[n];
       const q = Q[n];
-      const vx = (p[0] - q[0]) * 0.995;
-      const vy = (p[1] - q[1]) * 0.995;
+      const vx = clamp((p[0] - q[0]) * damp, -vmax, vmax);
+      const vy = clamp((p[1] - q[1]) * damp, -vmax, vmax);
       q[0] = p[0];
       q[1] = p[1];
       p[0] += vx;
@@ -148,8 +154,9 @@ export class Ragdoll {
         const p = P[n];
         const r = (RADIUS[n] || 4) * s;
         const gy = level.groundAt(p[0], Q[n][1] - r - 4);
-        if (p[1] > gy - r) {
-          p[1] = gy - r;
+        if (p[1] >= gy - r - 1) {
+          // on the ground (or touching it): friction, not just when pressed in
+          p[1] = Math.min(p[1], gy - r);
           const q = Q[n];
           q[0] = p[0] - (p[0] - q[0]) * 0.55;
         }
@@ -179,10 +186,12 @@ export class Ragdoll {
     while (rel > Math.PI) rel -= 2 * Math.PI;
     while (rel < -Math.PI) rel += 2 * Math.PI;
     if (rel >= lo && rel <= hi) return;
+    // halfway back into range each pass: a hard snap fights the bones and
+    // feeds energy into the body
     const na = parentA + clamp(rel, lo, hi);
     const d = len ?? Math.hypot(dx, dy);
-    child[0] = joint[0] + Math.sin(na) * d * f;
-    child[1] = joint[1] + Math.cos(na) * d;
+    child[0] += (joint[0] + Math.sin(na) * d * f - child[0]) * 0.5;
+    child[1] += (joint[1] + Math.cos(na) * d - child[1]) * 0.5;
   }
 
   limits() {
