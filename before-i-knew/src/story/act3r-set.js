@@ -16,6 +16,15 @@ import { lerp, clamp, rng, mixc } from '../engine/util.js';
 import * as T from '../sets/town.js';
 import { horizon } from '../sets/horizon.js';
 import { sandbags } from './act2r-set.js';
+import { extrudePoly, extrudeRect } from '../sets/depth.js';
+
+// A rectangle turned about its centre (cx, cy) by `ang`, as world points, so
+// a tilted slab can be extruded in the game's one depth direction.
+const tiltRect = (cx, cy, ang, x, y, w, h) => {
+  const co = Math.cos(ang);
+  const si = Math.sin(ang);
+  return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([px, py]) => [cx + px * co - py * si, cy + px * si + py * co]);
+};
 
 // ------------------------------------------------------------- Part 1 --
 
@@ -258,6 +267,7 @@ function checkpoint(R, g, t) {
   // the camp table, two folding chairs, the radio, the thermos, glasses
   R.cast((c) => {
     c.fillStyle = '#4a4638';
+    extrudeRect(c, X1.table - 50, -82, 100, 6, 20, { color: '#4a4638' }); // the table top, seen a little from above
     c.fillRect(X1.table - 50, -82, 100, 6);
     c.fillRect(X1.table - 44, -76, 4, 76);
     c.fillRect(X1.table + 40, -76, 4, 76);
@@ -269,6 +279,7 @@ function checkpoint(R, g, t) {
       c.fillRect(cx - f * 18, -96, 3, 56);
     }
     // radio
+    extrudeRect(c, X1.table + 14, -104, 30, 22, 9, { color: '#2c2e27' });
     c.fillStyle = '#2c2e27';
     c.fillRect(X1.table + 14, -104, 30, 22);
     c.fillStyle = '#6e7560';
@@ -463,13 +474,34 @@ export function drawBuilding(R, g) {
     for (const s of g.level.solids) {
       if (!near(s.x0, s.x1) || s.hidden) continue;
       if (s.kind === 'step') {
+        extrudeRect(c, s.x0, s.y0, s.x1 - s.x0, Math.min(s.y1 - s.y0, 200), 12, { color: '#5b5750' });
         c.fillStyle = '#5b5750';
         c.fillRect(s.x0, s.y0, s.x1 - s.x0, 8);
         c.fillStyle = '#403d38';
         c.fillRect(s.x0, s.y0 + 8, s.x1 - s.x0, Math.min(s.y1 - s.y0, 200) - 8);
       } else if (s.kind === 'floor') {
+        // the slab 18 deep: its top shows, and a broken end is a ragged section
+        const jag = (ex) => (s.raw?.includes(ex) ? 1 : 0);
+        const fp = [[s.x0, s.y0], [s.x1, s.y0]];
+        if (jag(s.x1)) fp.push([s.x1 + 5, s.y0 + 3], [s.x1 - 3, s.y0 + 7], [s.x1 + 7, s.y0 + 11], [s.x1 - 2, s.y0 + 16]);
+        else fp.push([s.x1, s.y0 + 16]);
+        fp.push([s.x0, s.y0 + 16]);
+        extrudePoly(c, fp, 18, { top: '#85806f', side: '#3a3733' });
+        if (jag(s.x1)) {
+          // the section itself, paler where the concrete is fresh
+          c.fillStyle = '#7a7568';
+          c.beginPath();
+          c.moveTo(s.x1 + 5, s.y0 + 3);
+          c.lineTo(s.x1 + 5 + 10, s.y0 + 3 - 7);
+          c.lineTo(s.x1 + 7 + 10, s.y0 + 11 - 7);
+          c.lineTo(s.x1 + 7, s.y0 + 11);
+          c.fill();
+        }
         c.fillStyle = '#6a655c';
-        c.fillRect(s.x0, s.y0, s.x1 - s.x0, 16);
+        c.beginPath();
+        c.moveTo(fp[0][0], fp[0][1]);
+        for (const q of fp.slice(1)) c.lineTo(q[0], q[1]);
+        c.fill();
         // floor tiles along the top edge, the slab's section below
         c.fillStyle = 'rgba(200,190,170,0.18)';
         for (let tx = s.x0; tx < s.x1; tx += 30) c.fillRect(tx + 1, s.y0, 28, 3);
@@ -489,6 +521,7 @@ export function drawBuilding(R, g) {
           }
         }
       } else if (s.kind === 'slab') {
+        extrudePoly(c, tiltRect((s.x0 + s.x1) / 2, s.y0 + 20, -0.25 + (a.slabShift || 0) * 0.04, -70, -18, 140, 26), 16, { top: '#8a8576', side: '#3a3733' });
         c.fillStyle = '#6f6a61';
         c.save();
         c.translate((s.x0 + s.x1) / 2, s.y0 + 20);
@@ -506,6 +539,7 @@ export function drawBuilding(R, g) {
       } else if (s.kind === 'mound') {
         T.rubble(R, s.x0 - 10, s.x1 - s.x0 + 20, 70, { seed: 5, color: '#5d5850', cast: false });
       } else if (s.kind === 'balcony') {
+        extrudeRect(c, s.x0, s.y0, s.x1 - s.x0, 12, 14, { top: '#7a7568', side: '#34312c' });
         c.fillStyle = '#5f5a52';
         c.fillRect(s.x0, s.y0, s.x1 - s.x0, 12);
         c.strokeStyle = '#2a2724';
@@ -523,6 +557,7 @@ export function drawBuilding(R, g) {
     // the dropped ceiling on the third floor, and the wardrobe's bulk
     for (const k of g.level.ceilings) {
       if (!near(k.x0, k.x1)) continue;
+      extrudePoly(c, [[k.x0 - 10, k.y - 40], [k.x1 + 10, k.y - 50], [k.x1, k.y], [k.x0, k.y + 2]], 14, { color: '#5a554d' });
       c.fillStyle = '#5a554d';
       c.beginPath();
       c.moveTo(k.x0 - 10, k.y - 40);
@@ -536,6 +571,8 @@ export function drawBuilding(R, g) {
   // the outside wall on the right, with the hole on the fifth floor, and the
   // drainpipe down it
   R.cast((c) => {
+    // the wall is 18 thick: its torn top and outer face show past the edge
+    extrudeRect(c, X2.b1 - 18, floorY(6), 18, -floorY(6), 16, { color: '#4a4740' });
     c.fillStyle = '#4a4740';
     c.beginPath();
     c.rect(X2.b1 - 18, floorY(6), 18, -floorY(6));
@@ -627,6 +664,7 @@ export function drawBuilding(R, g) {
 
 function diningTable(R, x, fy) {
   R.cast((c) => {
+    extrudeRect(c, x - 60, fy - 70, 120, 6, 24, { color: '#4a3a2c' }); // the table top
     c.fillStyle = '#4a3a2c';
     c.fillRect(x - 60, fy - 70, 120, 6);
     c.fillRect(x - 54, fy - 64, 4, 64);
@@ -702,6 +740,7 @@ function childsDrawing(R, x, y) {
 function wardrobe(R, x0, fy) {
   R.cast((c) => {
     // on its side, propped on the tilted floor: there's a crawl space under it
+    extrudeRect(c, x0 - 10, fy - 174, 130, 44, 24, { color: '#5a4432' });
     c.fillStyle = '#5a4432';
     c.fillRect(x0 - 10, fy - 174, 130, 44);
     c.fillStyle = 'rgba(0,0,0,0.25)';
@@ -713,6 +752,7 @@ function wardrobe(R, x0, fy) {
 
 function doorFrame(R, x, fy) {
   R.cast((c) => {
+    for (const [rx, ry, rw, rh] of [[x - 36, fy - 180, 6, 180], [x + 30, fy - 180, 6, 180], [x - 36, fy - 186, 72, 8]]) extrudeRect(c, rx, ry, rw, rh, 12, { color: '#6a5a48' });
     c.fillStyle = '#6a5a48';
     c.fillRect(x - 36, fy - 180, 6, 180);
     c.fillRect(x + 30, fy - 180, 6, 180);
@@ -766,6 +806,7 @@ export function stairFlight(R, xa, ya, xb, yb, { broken = -1, slab = false, t = 
       const sx = lerp(xa, xb, k / n);
       const sy = lerp(ya, yb, (k + 1) / n);
       const sw = (xb - xa) / n;
+      extrudeRect(c, Math.min(sx, sx + sw), sy, Math.abs(sw) + 1, 6 + (ya - yb) / n, 12, { color: '#4c4943' });
       c.fillStyle = '#4c4943';
       c.fillRect(Math.min(sx, sx + sw), sy, Math.abs(sw) + 1, 6);
       c.fillStyle = '#3a3733';
@@ -781,6 +822,7 @@ export function stairFlight(R, xa, ya, xb, yb, { broken = -1, slab = false, t = 
   });
   if (slab) {
     R.cast((c) => {
+      extrudePoly(c, tiltRect(lerp(xa, xb, 0.5), lerp(ya, yb, 0.5) - 20, -0.28, -80, -20, 160, 28), 16, { top: '#8a8576', side: '#3a3733' });
       c.save();
       c.translate(lerp(xa, xb, 0.5), lerp(ya, yb, 0.5) - 20);
       c.rotate(-0.28);

@@ -14,6 +14,15 @@
 import { lerp, rng, smooth } from '../engine/util.js';
 import * as T from '../sets/town.js';
 import { nightSky } from './act3r-set.js';
+import { extrudePoly, extrudeRect, holeReveal } from '../sets/depth.js';
+
+// A rectangle turned by `ang` about (cx, cy), as world points, so a tilted
+// slab or door can be extruded in the game's one depth direction.
+const tiltRect = (cx, cy, ang, x, y, w, h) => {
+  const co = Math.cos(ang);
+  const si = Math.sin(ang);
+  return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([px, py]) => [cx + px * co - py * si, cy + px * si + py * co]);
+};
 
 export const X3 = {
   start: 0,
@@ -140,21 +149,17 @@ function ruin(R, g) {
   const room = (n) => [-n * fh, -(n - 1) * fh]; // [top, bottom] of room n (1 = ground)
 
   // the back wall, with the roofline broken
+  const outPts = [
+    [x0, 0], [x0, topL], [x0 + 70, topL - 6], [x0 + 110, topL + 38], [x0 + 190, topL + 22], [x0 + 250, topL - 24],
+    [x0 + 330, topL + 18], [x0 + 380, topL + 70], [x1 - 60, topR + 10], [x1, topR - 6], [x1, 0],
+  ];
   const outline = (c) => {
-    c.moveTo(x0, 0);
-    c.lineTo(x0, topL);
-    c.lineTo(x0 + 70, topL - 6);
-    c.lineTo(x0 + 110, topL + 38);
-    c.lineTo(x0 + 190, topL + 22);
-    c.lineTo(x0 + 250, topL - 24);
-    c.lineTo(x0 + 330, topL + 18);
-    c.lineTo(x0 + 380, topL + 70);
-    c.lineTo(x1 - 60, topR + 10);
-    c.lineTo(x1, topR - 6);
-    c.lineTo(x1, 0);
+    outPts.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
     c.closePath();
   };
   R.paint((c) => {
+    // the wall is 22 thick: its torn top shows as a lit edge behind the break
+    extrudePoly(c, outPts, 22, { top: '#8a90a2', side: '#2c2f3a' });
     c.beginPath();
     outline(c);
     c.fillStyle = '#5b5f6a';
@@ -262,21 +267,24 @@ function ruin(R, g) {
 
   // floors: slabs with a broken front edge and hanging rebar
   R.cast((c) => {
-    const slab = (n, xa, xb, tilt) => {
+    const slab = (n, xa, xb, tilt, ragged = false) => {
       const y = -n * fh;
+      // 18 deep: the top of the slab shows, and a broken end is a jagged section
+      const sp = [[xa, y], [xb, y + tilt]];
+      if (ragged) sp.push([xb + 6, y + tilt + 4], [xb - 4, y + tilt + 8], [xb + 7, y + tilt + 12]);
+      sp.push([xb, y + tilt + 15], [xa, y + 15]);
+      extrudePoly(c, sp, 18, { top: '#9094a2', side: '#2e313b' });
       c.fillStyle = '#6c707c';
       c.beginPath();
-      c.moveTo(xa, y);
-      c.lineTo(xb, y + tilt);
-      c.lineTo(xb, y + tilt + 15);
-      c.lineTo(xa, y + 15);
+      sp.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
       c.fill();
       c.fillStyle = 'rgba(0,0,0,0.3)';
       c.fillRect(xa, y + 11, xb - xa, 4);
     };
     slab(1, x0 + 18, x1 - 18, 0);
-    slab(2, x0 + 18, x1 - 150, 0);
+    slab(2, x0 + 18, x1 - 150, 0, true);
     // the end of floor two has sheared and hangs from its rebar
+    extrudePoly(c, tiltRect(x1 - 150, -2 * fh, 0.55, 0, 0, 110, 15), 18, { top: '#9094a2', side: '#2e313b' });
     c.save();
     c.translate(x1 - 150, -2 * fh);
     c.rotate(0.55);
@@ -284,7 +292,7 @@ function ruin(R, g) {
     c.fillRect(0, 0, 110, 15);
     c.restore();
     // the third floor is a shelf of slab with the ceiling gone
-    slab(3, x0 + 18, x0 + 300, 0);
+    slab(3, x0 + 18, x0 + 300, 0, true);
     c.strokeStyle = '#2a2420';
     c.lineWidth = 2;
     const r = rng(9);
@@ -306,6 +314,12 @@ function ruin(R, g) {
 
   // the two side walls, torn
   R.cast((c) => {
+    const wl = [[x0 - 6, 0], [x0 - 6, topL - 40], [x0 + 10, topL - 56], [x0 + 22, topL + 6], [x0 + 18, -2 * fh - 20], [x0 + 24, -fh - 40], [x0 + 18, 0]];
+    const wr = [[x1 - 20, 0], [x1 - 22, topR + 40], [x1 - 8, topR + 20], [x1 + 8, topR + 70], [x1 + 8, 0]];
+    // walls 22 thick: the torn tops and the outer faces catch the moon
+    extrudePoly(c, wl, 22, { top: '#9a9cac', side: '#30323c' });
+    extrudePoly(c, wr, 22, { top: '#9a9cac', side: '#30323c' });
+    extrudePoly(c, [[x0 + 18, -2 * fh - 16], [x0 + 96, -2 * fh - 12], [x0 + 70, -2 * fh + 24], [x0 + 18, -2 * fh + 4]], 14, { top: '#8c8f9c', side: '#2e313b' });
     c.fillStyle = '#70727c';
     c.beginPath();
     c.moveTo(x0 - 6, 0);
@@ -460,6 +474,8 @@ function ruin(R, g) {
   T.rubble(R, x1 - 170, 250, 66, { seed: 19, color: '#8a8a90' });
   // a slab standing on its edge, a door leaning on it
   R.cast((c) => {
+    extrudePoly(c, tiltRect(x0 + 520, 2, -0.42, -4, -96, 60, 96), 14, { top: '#9a9da6', side: '#383a42' });
+    extrudePoly(c, tiltRect(x1 - 40, 2, 0.32, -6, -104, 40, 104), 8, { color: '#5b4a3c' });
     c.save();
     c.translate(x0 + 520, 2);
     c.rotate(-0.42);
@@ -496,6 +512,10 @@ function vineWall(R, g) {
   const x = X3.vine;
   // rubble spilled from the wall, and from the building behind
   T.rubble(R, x - 190, 140, 38, { seed: 23, color: '#8d8c90' });
+  // the wall under the vine is a good 18 thick: its torn top and far side
+  R.cast((c) => {
+    extrudePoly(c, [[x - 70, 0], [x - 70, -90], [x - 30, -110], [x + 10, -80], [x + 40, -102], [x + 70, -70], [x + 70, 0]], 18, { color: '#b3a58f' });
+  });
   T.vine(R, x, t, { wallH: 110, lush: 1 });
   T.rubble(R, x + 40, 150, 52, { seed: 29, color: '#929196' });
   // the vine's leaves catch the moon: silver on the tops of every leaf
@@ -613,6 +633,9 @@ function alleyBack(R, g) {
 function catWall(R) {
   const [w0, w1] = X3.catWall;
   R.cast((c) => {
+    // a low wall 16 deep, its coping a little proud: tops and the far end show
+    extrudeRect(c, w0, -70, w1 - w0, 70, 16, { color: '#9c9a96' });
+    extrudeRect(c, w0 - 4, -76, w1 - w0 + 8, 8, 18, { color: '#b4b2ae' });
     c.fillStyle = '#9c9a96';
     c.fillRect(w0, -70, w1 - w0, 70);
     c.fillStyle = '#b4b2ae'; // coping
@@ -713,12 +736,16 @@ function basementWell(R) {
   R.paint((c) => {
     c.fillStyle = '#04050a';
     c.fillRect(b - 50, -5, 100, 140);
+    // the well is cut 24 deep into the ground: its far wall catches a little moon
+    holeReveal(c, [[b - 50, -5], [b + 50, -5], [b + 50, 135], [b - 50, 135]], 24, '#1c2030');
     // the stairs going down, each step a shade paler where the moon reaches
     for (let i = 0; i < 6; i++) {
       c.fillStyle = `rgb(${70 - i * 8},${80 - i * 8},${108 - i * 11})`;
       c.fillRect(b - 46 + i * 14, 2 + i * 14, 14, 3);
     }
     // the kerb stones either side
+    extrudeRect(c, b - 56, -5, 8, 12, 16, { color: '#6d7080' });
+    extrudeRect(c, b + 48, -5, 8, 12, 16, { color: '#6d7080' });
     c.fillStyle = '#6d7080';
     c.fillRect(b - 56, -5, 8, 12);
     c.fillRect(b + 48, -5, 8, 12);

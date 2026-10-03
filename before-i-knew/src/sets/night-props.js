@@ -5,6 +5,7 @@
 // Shapes come from seeded rng, so nothing shivers between frames.
 
 import { rng, clamp, lerp, smooth, noise1, mixc, rgb } from '../engine/util.js';
+import { extrudePoly, extrudeRect } from './depth.js';
 
 const TAU = Math.PI * 2;
 
@@ -56,6 +57,8 @@ export function basementDoor(R, x, { open = 0, t = 0 } = {}) {
 
   // the steps: tread tops at 10, 20, 30, then the landing at the sill
   R.cast((c) => {
+    // the flight is 18 deep: each tread shows its top, the end wall its far side
+    extrudePoly(c, [[xl, 0], [xl, 10], [xl + 22, 10], [xl + 22, 20], [xl + 44, 20], [xl + 44, 30], [xl + 66, 30], [xl + 66, SILL], [xr, SILL], [xr, SILL + 8], [xl, SILL + 8]], 18, { top: '#7c786d', side: '#24221f' });
     c.fillStyle = '#58554e';
     c.beginPath();
     c.moveTo(xl, 0);
@@ -284,6 +287,9 @@ export function basementDoor(R, x, { open = 0, t = 0 } = {}) {
 
   // the parapet at the far end of the well, and a rail along its street edge
   R.cast((c) => {
+    // the parapet is a brick-and-a-half thick (16), the coping a little proud
+    extrudeRect(c, xr - 2, -34, 17, 34 + SILL + 8, 16, { color: '#625f57' });
+    extrudeRect(c, xr - 4, -38, 21, 5, 18, { color: '#6e6b62' });
     c.fillStyle = '#625f57';
     c.fillRect(xr - 2, -34, 17, 34 + SILL + 8);
     c.fillStyle = '#6e6b62';
@@ -775,6 +781,10 @@ export function nightGarden(R, x0, x1, { wet = 0, t = 0 } = {}) {
   };
   for (const side of [-1, 1]) {
     R.cast((c) => {
+      // a wall stub 20 thick: its broken top and inner side show
+      const a = side < 0 ? x0 : x1;
+      const s = -side;
+      extrudePoly(c, [[a, 0], [a, -75], [a + s * 50, -75], [a + s * 56, -63], [a + s * 63, -66], [a + s * 66, -44], [a + s * 70, -30], [a + s * 66, -14], [a + s * 66, 0]], 20, { color: '#6f6554' });
       c.fillStyle = '#6f6554';
       c.beginPath();
       stub(side)(c);
