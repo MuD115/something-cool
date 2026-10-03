@@ -24,6 +24,13 @@ const CROUCH_LOOK = { ...POSES.crouch, head: -0.15, armN: 0.7, foreN: 1.2 };
 const POCKET = { ...CROUCH_LOOK, armN: -0.15, foreN: 0.5 };
 const POUR = { ...POSES.stand, torso: 0.18, head: 0.35, armN: 1.05, foreN: 1.3, armF: 0.3, foreF: 0.7 };
 const CAN_X = X3.garden[1] - 30;
+// the four beds: the courgettes, the aubergines, the tomatoes, the mint
+const BEDS = [X3.garden[1] - 80, X3.garden[1] - 170, X3.garden[0] + 150, X3.garden[0] + 70];
+const OBJ = {
+  cat: ['قف قليلاً', 'Stop a while'],
+  water: ['اسقِ الأحواض', 'Water the beds'],
+  canBack: ['أعِد السطل إلى مكانه', 'Put the can back where it was'],
+};
 
 // A line by key, as a script step; and the same said in passing.
 function* say(g, key) {
@@ -62,7 +69,7 @@ export const ACT3W = {
     const s = g.state;
     const L = g.level;
     const p = g.player;
-    g.a = { part: 3, nextChirp: 0, nextShot: 18, nextDog: 9, nextCreak: 5, nextNey: 12, doorOpen: 0, doorGlow: 0, wet: 0, canTaken: false };
+    g.a = { part: 3, beds: [false, false, false, false], nextChirp: 0, nextShot: 18, nextDog: 9, nextCreak: 5, nextNey: 12, doorOpen: 0, doorGlow: 0, wet: 0, canTaken: false };
     g.surface = surfaceAt;
     for (const id of ['torch']) if (!s.tools.includes(id)) s.tools.push(id);
     g.active = 'torch';
@@ -78,7 +85,9 @@ export const ACT3W = {
     look('vine', X3.vine, -110, 'vine', { box: [90, 150], by: 40 });
     look('garden', (X3.garden[0] + X3.garden[1]) / 2 - 40, -40, 'garden', { box: [260, 80], by: 10 });
     L.add({ id: 'door', x: X3.basement, y: -10, range: 90, label: ['افتح الباب قليلاً', 'Open the door a crack'], box: [70, 120], by: 30, enabled: () => !g.a.doorDone, use: () => g.runner.run(this.wedding(g)) });
-    L.add({ id: 'can', x: CAN_X, y: -20, range: 80, label: ['اسقِ الحديقة', 'Water the garden'], box: [40, 40], by: 6, enabled: () => !g.a.wateredDone && !g.locked, use: () => g.runner.run(this.water(g)) });
+    L.add({ id: 'can', x: CAN_X, y: -20, range: 80, label: ['خذ سطل السقاية', 'Take the watering can'], box: [40, 40], by: 6, enabled: () => !g.a.wateredDone && !g.a.carrying && !g.locked, use: () => g.runner.run(this.takeCan(g)) });
+    L.add({ id: 'canBack', x: CAN_X, y: -20, range: 80, label: ['أعِد السطل', 'Put the can back'], box: [40, 40], by: 6, enabled: () => g.a.carrying && g.a.beds.every(Boolean) && !g.locked, use: () => g.runner.run(this.putCan(g)) });
+    BEDS.forEach((bx, i) => L.add({ id: `bed${i}`, x: bx, y: -30, range: 60, urgent: true, label: ['اسقِ', 'Water it'], box: [70, 50], by: 10, enabled: () => g.a.carrying && !g.a.beds[i] && !g.locked, use: () => g.runner.run(this.pour(g, i)) }));
 
     // the black cat, on the low wall in the alley, as if it had been waiting
     const cat = new Cat();
@@ -134,9 +143,12 @@ export const ACT3W = {
     const p = g.player;
     const cat = g.cat;
     a.catDone = true;
+    g.state.cat_seen = true;
+    g.text.objective(null);
     g.lock();
-    yield* g.walkPlayer(X3.catWall[0] - 70);
-    p.f = 1;
+    // he faces it from wherever he stopped
+    p.f = cat.x >= p.x ? 1 : -1;
+    cat.f = -p.f;
     cat.headTurn = 0.3;
     yield 0.8;
     yield* say(g, 'cat_seen');
@@ -171,8 +183,7 @@ export const ACT3W = {
     a.doorDone = true;
     g.state.wedding_seen = true;
     g.lock();
-    yield* g.walkPlayer(X3.basement - 46);
-    p.f = 1;
+    p.f = X3.basement >= p.x ? 1 : -1;
     yield* say(g, 'door');
     yield 0.3;
     g.sound.noise({ dur: 0.5, freq: 260, q: 0.8, vol: 0.18 }); // the steel door scraping
@@ -196,53 +207,77 @@ export const ACT3W = {
     g.lock(false);
   },
 
-  // 3C-4: the watering can, half full. He waters someone else's garden.
-  *water(g) {
+  // 3C-4: the watering can, half full. He picks it up, and it's his to
+  // carry: bed by bed, at his own pace, and back to where it was.
+  *takeCan(g) {
+    const a = g.a;
+    const p = g.player;
+    g.lock();
+    p.f = CAN_X >= p.x ? 1 : -1;
+    yield* g.reach(CAN_X, -10, () => {
+      a.canTaken = true;
+    });
+    a.tilt = 0;
+    p.rig.prop = (c, hand) => wateringCan(c, hand[0] + 6, hand[1] + 8, { tilt: a.tilt, s: 0.9 });
+    // carried low at his side, walking (no running, no jumping with it)
+    p.arms = { armN: 0.35, foreN: 0.75 };
+    a.carrying = true;
+    g.stanceLock = 'stand';
+    g.gate = (m) => {
+      // it's someone else's can: it stays in their garden
+      const x = p.x;
+      if ((m < 0 && x < X3.garden[0] - 40) || (m > 0 && x > X3.garden[1] + 30)) return 0;
+      return m;
+    };
+    g.text.objective(OBJ.water);
+    g.lock(false);
+  },
+
+  // One bed: he tips the can over it, and the soil darkens.
+  *pour(g, i) {
+    const a = g.a;
+    const p = g.player;
+    g.lock();
+    p.f = BEDS[i] >= p.x ? 1 : -1;
+    p.override = POUR;
+    const t0 = g.time;
+    g.sound.slosh?.();
+    yield () => {
+      const k = clamp((g.time - t0) / 1.6);
+      a.tilt = 0.9 * Math.sin(k * Math.PI);
+      // the spout: the can sits at the hand (+6, +8 in his own frame,
+      // scale 0.9), its tip 51 along and 48 up from its base, tipped
+      const [hx, hy] = p.rig.world('handN');
+      const sx = 0.9 * (51 * Math.cos(a.tilt) - 4.5 * Math.sin(a.tilt));
+      const sy = 0.9 * (-48 + 51 * Math.sin(a.tilt) + 4.5 * Math.cos(a.tilt));
+      a.pour = { x: hx + p.f * (6 + sx), y: hy + 8 + sy, k: Math.sin(k * Math.PI) };
+      return k >= 1;
+    };
+    a.pour = null;
+    a.tilt = 0;
+    p.override = null;
+    a.beds[i] = true;
+    a.wet = a.beds.filter(Boolean).length / a.beds.length;
+    if (a.beds.every(Boolean)) g.text.objective(OBJ.canBack);
+    g.lock(false);
+  },
+
+  // And back where he found it: someone will come for it at night.
+  *putCan(g) {
     const a = g.a;
     const p = g.player;
     const s = g.state;
     g.lock();
-    yield* g.walkPlayer(CAN_X - 34);
-    p.f = 1;
-    yield* g.reach(CAN_X, -10, () => {
-      a.canTaken = true;
-    });
-    // the can in his near hand, tipped to pour
-    let tilt = 0;
-    p.rig.prop = (c, hand) => wateringCan(c, hand[0] + 6, hand[1] + 8, { tilt, s: 0.9 });
-    // carried low at his side between the beds, tipped over each one
-    p.arms = { armN: 0.35, foreN: 0.75 };
-    const beds = [X3.garden[1] - 80, X3.garden[1] - 170, X3.garden[0] + 150, X3.garden[0] + 70];
-    for (const bx of beds) {
-      p.override = null;
-      yield* g.walkPlayer(bx + 26);
-      p.f = -1;
-      p.override = POUR;
-      const t0 = g.time;
-      g.sound.slosh?.();
-      yield () => {
-        const k = clamp((g.time - t0) / 1.6);
-        tilt = 0.9 * Math.sin(k * Math.PI);
-        // the spout: the can sits at the hand (+6, +8 in his own frame,
-        // scale 0.9), its tip 51 along and 48 up from its base, tipped
-        const [hx, hy] = p.rig.world('handN');
-        const sx = 0.9 * (51 * Math.cos(tilt) - 4.5 * Math.sin(tilt));
-        const sy = 0.9 * (-48 + 51 * Math.sin(tilt) + 4.5 * Math.cos(tilt));
-        a.pour = { x: hx + p.f * (6 + sx), y: hy + 8 + sy, k: Math.sin(k * Math.PI) };
-        a.wet = Math.min(1, a.wet + g.lastDt * 0.16);
-        return k >= 1;
-      };
-      a.pour = null;
-    }
-    tilt = 0;
-    p.override = null;
-    yield* g.walkPlayer(CAN_X - 34);
+    p.f = CAN_X >= p.x ? 1 : -1;
     p.arms = null;
-    p.f = 1;
     yield* g.reach(CAN_X, -10, () => {
       a.canTaken = false;
       p.rig.prop = null;
     });
+    a.carrying = false;
+    g.gate = null;
+    g.stanceLock = null;
+    g.text.objective(null);
     a.wetT = g.time;
     a.wateredDone = true;
     s.watered_garden = true;
@@ -318,7 +353,14 @@ export const ACT3W = {
     }
 
     if (g.locked) return;
-    if (!a.catDone && p.x > X3.catWall[0] - 170 && p.x < X3.catWall[1]) g.runner.run(this.catScene(g));
+    // the cat: when he stops near its wall (or gets down to its level)
+    const nearCat = p.x > X3.catWall[0] - 190 && p.x < X3.catWall[1] + 120;
+    a.stillT = nearCat && Math.abs(p.vx) < 5 ? (a.stillT || 0) + dt : 0;
+    if (!a.catDone && nearCat && (a.stillT > 0.6 || p.stance === 'crouch')) g.runner.run(this.catScene(g));
+    if (!a.catDone && nearCat && !a.catHint) {
+      a.catHint = true;
+      g.text.objective(OBJ.cat);
+    }
     if (!a.saidMusic && dW < 520 && p.x < X3.basement) {
       a.saidMusic = true;
       line(g, 'music');

@@ -36,6 +36,7 @@ const OBJ = {
   hole: ['اخرج من الفتحة في الجدار', 'Go out through the hole in the wall'],
   down: ['انزل إلى الزقاق', 'Get down to the alley'],
   crawl: ['ازحف إلى أحمد', 'Crawl to Ahmad'],
+  drag: ['اسحبه إلى الظل', 'Pull him back into the shadow'],
 };
 
 // A line by key, as a script step: shows it, tags placeholders in the log.
@@ -607,12 +608,22 @@ export const ACT3R = {
     // the weight under the blanket, head towards him
     a.body = new Shroud(g.level, X2.blanket - 62, 0, 1);
     p.f = 1;
-    const x0 = p.x;
     const tx = X2.shade - 40;
-    // backwards on his belly, the weight coming after him: a pull, a rest,
-    // the blanket scraping on the gravel with each pull
+    // Now he pulls: the player backs him away on his belly, facing the body
+    // (only backwards, only crawling, slowly: it's heavy), the weight coming
+    // after his hands a moment late, the blanket scraping with each pull.
+    p.faceLock = 1;
+    g.stanceLock = 'prone';
+    g.gate = (m) => Math.min(0, m) * 0.6;
+    g.text.objective(OBJ.drag);
+    g.prompt('left', 'اسحب للخلف', 'Pull back');
+    g.lock(false);
     let stroke = -1;
-    const pull = (dist) => {
+    let dist = 0;
+    let lastX = p.x;
+    yield () => {
+      dist += Math.abs(p.x - lastX);
+      lastX = p.x;
       const n = Math.floor(dist / 38);
       if (n !== stroke) {
         stroke = n;
@@ -620,14 +631,17 @@ export const ACT3R = {
         g.sound.noise({ dur: 0.3, freq: 300, type: 'lowpass', vol: 0.12, buf: g.sound.brownBuf });
       }
       a.blanketX = p.x + 64;
-      // his hands on its edges at the shoulders: each pull a surge, then the
-      // weight comes after
+      // his hands on its edges at the shoulders: each pull a surge
       const surge = Math.max(0, Math.sin((dist / 38) * Math.PI * 2)) * 6;
       a.body.pull([p.x + 44 - surge, -16]);
-      return crawlPose(-dist * 0.083);
+      if (dist > 0) g.prompt(null);
+      return p.x <= tx;
     };
-    // (facing the body the whole way: he goes backwards)
-    yield* along(g, p, [[x0, 0], [tx, 0]], 24, pull, 1);
+    g.lock();
+    g.gate = null;
+    g.stanceLock = null;
+    p.faceLock = 0;
+    g.text.objective(null);
     a.body.pull(null);
     p.f = 1;
     yield 0.2;

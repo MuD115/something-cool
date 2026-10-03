@@ -365,16 +365,38 @@ export const ACT1 = {
       yield* g.say(SAMI, ['لوين بدك توصّلهن؟', 'Where do you need to get these?']);
       yield GAP;
       yield* g.say(OLD, ['هون، ع آخر الزقاق. بنتي وولادها. ما عندهن مي من مبارح.', 'Here, at the end of the alley. My daughter and her children. They’ve had no water since yesterday.']);
-      // walk together, slowly
-      g.runner.run(g.walkNpc(old, X.door + 70, { speedScale: 0.6 }));
+      // and they walk together, at Sami's pace (the player's): slowly, the
+      // jug heavy, no running with it; the old man keeps beside him
+      const prevObj = g.text.current;
+      g.text.objective(['احمل الماء إلى الباب', 'Carry the water to the door']);
+      g.stanceLock = 'stand';
+      g.gate = (m) => (m < 0 && p.x < X.oldMan - 160 ? 0 : m);
+      const a = g.a;
+      a.carryWalk = true;
       g.runner.run(
         (function* () {
-          yield 2;
+          while (a.carryWalk) {
+            // a step behind him, never ahead, and never faster than he can
+            old.goal = Math.min(X.door + 70, Math.max(old.x, p.x - 46));
+            old.goalOpts = { speedScale: 0.6 };
+            yield 0.15;
+          }
+        })(),
+      );
+      g.runner.run(
+        (function* () {
+          yield () => p.x > X.oldMan + 90;
           yield* g.say(OLD, ['كنت بشيل زيتون من الضيعة، شوالين عكتافي، وما كنت حسّ فيهن. هلّق غالون مي بيكسرني.', 'I used to carry olives from the village, sacks on my shoulders, and feel nothing. Now a jug of water breaks me.'], 6);
         })(),
       );
-      yield* g.walkPlayer(X.door - 40);
-      yield () => old.goal === null;
+      g.lock(false);
+      yield () => p.x >= X.door - 60;
+      g.lock();
+      a.carryWalk = false;
+      g.gate = null;
+      g.stanceLock = null;
+      g.text.objective(prevObj || null);
+      yield* g.walkNpc(old, X.door + 70, { speedScale: 0.6 });
       p.f = 1;
       old.f = -1;
       g.sound.noise({ dur: 0.08, freq: 400, q: 2, vol: 0.3 });

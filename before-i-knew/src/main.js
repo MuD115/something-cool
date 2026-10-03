@@ -15,6 +15,7 @@ import { ACT3W } from './story/act3w.js';
 import { ITEMS, JOURNAL } from './story/items.js';
 import { Photo } from './engine/photo.js';
 import { setMaterialSize } from './engine/materials.js';
+import { setFacadeRes } from './sets/town.js';
 
 // The chapters. A save names its act; old saves (act: 1) are Act One.
 const ACTS = { act1: ACT1, act2r: ACT2R, act3r: ACT3R, act3w: ACT3W };
@@ -152,6 +153,7 @@ function resize() {
   R.fx.relief = q !== 'low';
   R.fx.dirt = q === 'high';
   setMaterialSize(q === 'low' ? 128 : 256);
+  setFacadeRes(q === 'high' ? 2 : q === 'low' ? 1 : 1.25);
 }
 window.addEventListener('resize', resize);
 resize();
@@ -290,7 +292,9 @@ function summary3(s) {
 
 function summary3w(s) {
   const ar = lang() === 'ar';
-  const rows = [[ar ? '١٠:٣٠' : '10:30', ar ? 'القطة السوداء على الجدار. تثاءبت، ونامت.' : 'The black cat on the wall. It yawned, and slept.']];
+  const rows = [];
+  if (s.cat_seen) rows.push([ar ? '١٠:٣٠' : '10:30', ar ? 'القطة السوداء على الجدار. تثاءبت، ونامت.' : 'The black cat on the wall. It yawned, and slept.']);
+  else rows.push([ar ? '١٠:٣٠' : '10:30', ar ? 'مررتَ بالقطة السوداء على الجدار، ولم تتوقّف.' : 'You passed the black cat on the wall, and didn’t stop.']);
   if (s.wedding_seen) rows.push([ar ? '١١:٠٠' : '11:00', ar ? 'عرس في قبو. فتحتَ الباب قليلاً، ولم تدخل.' : 'A wedding in a basement. You opened the door a crack, and didn’t go in.']);
   else rows.push([ar ? '١١:٠٠' : '11:00', ar ? 'موسيقى عرس من تحت الأرض. مررتَ بها.' : 'Wedding music from under the ground. You walked on past it.']);
   rows.push([ar ? '١١:٣٠' : '11:30', optionFor(DECISIONS.find((d) => d.key === 'watered_garden'), !!s.watered_garden)[ar ? 2 : 1]]);

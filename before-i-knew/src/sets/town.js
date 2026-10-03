@@ -6,6 +6,7 @@
 import { rng, lerp, noise1 } from '../engine/util.js';
 import { smoothPath } from '../rigs/shapes.js';
 import { textureWall, heightWall, cloudCanvas } from '../engine/materials.js';
+import { extrudePoly, extrudeRect, holeReveal, DEPTH } from './depth.js';
 
 export const CONCRETE = ['#a99d89', '#9f9480', '#948874', '#ada390', '#91857a', '#a2977f'];
 
@@ -243,12 +244,47 @@ function weathering(w, H, seed) {
 }
 
 // ------------------------------------------------------------ façades --
+// How thick a block's outer wall is (world units): enough to read as
+// masonry where it's been torn open.
+const WALL = 24;
+const hexOf = (c) => (c && c[0] === '#' && c.length === 7 ? c : '#8f857a');
+
+// A torn edge seen in section: the broken block-work and concrete core
+// between the face and the back of the wall, rough, with the dark of the
+// hollow cores and the pale of fresh breaks.
+function brokenSection(c, pts, d, seed) {
+  const r = rng(seed * 3 + 1);
+  const vx = DEPTH.x * d;
+  const vy = DEPTH.y * d;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, ay] = pts[i];
+    const [bx, by] = pts[i + 1];
+    // only the ragged edges (the straight walls are smooth render)
+    if (Math.abs(bx - ax) < 1 || Math.abs(by - ay) < 1) continue;
+    const len = Math.hypot(bx - ax, by - ay);
+    for (let k = 0; k < len / 9; k++) {
+      const t = r();
+      const px = ax + (bx - ax) * t + vx * r();
+      const py = ay + (by - ay) * t + vy * r();
+      c.fillStyle = r() < 0.5 ? 'rgba(25,20,16,0.5)' : 'rgba(230,220,200,0.18)';
+      c.fillRect(px - 2, py - 1.5, 3 + r() * 5, 2 + r() * 3);
+    }
+  }
+}
+
 // A building's face is drawn once, at a little over screen resolution, into
 // two canvases: its colour (with the wall's material and all its windows,
 // doors, holes and weathering) and its relief (the material's height, with
 // windows and holes sunk in and the floor slabs standing proud).
 const FACADES = new Map();
-const FACADE_RES = 1.25;
+let FACADE_RES = 1.25;
+// High quality bakes façades sharper (they hold up close in); the cache
+// starts again at the new resolution.
+export function setFacadeRes(k) {
+  if (k === FACADE_RES) return;
+  FACADE_RES = k;
+  FACADES.clear();
+}
 function facade(spec, H, draw, mat, matSeed) {
   const key = JSON.stringify(spec) + mat;
   let F = FACADES.get(key);
@@ -420,30 +456,28 @@ export function block(R, spec, t = 0) {
       const r = rng(seed);
       c.save();
       // outline with a torn corner
-      c.beginPath();
+      let pts;
       if (torn > 0) {
         const tw = w * (0.3 + torn * 0.4);
         const th = H * (0.25 + torn * 0.45);
+        const n = 7;
         if (tornLeft) {
-          c.moveTo(x, 0);
-          c.lineTo(x, top + th);
-          const n = 7;
-          for (let i = 1; i < n; i++) c.lineTo(x + (tw * i) / n + (r() - 0.5) * 20, top + th - (th * i) / n + (r() - 0.5) * 30);
-          c.lineTo(x + tw, top);
-          c.lineTo(x + w, top);
-          c.lineTo(x + w, 0);
+          pts = [[x, 0], [x, top + th]];
+          for (let i = 1; i < n; i++) pts.push([x + (tw * i) / n + (r() - 0.5) * 20, top + th - (th * i) / n + (r() - 0.5) * 30]);
+          pts.push([x + tw, top], [x + w, top], [x + w, 0]);
         } else {
-          c.moveTo(x, 0);
-          c.lineTo(x, top);
-          c.lineTo(x + w - tw, top);
-          const n = 7;
-          for (let i = 1; i < n; i++) c.lineTo(x + w - tw + (tw * i) / n + (r() - 0.5) * 20, top + (th * i) / n + (r() - 0.5) * 30);
-          c.lineTo(x + w, top + th);
-          c.lineTo(x + w, 0);
+          pts = [[x, 0], [x, top], [x + w - tw, top]];
+          for (let i = 1; i < n; i++) pts.push([x + w - tw + (tw * i) / n + (r() - 0.5) * 20, top + (th * i) / n + (r() - 0.5) * 30]);
+          pts.push([x + w, top + th], [x + w, 0]);
         }
-      } else {
-        c.rect(x, top, w, H);
-      }
+      } else pts = [[x, top], [x + w, top], [x + w, 0], [x, 0]];
+      // the wall's thickness behind it: the parapet's top, the end wall, and
+      // where it was torn, the broken section through the block-work
+      extrudePoly(c, pts, WALL, { color: hexOf(color) });
+      if (torn > 0) brokenSection(c, pts, WALL, seed);
+      c.beginPath();
+      c.moveTo(...pts[0]);
+      for (const q of pts.slice(1)) c.lineTo(...q);
       c.closePath();
       c.fillStyle = color;
       c.fill();
@@ -601,6 +635,8 @@ export function block(R, spec, t = 0) {
         c.closePath();
         c.fill();
         recess.push({ poly: pts, ring: [hx, hy, hr] });
+        // through the hole, the thickness of the wall it was punched through
+        holeReveal(c, pts, WALL, shade(hexOf(color), 0.62));
         // broken render ring around the hole
         c.fillStyle = 'rgba(120,108,92,0.5)';
         c.beginPath();
@@ -664,6 +700,7 @@ export function block(R, spec, t = 0) {
           const sy = -f * fh;
           if (sy > top + H * (0.25 + torn * 0.45)) continue;
           const sx = tornLeft ? x + r() * w * 0.4 : x + w - r() * w * 0.4;
+          extrudeRect(c, sx - 30, sy - 8, 60, 10, WALL * 0.8, { color: hexOf(color) });
           c.fillStyle = color;
           c.fillRect(sx - 30, sy - 8, 60, 10);
           for (let i = 0; i < 4; i++) {
@@ -1027,6 +1064,10 @@ export function rubble(R, x, w, h, { seed = 5, color = '#a89b86', rebar = true, 
       pts.push([x + k * w + (r() - 0.5) * 16, -h * Math.sin(k * Math.PI) * (0.75 + r() * 0.35)]);
     }
     pts.push([x + w + 10, 2]);
+    // the heap goes back as far as it goes across, near enough
+    extrudePoly(c, pts, 14, { color: hexOf(color) });
+    c.fillStyle = color;
+    c.beginPath();
     c.moveTo(...pts[0]);
     for (const p of pts.slice(1)) c.lineTo(...p);
     c.closePath();
@@ -1038,8 +1079,13 @@ export function rubble(R, x, w, h, { seed = 5, color = '#a89b86', rebar = true, 
       c.save();
       c.translate(sx, sy);
       c.rotate((r() - 0.5) * 1.2);
-      c.fillStyle = shade(color.startsWith('#') ? color : '#a89b86', 0.75 + r() * 0.35);
-      c.fillRect(-20 - r() * 20, -6, 40 + r() * 30, 10 + r() * 6);
+      const cc = shade(color.startsWith('#') ? color : '#a89b86', 0.75 + r() * 0.35);
+      const cw = 40 + r() * 30;
+      const cx0 = -20 - r() * 20;
+      const ch = 10 + r() * 6;
+      extrudeRect(c, cx0, -6, cw, ch, 8, { top: 'rgba(255,248,235,0.22)', side: 'rgba(0,0,0,0.35)' });
+      c.fillStyle = cc;
+      c.fillRect(cx0, -6, cw, ch);
       c.restore();
     }
     if (rebar) {
@@ -1352,6 +1398,7 @@ export function deadOlive(R, x) {
 
 export function lowWall(R, x, w, h = 70, color = '#a3967f') {
   R.cast((c) => {
+    extrudeRect(c, x, -h, w, h, 16, { color: hexOf(color) });
     c.fillStyle = color;
     c.fillRect(x, -h, w, h);
     c.fillStyle = 'rgba(0,0,0,0.15)';

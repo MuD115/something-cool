@@ -88,11 +88,14 @@ function idlePose(t) {
   let p = c.time(u);
   const fadeT = 0.8;
   if (u > T - fadeT) p = blendPose(p, c.time(0), smooth(T - fadeT, T, u));
-  // arms mostly at rest: take a little of the capture's arm movement
+  // arms mostly at rest: take a little of the capture's arm movement; and
+  // the subject stood leaning back a touch, so his sways are kept but
+  // about an upright stance
   const s = POSES.stand;
+  const mean = (c.meanTorso ??= c.frames.reduce((acc, f) => acc + f.torso, 0) / c.frames.length);
   return {
     ...p,
-    torso: p.torso * 0.8 + s.torso * 0.2,
+    torso: s.torso + 0.03 + (p.torso - mean) * 0.7,
     armN: lerp(s.armN, p.armN, 0.4),
     foreN: lerp(s.foreN, p.foreN, 0.4),
     armF: lerp(s.armF, p.armF, 0.4),
@@ -337,11 +340,14 @@ export class Walker {
     // ease in and out of a walk rather than snapping to speed
     const acc = this.onGround ? (Math.abs(target) > Math.abs(this.vx) ? 900 : 1300) : 600;
     this.vx += clamp(target - this.vx, -acc * dt, acc * dt);
-    if (move !== 0) {
+    if (move !== 0 && !this.faceLock) {
       const f = move > 0 ? 1 : -1;
       if (f !== this.f) this.rig.pivot(); // a quick turn, not a flip
       this.f = f;
     }
+    // facing held (dragging something, backing away from it): he goes
+    // backwards, and his limbs go backwards too (see pose)
+    if (this.faceLock) this.f = this.faceLock;
 
     this.coyote = this.onGround ? COYOTE : Math.max(0, this.coyote - dt);
     this.jumpBuf = intent.jump ? JUMP_BUFFER : Math.max(0, this.jumpBuf - dt);
@@ -444,7 +450,7 @@ export class Walker {
       poses.push([g, k, w]);
     }
     eff /= wsum || 1;
-    this.gphase = (this.gphase || 0) + (speed * dt) / Math.max(eff, 1);
+    this.gphase = (this.gphase || 0) + ((this.backing ? -1 : 1) * speed * dt) / Math.max(eff, 1);
     let out = null;
     let acc = 0;
     for (const [g, k, w] of poses) {
@@ -457,6 +463,8 @@ export class Walker {
 
   pose(dt, speed, run = false) {
     let target;
+    // moving against the way he faces: the cycles run in reverse
+    this.backing = !!this.faceLock && Math.abs(this.vx) > 4 && Math.sign(this.vx) === -this.faceLock;
     const phase = (this.stride / (this.stance === 'stand' ? 74 : this.stance === 'crouch' ? 34 : 52)) * Math.PI;
     if (this.mantle) {
       const k = clamp(this.mantle.t);
@@ -472,7 +480,7 @@ export class Walker {
       // a brief gather at take-off, then the jump itself
       target = this.takeoff > 0 ? TAKEOFF_POSE : POSES.jump;
     } else if (this.stance === 'prone') {
-      target = speed > 4 ? crawlPose(phase * 0.8) : POSES.prone;
+      target = speed > 4 ? crawlPose((this.backing ? -phase : phase) * 0.8) : POSES.prone;
     } else if (this.stance === 'crouch') {
       if (speed > 4) target = this.gait(dt, speed, [[GAITS.crouch, 1]]);
       else {
