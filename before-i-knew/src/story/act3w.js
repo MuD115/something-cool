@@ -305,7 +305,9 @@ export const ACT3W = {
     g.sound.ney(196, 10, 0.14);
     g.text.titleCard(CARDS.close, 6);
     yield 6.5;
-    g.onEnd?.(s);
+    // and on into the small hours (Parts 4 to 6), straight on
+    if (g.onPart) g.onPart(s);
+    else g.onEnd?.(s);
   },
 
   // ============================================== per-frame extras ==

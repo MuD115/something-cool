@@ -75,7 +75,7 @@ export function walkLook(g) {
   // Damascus on the horizon, far right: a faint warm edge on what faces it
   lights.push({ uv: [1.35, 0.55], color: [1, 0.62, 0.34], intensity: 0.09, radius: 0, rim: 0.35 });
   return {
-    ambient: [0.115, 0.13, 0.195],
+    ambient: [0.135, 0.15, 0.22],
     lights: lights.slice(0, 4),
     groundShadow: 0.95,
     bloom: 0.8,

@@ -832,6 +832,107 @@ export class Sound {
     return w - this.t;
   }
 
+  // The dawn call to prayer from a rooftop with no loudspeaker: one man's
+  // voice, unaccompanied, carried on the wind. A sawtooth through three vowel
+  // formants (an open "a", shading to "o"), with a singer's slow vibrato,
+  // long melismas on D Bayati, a breath between phrases, and a slight crack
+  // on the highest note. Echoes off the town. Returns its length in seconds.
+  azan(vol = 0.2) {
+    if (!this.ctx) return 0;
+    const ctx = this.ctx;
+    const N = BAYATI;
+    const out = ctx.createGain();
+    out.gain.value = vol;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 2600;
+    const dl = ctx.createDelay(1.5);
+    dl.delayTime.value = 0.41;
+    const fb = ctx.createGain();
+    fb.gain.value = 0.32;
+    const wet = ctx.createGain();
+    wet.gain.value = 0.5;
+    out.connect(lp).connect(this.amb);
+    lp.connect(dl).connect(fb).connect(dl);
+    dl.connect(wet).connect(this.amb);
+    // the phrases: notes as [freq, beats]; "Allahu akbar" twice, rising, then the shahada's opening
+    const phrases = [
+      [[N.D3, 1.2], [N.F3, 0.5], [N.G3, 2.6], [N.F3, 0.5], [N.Eb3, 0.5], [N.D3, 2.4]],
+      [[N.D3, 0.8], [N.G3, 0.8], [N.A3, 2.8], [N.Bb3, 0.5], [N.A3, 0.5], [N.G3, 0.6], [N.F3, 0.6], [N.G3, 2.6]],
+      [[N.A3, 1], [N.C4, 1], [N.D4, 3.2, true], [N.C4, 0.6], [N.Bb3, 0.6], [N.A3, 0.7], [N.G3, 0.8], [N.A3, 3]],
+      [[N.G3, 1], [N.A3, 1.2], [N.Bb3, 2], [N.A3, 0.6], [N.G3, 0.6], [N.F3, 0.8], [N.Eb3, 0.8], [N.D3, 3.4]],
+    ];
+    const beat = 0.48;
+    let w = this.t + 0.6;
+    for (const ph of phrases) {
+      const src = ctx.createOscillator();
+      src.type = 'sawtooth';
+      const vib = ctx.createOscillator();
+      vib.frequency.value = 5.2;
+      const vibAmt = ctx.createGain();
+      vibAmt.gain.value = 0;
+      vib.connect(vibAmt).connect(src.frequency);
+      // three formants, in parallel
+      const env = ctx.createGain();
+      env.gain.value = 0;
+      for (const [f, q, g] of [[720, 6, 1], [1150, 8, 0.55], [2650, 10, 0.25]]) {
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = f;
+        bp.Q.value = q;
+        const gg = ctx.createGain();
+        gg.gain.value = g;
+        src.connect(bp).connect(gg).connect(env);
+      }
+      env.connect(out);
+      // breath noise under the voice
+      const br = this.noiseSrc();
+      const bf = ctx.createBiquadFilter();
+      bf.type = 'bandpass';
+      bf.frequency.value = 1600;
+      bf.Q.value = 0.7;
+      const bg = ctx.createGain();
+      bg.gain.value = 0;
+      br.connect(bf).connect(bg).connect(out);
+      const t0 = w;
+      src.frequency.setValueAtTime(ph[0][0], t0);
+      env.gain.setValueAtTime(0, t0);
+      env.gain.linearRampToValueAtTime(0.9, t0 + 0.35);
+      bg.gain.setValueAtTime(0.0, t0);
+      bg.gain.linearRampToValueAtTime(0.05, t0 + 0.3);
+      for (const [f, b, crack] of ph) {
+        const d = b * beat;
+        // glide into each note, as a voice does
+        src.frequency.setTargetAtTime(f, w, 0.05);
+        // vibrato blooms on the long notes only
+        vibAmt.gain.setValueAtTime(0, w);
+        if (d > 0.8) vibAmt.gain.linearRampToValueAtTime(f * 0.016, w + Math.min(0.9, d * 0.6));
+        if (crack) {
+          // the voice breaks a little on the high note, and recovers
+          const c = w + d * 0.45;
+          src.frequency.setValueAtTime(f, c);
+          src.frequency.linearRampToValueAtTime(f * 0.94, c + 0.07);
+          src.frequency.linearRampToValueAtTime(f, c + 0.2);
+          env.gain.setValueAtTime(0.9, c);
+          env.gain.linearRampToValueAtTime(0.45, c + 0.06);
+          env.gain.linearRampToValueAtTime(0.9, c + 0.22);
+        }
+        w += d;
+      }
+      env.gain.setValueAtTime(0.9, w - 0.4);
+      env.gain.linearRampToValueAtTime(0, w + 0.25);
+      bg.gain.linearRampToValueAtTime(0, w + 0.2);
+      src.start(t0);
+      vib.start(t0);
+      src.stop(w + 0.4);
+      vib.stop(w + 0.4);
+      br.stop(w + 0.4);
+      w += 2.4; // a breath
+    }
+    setTimeout(() => out.disconnect(), (w - this.t + 5) * 1000);
+    return w - this.t;
+  }
+
   // A building settling: a deep groan of stressed concrete, then grit falling.
   groan() {
     if (!this.ctx) return;

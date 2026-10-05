@@ -81,7 +81,7 @@ function rifle(c, hand) {
 // Move a walker along a path of [x, y] points at a speed, with a pose
 // for the gait (the walker's own, or a function of the distance so far),
 // turned the way it goes unless told which way to face.
-function* along(g, w, pts, speed, pose = null, face = null) {
+export function* along(g, w, pts, speed, pose = null, face = null) {
   const before = w.override;
   w.scripted = true;
   let seg = 0;
