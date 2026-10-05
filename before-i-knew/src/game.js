@@ -246,13 +246,16 @@ export class Game {
   }
 
   *walkNpc(w, x, opts = {}) {
-    w.goal = x;
+    // (a goal past the level's edge could never be reached: keep it inside)
+    const [b0, b1] = this.level.bounds;
+    w.goal = Math.min(b1 - 16, Math.max(b0 + 16, x));
     w.goalOpts = opts;
     yield () => w.goal === null;
   }
 
   *walkPlayer(x, { run = false } = {}) {
-    this.autoWalk = { x, run };
+    const [b0, b1] = this.level.bounds;
+    this.autoWalk = { x: Math.min(b1 - 16, Math.max(b0 + 16, x)), run };
     yield () => !this.autoWalk;
   }
 

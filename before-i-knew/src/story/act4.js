@@ -31,7 +31,7 @@ import { X5, END, NOMANS, TUNNEL, SCHOOL, RUBBLE } from './act4-map.js';
 import { LINES, WHO, CARDS, CHOICE_H } from './act4-lines.js';
 import { resolveEnding, endingIsClear, applyChoiceH, ENDINGS } from './endings.js';
 import { whiteCloth } from './act2r.js';
-import { drawRoof, roofLook, drawStairwell, stairLook, stairPath, LOOKOUTS } from '../sets/rooftop.js';
+import { drawRoof, roofLook, drawStairwell, stairLook, stairPath, LOOKOUTS, HUT_DOOR } from '../sets/rooftop.js';
 import { dawnLook, drawDawnStreet, drawEdgeRoad, drawFarmEdge, SHADOW } from '../sets/dawn.js';
 import { drawNomans, nomansLook, drawStretcher, drawCemetery, cemeteryLook, drawGrave, GRAVE_X, GATE_X, drawTunnel, tunnelLook } from '../sets/farewell.js';
 import { drawDawnClassroom, dawnClassroomLook, CHAIRS, drawRubbleRoom, rubbleLook, SEAT, CAT_PATH, drawCameraScreen } from '../sets/remains.js';
@@ -81,7 +81,7 @@ export const ACT4 = {
       L.add({ id: `road_${road}`, x, y: -120, range: 90, urgent: true, label, box: [130, 200], by: 30, enabled: () => g.a.roads?.includes(road) && !g.locked, use: () => g.runner.run(this.road(g, road)) });
     }
     // the roof: the stair door
-    L.add({ id: 'downstairs', x: MEM.roof[0] - MEM.roof[1] + 90, y: -110, range: 100, urgent: true, label: ['انزل الدرج', 'Go down the stairs'], box: [90, 190], by: 20, enabled: () => g.a.mem === 'roof' && g.a.up && !g.locked, use: () => g.runner.run(this.descend(g)) });
+    L.add({ id: 'downstairs', x: HUT_DOOR[0], y: -110, range: 100, urgent: true, label: ['انزل الدرج', 'Go down the stairs'], box: [90, 190], by: 20, enabled: () => g.a.mem === 'roof' && g.a.up && !g.locked, use: () => g.runner.run(this.descend(g)) });
     // Ending 2: the journal, at the graveside
     L.add({ id: 'journal', x: GRAVE_X - 80, y: -120, range: 140, urgent: true, label: ['اقرأ من دفتر أحمد', 'Read from Ahmad’s journal'], box: [80, 80], enabled: () => g.a.mem === 'cemetery' && g.a.speak && !g.locked, use: () => (g.a.read = true) });
     L.add({ id: 'grapes', x: GRAVE_X, y: -230, range: 150, look: true, label: ['تأمّل', 'Look'], box: [90, 70], enabled: () => g.a.mem === 'cemetery' && g.a.alone && !g.a.sawGrapes && !g.locked, use: () => (g.a.sawGrapes = true) });

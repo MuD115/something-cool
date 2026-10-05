@@ -25,9 +25,9 @@ import { along } from './act3r.js';
 import { X4, MEM, CAFE_X, DUMPSTER_X } from './act3v-map.js';
 import { LINES, WHO, CARDS } from './act3v-lines.js';
 import { surfaceAt, streetLook, drawStreet, shopWindowRect, PORTRAIT } from './act3v-set.js';
-import { drawVisionClassroom, visionClassroomLook, DESKS, BOARD_X, drawOrchard, orchardLook, drawDamascus, damascusLook, CAFE_WINDOW } from '../sets/visions.js';
+import { drawVisionClassroom, visionClassroomLook, DESKS, BOARD_X, drawOrchard, orchardLook, drawDamascus, drawDamascusTraffic, damascusLook, CAFE_WINDOW } from '../sets/visions.js';
 import { drawEid, drawProtest, drawDumpster, drawSchool, drawKitchen, memoryLook, EID_SEATS, EID_HEAD_X, EID_DOOR_X, SCHOOL_DESKS, TEACHER_X, KITCHEN_DOOR_X } from '../sets/memories.js';
-import { drawStairwell, stairPath, stairLook, drawRoof, roofLook, LOOKOUTS } from '../sets/rooftop.js';
+import { drawStairwell, stairPath, stairLook, drawRoof, roofLook, LOOKOUTS, HUT_DOOR } from '../sets/rooftop.js';
 
 const OBJ = {
   march: ['امشِ مع الناس', 'Walk with the crowd'],
@@ -191,7 +191,7 @@ export const ACT3V = {
   },
 
   // And back to the street, older again, in the dark.
-  *leave(g, x = null) {
+  *back(g, x = null) {
     const a = g.a;
     const p = g.player;
     g.lock();
@@ -286,7 +286,7 @@ export const ACT3V = {
     yield 3.4;
     g.sound.ambience({ wind: 0.14, air: 0.22 }, 2);
     yield 1;
-    yield* this.leave(g, X4.classroom + 60);
+    yield* this.back(g, X4.classroom + 60);
     g.checkpoint('orchard');
     yield* fadeTo(g, 0, 1.6);
     g.lock(false);
@@ -326,7 +326,7 @@ export const ACT3V = {
     g.sound.ambience({ wind: 0.22, air: 0.18 }, 0.6);
     g.sound.strikeFar?.(0.8);
     yield 3;
-    yield* this.leave(g, X4.arch + 60);
+    yield* this.back(g, X4.arch + 60);
     g.checkpoint('damascus');
     yield* fadeTo(g, 0, 1.6);
     g.lock(false);
@@ -359,7 +359,7 @@ export const ACT3V = {
     const r = shopWindowRect();
     p.vx = 0;
     p.f = 1;
-    yield* g.walkPlayer(r.x + r.w / 2 - 60);
+    yield* g.walkPlayer(r.x + r.w * 0.22);
     a.reflect = 0;
     p.face?.('back');
     yield* tween(g, 'reflect', 1, 1.6);
@@ -393,8 +393,16 @@ export const ACT3V = {
     // through the window: the two of them at a table
     const sx = CAFE_WINDOW.x + CAFE_WINDOW.w * 0.32;
     const ax = CAFE_WINDOW.x + CAFE_WINDOW.w * 0.68;
+    // inside, at a table by the window: seen through the glass, from the street
+    const floor = CAFE_WINDOW.y + CAFE_WINDOW.h + 46;
     const ys = actor(g, 'sami', sx, { f: 1, o: YOUNG[22], pose: SIT(42, { armN: 0.9, foreN: 1.9 }) });
     const ya = actor(g, 'khaled', ax, { f: -1, o: YOUNG_AHMAD, pose: SIT(42, { armN: 1.6, foreN: 2.3, armF: 1.2, foreF: 2.0 }) });
+    for (const w of [ys, ya]) {
+      w.place(w.x, floor);
+      w.scripted = true; // (held at the café's floor, not the street's)
+      w.inside = true;
+    }
+    // Ahmad talks with his hands, as he always did; young Sami stirs his coffee
     a.cafe = { ys, ya };
     a.seated = true;
     yield () => a.touched;
@@ -421,7 +429,7 @@ export const ACT3V = {
     yield 2.4;
     p.override = null;
     a.touched = true;
-    yield* this.leave(g, X4.shop + 80);
+    yield* this.back(g, X4.shop + 80);
     g.checkpoint('eid');
     yield* fadeTo(g, 0, 1.6);
     g.lock(false);
@@ -445,10 +453,23 @@ export const ACT3V = {
     g.sound.ambience({ crowd: 0.55, traffic: 0.05, wind: 0, air: 0, generator: 0 }, 1);
     // fifteen people round a table for eight
     const at = (o, i, extra = {}, f = 1) => actor(g, o, seats[i][0], { f, pose: SIT(-seats[i][1], extra), ...extra.opt });
-    const mother = at('woman', 0, { armN: 0.5, foreN: 1.4 });
-    const uncle = at('man', 2, { armN: 0.9, foreN: 1.8 });
+    // a meal going on: people turned to each other in pairs, eating, talking,
+    // a hand in a lap, a glass raised; no two the same
+    const MEAL = [
+      { armN: 0.35, foreN: 1.1, head: 0.15 }, // hands in her lap
+      { armN: 0.6, foreN: 2.35, head: 0.05 }, // a bite
+      { armN: 0.85, foreN: 1.45, head: -0.05, torso: 0.08 }, // talking with his hands
+      { armN: 0.5, foreN: 1.75, head: 0.2, torso: 0.12 }, // eating, head down
+      { armN: 0.25, foreN: 0.9, head: -0.1, torso: -0.05 }, // leaning back, laughing
+      { armN: 0.7, foreN: 2.5, head: 0.0 }, // a glass of juice
+    ];
+    const mother = at('woman', 0, { ...MEAL[0] }, -1);
+    const uncle = at('man', 2, { ...MEAL[2] }, -1);
     const others = [];
-    for (let i = 3; i < seats.length - 1; i++) others.push(at(['man2', 'woman2', 'man3', 'layla', 'oldman', 'woman'][(i - 3) % 6], i, { armN: 0.7 + (i % 3) * 0.2, foreN: 1.6 }, seats[i][0] > EID_HEAD_X ? -1 : 1));
+    for (let i = 3; i < seats.length - 1; i++) {
+      // pairs face each other: odd seats turn left, even seats right
+      others.push(at(['man2', 'woman2', 'man3', 'layla', 'oldman', 'woman'][(i - 3) % 6], i, { ...MEAL[(i * 2 + 1) % MEAL.length] }, i % 2 ? -1 : 1));
+    }
     const kids = [actor(g, 'boy', EID_DOOR_X + 140, { f: 1, scale: 0.6, pose: POSES.sitGround }), actor(g, 'kid3', EID_DOOR_X + 200, { f: -1, scale: 0.55, pose: POSES.sitGround })];
     const father = actor(g, 'abuyazan', EID_HEAD_X, { f: -1, o: { headwear: null, layer: { kind: 'jacket', color: '#4a4740' } }, pose: { ...POSES.stand } });
     const all = [mother, uncle, ...others, ...kids, father];
@@ -471,11 +492,12 @@ export const ACT3V = {
     // he goes to the door
     father.face?.('side');
     father.f = -1;
-    g.runner.run(g.walkNpc(father, EID_DOOR_X + 50, { speedScale: 0.6 }));
+    g.runner.run(g.walkNpc(father, EID_DOOR_X + 90, { speedScale: 0.6 }));
     yield () => father.goal === null;
     g.sound.cloth();
     yield* tween(g, 'eidDoor', 1, 0.7);
-    const neighbour = actor(g, 'man3', EID_DOOR_X - 40, { f: 1, pose: { ...POSES.stand, armN: 1.3, foreN: 1.7 } });
+    const neighbour = actor(g, 'man3', EID_DOOR_X + 10, { f: 1, pose: { ...POSES.stand, armN: 1.3, foreN: 1.7 } }); // a tray of baklava
+    g.camOverride = { x: EID_DOOR_X + 300, y: -170, view: 1000 };
     yield 0.5;
     yield* say(g, 'baklava');
     // the room breathes out
@@ -489,7 +511,7 @@ export const ACT3V = {
     // but he remembers her hand on his arm
     g.sound.setMuffle(0.8, 2);
     yield* tween(g, 'memK', 1, 2.2);
-    yield* this.leave(g, X4.shutter + 80);
+    yield* this.back(g, X4.shutter + 80);
     g.checkpoint('protest');
     yield* fadeTo(g, 0, 1.6);
     g.lock(false);
@@ -549,25 +571,34 @@ export const ACT3V = {
     crowd.forEach((w, i) => {
       w.goal = null;
       w.arms = null;
-      g.runner.run(g.walkNpc(w, i % 2 ? c - hw + 120 : c + hw - 400 - i * 30, { run: true, speedScale: 1.1 }));
+      // everyone runs: back up the street, or on past, out of sight
+      g.runner.run(
+        (function* () {
+          yield* g.walkNpc(w, i % 2 ? c - hw + 40 : c + hw - 40, { run: true, speedScale: 1 + (i % 3) * 0.1 });
+          w.visible = false;
+        })(),
+      );
     });
     g.runner.run(tween(g, 'scatter', 1, 2.5));
     g.gate = null;
     g.stanceLock = null;
     a.follow = null;
-    g.runner.run(g.walkNpc(ahmad, DUMPSTER_X + 34, { run: true }));
+    // round the corner and down against the dumpster's far end, out of the street's sight
+    g.runner.run(g.walkNpc(ahmad, DUMPSTER_X + 234, { run: true }));
     g.text.objective(OBJ.run);
-    yield () => p.x >= DUMPSTER_X - 26;
+    yield () => p.x >= DUMPSTER_X + 150;
     g.lock();
     g.text.objective(null);
     yield () => ahmad.goal === null;
     g.sound.ambience({ crowd: 0.15 }, 2.5);
     g.sound.score?.cut?.('silence', 1);
     p.vx = 0;
+    // his back against the metal, down on the ground; Ahmad crouched facing him
+    yield* g.walkPlayer(DUMPSTER_X + 168);
     p.f = 1;
-    p.override = { ...POSES.crouch, head: -0.1 };
+    p.override = { ...POSES.sitGround, torso: 0.02, head: -0.1 };
     ahmad.f = -1;
-    ahmad.override = { ...POSES.crouch, head: 0.1 };
+    ahmad.override = { ...POSES.crouch, head: 0.05 };
     breaths(g, 7);
     yield 2.4;
     ahmad.override = { ...POSES.crouch, head: -0.05, torso: 0.4 };
@@ -576,7 +607,7 @@ export const ACT3V = {
     g.sound.setMuffle(0.8, 2);
     yield* tween(g, 'memK', 1, 2.2);
     p.override = null;
-    yield* this.leave(g, X4.minaret + 80);
+    yield* this.back(g, X4.minaret + 80);
     g.checkpoint('mukhabarat');
     yield* fadeTo(g, 0, 1.6);
     g.lock(false);
@@ -680,7 +711,7 @@ export const ACT3V = {
     g.sound.setMuffle(0.8, 2);
     yield* tween(g, 'memK', 1, 2.2);
     // the ruined building again; the portrait in the torch, and then not
-    yield* this.leave(g, PORTRAIT.x + PORTRAIT.w / 2 - 60);
+    yield* this.back(g, PORTRAIT.x + PORTRAIT.w / 2 - 60);
     p.f = 1;
     g.torch.on = true;
     yield* fadeTo(g, 0, 1.2);
@@ -734,7 +765,7 @@ export const ACT3V = {
     a.mem = 'roof';
     const [rc, rhw] = MEM.roof;
     g.level.bounds = [rc - rhw, rc + rhw];
-    p.place(rc - rhw + 160, 0);
+    p.place(HUT_DOOR[0] + 60, 0); // out of the stair-head hut's door
     p.f = 1;
     a.roofT = 0;
     a.dawn = 0;
@@ -824,6 +855,12 @@ export const ACT3V = {
         line(g, 'ahmadFar');
       }
     }
+    // the café: Ahmad's hands as he talks; young Sami stirring sugar in
+    if (a.cafe && !a.touched) {
+      const k = Math.sin(g.time * 2.3);
+      a.cafe.ya.override = SIT(42, { armN: 1.5 + k * 0.25, foreN: 2.2 - k * 0.3, armF: 1.2 - k * 0.2, foreF: 2.0, head: 0.05 * k });
+      a.cafe.ys.override = SIT(42, { armN: 0.9, foreN: 1.9 + Math.sin(g.time * 6) * 0.08, head: 0.1 });
+    }
     // Damascus: people come and go
     if (a.passers) {
       const [c, hw] = MEM.damascus;
@@ -874,7 +911,7 @@ export const ACT3V = {
         a.ghost.setPose({ ...POSES.stand, head: 0.05 });
       }
       const gh = a.ghost;
-      gh.x = r.x + r.w / 2;
+      gh.x = r.x + r.w * 0.68;
       gh.y = r.y + r.h - 4;
       gh.f = -1;
       R.paint((c) => {
@@ -908,8 +945,12 @@ export const ACT3V = {
         drawOrchard(R, g, { wither: a.wither || 0, t });
         break;
       case 'damascus':
-        drawDamascus(R, g, { fold: a.fold || 0, t });
-        break;
+        // the traffic after the people: they walk the pavement behind it
+        drawDamascus(R, g, { fold: a.fold || 0, t, traffic: false });
+        drawInside(R, g);
+        drawActors(R, g);
+        drawDamascusTraffic(R, g, { fold: a.fold || 0, t });
+        return;
       case 'eid':
         drawEid(R, g, { t, door: a.eidDoor || 0 });
         break;
@@ -971,11 +1012,48 @@ export const ACT3V = {
   },
 };
 
+// The two of them in the café, seen through its window: clipped to the
+// glass, then the glass's own sheen over them.
+function drawInside(R, g) {
+  const w = CAFE_WINDOW;
+  const inside = (g.npcs || []).filter((q) => q.inside && q.visible);
+  if (!inside.length) return;
+  const t = g.time;
+  for (const q of inside) {
+    R.paint((c) => {
+      c.save();
+      c.beginPath();
+      c.rect(w.x + 3, w.y + 3, w.w - 6, w.h - 6);
+      c.clip();
+      q.draw(c);
+      c.restore();
+    });
+  }
+  R.glow((c) => {
+    c.save();
+    c.beginPath();
+    c.rect(w.x + 3, w.y + 3, w.w - 6, w.h - 6);
+    c.clip();
+    // the street reflected in the pane: two slanting bands of light, drifting
+    for (const [u, a] of [[0.18, 0.1], [0.62, 0.07]]) {
+      const x = w.x + w.w * u + Math.sin(t * 0.3 + u * 9) * 8;
+      c.fillStyle = `rgba(255,240,215,${a})`;
+      c.beginPath();
+      c.moveTo(x, w.y);
+      c.lineTo(x + 60, w.y);
+      c.lineTo(x + 20, w.y + w.h);
+      c.lineTo(x - 40, w.y + w.h);
+      c.fill();
+    }
+    c.restore();
+  });
+}
+
 // The people in a memory, with their shadows, over the set.
 function drawActors(R, g) {
   const cx = R.cam.x;
   for (const w of [...(g.npcs || []), g.player]) {
-    if (!w || !w.visible || Math.abs(w.x - cx) > 1700) continue;
+    if (!w || !w.visible || w.inside || Math.abs(w.x - cx) > 1700) continue;
     R.cast((c) => w.draw(c));
     R.shadow((c) => w.draw(c), w.x, w.y, -0.5, 0.2);
   }

@@ -270,8 +270,11 @@ function board(smeared) {
     c.fillStyle = chalk;
     c.strokeStyle = chalk;
     // the conjugation: wrote, writes, writer
-    c.font = `30px ${NASKH}`;
-    c.fillText('كتب — يكتب — كاتب', BW * 0.57, 40);
+    // (fitted to the board, whatever the font's width)
+    let fs = 30;
+    c.font = `${fs}px ${NASKH}`;
+    while (fs > 14 && c.measureText('كتب — يكتب — كاتب').width > BW * 0.74) c.font = `${--fs}px ${NASKH}`;
+    c.fillText('كتب — يكتب — كاتب', BW * 0.555, 40);
     // the table beneath: past, present, future
     c.lineWidth = 1.6;
     c.beginPath();
@@ -284,8 +287,9 @@ function board(smeared) {
       c.lineTo(BW * gx, 108);
     }
     c.stroke();
+    // one word to a column, right to left: past, present, future
     c.font = `20px ${NASKH}`;
-    c.fillText('ماضي... حاضر... مستقبل', BW * 0.555, 86);
+    for (const [w, gx] of [['ماضي', 0.83], ['حاضر', 0.545], ['مستقبل', 0.27]]) c.fillText(w, BW * gx, 86);
     // little arrows beneath each column
     c.lineWidth = 1.2;
     for (const gx of [0.27, 0.545, 0.83]) {
@@ -627,10 +631,11 @@ export function drawVisionClassroom(R, g, { empty = 0, t = g.time } = {}) {
     c.beginPath();
     c.rect(bx, by, BW - 20, BH);
     c.clip();
-    c.drawImage(board(false), bx, by, BW, BH);
+    // (the whole board inside its frame: drawn to the frame's width)
+    c.drawImage(board(false), bx, by, BW - 20, BH);
     if (empty > 0.005) {
       c.globalAlpha = smooth(0.12, 0.5, empty);
-      c.drawImage(board(true), bx, by, BW, BH);
+      c.drawImage(board(true), bx, by, BW - 20, BH);
       c.globalAlpha = 1;
     }
     c.restore();
@@ -3001,7 +3006,7 @@ function fold(c, k, accordion = 0, px = 0) {
   }
 }
 
-export function drawDamascus(R, g, { fold: fk = 0, t = g.time } = {}) {
+export function drawDamascus(R, g, { fold: fk = 0, t = g.time, traffic: withTraffic = true } = {}) {
   const k = clamp(fk);
   const cam = R.cam.x;
   const e = k * k * (3 - 2 * k);
@@ -3299,30 +3304,8 @@ export function drawDamascus(R, g, { fold: fk = 0, t = g.time } = {}) {
         c.restore();
       });
     }
-    // the traffic, in front of the pavement
-    for (const v of traffic(t)) {
-      const half = v.kind === 'bus' ? 540 : 230;
-      if (!near(v.x - half, v.x + half)) continue;
-      R.cast((c) => {
-        c.save();
-        c.globalAlpha = sceneA;
-        fold(c, k);
-        if (v.kind === 'bus') bus(c, v.x, v.y, v.dir, t);
-        else car(c, v.x, v.y, v.dir, v.col, t, v.taxi);
-        c.restore();
-      });
-      R.shadow(
-        (c) => {
-          c.fillStyle = 'rgba(0,0,0,0.5)';
-          const L = v.kind === 'bus' ? 520 : 215;
-          c.fillRect(v.x - L, v.y - (v.kind === 'bus' ? 280 : 130), L * 2, v.kind === 'bus' ? 280 : 130);
-        },
-        v.x,
-        v.y,
-        SHEAR,
-        0.14,
-      );
-    }
+    // the traffic, in front of the pavement (or drawn later, over the people)
+    if (withTraffic) drawTrafficPass(R, t, k, sceneA, near);
   }
 
   // ---- the glass: reflections of the street, the light inside -------------
@@ -3545,4 +3528,40 @@ export function damascusLook(g, foldK = 0) {
     // road dust hanging in the golden air, then the cold mist of the night street
     fog: { density: lerp(0.07, 0.12, dim), height: 130, color: mixc([0.9, 0.7, 0.45], [0.3, 0.38, 0.54], moonK) },
   });
+}
+
+// The traffic on the near lane: cars, taxis and the bus. Drawn by the set,
+// or after the people (they walk on the pavement behind it).
+function drawTrafficPass(R, t, k, sceneA, near) {
+  for (const v of traffic(t)) {
+    const half = v.kind === 'bus' ? 540 : 230;
+    if (!near(v.x - half, v.x + half)) continue;
+    R.cast((c) => {
+      c.save();
+      c.globalAlpha = sceneA;
+      fold(c, k);
+      if (v.kind === 'bus') bus(c, v.x, v.y, v.dir, t);
+      else car(c, v.x, v.y, v.dir, v.col, t, v.taxi);
+      c.restore();
+    });
+    R.shadow(
+      (c) => {
+        c.fillStyle = 'rgba(0,0,0,0.5)';
+        const L = v.kind === 'bus' ? 520 : 215;
+        c.fillRect(v.x - L, v.y - (v.kind === 'bus' ? 280 : 130), L * 2, v.kind === 'bus' ? 280 : 130);
+      },
+      v.x,
+      v.y,
+      SHEAR,
+      0.14,
+    );
+  }
+}
+export function drawDamascusTraffic(R, g, { fold: fk = 0, t = g.time } = {}) {
+  const k = clamp(fk);
+  const cam = R.cam.x;
+  const sceneA = 1 - smooth(0.74, 0.97, k);
+  if (sceneA <= 0.01) return;
+  const near = (x0, x1) => k > 0.02 || (x1 > cam - 1700 && x0 < cam + 1700);
+  drawTrafficPass(R, t, k, sceneA, near);
 }
