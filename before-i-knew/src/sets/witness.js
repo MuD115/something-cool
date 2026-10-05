@@ -126,7 +126,7 @@ export function quarterLook(g, k = 0) {
   // the camera's shutter: a small, brief white
   const d = g.time - (g.a?.flashAt ?? -9);
   if (d > -0.02 && d < 0.15) {
-    const f = 0.75 * (1 - Math.max(0, d) / 0.15);
+    const f = 1.5 * (1 - Math.max(0, d) / 0.15); // (added to the light: albedo still shows through)
     look.flash = [f, f, f * 0.96];
   }
   return look;
@@ -397,7 +397,7 @@ function umSaidFlat(R, x, t) {
     // the lamp inside, showing as a slit down the open side
     const g = c.createLinearGradient(x0 + 58, 0, x0 + w, 0);
     g.addColorStop(0, 'rgba(255,170,80,0.0)');
-    g.addColorStop(0.55, `rgba(255,176,88,${0.24 + 0.04 * Math.sin(t * 2.3)})`);
+    g.addColorStop(0.55, `rgba(255,176,88,${0.32 + 0.04 * Math.sin(t * 2.3)})`);
     g.addColorStop(1, 'rgba(255,170,80,0.0)');
     c.fillStyle = g;
     c.fillRect(x0 + 58, -h + 26, w - 58, h - 56);
@@ -991,11 +991,11 @@ function viewGap(R, g, t, k, dof) {
     },
   });
   // the blanket: a small dark mound, a pale stripe, its corner lifting
-  const m = at(0.5);
+  const m = at(0.62);
   R.paint((c) => {
     c.save();
     c.translate(m.x + 6 * m.s, m.y);
-    c.scale(m.s * 1.7, m.s * 1.7);
+    c.scale(m.s * 1.4, m.s * 1.4);
     const rip = Math.sin(t * 1.3) * 1.5;
     c.fillStyle = '#34292a';
     c.beginPath();
@@ -1805,14 +1805,6 @@ function loaves(R, g, t) {
     c.ellipse(-2.5, -30, 2.6, 10, 0, 0, TAU);
     c.fill();
     c.restore();
-    // a cloth thrown over the last loaf
-    c.fillStyle = '#c8bca4';
-    c.beginPath();
-    c.moveTo(x - 2, top - 27);
-    c.quadraticCurveTo(x + 8, top - 40, x + 30, top - 26);
-    c.lineTo(x + 32, top - 6);
-    c.lineTo(x - 2, top - 6);
-    c.fill();
   });
   // steam from the warm bread, thin and brief
   R.glow((c) => {
@@ -1884,20 +1876,6 @@ function bakeryWall(R) {
 
 // Small things left in the street: kerbside litter, a chair, a handcart.
 function dressing(R, near) {
-  if (near(560, 700)) {
-    // an overturned plastic chair
-    R.cast((c) => {
-      c.save();
-      c.translate(620, 0);
-      c.fillStyle = '#9a3a32';
-      c.rotate(0.04);
-      c.fillRect(0, -6, 38, 5);
-      c.fillRect(2, -40, 5, 36);
-      c.fillRect(2, -40, 20, 4);
-      c.fillRect(32, -6, 4, -10);
-      c.restore();
-    });
-  }
   if (near(XW.bakery + 330, XW.bakery + 560)) {
     // a handcart, its wooden bed empty, one wheel off
     R.cast((c) => {
@@ -2162,20 +2140,24 @@ export function drawUmSaidRoom(R, g, { t = 0, bag = 0 } = {}) {
   R.paint((c) => {
     // the street seen through it: a house across the way, lit orange, a sliver of sky
     const sg = c.createLinearGradient(0, -DOOR.h, 0, 0);
-    sg.addColorStop(0, '#f2a868');
-    sg.addColorStop(1, '#d88850');
+    sg.addColorStop(0, '#d8804a');
+    sg.addColorStop(1, '#b86a3a');
     c.fillStyle = sg;
     c.fillRect(dx0, -DOOR.h, DOOR.w, DOOR.h);
-    c.fillStyle = '#b98460';
-    c.fillRect(dx0, -DOOR.h * 0.78, DOOR.w, DOOR.h * 0.78);
-    c.fillStyle = 'rgba(60,34,22,0.5)';
-    c.fillRect(dx0 + 12, -DOOR.h * 0.62, 20, 30);
-    c.fillRect(dx0 + 52, -DOOR.h * 0.62, 20, 30);
+    c.fillStyle = '#8a5a3c';
+    c.fillRect(dx0 + 30, -DOOR.h * 0.8, DOOR.w - 30, DOOR.h * 0.8);
+    c.fillStyle = '#a06c46';
+    c.fillRect(dx0 + 30, -DOOR.h * 0.8, DOOR.w - 30, 6);
+    c.fillStyle = 'rgba(30,16,10,0.65)';
+    c.fillRect(dx0 + 40, -DOOR.h * 0.62, 16, 30);
+    c.fillRect(dx0 + 62, -DOOR.h * 0.62, 16, 30);
+    c.fillRect(dx0 + 40, -DOOR.h * 0.3, 16, 28);
+    // the wall across the lane, dark against the sky; the kerb below
     c.fillStyle = '#8a6a50';
     c.fillRect(dx0, -14, DOOR.w, 14);
   });
   R.glow((c) => {
-    c.fillStyle = 'rgba(255,196,120,0.55)';
+    c.fillStyle = 'rgba(255,190,110,0.2)';
     c.fillRect(dx0, -DOOR.h, DOOR.w, DOOR.h);
   });
   R.cast((c) => {
@@ -2437,7 +2419,7 @@ export function drawUmSaidRoom(R, g, { t = 0, bag = 0 } = {}) {
       c.lineTo(gx + 6, -45);
       c.lineTo(gx + 5, -24);
       c.fill();
-      c.fillStyle = '#6a2e16';
+      c.fillStyle = '#5a2a12';
       c.fillRect(gx - 5, -40, 10, 14);
       c.fillStyle = 'rgba(255,214,150,0.4)';
       c.fillRect(gx - 5, -40, 10, 1.4);
@@ -2487,7 +2469,7 @@ function schoolBag(R, x, t, a) {
   R.cast((c) => {
     c.globalAlpha = clamp(a);
     // the bag itself: khaki cloth, slumped on its side, a strap along the floor
-    c.fillStyle = '#7a7054';
+    c.fillStyle = '#9a8c62';
     c.beginPath();
     c.moveTo(x - 30, 0);
     c.quadraticCurveTo(x - 36, -22, x - 24, -36);
@@ -2505,12 +2487,12 @@ function schoolBag(R, x, t, a) {
     c.fillStyle = 'rgba(255,240,200,0.1)';
     c.fillRect(x - 26, -30, 3, 24);
     // a pocket on the front with a brass buckle
-    c.fillStyle = '#6a6048';
+    c.fillStyle = '#85774e';
     c.fillRect(x - 22, -18, 38, 14);
     c.fillStyle = '#b89a50';
     c.fillRect(x - 5, -15, 8, 7);
     // the flap, thrown back over the far side, a darker underside
-    c.fillStyle = '#5a5240';
+    c.fillStyle = '#74683f';
     c.beginPath();
     c.moveTo(x - 24, -36);
     c.lineTo(x + 22, -34);
@@ -2550,6 +2532,7 @@ function schoolBag(R, x, t, a) {
     c.save();
     c.translate(x + 12, -34);
     c.rotate(0.12);
+    c.scale(0.8, 0.8);
     c.fillStyle = '#9a9ca2';
     c.fillRect(-4, -26, 30, 26);
     c.fillStyle = '#b8bac0';
@@ -2565,6 +2548,7 @@ function schoolBag(R, x, t, a) {
     c.save();
     c.translate(x + 12, -34);
     c.rotate(0.12);
+    c.scale(0.8, 0.8);
     c.globalAlpha = clamp(a);
     const pulse = 0.82 + 0.18 * Math.sin(t * 2.2);
     const g1 = c.createLinearGradient(0, -22, 20, -7);

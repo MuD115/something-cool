@@ -25,7 +25,7 @@ import { clamp, lerp } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
 import { writeSave } from '../engine/save.js';
-import { lines, tween, fadeTo, actor, clearPeople, moveTo } from './kit.js';
+import { lines, tween, fadeTo, actor, clearPeople, moveTo, floorSolid, rampSolids, groundFrom } from './kit.js';
 import { MEM } from './act3v-map.js';
 import { X5, END, NOMANS, TUNNEL, SCHOOL, RUBBLE } from './act4-map.js';
 import { LINES, WHO, CARDS, CHOICE_H } from './act4-lines.js';
@@ -33,8 +33,8 @@ import { resolveEnding, endingIsClear, applyChoiceH, ENDINGS } from './endings.j
 import { whiteCloth } from './act2r.js';
 import { drawRoof, roofLook, drawStairwell, stairLook, stairPath, LOOKOUTS, HUT_DOOR } from '../sets/rooftop.js';
 import { dawnLook, drawDawnStreet, drawEdgeRoad, drawFarmEdge, SHADOW } from '../sets/dawn.js';
-import { drawNomans, nomansLook, drawStretcher, drawCemetery, cemeteryLook, drawGrave, GRAVE_X, GATE_X, drawTunnel, tunnelLook } from '../sets/farewell.js';
-import { drawDawnClassroom, dawnClassroomLook, CHAIRS, drawRubbleRoom, rubbleLook, SEAT, CAT_PATH, drawCameraScreen } from '../sets/remains.js';
+import { drawNomans, nomansLook, drawStretcher, drawCemetery, cemeteryLook, drawGrave, GRAVE_X, GATE_X, drawTunnel, tunnelLook, TUNNEL_DROP, STEPS } from '../sets/farewell.js';
+import { drawDawnClassroom, dawnClassroomLook, CHAIRS, stepY, drawRubbleRoom, rubbleLook, SEAT, CAT_PATH, drawCameraScreen } from '../sets/remains.js';
 
 const { say, line } = lines(LINES, WHO);
 const OBJ = {
@@ -93,6 +93,12 @@ export const ACT4 = {
     // Ending 3: the wall by the tunnel mouth, and the door down
     L.add({ id: 'tunnelDoor', x: END.edge[0] + END.edge[1] - 160, y: -100, range: 100, urgent: true, label: ['انزل', 'Go down'], box: [90, 180], by: 20, enabled: () => g.a.mem === 'edge' && !g.locked, use: () => (g.a.down = true) });
     look('wall', TUNNEL.wall, -120, 'wall', { box: [120, 80], enabled: () => g.a.mem === 'tunnel' && !g.locked, use: () => { line(g, 'wall'); g.a.sawWall = true; } });
+
+    // floors that aren't the street's: the tunnel building's room and its
+    // steps down; the half-flight from the pavement to the classroom
+    floorSolid(L, END.tunnel[0] - END.tunnel[1] - 200, STEPS.x0, -TUNNEL_DROP);
+    rampSolids(L, STEPS.x0, -TUNNEL_DROP, STEPS.x1, 0);
+    groundFrom(L, stepY, END.school[0] - 1000, SCHOOL.door + 40);
 
     p.f = 1;
     const cp = s.checkpoint;
@@ -167,11 +173,13 @@ export const ACT4 = {
     a.landings = [0.25, 0.55, 0.8];
     a.said = 0;
     p.scripted = true; // on the stairs: placed along the flights, not by physics
+    g.gate = () => 0; // (the keys carry him along the flights instead)
     g.text.objective(null);
     g.lock(false);
     g.prompt('right', 'انزل', 'Go down');
     yield () => a.along >= a.pathLen - 1;
     a.path = null;
+    g.gate = null;
     p.scripted = false;
     p.scriptedSpeed = 0;
     g.prompt(null);
@@ -517,9 +525,10 @@ export const ACT4 = {
     // the basement, the steps, the mouth
     a.mem = 'tunnel';
     a.light = 1;
-    moveTo(g, END.tunnel, TUNNEL.steps);
+    moveTo(g, END.tunnel, TUNNEL.steps - 140, { y: -TUNNEL_DROP });
+    g.level.bounds = [END.tunnel[0] - END.tunnel[1] - 200, END.tunnel[0] + END.tunnel[1]];
     g.torch.on = true;
-    g.torch.charge = Math.max(g.torch.charge, 0.45);
+    g.torch.charge = Math.max(g.torch.charge, 0.85); // he wound it on the way
     g.sound.ambience({ wind: 0.05, air: 0.12 }, 1);
     g.sound.buildingCreak?.(0);
     yield* fadeTo(g, 0, 1.2);
@@ -531,6 +540,7 @@ export const ACT4 = {
       p.f = 1;
       yield* say(g, 'wall');
       a.sawWall = true;
+      g.lock(false);
     }
     yield () => p.x > TUNNEL.mouth - 20;
     // the threshold: the player decides nothing here
@@ -574,7 +584,10 @@ export const ACT4 = {
     a.k = 0;
     a.date = 0;
     a.lesson = 0;
-    moveTo(g, END.school, SCHOOL.door - 60);
+    // at the top of the half-flight, on the pavement; he goes down himself
+    const top = END.school[0] - 840;
+    moveTo(g, END.school, top, { y: stepY(top) });
+    g.level.bounds = [END.school[0] - 900, END.school[0] + END.school[1]];
     g.sound.ambience({ wind: 0.02, air: 0.08, crowd: 0, generator: 0 }, 1);
     g.sound.life(0.1);
     g.runner.run(tween(g, 'k', 1, 150)); // the rectangle of light moves as the sun climbs

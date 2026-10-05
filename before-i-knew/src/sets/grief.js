@@ -16,7 +16,7 @@ import { clamp, lerp, smooth, rng, mixc, hex, TAU } from '../engine/util.js';
 import * as T from './town.js';
 import { deepScenery } from '../engine/dof.js';
 import { horizon, rgbOf } from './horizon.js';
-import { extrudePoly, extrudeRect, DEPTH } from './depth.js';
+import { extrudePoly, extrudeRect } from './depth.js';
 import { XG, LECTURE, CAMPUS, UM_AHMAD } from '../story/act2bc-map.js';
 
 const NASKH = '"Noto Naskh Arabic", "Aref Ruqaa", "IBM Plex Sans Arabic", serif';
@@ -1146,8 +1146,6 @@ export function drawLecture(R, g, { t = g.time } = {}) {
   }, 'concrete', { scale: 1.1, seed: 4, alpha: 0.5 });
 
   // ---- chairs and bench-desks, back row first ------------------------------
-  const rows = [[4, 0], [3, 1], [2, 2], [1, 3], [0, 4]]; // draw order: back (left) to front
-  void rows;
   const SEAT_ROWS = [[8, 9], [6, 7], [4, 5], [0, 1], [2, 3]]; // seats of the tiers, from the back to the front
   R.cast((c) => {
     TIERS.slice().reverse().forEach(([h, a, b], i) => {
@@ -1169,6 +1167,11 @@ export function drawLecture(R, g, { t = g.time } = {}) {
         c.fill();
         c.fillStyle = 'rgba(0,0,0,0.25)';
         c.fillRect(bx - 38 - bw / 2, -h - bh * 0.55, bw, 1.4);
+        c.strokeStyle = shadeHex(col, 0.7);
+        c.lineWidth = 1.6;
+        c.beginPath();
+        c.arc(bx - 38, -h - bh, bw * 0.28, Math.PI, 0);
+        c.stroke();
       }
       bench(c, sx[0] + 16, Math.min(sx[1] + 76, b - 4), h, 70 + i);
     });
@@ -2529,6 +2532,939 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
       hg.addColorStop(1, 'rgba(255,150,60,0)');
       c.fillStyle = hg;
       c.fillRect(CAFE_DOOR_X - 300, -360, 600, 440);
+    }
+  });
+}
+
+// ===================================================================
+// 4. UM AHMAD'S FLAT
+// ===================================================================
+// A second-floor flat in the northern quarter, 5:40 pm. Neat to the point of
+// ritual: swept floor, mended curtains, shoes in a row. A sewing machine on
+// a table; a wind-up clock; and one west window through which the last deep
+// gold light crosses the wall, slowly, towards a photograph of her son.
+
+const UC = UM_AHMAD[0];
+export const UM_DOOR_X = UC - 300; // the doorway, left; he steps in just to its right
+export const SEWING_X = UC + 112; // where she sits, facing the machine on her left
+const ROOM = { x0: UC - 440, x1: UC + 440, ceil: -304 };
+const WIN = { x: UC + 196, y: -268, w: 112, h: 186 }; // the west window
+const PHOTO = { x: UC - 128, y: -226, w: 60, h: 78 }; // Ahmad, framed
+const TABLE = { x0: SEWING_X - 124, x1: SEWING_X - 26, top: -72 };
+
+export function umAhmadLook(g, light = 0) {
+  const l = clamp(light);
+  const gold = mixc([1.0, 0.76, 0.4], [1.0, 0.56, 0.24], l);
+  const px = lerp(WIN.x + WIN.w / 2 - 10, PHOTO.x + PHOTO.w / 2, l);
+  const lights = [
+    // the sun through the west window: low, deep gold, from the right
+    { uv: [1.45, lerp(0.2, 0.34, l)], color: gold, intensity: 0.95, radius: 0, project: 1.0, soft: 0.003, rim: 0.8 },
+    // the window itself spills warm light on the room
+    { x: WIN.x + WIN.w / 2, y: -170, color: gold, intensity: 0.75, radius: 0.6, rim: 0.4 },
+    // and the patch of sun on the wall lights what it touches
+    { x: px, y: -170, color: [1.0, 0.7, 0.36], intensity: 0.35 + 0.5 * smooth(0.55, 1, l), radius: 0.28, rim: 0.4 },
+  ];
+  return {
+    ambient: [0.15, 0.125, 0.13],
+    lights,
+    groundShadow: 0.7,
+    god: { uv: [1.45, 0.2], strength: 0.18 },
+    bloom: lerp(0.7, 0.95, l),
+    exposure: 0.92,
+    grain: 0.05,
+    grade: { sat: 0.88, contrast: 1.1, lift: 0.004, tint: [1.05, 0.98, 0.9], shadows: [0.94, 0.9, 1.04], highs: [1.1, 1.0, 0.82] },
+    fog: { density: 0.035, height: 240, color: [0.9, 0.66, 0.4] },
+    time: g.time,
+  };
+}
+
+// the shirt eases in when the story calls for it
+const SHIRT = { t: -1, k: 0 };
+function shirtEase(t, target) {
+  const dt = SHIRT.t < 0 || t < SHIRT.t || t - SHIRT.t > 1 ? 1 : t - SHIRT.t;
+  SHIRT.t = t;
+  SHIRT.k += clamp(target - SHIRT.k, -dt / 1.4, dt / 1.4);
+  return smooth(0, 1, SHIRT.k);
+}
+
+// the portrait: a sepia photograph of a young man in a graduation gown, his
+// face a few soft strokes and a smile
+function photoCanvas() {
+  return bake('um-photo', PHOTO.w, PHOTO.h, 3.6, (c, w, h) => {
+    const bg = c.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#c7ae8a');
+    bg.addColorStop(1, '#9d845f');
+    c.fillStyle = bg;
+    c.fillRect(0, 0, w, h);
+    const vg = c.createRadialGradient(w / 2, h * 0.4, w * 0.2, w / 2, h * 0.5, w * 0.85);
+    vg.addColorStop(0, 'rgba(255,240,210,0.25)');
+    vg.addColorStop(1, 'rgba(40,24,10,0.5)');
+    c.fillStyle = vg;
+    c.fillRect(0, 0, w, h);
+    // the gown: dark, wide shoulders, a pale shirt collar and a tie
+    c.fillStyle = '#26211c';
+    c.beginPath();
+    c.moveTo(2, h);
+    c.lineTo(5, h * 0.8);
+    c.quadraticCurveTo(w * 0.22, h * 0.66, w * 0.38, h * 0.64);
+    c.lineTo(w * 0.62, h * 0.64);
+    c.quadraticCurveTo(w * 0.78, h * 0.66, w - 5, h * 0.8);
+    c.lineTo(w - 2, h);
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#e8dcc4';
+    c.beginPath();
+    c.moveTo(w * 0.4, h * 0.64);
+    c.lineTo(w * 0.5, h * 0.78);
+    c.lineTo(w * 0.6, h * 0.64);
+    c.closePath();
+    c.fill();
+    c.fillStyle = '#5a3228';
+    c.beginPath();
+    c.moveTo(w * 0.48, h * 0.7);
+    c.lineTo(w * 0.52, h * 0.7);
+    c.lineTo(w * 0.53, h * 0.9);
+    c.lineTo(w * 0.5, h * 0.94);
+    c.lineTo(w * 0.47, h * 0.9);
+    c.closePath();
+    c.fill();
+    // the neck and the face: an oval, warm, lit from the left
+    c.fillStyle = '#d6b090';
+    c.fillRect(w * 0.43, h * 0.54, w * 0.14, h * 0.12);
+    const fg = c.createRadialGradient(w * 0.46, h * 0.38, 2, w * 0.5, h * 0.4, w * 0.3);
+    fg.addColorStop(0, '#ecc9a4');
+    fg.addColorStop(1, '#c79c78');
+    c.fillStyle = fg;
+    c.beginPath();
+    c.ellipse(w * 0.5, h * 0.4, w * 0.2, h * 0.19, 0, 0, TAU);
+    c.fill();
+    // hair, dark and thick
+    c.fillStyle = '#1e1712';
+    c.beginPath();
+    c.ellipse(w * 0.5, h * 0.27, w * 0.22, h * 0.12, 0, Math.PI, 0);
+    c.lineTo(w * 0.7, h * 0.34);
+    c.quadraticCurveTo(w * 0.68, h * 0.25, w * 0.5, h * 0.24);
+    c.quadraticCurveTo(w * 0.34, h * 0.26, w * 0.3, h * 0.34);
+    c.closePath();
+    c.fill();
+    // the mortarboard: a black flat board seen edge-on, a tassel
+    c.fillStyle = '#16120f';
+    c.beginPath();
+    c.moveTo(w * 0.12, h * 0.2);
+    c.lineTo(w * 0.88, h * 0.18);
+    c.lineTo(w * 0.8, h * 0.13);
+    c.lineTo(w * 0.2, h * 0.14);
+    c.closePath();
+    c.fill();
+    c.fillRect(w * 0.3, h * 0.2, w * 0.4, h * 0.06);
+    c.strokeStyle = '#c8a24a';
+    c.lineWidth = 1;
+    c.beginPath();
+    c.moveTo(w * 0.5, h * 0.15);
+    c.lineTo(w * 0.84, h * 0.16);
+    c.lineTo(w * 0.84, h * 0.3);
+    c.stroke();
+    c.fillStyle = '#c8a24a';
+    c.fillRect(w * 0.825, h * 0.3, 2.6, h * 0.06);
+    // eyes (soft, crinkled with the smile), brows, a nose line, the smile
+    c.fillStyle = '#2a1c14';
+    for (const ex of [0.4, 0.6]) {
+      c.beginPath();
+      c.ellipse(w * ex, h * 0.385, 1.8, 1.2, 0, 0, TAU);
+      c.fill();
+    }
+    c.strokeStyle = '#3a2418';
+    c.lineWidth = 0.9;
+    c.beginPath();
+    c.moveTo(w * 0.35, h * 0.35);
+    c.quadraticCurveTo(w * 0.4, h * 0.335, w * 0.45, h * 0.35);
+    c.moveTo(w * 0.55, h * 0.35);
+    c.quadraticCurveTo(w * 0.6, h * 0.335, w * 0.65, h * 0.35);
+    c.stroke();
+    c.strokeStyle = 'rgba(120,80,56,0.7)';
+    c.beginPath();
+    c.moveTo(w * 0.5, h * 0.38);
+    c.quadraticCurveTo(w * 0.52, h * 0.44, w * 0.49, h * 0.455);
+    c.stroke();
+    c.strokeStyle = '#8a3a2e';
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(w * 0.4, h * 0.485);
+    c.quadraticCurveTo(w * 0.5, h * 0.54, w * 0.61, h * 0.48);
+    c.stroke();
+    c.fillStyle = 'rgba(248,240,226,0.9)';
+    c.beginPath();
+    c.moveTo(w * 0.43, h * 0.492);
+    c.quadraticCurveTo(w * 0.5, h * 0.52, w * 0.58, h * 0.488);
+    c.quadraticCurveTo(w * 0.5, h * 0.505, w * 0.43, h * 0.492);
+    c.fill();
+    // age: the print's faded fold and a stain at one corner
+    c.fillStyle = 'rgba(255,240,210,0.1)';
+    c.fillRect(0, h * 0.5, w, 1);
+    c.fillStyle = 'rgba(80,50,20,0.15)';
+    c.beginPath();
+    c.arc(w - 2, h - 2, 9, 0, TAU);
+    c.fill();
+  });
+}
+
+// a mended curtain panel: lace-cream cloth, patches stitched in, a darned hem
+function curtain(c, x0, x1, top, bot, sway, seed) {
+  const r = rng(seed);
+  const w = x1 - x0;
+  c.save();
+  c.beginPath();
+  c.moveTo(x0, top);
+  c.lineTo(x1, top);
+  c.lineTo(x1 + sway, bot);
+  c.lineTo(x0 + sway * 0.4, bot);
+  c.closePath();
+  c.clip();
+  const cg = c.createLinearGradient(x0, 0, x1, 0);
+  cg.addColorStop(0, '#e6dcc2');
+  cg.addColorStop(0.5, '#f1e9d3');
+  cg.addColorStop(1, '#ddd2b6');
+  c.fillStyle = cg;
+  c.fillRect(x0 - 10, top, w + 30, bot - top);
+  // folds
+  c.fillStyle = 'rgba(100,80,50,0.1)';
+  for (let x = x0 + 5; x < x1; x += 9 + r() * 4) c.fillRect(x, top, 2.5, bot - top);
+  // patches stitched on, slightly the wrong white, with running stitches
+  for (let i = 0; i < 4; i++) {
+    const px = x0 + 4 + r() * (w - 22);
+    const py = top + 20 + r() * (bot - top - 60);
+    const pw = 14 + r() * 8;
+    const ph = 12 + r() * 8;
+    c.fillStyle = ['#f6f1e2', '#d8ceb0', '#efe6cf', '#cfc4a6'][i % 4];
+    c.fillRect(px, py, pw, ph);
+    c.strokeStyle = 'rgba(90,70,50,0.55)';
+    c.lineWidth = 0.8;
+    c.setLineDash([2, 1.6]);
+    c.strokeRect(px + 1.2, py + 1.2, pw - 2.4, ph - 2.4);
+    c.setLineDash([]);
+  }
+  // the hem, a darned line along the bottom
+  c.fillStyle = 'rgba(100,80,50,0.18)';
+  c.fillRect(x0 - 10, bot - 14, w + 30, 14);
+  c.strokeStyle = 'rgba(90,70,50,0.6)';
+  c.lineWidth = 0.8;
+  c.setLineDash([3, 2]);
+  c.beginPath();
+  c.moveTo(x0, bot - 8);
+  c.lineTo(x1 + sway, bot - 8);
+  c.stroke();
+  c.setLineDash([]);
+  c.restore();
+}
+
+function sewingMachine(c, x, y) {
+  // x, y: the machine's base centre on the table top. Head faces left.
+  c.save();
+  c.translate(x, y);
+  const blk = '#1d1b1c';
+  const gold = '#c8a24a';
+  // the base plate and the pillar
+  extrudeRect(c, -48, -8, 100, 8, 14, { color: '#2a2728' });
+  c.fillStyle = '#2a2728';
+  c.fillRect(-48, -8, 100, 8);
+  c.fillStyle = blk;
+  c.beginPath();
+  c.moveTo(24, -8);
+  c.lineTo(24, -58);
+  c.quadraticCurveTo(26, -76, 6, -76);
+  c.lineTo(-52, -76);
+  c.quadraticCurveTo(-60, -76, -60, -66);
+  c.lineTo(-60, -52);
+  c.lineTo(-44, -52);
+  c.lineTo(-44, -60);
+  c.lineTo(-6, -60);
+  c.lineTo(-6, -8);
+  c.closePath();
+  c.fill();
+  // the arm's top, lit
+  c.fillStyle = 'rgba(255,255,255,0.18)';
+  c.fillRect(-50, -76, 56, 2);
+  // the needle bar, the presser foot and the needle
+  c.fillStyle = '#9a9ea2';
+  c.fillRect(-52, -52, 4, 38);
+  c.fillRect(-56, -22, 12, 4);
+  c.fillStyle = '#c8ccd0';
+  c.fillRect(-49.8, -14, 0.8, 14);
+  // gold decals along the arm
+  c.fillStyle = gold;
+  c.fillRect(-34, -70, 36, 2);
+  c.fillRect(-30, -66, 24, 1.2);
+  c.beginPath();
+  c.arc(-18, -64, 2.4, 0, TAU);
+  c.fill();
+  // the spool pin with a reel of white thread on top
+  c.fillStyle = '#9a9ea2';
+  c.fillRect(-2, -92, 2, 16);
+  c.fillStyle = '#efe9d8';
+  c.fillRect(-7, -98, 12, 14);
+  c.fillStyle = '#b8b0a0';
+  c.fillRect(-8, -99, 14, 2);
+  c.fillRect(-8, -86, 14, 2);
+  // the thread running down through the guides to the needle
+  c.strokeStyle = 'rgba(244,240,226,0.9)';
+  c.lineWidth = 0.7;
+  c.beginPath();
+  c.moveTo(-4, -98);
+  c.lineTo(-28, -77);
+  c.lineTo(-44, -66);
+  c.lineTo(-49, -52);
+  c.lineTo(-49, -16);
+  c.stroke();
+  // the hand wheel, at the operator's end
+  c.fillStyle = blk;
+  c.beginPath();
+  c.arc(32, -50, 21, 0, TAU);
+  c.fill();
+  c.strokeStyle = '#6a6a6c';
+  c.lineWidth = 1.6;
+  c.beginPath();
+  c.arc(32, -50, 16, 0, TAU);
+  c.stroke();
+  c.fillStyle = '#9a9ea2';
+  c.beginPath();
+  c.arc(32, -50, 5, 0, TAU);
+  c.fill();
+  c.fillStyle = gold;
+  c.fillRect(30, -66, 4, 3);
+  // a bobbin cover on the bed, a drawer front
+  c.fillStyle = '#3a3638';
+  c.fillRect(-44, -8, 36, 5);
+  c.restore();
+}
+
+export function drawUmAhmad(R, g, { t = g.time, light = 0, shirt = 0 } = {}) {
+  const l = clamp(light);
+  const cx = R.cam.x;
+  const { x0, x1, ceil } = ROOM;
+  const sh = shirtEase(t, shirt);
+
+  // ---- the shell: wall, dado, ceiling, floor ------------------------------
+  R.paint((c) => {
+    const wl = c.createLinearGradient(0, ceil, 0, 0);
+    wl.addColorStop(0, '#b3a888');
+    wl.addColorStop(1, '#c0b595');
+    c.fillStyle = wl;
+    c.fillRect(x0, ceil - 20, x1 - x0, -ceil + 60);
+    // a painted dado, the colour of old mint, ruled with a pale line
+    c.fillStyle = '#9fb09a';
+    c.fillRect(x0, -96, x1 - x0, 96);
+    c.fillStyle = '#b8c6b2';
+    c.fillRect(x0, -98, x1 - x0, 3);
+    c.fillStyle = 'rgba(0,0,0,0.1)';
+    c.fillRect(x0, -95, x1 - x0, 2);
+    // the cornice
+    c.fillStyle = '#e0d8c0';
+    c.fillRect(x0, ceil - 20, x1 - x0, 20);
+    c.fillStyle = 'rgba(0,0,0,0.12)';
+    c.fillRect(x0, ceil - 2, x1 - x0, 2);
+    // the floor: swept tiles, a skirting board
+    c.fillStyle = '#a99a7c';
+    c.fillRect(x0, 0, x1 - x0, 80);
+    c.fillStyle = '#74634a';
+    c.fillRect(x0, -9, x1 - x0, 9);
+    c.fillStyle = 'rgba(255,250,235,0.18)';
+    c.fillRect(x0, -9, x1 - x0, 1.4);
+    for (let x = x0; x < x1; x += 46) {
+      c.fillStyle = 'rgba(60,44,26,0.28)';
+      c.fillRect(x, 0, 1.4, 80);
+      for (let y = 0; y < 80; y += 20) {
+        const q = Math.sin(x * 12.9 + y * 78.2);
+        c.fillStyle = q > 0 ? 'rgba(255,240,210,0.06)' : 'rgba(40,24,10,0.06)';
+        c.fillRect(x + 1, y + 1, 44, 19);
+      }
+    }
+    c.fillStyle = 'rgba(60,44,26,0.28)';
+    for (let y = 18; y < 80; y += 20) c.fillRect(x0, y, x1 - x0, 1);
+  });
+  R.surface((c) => c.rect(x0, ceil - 20, x1 - x0, -ceil + 20 - 98), 'plaster', { scale: 1.4, seed: 8, alpha: 0.35 });
+
+  // ---- the west window: the day outside, shutters back, curtains tied -------
+  const W = WIN;
+  R.paint((c) => {
+    // the sky beyond: deep gold fading up into dusk, the sun low in it
+    const sk = c.createLinearGradient(0, W.y, 0, W.y + W.h);
+    sk.addColorStop(0, '#d9a066');
+    sk.addColorStop(0.6, '#f4b866');
+    sk.addColorStop(1, '#f9cf8a');
+    c.fillStyle = sk;
+    c.fillRect(W.x, W.y, W.w, W.h);
+    c.save();
+    c.beginPath();
+    c.rect(W.x, W.y, W.w, W.h);
+    c.clip();
+    // roofs, a minaret, a water tank, black against the sun
+    c.fillStyle = '#6a4a3a';
+    c.fillRect(W.x, W.y + W.h - 46, W.w, 46);
+    c.fillRect(W.x + 8, W.y + W.h - 62, 36, 18);
+    c.fillRect(W.x + 70, W.y + W.h - 58, 26, 14);
+    T.minaret(c, W.x + 92, W.y + W.h - 40, 0.5, '#6a4a3a', false);
+    c.restore();
+    // the frame, weathered white-painted wood; a deep sill with a pot of basil
+    c.strokeStyle = '#d8d0bc';
+    c.lineWidth = 7;
+    c.strokeRect(W.x, W.y, W.w, W.h);
+    c.lineWidth = 3.4;
+    c.beginPath();
+    c.moveTo(W.x + W.w / 2, W.y);
+    c.lineTo(W.x + W.w / 2, W.y + W.h);
+    c.moveTo(W.x, W.y + 64);
+    c.lineTo(W.x + W.w, W.y + 64);
+    c.moveTo(W.x, W.y + 126);
+    c.lineTo(W.x + W.w, W.y + 126);
+    c.stroke();
+    c.fillStyle = '#cfc6ae';
+    c.fillRect(W.x - 10, W.y + W.h, W.w + 20, 8);
+    c.fillStyle = 'rgba(0,0,0,0.14)';
+    c.fillRect(W.x - 10, W.y + W.h + 6, W.w + 20, 2);
+    c.fillStyle = '#a0603a';
+    c.fillRect(W.x + 14, W.y + W.h - 18, 18, 18);
+    c.fillStyle = '#3f7a2e';
+    for (let i = 0; i < 6; i++) {
+      c.beginPath();
+      c.ellipse(W.x + 23 + (i - 3) * 3.4, W.y + W.h - 24 - (i % 3) * 3, 3.6, 5.5, (i - 3) * 0.25, 0, TAU);
+      c.fill();
+    }
+  });
+  // the window's own light, burning gold
+  R.glow((c) => {
+    const gl = c.createLinearGradient(0, W.y, 0, W.y + W.h);
+    gl.addColorStop(0, `rgba(255,${lerp(190, 150, l) | 0},90,0.45)`);
+    gl.addColorStop(1, `rgba(255,${lerp(220, 170, l) | 0},120,0.55)`);
+    c.fillStyle = gl;
+    c.fillRect(W.x, W.y, W.w, W.h);
+    const sg = c.createRadialGradient(W.x + W.w * 0.72, W.y + W.h - 70, 0, W.x + W.w * 0.72, W.y + W.h - 70, 70);
+    sg.addColorStop(0, 'rgba(255,240,200,0.8)');
+    sg.addColorStop(0.3, 'rgba(255,200,120,0.35)');
+    sg.addColorStop(1, 'rgba(255,170,90,0)');
+    c.fillStyle = sg;
+    c.fillRect(W.x, W.y, W.w, W.h);
+  });
+  // curtains, tied back, one mended with a patch
+  R.cast((c) => {
+    curtain(c, W.x - 30, W.x + 8, W.y - 14, W.y + W.h + 6, -6 + Math.sin(t * 0.8) * 1.2, 41);
+    curtain(c, W.x + W.w - 8, W.x + W.w + 30, W.y - 14, W.y + W.h + 6, 6 + Math.sin(t * 0.8 + 1) * 1.2, 42);
+    // the rod, and the tie-backs
+    c.fillStyle = '#5a4a38';
+    c.fillRect(W.x - 40, W.y - 18, W.w + 80, 4);
+    c.beginPath();
+    c.arc(W.x - 40, W.y - 16, 4, 0, TAU);
+    c.arc(W.x + W.w + 40, W.y - 16, 4, 0, TAU);
+    c.fill();
+    c.fillStyle = '#a89868';
+    c.fillRect(W.x - 30, W.y + 90, 40, 4);
+    c.fillRect(W.x + W.w - 10, W.y + 90, 40, 4);
+  });
+
+  // ---- the gold light on the wall: the window's panes thrown left -----------
+  const pcx = lerp(W.x + W.w * 0.5 - 24, PHOTO.x + PHOTO.w / 2, l);
+  R.glow((c) => {
+    const slope = 46; // the light comes in low: the panes lean
+    const pw = 112;
+    const top = -282;
+    const bot = -62;
+    const col = [255, lerp(196, 150, l), lerp(104, 66, l)];
+    const a = 0.62 + 0.16 * l;
+    const gl = c.createLinearGradient(pcx - pw / 2, 0, pcx + pw / 2, 0);
+    gl.addColorStop(0, rgba(col, a * 0.75));
+    gl.addColorStop(0.5, rgba(col, a));
+    gl.addColorStop(1, rgba(col, a * 0.8));
+    c.fillStyle = gl;
+    // six panes with the mullions between them left dark
+    for (let cc = 0; cc < 2; cc++) {
+      for (let rr = 0; rr < 3; rr++) {
+        const fx0 = cc * 0.5 + 0.02;
+        const fx1 = cc * 0.5 + 0.48;
+        const fy0 = [0, 0.34, 0.68][rr] + 0.015;
+        const fy1 = [0.33, 0.67, 1][rr] - 0.01;
+        const px = (fx, fy) => pcx - pw / 2 + fx * pw + (0.5 - fy) * slope;
+        const py = (fy) => top + fy * (bot - top);
+        c.beginPath();
+        c.moveTo(px(fx0, fy0), py(fy0));
+        c.lineTo(px(fx1, fy0), py(fy0));
+        c.lineTo(px(fx1, fy1), py(fy1));
+        c.lineTo(px(fx0, fy1), py(fy1));
+        c.closePath();
+        c.fill();
+      }
+    }
+    // the haze round it, and dust turning slowly inside
+    const hg = c.createRadialGradient(pcx, -170, 0, pcx, -170, 170);
+    hg.addColorStop(0, rgba(col, 0.1));
+    hg.addColorStop(1, rgba(col, 0));
+    c.fillStyle = hg;
+    c.fillRect(pcx - 190, -330, 380, 340);
+    const r = rng(17);
+    for (let i = 0; i < 26; i++) {
+      const mx = pcx - pw / 2 + r() * pw + Math.sin(t * 0.4 + i) * 6;
+      const my = top + ((r() * (bot - top) + t * (3 + r() * 4)) % (bot - top));
+      c.fillStyle = `rgba(255,236,190,${0.35 * (0.5 + 0.5 * Math.sin(t * 1.6 + i))})`;
+      c.fillRect(mx + (0.5 - (my - top) / (bot - top)) * slope, my, 1.6, 1.6);
+    }
+  });
+
+  // ---- the door, left: an opening on to a dark stairwell ---------------------
+  const dx = UM_DOOR_X;
+  R.paint((c) => {
+    c.fillStyle = '#10121a';
+    c.fillRect(dx - 56, -214, 104, 214);
+    // the stairwell beyond: cold grey, a banister and the landing's window
+    const sg = c.createLinearGradient(dx - 56, 0, dx + 48, 0);
+    sg.addColorStop(0, '#242a3a');
+    sg.addColorStop(1, '#161a26');
+    c.fillStyle = sg;
+    c.fillRect(dx - 52, -208, 96, 208);
+    c.fillStyle = '#3a4258';
+    c.fillRect(dx - 40, -196, 32, 56);
+    c.fillStyle = 'rgba(180,200,240,0.35)';
+    c.fillRect(dx - 38, -194, 28, 52);
+    c.strokeStyle = '#0c0e14';
+    c.lineWidth = 2;
+    c.beginPath();
+    c.moveTo(dx - 24, -194);
+    c.lineTo(dx - 24, -142);
+    c.moveTo(dx - 38, -168);
+    c.lineTo(dx - 10, -168);
+    c.stroke();
+    // the stair rail going down to the left
+    c.strokeStyle = '#06070c';
+    c.lineWidth = 3;
+    c.beginPath();
+    c.moveTo(dx - 52, -64);
+    c.lineTo(dx + 44, -20);
+    c.stroke();
+    // the frame: worn painted wood, a stone threshold
+    c.fillStyle = '#6a5038';
+    c.fillRect(dx - 64, -224, 8, 224);
+    c.fillRect(dx + 48, -224, 8, 224);
+    c.fillRect(dx - 64, -224, 120, 10);
+    c.fillStyle = '#b3a589';
+    c.fillRect(dx - 66, -3, 124, 6);
+  });
+  R.glow((c) => {
+    const fg = c.createLinearGradient(dx - 56, -214, dx + 48, 0);
+    fg.addColorStop(0, 'rgba(110,140,210,0.18)');
+    fg.addColorStop(1, 'rgba(110,140,210,0)');
+    c.fillStyle = fg;
+    c.fillRect(dx - 52, -208, 96, 208);
+  });
+  // the door leaf, swung back against the wall on the right of the opening
+  R.cast((c) => {
+    extrudeRect(c, dx + 56, -216, 9, 216, 10, { color: '#7a5a3a' });
+    c.fillStyle = '#7a5a3a';
+    c.fillRect(dx + 56, -216, 9, 216);
+    c.fillStyle = 'rgba(0,0,0,0.2)';
+    c.fillRect(dx + 60, -216, 3, 216);
+    c.fillStyle = '#c8a24a';
+    c.fillRect(dx + 57, -112, 3, 12);
+  });
+  // shoes in a row by the door, heels to the wall: a family of slippers, men's, a child's
+  R.cast((c) => {
+    const pairs = [[dx + 70, '#3a2a20', 26], [dx + 100, '#6a4a30', 24], [dx + 128, '#8a3a30', 16]];
+    for (const [sx, col, len] of pairs) {
+      c.fillStyle = col;
+      c.beginPath();
+      c.moveTo(sx, 0);
+      c.lineTo(sx, -9);
+      c.quadraticCurveTo(sx + len * 0.4, -14, sx + len, -5);
+      c.lineTo(sx + len, 0);
+      c.closePath();
+      c.fill();
+      c.fillStyle = 'rgba(255,255,255,0.15)';
+      c.fillRect(sx + 4, -10, len * 0.5, 1.2);
+      c.fillStyle = '#181412';
+      c.fillRect(sx, -2, len, 2.4);
+    }
+  });
+
+  // ---- a sideboard under the photograph, with the wind-up clock -------------
+  const sbx0 = PHOTO.x - 40;
+  const sbw = 164;
+  R.cast((c) => {
+    extrudeRect(c, sbx0, -88, sbw, 88, 22, { color: '#7a5030' });
+    c.fillStyle = '#7a5030';
+    c.fillRect(sbx0, -88, sbw, 88);
+    c.fillStyle = '#6a4326';
+    c.fillRect(sbx0 + 8, -80, sbw / 2 - 12, 72);
+    c.fillRect(sbx0 + sbw / 2 + 4, -80, sbw / 2 - 12, 72);
+    c.fillStyle = '#c8a24a';
+    c.fillRect(sbx0 + sbw / 2 - 16, -48, 3, 8);
+    c.fillRect(sbx0 + sbw / 2 + 12, -48, 3, 8);
+    c.fillStyle = 'rgba(255,230,180,0.28)';
+    c.fillRect(sbx0, -88, sbw, 2);
+    // a crocheted white mat on top, edges exactly square
+    c.fillStyle = '#f4efe0';
+    c.fillRect(sbx0 + 10, -91, sbw - 20, 3);
+    c.fillStyle = 'rgba(120,100,70,0.25)';
+    for (let x = sbx0 + 12; x < sbx0 + sbw - 12; x += 4) c.fillRect(x, -89, 1.4, 1.4);
+    // glasses in a row, bottoms aligned
+    for (let i = 0; i < 5; i++) {
+      c.fillStyle = 'rgba(215,230,235,0.6)';
+      c.fillRect(sbx0 + sbw - 80 + i * 14, -108, 9, 17);
+      c.fillStyle = '#c8a24a';
+      c.fillRect(sbx0 + sbw - 80 + i * 14, -108, 9, 1.5);
+    }
+    // a vase of paper flowers
+    c.fillStyle = '#3a6a8a';
+    c.beginPath();
+    c.moveTo(sbx0 + 24, -91);
+    c.lineTo(sbx0 + 42, -91);
+    c.lineTo(sbx0 + 39, -118);
+    c.lineTo(sbx0 + 27, -118);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = '#3f7a2e';
+    c.lineWidth = 1.2;
+    for (let i = 0; i < 5; i++) {
+      c.beginPath();
+      c.moveTo(sbx0 + 33, -118);
+      c.lineTo(sbx0 + 33 + (i - 2) * 6, -140 - (i % 2) * 6);
+      c.stroke();
+      c.fillStyle = ['#e8d8d0', '#d8605a', '#f0e8c8', '#c84a58', '#e8d8d0'][i];
+      c.beginPath();
+      c.arc(sbx0 + 33 + (i - 2) * 6, -142 - (i % 2) * 6, 4, 0, TAU);
+      c.fill();
+    }
+  });
+  // the wind-up alarm clock: twin bells, a cream face, a second hand that ticks
+  R.cast((c) => {
+    const kx = sbx0 + 100;
+    const ky = -106;
+    c.fillStyle = '#8a8a86';
+    c.fillRect(kx - 10, -92, 3, 4);
+    c.fillRect(kx + 7, -92, 3, 4);
+    c.fillStyle = '#9a9a96';
+    c.beginPath();
+    c.arc(kx, ky, 16, 0, TAU);
+    c.fill();
+    c.fillStyle = '#f1ead6';
+    c.beginPath();
+    c.arc(kx, ky, 13.2, 0, TAU);
+    c.fill();
+    c.fillStyle = '#7a7a76';
+    c.beginPath();
+    c.arc(kx - 10, ky - 15, 6, Math.PI, 0);
+    c.arc(kx + 10, ky - 15, 6, Math.PI, 0);
+    c.fill();
+    c.strokeStyle = '#2a2622';
+    c.lineWidth = 0.8;
+    for (let i = 0; i < 12; i++) {
+      const a = (i / 12) * TAU;
+      c.beginPath();
+      c.moveTo(kx + Math.cos(a) * 10.4, ky + Math.sin(a) * 10.4);
+      c.lineTo(kx + Math.cos(a) * 12.4, ky + Math.sin(a) * 12.4);
+      c.stroke();
+    }
+    c.lineWidth = 1.7;
+    c.beginPath();
+    c.moveTo(kx, ky);
+    c.lineTo(kx - 2.5, ky - 6.5); // a quarter to six, say
+    c.moveTo(kx, ky);
+    c.lineTo(kx + 5.5, ky + 6); 
+    c.stroke();
+    c.strokeStyle = '#b02a22';
+    c.lineWidth = 0.7;
+    const sa = Math.floor(t) * (TAU / 60) - Math.PI / 2;
+    c.beginPath();
+    c.moveTo(kx, ky);
+    c.lineTo(kx + Math.cos(sa) * 11, ky + Math.sin(sa) * 11);
+    c.stroke();
+    c.fillStyle = '#2a2622';
+    c.beginPath();
+    c.arc(kx, ky, 1.3, 0, TAU);
+    c.fill();
+  });
+
+  // ---- the photograph --------------------------------------------------------
+  const P = PHOTO;
+  R.cast((c) => {
+    // a black wooden frame with a gold slip, a cream mount, a nail and a cord
+    extrudeRect(c, P.x - 8, P.y - 8, P.w + 16, P.h + 16, 6, { color: '#241c16' });
+    c.fillStyle = '#241c16';
+    c.fillRect(P.x - 8, P.y - 8, P.w + 16, P.h + 16);
+    c.fillStyle = '#c8a24a';
+    c.fillRect(P.x - 4, P.y - 4, P.w + 8, P.h + 8);
+    c.fillStyle = '#ece3cc';
+    c.fillRect(P.x - 2.5, P.y - 2.5, P.w + 5, P.h + 5);
+    c.strokeStyle = '#4a3a2a';
+    c.lineWidth = 0.9;
+    c.beginPath();
+    c.moveTo(P.x - 5, P.y - 8);
+    c.lineTo(P.x + P.w / 2, P.y - 26);
+    c.lineTo(P.x + P.w + 5, P.y - 8);
+    c.stroke();
+    c.fillStyle = '#6a6a6a';
+    c.beginPath();
+    c.arc(P.x + P.w / 2, P.y - 26, 1.8, 0, TAU);
+    c.fill();
+  });
+  R.paint((c) => {
+    c.drawImage(photoCanvas(), P.x, P.y, P.w, P.h);
+  });
+  // when the sun finds it: the glass lights, the frame gilds, a warm bloom
+  const catch_ = smooth(0.78, 1, l);
+  if (catch_ > 0.005) {
+    R.glow((c) => {
+      const gl = c.createLinearGradient(P.x, P.y, P.x + P.w, P.y + P.h);
+      gl.addColorStop(0, `rgba(255,214,140,${0.5 * catch_})`);
+      gl.addColorStop(0.6, `rgba(255,190,110,${0.2 * catch_})`);
+      gl.addColorStop(1, `rgba(255,170,90,${0.08 * catch_})`);
+      c.fillStyle = gl;
+      c.fillRect(P.x - 6, P.y - 6, P.w + 12, P.h + 12);
+      // a glint sliding over the glass
+      c.fillStyle = `rgba(255,248,226,${0.45 * catch_})`;
+      c.beginPath();
+      c.moveTo(P.x + 6, P.y);
+      c.lineTo(P.x + 20, P.y);
+      c.lineTo(P.x + 2, P.y + P.h * 0.5);
+      c.lineTo(P.x, P.y + P.h * 0.5);
+      c.closePath();
+      c.fill();
+      const bg = c.createRadialGradient(P.x + P.w / 2, P.y + P.h / 2, 0, P.x + P.w / 2, P.y + P.h / 2, 120);
+      bg.addColorStop(0, `rgba(255,190,110,${0.28 * catch_})`);
+      bg.addColorStop(1, 'rgba(255,170,90,0)');
+      c.fillStyle = bg;
+      c.fillRect(P.x - 130, P.y - 110, P.w + 260, P.h + 220);
+    });
+  }
+  // a framed verse over the machine, small, in gold on black
+  R.cast((c) => {
+    const vx = TABLE.x0 + 14;
+    const vy = -236;
+    c.fillStyle = '#241c16';
+    c.fillRect(vx, vy, 74, 40);
+    c.fillStyle = '#111';
+    c.fillRect(vx + 3, vy + 3, 68, 34);
+    c.fillStyle = '#d8b64a';
+    c.font = `20px ${RUQAA}`;
+    c.textAlign = 'center';
+    c.direction = 'rtl';
+    c.fillText('ما شاء الله', vx + 37, vy + 27);
+  });
+
+  // ---- the table, the machine and the fabric ----------------------------------
+  const T0 = TABLE;
+  R.cast((c) => {
+    // a rug, first: the pattern square, the fringe combed
+    // (drawn flat on the floor as a thin band in front)
+    c.fillStyle = '#8a3a30';
+    c.fillRect(UC - 230, 4, 360, 8);
+    c.fillStyle = '#c8a24a';
+    for (let x = UC - 224; x < UC + 124; x += 22) c.fillRect(x, 6, 10, 3);
+    c.fillStyle = '#e8dcc0';
+    for (let x = UC - 230; x < UC + 130; x += 3) c.fillRect(x, 12, 1, 3);
+    // the table: a plain wooden table with turned legs, a drawer
+    const tw = T0.x1 - T0.x0;
+    extrudeRect(c, T0.x0, T0.top, tw, 7, 26, { color: '#8a5a32', topK: 1.2, sideK: 0.58 });
+    c.fillStyle = '#8a5a32';
+    c.fillRect(T0.x0, T0.top, tw, 7);
+    c.fillStyle = 'rgba(255,230,180,0.3)';
+    c.fillRect(T0.x0, T0.top, tw, 1.6);
+    c.fillStyle = '#74492a';
+    c.fillRect(T0.x0 + 6, T0.top + 7, tw - 12, 14);
+    c.fillStyle = '#c8a24a';
+    c.fillRect(T0.x0 + tw / 2 - 5, T0.top + 12, 10, 3);
+    c.fillStyle = '#6a4326';
+    for (const lx of [T0.x0 + 8, T0.x1 - 14]) {
+      c.fillRect(lx, T0.top + 7, 6, -T0.top - 7);
+      c.fillStyle = '#7a5030';
+      c.fillRect(lx - 1.5, T0.top + 40, 9, 5);
+      c.fillStyle = '#6a4326';
+    }
+    // her chair, back to the right
+    c.save();
+    c.translate(SEWING_X, 0);
+    c.scale(-1, 1);
+    chair(c, 0, 0);
+    c.restore();
+    sewingMachine(c, T0.x0 + 56, T0.top);
+    // a stack of folded fabric at the far end: even edges, pale to deep
+    const fx = T0.x0 + 2;
+    const cols = ['#f1ecdd', '#c9d4d8', '#e6d4b4', '#9ab2ae', '#d7c0c0', '#f4f0e6'];
+    cols.forEach((col, i) => {
+      c.fillStyle = col;
+      c.fillRect(fx, T0.top - 6 - i * 5.2, 36, 5.2);
+      c.fillStyle = 'rgba(0,0,0,0.12)';
+      c.fillRect(fx, T0.top - 6 - i * 5.2 + 4.2, 36, 1);
+      c.fillStyle = 'rgba(255,255,255,0.4)';
+      c.fillRect(fx, T0.top - 6 - i * 5.2, 36, 0.9);
+    });
+    // pincushion, scissors, a yellow tape measure, spools
+    c.fillStyle = '#b8403a';
+    c.beginPath();
+    c.ellipse(T0.x1 - 14, T0.top - 4, 8, 4.4, 0, Math.PI, 0);
+    c.fill();
+    c.strokeStyle = '#e8e4dc';
+    c.lineWidth = 0.8;
+    for (let i = 0; i < 4; i++) {
+      c.beginPath();
+      c.moveTo(T0.x1 - 18 + i * 3, T0.top - 5);
+      c.lineTo(T0.x1 - 20 + i * 4, T0.top - 11);
+      c.stroke();
+    }
+    c.strokeStyle = '#2a2a2a';
+    c.lineWidth = 1.3;
+    c.beginPath();
+    c.moveTo(T0.x0 + 44, T0.top - 1);
+    c.lineTo(T0.x0 + 56, T0.top - 8);
+    c.moveTo(T0.x0 + 46, T0.top - 8);
+    c.lineTo(T0.x0 + 56, T0.top - 1);
+    c.stroke();
+    c.fillStyle = '#e8c030';
+    c.fillRect(T0.x1 - 38, T0.top - 3, 14, 3);
+    for (const [sx, col] of [[T0.x1 - 52, '#e8e0d0'], [T0.x1 - 46, '#4a6a8a']]) {
+      c.fillStyle = col;
+      c.fillRect(sx, T0.top - 9, 5, 9);
+      c.fillStyle = '#a89868';
+      c.fillRect(sx - 0.5, T0.top - 9, 6, 1.2);
+      c.fillRect(sx - 0.5, T0.top - 1.2, 6, 1.2);
+    }
+    // the shirt, half-cut: flat on the table, chalk lines and pins
+    if (sh > 0.01) {
+      c.save();
+      c.globalAlpha = sh;
+      const sx0 = T0.x0 + 40;
+      c.fillStyle = '#f7f4ea';
+      c.beginPath();
+      c.moveTo(sx0, T0.top);
+      c.lineTo(sx0 + 4, T0.top - 4);
+      c.lineTo(T0.x1 - 30, T0.top - 3);
+      c.lineTo(T0.x1 - 4, T0.top - 1);
+      c.lineTo(T0.x1 + 2, T0.top + 6);
+      c.lineTo(T0.x1 + 3, T0.top + 22);
+      c.quadraticCurveTo(T0.x1 - 2, T0.top + 30, T0.x1 + 6, T0.top + 40);
+      c.lineTo(T0.x1 - 9, T0.top + 36);
+      c.lineTo(T0.x1 - 10, T0.top + 8);
+      c.lineTo(sx0, T0.top);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = 'rgba(120,150,190,0.7)';
+      c.lineWidth = 0.7;
+      c.beginPath();
+      c.moveTo(sx0 + 14, T0.top - 2.4);
+      c.lineTo(T0.x1 - 16, T0.top - 2.4);
+      c.stroke();
+      c.fillStyle = '#c0c0c8';
+      for (const px of [sx0 + 12, sx0 + 30, T0.x1 - 34]) c.fillRect(px, T0.top - 6, 1, 5);
+      c.restore();
+    }
+  });
+  g.act?.drawProps?.(R, g);
+
+  // ---- the broom and dustpan in the corner; the single hanging bulb ------------------
+  R.cast((c) => {
+    const bx = ROOM.x1 - 40;
+    c.strokeStyle = '#7a5a38';
+    c.lineWidth = 3;
+    c.lineCap = 'round';
+    c.beginPath();
+    c.moveTo(bx, -180);
+    c.lineTo(bx + 6, -26);
+    c.stroke();
+    c.fillStyle = '#b8a05a';
+    c.beginPath();
+    c.moveTo(bx + 1, -28);
+    c.lineTo(bx + 17, -28);
+    c.lineTo(bx + 21, 0);
+    c.lineTo(bx - 7, 0);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = 'rgba(60,40,20,0.4)';
+    c.lineWidth = 0.8;
+    for (let i = 0; i < 6; i++) {
+      c.beginPath();
+      c.moveTo(bx + 2 + i * 3, -28);
+      c.lineTo(bx - 4 + i * 5, 0);
+      c.stroke();
+    }
+    c.fillStyle = '#4a4a4e';
+    c.beginPath();
+    c.moveTo(bx - 40, 0);
+    c.lineTo(bx - 14, 0);
+    c.lineTo(bx - 14, -6);
+    c.lineTo(bx - 40, -2);
+    c.fill();
+  });
+  R.cast((c) => {
+    const lx = UC - 192;
+    c.strokeStyle = '#2a2622';
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(lx, ceil);
+    c.lineTo(lx, ceil + 56);
+    c.stroke();
+    c.fillStyle = '#e8dcc0';
+    c.beginPath();
+    c.moveTo(lx - 20, ceil + 84);
+    c.lineTo(lx - 7, ceil + 56);
+    c.lineTo(lx + 7, ceil + 56);
+    c.lineTo(lx + 20, ceil + 84);
+    c.closePath();
+    c.fill();
+    c.fillStyle = 'rgba(120,90,50,0.3)';
+    c.fillRect(lx - 20, ceil + 82, 40, 2);
+  });
+
+  // ---- people (rigs) -------------------------------------------------------------------
+  for (const w of [...(g.npcs || []), g.player]) {
+    if (!w || !w.visible || Math.abs(w.x - cx) > 700) continue;
+    R.cast((c) => w.draw(c));
+    R.shadow((c) => w.draw(c), w.x, w.y, 0.9, 0.12);
+  }
+  g.effects?.draw?.(R);
+
+  // ---- the white cotton in her lap, and the finished sleeve (over the rig) -----------------
+  if (sh > 0.01) {
+    R.cast((c) => {
+      c.save();
+      c.globalAlpha = sh;
+      const lx = SEWING_X;
+      // the body piece, falling from the table's edge into her lap
+      c.fillStyle = '#f7f4ea';
+      c.beginPath();
+      c.moveTo(lx - 36, -66);
+      c.quadraticCurveTo(lx - 30, -58, lx - 24, -52);
+      c.lineTo(lx + 2, -50);
+      c.quadraticCurveTo(lx + 10, -42, lx + 4, -30);
+      c.lineTo(lx - 22, -26);
+      c.quadraticCurveTo(lx - 38, -28, lx - 40, -44);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = 'rgba(120,110,90,0.4)';
+      c.lineWidth = 0.9;
+      c.beginPath();
+      c.moveTo(lx - 30, -62);
+      c.quadraticCurveTo(lx - 20, -44, lx - 28, -28);
+      c.moveTo(lx - 12, -50);
+      c.quadraticCurveTo(lx - 6, -40, lx - 12, -29);
+      c.stroke();
+      // the one finished sleeve: a hemmed tube with its cuff
+      c.fillStyle = '#efeadc';
+      c.beginPath();
+      c.moveTo(lx - 20, -46);
+      c.lineTo(lx + 6, -40);
+      c.lineTo(lx + 4, -28);
+      c.lineTo(lx - 22, -32);
+      c.closePath();
+      c.fill();
+      c.fillStyle = '#fbf9f1';
+      c.fillRect(lx + 4, -41, 5, 14);
+      c.restore();
+    });
+  }
+
+  // dust turning in the last of the light
+  R.glow((c) => {
+    const rr = rng(9);
+    for (let i = 0; i < 36; i++) {
+      const x = UC - 320 + rr() * 640 + Math.sin(t * 0.3 + i) * 10;
+      const y = -280 + ((rr() * 260 + t * (2 + rr() * 3)) % 260);
+      c.fillStyle = `rgba(255,214,150,${0.2 * (0.5 + 0.5 * Math.sin(t * 1.3 + i))})`;
+      c.fillRect(x, y, 1.5, 1.5);
     }
   });
 }

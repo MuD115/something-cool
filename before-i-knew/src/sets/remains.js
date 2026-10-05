@@ -1464,7 +1464,7 @@ const SURF = [
 // the cat's way: in from the street, up the fallen façade, down over the
 // pile, onto the slab beside Sami
 export const CAT_PATH = [
-  [640, 0], [600, 0], ...SURF.map(([a, y]) => [RX + a, y]), [RX - 40, -39],
+  [RX + 640, 0], [RX + 600, 0], ...SURF.map(([a, y]) => [RX + a, y]), [RX - 40, -39],
 ].map(([x, y]) => [x, y]);
 
 

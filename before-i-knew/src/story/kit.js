@@ -74,3 +74,27 @@ export function* whiteOnBlack(g, card, hold) {
   g.text.titleCard(card, hold);
   yield hold + 0.4;
 }
+
+// Ground that isn't the street's: a floor at height y from xa to xb, and a
+// ramp under a drawn flight of steps (from (xa, ya) to (xb, yb)), made of
+// thin solids so the walker climbs it a little at a time.
+export function floorSolid(L, xa, xb, y) {
+  if (y < 0) L.solid(xa, xb, y, 0, { hidden: true });
+}
+export function rampSolids(L, xa, ya, xb, yb, w = 8) {
+  const n = Math.max(1, Math.ceil(Math.abs(xb - xa) / w));
+  for (let i = 0; i < n; i++) {
+    const x0 = xa + ((xb - xa) * i) / n;
+    const x1 = xa + ((xb - xa) * (i + 1)) / n;
+    const y = Math.min(ya + ((yb - ya) * (i + 0.5)) / n, 0);
+    if (y < -0.5) L.solid(Math.min(x0, x1), Math.max(x0, x1), y, 0, { hidden: true });
+  }
+}
+// The same, following a height function h(x) (≤ 0) sampled every w units,
+// smoothed so no single rise is too high to walk up.
+export function groundFrom(L, h, xa, xb, w = 8) {
+  for (let x = xa; x < xb; x += w) {
+    const y = (h(x) + h(Math.min(xb, x + w))) / 2;
+    if (y < -0.5) L.solid(x, x + w, y, 0, { hidden: true });
+  }
+}
