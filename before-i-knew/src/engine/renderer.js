@@ -61,6 +61,7 @@ uniform vec3 uFlash;
 uniform float uGroundShadow;
 uniform float uTime;
 uniform float uFade;
+uniform float uVignette; // extra darkening at the edges (time passing, grief)
 uniform float uGrain;
 uniform float uExposure;
 
@@ -225,7 +226,7 @@ void main() {
   col = clamp(col, 0.0, 1.0);
 
   vec2 q = uv - 0.5;
-  col *= 1.0 - dot(q * vec2(0.9, 1.3), q * vec2(0.9, 1.3)) * 0.9;
+  col *= max(0.0, 1.0 - dot(q * vec2(0.9, 1.3), q * vec2(0.9, 1.3)) * (0.9 + uVignette * 3.2));
   col += (hash(uv * uRes + fract(uTime * 7.13) * 91.0) - 0.5) * uGrain;
   col *= 1.0 - uFade;
   outColor = vec4(col, 1.0);
@@ -482,6 +483,7 @@ export class Renderer {
     gl.uniform1f(u.uGroundShadow, look.groundShadow ?? 0.7);
     gl.uniform1f(u.uTime, look.time || 0);
     gl.uniform1f(u.uFade, look.fade || 0);
+    if (u.uVignette) gl.uniform1f(u.uVignette, look.vignette || 0);
     gl.uniform1f(u.uGrain, look.grain ?? 0.05);
     gl.uniform1f(u.uExposure, look.exposure ?? 1);
     const rel = look.relief ?? 1;

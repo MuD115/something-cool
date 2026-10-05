@@ -17,6 +17,7 @@ export const TOOLS = {
   whitecloth: { id: 'whitecloth', ar: 'قماشة بيضاء', en: 'White cloth' },
   lighter: { id: 'lighter', ar: 'ولّاعة أحمد', en: 'Ahmad’s lighter' },
   journal: { id: 'journal', ar: 'دفتر أحمد', en: 'Ahmad’s journal' },
+  camera: { id: 'camera', ar: 'كاميرا أحمد', en: 'Ahmad’s camera' },
 };
 
 export class Game {

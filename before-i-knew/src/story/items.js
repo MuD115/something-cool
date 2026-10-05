@@ -14,6 +14,7 @@ export const ITEMS = {
   whitecloth: pair(LINES.cloth_item),
   lighter: pair(LINES.lighter),
   journal: pair(LINES.journal),
+  camera: { ar: 'كاميرا أحمد. شاشة مكسورة بس لسا شغّالة. آخر صورة فيها: أولاد بالصف، عم يكتبوا بدفاترهن.', en: 'Ahmad’s camera. Cracked screen but still working. Last photo on it: children in class, writing in their exercise books.' },
 };
 
 // Ahmad's journal, page by page. Only the last page is from the script.

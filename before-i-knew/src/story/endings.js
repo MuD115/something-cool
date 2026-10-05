@@ -15,12 +15,21 @@ export const ENDINGS = {
   5: { key: 'wolf', ar: 'ساعة الذئب', en: 'The Wolf’s Hour' },
 };
 
+// The body is brought home at dawn: agreed at the checkpoint (fully, or on
+// Maher's terms after the anger), or already pulled into the shadow from the
+// building.
+export const retrieval = (s) => s.negotiation_outcome === 'success' || s.negotiation_outcome === 'partial' || !!s.dangerous_route_complete;
+
 export function resolveEnding(s) {
   const compassion = s.compassion || 0;
   const courage = s.courage || 0;
   const isolation = s.isolation || 0;
   if (s.documented && s.path === 'witness') return 1;
-  if (s.body_retrieved && (s.negotiation_outcome === 'success' || s.dangerous_route_complete)) return 2;
+  // (Ending 2's own conditions take in the anger path's partial outcome:
+  // Maher lets the retrieval go ahead at dawn, on his terms — scene E2-1b.
+  // The summary table's "anger → Ending 5" is the failed negotiation, which
+  // this game's checkpoint never ends in.)
+  if (retrieval(s)) return 2;
   if (isolation >= 2 && compassion <= 1) return courage <= 1 ? 3 : 5;
   if (compassion >= 2 && (s.um_ahmad_visited || s.children_helped)) return 4;
   return 5;
@@ -34,7 +43,7 @@ export function endingIsClear(s) {
   const isolation = s.isolation || 0;
   return !!(
     (s.documented && s.path === 'witness') ||
-    s.body_retrieved ||
+    retrieval(s) ||
     (isolation >= 2 && compassion <= 1) ||
     (compassion >= 2 && s.um_ahmad_visited)
   );

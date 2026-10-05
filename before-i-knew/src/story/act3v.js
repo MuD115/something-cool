@@ -26,7 +26,7 @@ import { X4, MEM, CAFE_X, DUMPSTER_X } from './act3v-map.js';
 import { LINES, WHO, CARDS } from './act3v-lines.js';
 import { surfaceAt, streetLook, drawStreet, shopWindowRect, PORTRAIT } from './act3v-set.js';
 import { drawVisionClassroom, visionClassroomLook, DESKS, BOARD_X, drawOrchard, orchardLook, drawDamascus, damascusLook, CAFE_WINDOW } from '../sets/visions.js';
-import { drawEid, drawProtest, drawSchool, drawKitchen, memoryLook, EID_SEATS, EID_HEAD_X, EID_DOOR_X, SCHOOL_DESKS, TEACHER_X, KITCHEN_DOOR_X } from '../sets/memories.js';
+import { drawEid, drawProtest, drawDumpster, drawSchool, drawKitchen, memoryLook, EID_SEATS, EID_HEAD_X, EID_DOOR_X, SCHOOL_DESKS, TEACHER_X, KITCHEN_DOOR_X } from '../sets/memories.js';
 import { drawStairwell, stairPath, stairLook, drawRoof, roofLook, LOOKOUTS } from '../sets/rooftop.js';
 
 const OBJ = {
@@ -448,7 +448,7 @@ export const ACT3V = {
     const mother = at('woman', 0, { armN: 0.5, foreN: 1.4 });
     const uncle = at('man', 2, { armN: 0.9, foreN: 1.8 });
     const others = [];
-    for (let i = 3; i < seats.length; i++) others.push(at(['man2', 'woman2', 'man3', 'layla', 'oldman', 'woman'][(i - 3) % 6], i, { armN: 0.7 + (i % 3) * 0.2, foreN: 1.6 }, seats[i][0] > EID_HEAD_X ? -1 : 1));
+    for (let i = 3; i < seats.length - 1; i++) others.push(at(['man2', 'woman2', 'man3', 'layla', 'oldman', 'woman'][(i - 3) % 6], i, { armN: 0.7 + (i % 3) * 0.2, foreN: 1.6 }, seats[i][0] > EID_HEAD_X ? -1 : 1));
     const kids = [actor(g, 'boy', EID_DOOR_X + 140, { f: 1, scale: 0.6, pose: POSES.sitGround }), actor(g, 'kid3', EID_DOOR_X + 200, { f: -1, scale: 0.55, pose: POSES.sitGround })];
     const father = actor(g, 'abuyazan', EID_HEAD_X, { f: -1, o: { headwear: null, layer: { kind: 'jacket', color: '#4a4740' } }, pose: { ...POSES.stand } });
     const all = [mother, uncle, ...others, ...kids, father];
@@ -474,6 +474,7 @@ export const ACT3V = {
     g.runner.run(g.walkNpc(father, EID_DOOR_X + 50, { speedScale: 0.6 }));
     yield () => father.goal === null;
     g.sound.cloth();
+    yield* tween(g, 'eidDoor', 1, 0.7);
     const neighbour = actor(g, 'man3', EID_DOOR_X - 40, { f: 1, pose: { ...POSES.stand, armN: 1.3, foreN: 1.7 } });
     yield 0.5;
     yield* say(g, 'baklava');
@@ -483,7 +484,8 @@ export const ACT3V = {
     mother.override = SIT(-seats[0][1], { armN: 0.5, foreN: 1.4 });
     yield 2.6;
     neighbour.visible = false;
-    yield 1.2;
+    yield* tween(g, 'eidDoor', 0, 0.6);
+    yield 0.8;
     // but he remembers her hand on his arm
     g.sound.setMuffle(0.8, 2);
     yield* tween(g, 'memK', 1, 2.2);
@@ -509,8 +511,13 @@ export const ACT3V = {
     g.sound.ambience({ crowd: 0.7, traffic: 0.05, wind: 0.1, air: 0, generator: 0 }, 1.5);
     const ahmad = actor(g, 'khaled', p.x + 50, { f: 1, o: YOUNG_AHMAD });
     // people pouring out of the mosque, and not going home
-    const outfits = ['man', 'man2', 'man3', 'fadi', 'spotter', 'medic', 'man', 'man2', 'man3', 'boy', 'man', 'man2'];
-    const crowd = outfits.map((o, i) => actor(g, o, c - hw + 360 + i * 60 + (i % 3) * 14, { f: 1, scale: o === 'boy' ? 0.85 : 1 }));
+    const outfits = ['man', 'man2', 'man3', 'fadi', 'spotter', 'medic', 'man', 'man2', 'man3', 'boy', 'man', 'man2', 'man3', 'man', 'fadi', 'man2', 'medic', 'man3', 'man', 'spotter', 'man2', 'man'];
+    const crowd = outfits.map((o, i) => {
+      const w = actor(g, o, c - hw + 330 + i * 46 + (i % 3) * 13, { f: 1, scale: o === 'boy' ? 0.85 : 0.96 + (i % 4) * 0.02 });
+      // some walk with a fist up, as the chant goes
+      if (i % 3 === 1) w.arms = { armN: 2.7, foreN: 3.0 };
+      return w;
+    });
     yield* fadeTo(g, 0, 1.4);
     // the crowd begins to move, down the main street
     crowd.forEach((w, i) => g.runner.run(g.walkNpc(w, c + 300 + i * 40, { speedScale: 0.42 + (i % 4) * 0.03 })));
@@ -541,6 +548,7 @@ export const ACT3V = {
     yield* tween(g, 'scatter', 0.3, 0.3);
     crowd.forEach((w, i) => {
       w.goal = null;
+      w.arms = null;
       g.runner.run(g.walkNpc(w, i % 2 ? c - hw + 120 : c + hw - 400 - i * 30, { run: true, speedScale: 1.1 }));
     });
     g.runner.run(tween(g, 'scatter', 1, 2.5));
@@ -650,8 +658,10 @@ export const ACT3V = {
     g.snapCamera();
     g.sound.ambience({ crowd: 0, traffic: 0.03, wind: 0, air: 0.04 }, 0.5);
     const father = actor(g, 'abuyazan', KITCHEN_DOOR_X, { f: kc - 40 > KITCHEN_DOOR_X ? 1 : -1, o: { headwear: null, hair: '#2b241e', beardColor: '#2b241e' }, pose: { ...POSES.stand } });
+    a.kitchenDoor = 0;
     yield* fadeTo(g, 0, 1);
     g.sound.cloth();
+    yield* tween(g, 'kitchenDoor', 1, 0.9);
     g.sound.noise({ dur: 0.12, freq: 240, q: 1.2, vol: 0.4, type: 'lowpass' }); // the door shut
     yield 1;
     g.runner.run(g.walkNpc(father, kc + 30, { speedScale: 0.5 }));
@@ -901,16 +911,19 @@ export const ACT3V = {
         drawDamascus(R, g, { fold: a.fold || 0, t });
         break;
       case 'eid':
-        drawEid(R, g, { t });
+        drawEid(R, g, { t, door: a.eidDoor || 0 });
         break;
       case 'protest':
-        drawProtest(R, g, { t, scatter: a.scatter || 0 });
-        break;
+        // the dumpster after the people, so the two of them can hide behind it
+        drawProtest(R, g, { t, scatter: a.scatter || 0, dumpster: false });
+        drawActors(R, g);
+        drawDumpster(R);
+        return;
       case 'school':
         drawSchool(R, g, { t });
         break;
       case 'kitchen':
-        drawKitchen(R, g, { t });
+        drawKitchen(R, g, { t, door: a.kitchenDoor || 0 });
         break;
       case 'stairs':
         drawStairwell(R, g, { t });
