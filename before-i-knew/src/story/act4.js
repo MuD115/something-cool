@@ -31,6 +31,7 @@ import { X5, END, NOMANS, TUNNEL, SCHOOL, RUBBLE } from './act4-map.js';
 import { LINES, WHO, CARDS, CHOICE_H } from './act4-lines.js';
 import { resolveEnding, endingIsClear, applyChoiceH, ENDINGS } from './endings.js';
 import { whiteCloth } from './act2r.js';
+import { jerryCan } from '../sets/town.js';
 import { drawRoof, roofLook, drawStairwell, stairLook, stairPath, LOOKOUTS, HUT_DOOR } from '../sets/rooftop.js';
 import { dawnLook, drawDawnStreet, drawEdgeRoad, drawFarmEdge, SHADOW } from '../sets/dawn.js';
 import { drawNomans, nomansLook, drawStretcher, drawCemetery, cemeteryLook, drawGrave, GRAVE_X, GATE_X, drawTunnel, tunnelLook, TUNNEL_DROP, STEPS } from '../sets/farewell.js';
@@ -50,7 +51,8 @@ const OBJ = {
 };
 // The ending a road leads to, when the night has already decided.
 const ROAD_FOR = { 1: 'tunnels', 2: 'south', 3: 'tunnels', 4: 'classroom', 5: 'south' };
-const SIT_EDGE = { ...POSES.sitLedge, head: 0.2, armN: 0.9, foreN: 1.9, armF: 0.8, foreF: 1.8 };
+// sitting on the roof, knees up, arms on them, looking east
+const SIT_EDGE = { ...POSES.sitGround, head: -0.05, armN: 0.9, foreN: 1.6, armF: 0.85, foreF: 1.55 };
 const SITTING = { ...POSES.sitGround, head: 0.1 };
 const KNEEL_HAND = { ...POSES.kneel, torso: 0.55, head: 0.45, armN: 0.35, foreN: 0.25 };
 const CARRY_DOOR = { ...POSES.stand, torso: 0.06, armN: 0.15, foreN: 0.25, armF: 0.05, foreF: 0.2 };
@@ -203,7 +205,9 @@ export const ACT4 = {
     g.sound.life(0.25);
     // people: a man with water, a woman sweeping, two boys
     a.jerry = actor(g, 'man', X5.jerrycan - 380, { f: 1 });
-    a.jerry.arms = { armN: 2.6, foreN: 3.0 }; // the can on his shoulder
+    // the can on his shoulder: the near arm bent back up over it, steadying it
+    a.jerry.arms = { armN: 2.15, foreN: 3.55 };
+    a.jerry.rig.prop = (c, hand) => jerryCan(c, hand[0] + 4, hand[1] + 24, 0.72);
     a.sweeper = actor(g, 'woman2', X5.sweeper, { f: -1, pose: { ...POSES.stand, torso: 0.3, armN: 0.9, foreN: 0.7, armF: 0.7, foreF: 0.5 } });
     a.boys = null;
     yield* fadeTo(g, 0, 2);
@@ -403,7 +407,9 @@ export const ACT4 = {
     // back across; the checkpoint watches
     g.text.objective(OBJ.carry);
     g.gate = anger ? (m) => (m < 0 ? -0.62 : -0.3) : (m) => Math.min(0, m) * 0.36;
-    a.helpers = raed ? [[raed, -90], [abu, -78]] : [[abu, -78]];
+    // Sami at the front end, Abu Yazan at the back, a door's length apart;
+    // Raed ahead with the cloth
+    a.helpers = raed ? [[raed, 120], [abu, -172]] : [[abu, -172]];
     g.lock(false);
     if (maher) {
       yield () => p.x < mid;
@@ -824,9 +830,11 @@ export const ACT4 = {
     }
 
     // the photographs: left and right go through them
-    if (a.camera && !g.locked) {
-      if (input.hit('right') || input.hit('interact')) a.photo = Math.min(10, a.photo + 1);
-      if (input.hit('left')) a.photo = Math.max(0, a.photo - 1);
+    if (a.camera) {
+      if (!g.locked) {
+        if (input.hit('right') || input.hit('interact')) a.photo = Math.min(10, a.photo + 1);
+        if (input.hit('left')) a.photo = Math.max(0, a.photo - 1);
+      }
       drawCamera(g);
     }
 
