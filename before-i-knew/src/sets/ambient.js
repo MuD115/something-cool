@@ -9,6 +9,15 @@ const TAU = Math.PI * 2;
 const fract = (v) => v - Math.floor(v);
 
 // A wind that is mostly a breath and now and then a gust. -1 … 1, mostly small.
+// On low quality (or when auto quality has had to drop the resolution) the
+// purely decorative extras step out: smoke, birds in flight, the bag, drips
+// and motes. Trees, cloth and wires keep moving; they cost little.
+let lite = false;
+export const ambientLite = () => lite;
+export function setAmbientLite(v) {
+  lite = !!v;
+}
+
 export function wind(t, ph = 0) {
   const g = Math.max(0, Math.sin(t * 0.21 + 1.3)) * Math.max(0, Math.sin(t * 0.53 + 0.4)); // a gust, rarely
   return (0.55 * Math.sin(t * 0.9 + ph) + 0.3 * Math.sin(t * 1.7 + ph * 2.1) + 0.9 * g * Math.sin(t * 2.6 + ph)) * 0.8;
@@ -75,6 +84,7 @@ export function wire(c, ax, ay, bx, by, sag, t, ph = 0, amp = 1.6) {
 // Smoke from a chimney or a stove pipe: a column of soft puffs drifting up and
 // leaning with the wind. warm = 0 (thin grey, daytime) … 1 (evening, warmer).
 export function smoke(R, x, y, t, { warm = 0, h = 150, w = 16, alpha = 0.3, seed = 0 } = {}) {
+  if (lite) return;
   R.paint((c) => {
     const lean = wind(t, seed) * 22 + 10;
     for (let i = 0; i < 14; i++) {
@@ -109,6 +119,7 @@ function flyingBird(c, x, y, s, d, t, i) {
 // Pigeons crossing the sky now and then: a small flock every `every` seconds,
 // taking `dur` to cross the view. Drawn on a far layer so they feel high.
 export function flock(R, camX, t, { y = -330, n = 4, every = 53, dur = 11, seed = 0, color = 'rgba(52,48,50,0.75)', layer = 0.55, dir = 1 } = {}) {
+  if (lite) return;
   const u = ((t + seed * 17) % every) / dur;
   if (u > 1) return;
   R.layer(layer);
@@ -167,6 +178,7 @@ export function perch(R, x, y, t, seed = 0, { s = 1.6, color = '#4a4640' } = {})
 // A drip from a pipe's mouth at (x, y): a bead swells, falls, and splashes a
 // dark spot on `ground`. Period about 2.2 s.
 export function drip(R, x, y, ground, t, seed = 0) {
+  if (lite) return;
   const per = 2.2 + (seed % 3) * 0.3;
   const u = ((t + seed * 1.7) % per) / per;
   R.cast((c) => {
@@ -198,6 +210,7 @@ export function drip(R, x, y, ground, t, seed = 0) {
 
 // A plastic bag tumbling down the street on the draught, every so often.
 export function bag(R, camX, t, { every = 47, dur = 15, seed = 0, y = 0 } = {}) {
+  if (lite) return;
   const u = ((t + seed * 9) % every) / dur;
   if (u > 1) return;
   const x = camX - 700 + u * 1400;
@@ -225,6 +238,7 @@ export function bag(R, camX, t, { every = 47, dur = 15, seed = 0, y = 0 } = {}) 
 // A few warm drifting motes in a patch of sun (a doorway, a shaft): x0…x1,
 // from y0 up to y1. Brief and soft.
 export function sunMotes(R, x0, x1, y0, y1, t, { n = 12, seed = 0, color = '255,230,180' } = {}) {
+  if (lite) return;
   R.glow((c) => {
     for (let i = 0; i < n; i++) {
       const a = fract(Math.sin((i + 1) * 91.7 + seed * 13.1) * 437.5);

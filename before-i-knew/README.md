@@ -325,6 +325,18 @@ people walk, run, crouch and bend is motion-captured (below).
   gait. Its silhouette checks used Google's
   [Noto Emoji](https://github.com/googlefonts/noto-emoji) black-cat artwork (open licence) as
   a reference; none of it is drawn into the game.
+- **Scale.** Buildings are drawn to the people in them: Sami is 170 units (centimetres) tall, a
+  storey about 224, a door 205, a window about 74 × 107 with its sill 86 above the floor
+  ([`src/sets/town.js`](src/sets/town.js), `storeyH`, `DOOR_H`, `windowRect`).
+- **A town at work** ([`src/story/life.js`](src/story/life.js)): people go about the day's
+  work on a loop, each with a tool in the hand, the thing being worked on and its sound:
+  digging a bed, nailing a window frame, boarding a window from a ladder, sweeping, beating a
+  rug, sawing firewood, whitewashing, cooking over a fire, watering herbs, a boy and a ball,
+  smoking on a step, sewing, mending a bicycle, pegging washing, filling cans at a standpipe, a
+  generator that won't start, kneading, neighbours talking, carrying blocks. In danger they
+  drop where they are. The scenery moves too ([`src/sets/ambient.js`](src/sets/ambient.js)):
+  trees and vines in the wind, washing, curtains, awnings and flags, wires, smoke, pigeons, a
+  bag on the draught, drips and motes. On low quality the purely decorative extras step out.
 - **Depth** ([`src/sets/depth.js`](src/sets/depth.js)): the world is side-on, so walls,
   slabs, kerbs, sandbags and rubble get their thickness drawn behind them along one oblique
   direction for the whole game (back, up and to the right): tops lit, sides darker. Torn

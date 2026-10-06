@@ -12,6 +12,7 @@
 //
 // World units: ground at y = 0, up is negative.
 
+import { ambientLite } from '../sets/ambient.js';
 import { lerp, clamp, rng, mixc } from '../engine/util.js';
 import * as T from '../sets/town.js';
 import { horizon } from '../sets/horizon.js';
@@ -42,6 +43,7 @@ export const swayAng = (t, ph, amp, period = 4) => Math.sin((t * Math.PI * 2) / 
 // A thin thread of smoke rising from (x, y): faintly lit by the moon. `lean`
 // is how far it drifts over its height (night air is nearly still).
 export function wisp(R, x, y, t, { h = 240, w = 20, seed = 1, lean = 20, a = 0.3, tint = [150, 162, 200], glow = 1.4, dark = 0 } = {}) {
+  if (ambientLite()) return;
   const n = 24;
   const pts = [];
   for (let i = 0; i < n; i++) {
@@ -74,6 +76,7 @@ export function wisp(R, x, y, t, { h = 240, w = 20, seed = 1, lean = 20, a = 0.3
 
 // A plastic bag blown along the ground between x0 and x1, tumbling, hopping.
 export function tumbleBag(R, t, x0, x1, { seed = 0, speed = 34, tone = '#a8aebd' } = {}) {
+  if (ambientLite()) return;
   const span = x1 - x0;
   const u = ((t * speed + seed * 211) % (span * 1.25)) - span * 0.12;
   const x = x0 + u;
@@ -99,6 +102,7 @@ export function tumbleBag(R, t, x0, x1, { seed = 0, speed = 34, tone = '#a8aebd'
 
 // A drip: a bead swelling on the lip at (x, y0), falling to y1, a ring where it lands.
 export function drip(R, x, y0, y1, t, { seed = 0, every = 2.6, glow = 0.5 } = {}) {
+  if (ambientLite()) return;
   const p = ((t + seed * 1.7) % every) / every;
   const fall = 0.28;
   R.paint((c) => {

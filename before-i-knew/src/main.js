@@ -1,4 +1,5 @@
 import { Renderer } from './engine/renderer.js';
+import { setAmbientLite } from './sets/ambient.js';
 import { Sound } from './engine/audio.js';
 import { Score } from './engine/score.js';
 import { Text } from './engine/text.js';
@@ -184,6 +185,7 @@ function resize() {
   R.fx.dirt = q === 'high';
   setMaterialSize(q === 'low' ? 128 : 256);
   setFacadeRes(q === 'high' ? 2 : q === 'low' ? 1 : 1.25);
+  setAmbientLite(q === 'low' || (q === 'auto' && autoScale < 0.7));
 }
 window.addEventListener('resize', resize);
 resize();
