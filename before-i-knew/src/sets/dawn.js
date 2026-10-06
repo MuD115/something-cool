@@ -51,6 +51,8 @@ export function dawnLook(g, k = 0) {
   const a = g.a || {};
   const warm = smooth(0.2, 1, k);
   const lit = smooth(0.1, 1, k);
+  // out in the open country there is no wall behind anyone for a shadow to fall on
+  const open = (g.player?.x ?? 0) > 50000;
   const lights = [
     // the sun: from the east, low; at first a cool nothing, then gold. (Its
     // shadows are only as strong as it is, so they come up with it.)
@@ -59,7 +61,7 @@ export function dawnLook(g, k = 0) {
       color: mixc([0.58, 0.66, 0.92], [1.0, 0.72, 0.4], warm),
       intensity: lerp(0.2, 1.4, lit),
       radius: 0,
-      project: 1.07,
+      project: open ? 0 : 1.07,
       soft: 0.004,
       rim: lerp(0.25, 1.05, lit),
     },
@@ -71,9 +73,9 @@ export function dawnLook(g, k = 0) {
   // Damascus, far to the west: a last warm edge on what faces it
   if (lights.length < 4) lights.push({ uv: [-0.4, 0.62], color: [1, 0.66, 0.4], intensity: 0.1 * (1 - smooth(0, 0.7, k)), radius: 0, rim: 0.3 });
   return {
-    ambient: mixc([0.26, 0.28, 0.37], [0.3, 0.27, 0.32], lit),
+    ambient: mixc([0.26, 0.28, 0.37], [0.26, 0.245, 0.31], lit),
     lights: lights.slice(0, 4),
-    groundShadow: lerp(0.35, 0.85, lit),
+    groundShadow: lerp(0.4, 1.0, lit),
     god: k > 0.55 ? { uv: SUN_UV, strength: 0.32 * smooth(0.55, 1, k) } : null,
     bloom: lerp(0.55, 0.95, lit),
     exposure: lerp(1.02, 0.96, lit),
@@ -168,7 +170,7 @@ export function dawnSky(R, g, k = 0, opts = {}) {
     c.setTransform(1, 0, 0, 1, 0, 0);
     // the vertical gradient: bruise-indigo overhead, grey-blue, then the horizon
     const A = [[0, '#080c26'], [0.3, '#141b45'], [0.55, '#2c3963'], [0.76, '#4d5b82'], [1, '#74789a']];
-    const B = [[0, '#34568c'], [0.3, '#5c82b2'], [0.55, '#a5b8cc'], [0.74, '#efc9a4'], [0.88, '#ffb878'], [1, '#ffd49a']];
+    const B = [[0, '#34568c'], [0.3, '#5c82b2'], [0.55, '#a5b8cc'], [0.74, '#e8b894'], [0.88, '#f6a566'], [1, '#f4b678']];
     const ramp = (S, p) => {
       for (let i = 1; i < S.length; i++) {
         if (p <= S[i][0]) {
@@ -184,8 +186,9 @@ export function dawnSky(R, g, k = 0, opts = {}) {
     const gr = c.createLinearGradient(0, 0, 0, H);
     for (let i = 0; i <= 14; i++) {
       const p = i / 14;
-      const a = ramp(A, p);
-      const b = ramp(B, p);
+      const pp = opts.hy ? Math.min(p / opts.hy, 1) : p;
+      const a = ramp(A, pp);
+      const b = ramp(B, pp);
       gr.addColorStop(p, rgbA(a.map((v, j) => lerp(v, b[j], kk))));
     }
     c.fillStyle = gr;
@@ -194,13 +197,13 @@ export function dawnSky(R, g, k = 0, opts = {}) {
     // the band of colour along the eastern horizon: a faint mauve at first,
     // amber, then gold. A wide, flat ellipse centred low on the right.
     const bx = W * 0.9;
-    const by = H * 0.86;
+    const by = H * (opts.hy ?? 0.86);
     c.save();
     c.translate(bx, by);
     c.scale(1, 0.46);
     const band = c.createRadialGradient(0, 0, 0, 0, 0, W * 0.78);
     const bc = mixc([186, 120, 120], [255, 148, 62], smooth(0, 0.7, k));
-    band.addColorStop(0, rgbA(bc, lerp(0.2, 0.85, kk)));
+    band.addColorStop(0, rgbA(bc, lerp(0.2, opts.open ? 0.6 : 0.85, kk)));
     band.addColorStop(0.35, rgbA(bc, lerp(0.09, 0.42, kk)));
     band.addColorStop(1, rgbA(bc, 0));
     c.fillStyle = band;
@@ -212,7 +215,7 @@ export function dawnSky(R, g, k = 0, opts = {}) {
     seam.addColorStop(0, rgbA(sc, 0));
     seam.addColorStop(1, rgbA(sc, lerp(0.16, 0.55, kk)));
     c.fillStyle = seam;
-    c.fillRect(W * 0.3, H * 0.8, W * 0.7, H * 0.1);
+    c.fillRect(W * 0.3, H * ((opts.hy ?? 0.86) - 0.06), W * 0.7, H * 0.1);
     // the cool of the west (left), still night
     const west = c.createLinearGradient(0, 0, W * 0.6, 0);
     west.addColorStop(0, `rgba(8,12,38,${lerp(0.4, 0.12, kk)})`);
@@ -253,6 +256,30 @@ export function dawnSky(R, g, k = 0, opts = {}) {
       c.fill();
       c.restore();
     });
+  }
+
+  if (opts.open) {
+    // open country: no town on the skyline, only a few streaks of cirrus
+    R.sky((c) => {
+      c.save();
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      const r = rng(5);
+      const hy = (opts.hy ?? 0.55) * H;
+      for (let i = 0; i < 9; i++) {
+        const cxn = r() * W;
+        const cyn = hy - H * (0.08 + r() * 0.3);
+        const wd = W * (0.12 + r() * 0.2);
+        const lit = smooth(0, 1, k) * (0.3 + 0.7 * (cxn / W));
+        const col = mixc([70, 80, 120], [255, 182, 130], lit);
+        c.fillStyle = rgbA(col, lerp(0.16, 0.34, k));
+        c.beginPath();
+        c.ellipse(cxn + Math.sin(t * 0.02 + i) * 8, cyn, wd, H * 0.008 + r() * H * 0.01, -0.03, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.restore();
+    });
+    R.layer(1);
+    return;
   }
 
   // the far country and its cirrus, hazed to the colour of the hour
@@ -456,22 +483,47 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
         c.lineTo(xc + dir * 34, yv);
         c.stroke();
       }
-      // windows, shrinking
+      // windows in perspective: each a quad between two storey lines, so the
+      // rows recede with the wall instead of stepping down it
       const r = rng(seed * 11 + (dir > 0 ? 3 : 1));
+      const xv = xc + dir * 34;
+      const fu = (u) => u * u * 0.9 + u * 0.1; // spacing: closer together as they go
+      const lineY = (n, tt) => lerp(-n * 130 + 4, vy - n * 26, tt);
       for (let i = 0; i < 6; i++) {
-        const u = (i + 0.4) / 6.6;
-        const wx = lerp(edge, xc + dir * 34, u * u * 0.9 + u * 0.1);
-        const sc = 1 - u * 0.9;
+        const ta = fu((i + 0.28) / 6.6);
+        const tb = fu((i + 0.66) / 6.6);
+        const xa = lerp(edge, xv, ta);
+        const xb = lerp(edge, xv, tb);
         for (let f = 0; f < 4; f++) {
-          const wy0 = lerp(-f * 130 - 52, vy - f * 26 - 8, u);
-          if (r() < 0.12) continue;
-          c.fillStyle = r() < 0.5 ? '#2a231d' : '#352c25';
-          c.fillRect(wx - 7 * sc * dir - (dir > 0 ? 0 : 7 * sc), wy0 - 40 * sc, 14 * sc + 1, 40 * sc);
+          if (r() < 0.14) continue;
+          const y = (tt, frac) => lerp(lineY(f + 1, tt), lineY(f, tt), frac);
+          c.fillStyle = r() < 0.5 ? 'rgba(52,44,38,0.9)' : 'rgba(64,54,46,0.85)';
+          c.beginPath();
+          c.moveTo(xa, y(ta, 0.3));
+          c.lineTo(xb, y(tb, 0.3));
+          c.lineTo(xb, y(tb, 0.74));
+          c.lineTo(xa, y(ta, 0.74));
+          c.closePath();
+          c.fill();
+          // a pale sill under it
+          c.strokeStyle = 'rgba(220,210,190,0.35)';
+          c.lineWidth = 1;
+          c.beginPath();
+          c.moveTo(xa, y(ta, 0.76));
+          c.lineTo(xb, y(tb, 0.76));
+          c.stroke();
         }
         // a door at the foot of some
         if (i % 2 === 0) {
-          c.fillStyle = '#3f3228';
-          c.fillRect(wx - (dir > 0 ? 0 : 12 * sc), -62 * sc - 6 * u * 0 + lerp(0, vy + 62, u * 0) - 0, 12 * sc, 62 * sc);
+          const y = (tt, frac) => lerp(lineY(1, tt), lineY(0, tt), frac);
+          c.fillStyle = 'rgba(70,56,44,0.9)';
+          c.beginPath();
+          c.moveTo(xa, y(ta, 0.45));
+          c.lineTo(xb, y(tb, 0.45));
+          c.lineTo(xb, y(tb, 1));
+          c.lineTo(xa, y(ta, 1));
+          c.closePath();
+          c.fill();
         }
       }
     };
@@ -1201,7 +1253,950 @@ export function drawDawnStreet(R, g, { k = 0, t = g.time } = {}) {
   T.foreground(R, cx, { from: -1600, to: 4600 });
 }
 
-// ======================================================== the edge road ==
-// (Ending 1) and the farm edge (Ending 3) follow.
-export function drawEdgeRoad() {}
-export function drawFarmEdge() {}
+
+// ====================================================== open country ==
+// The edge of town: the camera pulls back here (the view grows to 3400 wide),
+// so everything is placed by where it lands on the screen, not by fixed
+// numbers, and drawn as far as the view reaches.
+
+const baseScale = (R) => Math.max(R.W / 1400, (R.H * 2.39 * 0.62) / 1400);
+// half the width of the view, in a layer's own units
+const halfW = (R, d) => R.W / 2 / (baseScale(R) * Math.pow(1400 / R.cam.view, d)) + 260;
+// the layer's y for a screen y
+const layerY = (R, d, sy) => {
+  const f = R.cam.frame(R.W, R.H, d);
+  return (sy - f.oy) / f.s;
+};
+const screenY = (R, d, y) => {
+  const f = R.cam.frame(R.W, R.H, d);
+  return f.oy + y * f.s;
+};
+const layerX = (R, d, sx) => {
+  const f = R.cam.frame(R.W, R.H, d);
+  return (sx - f.ox) / f.s;
+};
+function cells(R, d, step, fn) {
+  const c0 = R.cam.x * d;
+  const hw = halfW(R, d);
+  for (let i = Math.floor((c0 - hw) / step); i <= Math.ceil((c0 + hw) / step); i++) fn(i, i * step);
+}
+const hazeOf = (k) => mixc([112, 120, 156], [250, 196, 150], smooth(0, 1, k));
+const toward = (hex, h, f) => rgbA(mixc(hexRgb(hex), h, f));
+
+// The horizon on the screen, from the eye: where land meets sky.
+const horizonY = (R) => screenY(R, 1, Math.min(-60, R.cam.y * 0.84));
+
+// The far plain: furrowed fields, hedgerows of poplar, a farm or two, hazed.
+function farPlain(R, k, o = {}) {
+  const d = 0.45;
+  const hf = o.haze ?? 0.5;
+  const hz = layerY(R, d, horizonY(R));
+  const c0 = R.cam.x * d;
+  const hw = halfW(R, d);
+  const h = hazeOf(k);
+  const seed = o.seed || 1;
+  const fields = o.fields || ['#6c7550', '#7d7a52', '#5f6c48', '#857f58', '#6a7048'];
+  R.layer(d);
+  R.paint((c) => {
+    c.fillStyle = toward(fields[0], h, hf);
+    c.fillRect(c0 - hw, hz, 2 * hw, 400);
+    cells(R, d, 150, (i, x) => {
+      const r = rng(i * 977 + seed);
+      c.fillStyle = toward(fields[Math.floor(r() * fields.length)], h, hf - 0.02);
+      c.fillRect(x, hz + r() * 3, 151, 400);
+    });
+    // furrows running away to the sun
+    const vx = c0 + hw * 0.8;
+    c.lineWidth = 1.1;
+    for (let j = 0; j < 9; j++) {
+      const y0 = hz + 14 + j * j * 1.6 + j * 6;
+      c.strokeStyle = rgbA(mixc(h, [255, 226, 170], smooth(0.2, 1, k) * 0.5), o.furrow ?? 0.17);
+      c.beginPath();
+      c.moveTo(c0 - hw, y0 + 30 + j * 4);
+      c.lineTo(vx, hz);
+      c.stroke();
+    }
+    // trees: poplars in rows, round orchard trees, a dark mass of cypress
+    const tcol = (hex, f) => toward(hex, h, f);
+    cells(R, d, 70, (i, x) => {
+      const r = rng(i * 31 + seed + 5);
+      const v = r();
+      if (v < (o.bare ?? 0.35)) return;
+      if (v < 0.62) {
+        const ph = 50 + r() * 70;
+        c.fillStyle = tcol('#3f4e34', 0.45);
+        for (let n = 0; n < 1 + Math.floor(r() * 3); n++) {
+          c.beginPath();
+          c.ellipse(x + n * 13, hz + 3 - ph * 0.5, 4.5 + r() * 2, ph * 0.5 * (0.8 + n * 0.1), 0, 0, Math.PI * 2);
+          c.fill();
+        }
+      } else if (v < 0.88) {
+        c.fillStyle = tcol('#4c5c38', 0.42);
+        const rad = 11 + r() * 12;
+        for (let n = 0; n < 3; n++) {
+          c.beginPath();
+          c.arc(x + n * 16, hz - rad * 0.7 - r() * 4, rad * (0.8 + r() * 0.3), 0, Math.PI * 2);
+          c.fill();
+        }
+      } else {
+        // a farm: a flat-roofed block and its wall
+        c.fillStyle = tcol('#8a7e68', 0.4);
+        c.fillRect(x, hz - 22, 44, 24);
+        c.fillStyle = tcol('#6a604f', 0.4);
+        c.fillRect(x - 2, hz - 24, 48, 3);
+        c.fillRect(x + 8, hz - 12, 7, 10);
+      }
+    });
+    // pylons marching off, thin
+    if (o.pylons) {
+      c.strokeStyle = tcol('#3a4048', 0.55);
+      c.lineWidth = 1.3;
+      cells(R, d, 420, (i, x) => {
+        c.beginPath();
+        c.moveTo(x - 7, hz + 2);
+        c.lineTo(x, hz - 52);
+        c.lineTo(x + 7, hz + 2);
+        c.moveTo(x - 14, hz - 44);
+        c.lineTo(x + 14, hz - 44);
+        c.moveTo(x - 4, hz - 30);
+        c.lineTo(x + 4, hz - 14);
+        c.stroke();
+        c.beginPath();
+        c.moveTo(x - 14, hz - 44);
+        c.quadraticCurveTo(x + 200, hz - 28, x + 420 - 14, hz - 44);
+        c.stroke();
+      });
+    }
+  });
+  R.layer(1);
+}
+
+// Grape arbours: rows of posts and wire under a roof of vine leaves.
+function arbours(R, k, t, o) {
+  const d = o.d || 0.78;
+  const seed = o.seed || 3;
+  const base = layerY(R, d, o.baseScreenY);
+  const h = hazeOf(k);
+  const lit = smooth(0.3, 1, k);
+  R.layer(d);
+  R.paint((c) => {
+    // the ground they stand on
+    c.fillStyle = toward('#7b6c4c', h, 0.18);
+    c.fillRect(R.cam.x * d - halfW(R, d), base, 2 * halfW(R, d), 600);
+    cells(R, d, 340, (i, x) => {
+      const r = rng(i * 313 + seed);
+      if (x < (o.from ?? -1e9) * d) return;
+      if (r() < 0.2) return;
+      const w = 200 + r() * 110;
+      const hh = (o.low || 104) + r() * 16;
+      const x0 = x + r() * 20;
+      // posts and the wire between them
+      c.fillStyle = toward('#3b2f24', h, 0.2);
+      for (let px = x0; px <= x0 + w; px += 64) c.fillRect(px - 1.6, base - hh, 3.2, hh);
+      // the roof of leaves: a bumpy band, dark under, bright where the sun gets it
+      const top = (u) => base - hh - 6 - Math.sin(u * 17 + i) * 6 - Math.sin(u * 5.3 + i * 2) * 5;
+      c.fillStyle = toward('#40562a', h, 0.2);
+      c.beginPath();
+      c.moveTo(x0 - 6, base - hh + 24);
+      for (let u = 0; u <= 1.001; u += 0.03) c.lineTo(x0 - 6 + u * (w + 12), top(u));
+      c.lineTo(x0 + w + 6, base - hh + 24 + r() * 8);
+      for (let u = 1; u >= 0; u -= 0.05) c.lineTo(x0 - 6 + u * (w + 12), base - hh + 24 + Math.sin(u * 23 + i) * 7);
+      c.closePath();
+      c.fill();
+      // leaf clumps catching the light
+      for (let n = 0; n < 16; n++) {
+        const u = r();
+        c.fillStyle = toward(r() < 0.5 ? '#5f7a38' : '#74883f', h, 0.15);
+        c.beginPath();
+        c.ellipse(x0 + u * w, top(u) + 7 + r() * 12, 10 + r() * 9, 6 + r() * 4, 0, 0, Math.PI * 2);
+        c.fill();
+      }
+      // bunches hanging underneath, small and green
+      for (let n = 0; n < 12; n++) {
+        const bx = x0 + 6 + r() * (w - 12);
+        c.fillStyle = toward(r() < 0.8 ? '#8ea24a' : '#6b5a7a', h, 0.15);
+        c.beginPath();
+        c.ellipse(bx, base - hh + 34 + r() * 8, 2.6, 5, 0, 0, Math.PI * 2);
+        c.fill();
+      }
+      // the shade under the canopy
+      const sh = c.createLinearGradient(0, base - hh + 22, 0, base);
+      sh.addColorStop(0, 'rgba(14,16,10,0.4)');
+      sh.addColorStop(1, 'rgba(14,16,10,0.0)');
+      c.fillStyle = sh;
+      c.fillRect(x0, base - hh + 22, w, hh - 22);
+    });
+  });
+  // the sun through the leaves: gold edges
+  if (lit > 0.05) {
+    R.glow((c) => {
+      cells(R, d, 340, (i, x) => {
+        const r = rng(i * 313 + seed);
+        if (x < (o.from ?? -1e9) * d || r() < 0.2) return;
+        const w = 200 + r() * 110;
+        const hh = (o.low || 104) + r() * 16;
+        const x0 = x + r() * 20;
+        const g2 = c.createLinearGradient(x0, 0, x0 + w, 0);
+        g2.addColorStop(0, 'rgba(255,200,110,0)');
+        g2.addColorStop(1, `rgba(255,200,110,${0.2 * lit})`);
+        c.fillStyle = g2;
+        c.fillRect(x0, base - hh - 14, w, 22);
+      });
+    });
+  }
+  R.layer(1);
+}
+
+// Grass and thistle seen against the light, very close.
+function nearGrass(R, k, seed) {
+  const d = 1.22;
+  R.layer(d);
+  const base = layerY(R, d, R.H + 6);
+  R.paint((c) => {
+    c.fillStyle = 'rgba(22,20,12,0.9)';
+    cells(R, d, 34, (i, x) => {
+      const r = rng(i * 53 + seed);
+      if (r() < 0.5) return;
+      const n = 3 + Math.floor(r() * 5);
+      for (let b = 0; b < n; b++) {
+        const bx = x + b * 4 + r() * 6;
+        const hgt = 26 + r() * 60;
+        c.beginPath();
+        c.moveTo(bx - 2, base);
+        c.quadraticCurveTo(bx + (r() - 0.3) * 14, base - hgt * 0.6, bx + (r() - 0.2) * 26, base - hgt);
+        c.quadraticCurveTo(bx + 4, base - hgt * 0.5, bx + 2, base);
+        c.fill();
+      }
+    });
+  });
+  R.layer(1);
+}
+
+// Dust motes and long gold light across the open ground.
+function openLight(R, g, k, vx, vy) {
+  const lit = smooth(0.4, 1, k);
+  if (lit < 0.02) return;
+  const cx = R.cam.x;
+  const span = Math.max(1600, R.cam.view * 0.75);
+  R.glow((c) => {
+    // a low golden haze lying along the ground, thickest toward the sun
+    const g1 = c.createLinearGradient(cx - span, 0, vx, 0);
+    g1.addColorStop(0, 'rgba(255,196,120,0)');
+    g1.addColorStop(1, `rgba(255,196,120,${0.28 * lit})`);
+    c.fillStyle = g1;
+    c.fillRect(cx - span, vy - 40, vx - cx + span, 40 - vy + 40);
+  });
+  T.motes(R, cx, g.time, (k - 0.3) * 0.9);
+}
+
+// ===================================================== the edge road ==
+
+const EDGE_BLOCKS = [
+  { x: 57200, w: 640, floors: 3, fh: 138, color: '#a2977f', seed: 801, mat: 'plaster', torn: 0.5, tornLeft: true, noDoors: true, holes: [[0.55, 0.5, 22]] },
+  { x: 57840, w: 520, floors: 2, fh: 140, color: '#9f9480', seed: 802, mat: 'limestone', torn: 0.45, tornLeft: false, laundry: true, balcony: [1, 0.3, 0.03] },
+  { x: 58370, w: 340, floors: 1, fh: 150, color: '#ada390', seed: 803, mat: 'concrete', noDoors: true, torn: 0.4, tornLeft: true },
+];
+
+export function drawEdgeRoad(R, g, { k = 1, t = g.time } = {}) {
+  k = clamp(k);
+  const cx = R.cam.x;
+  const view = R.cam.view;
+  const vis = Math.max(1700, view * 0.78);
+  const near = (x0, x1) => x1 > cx - vis && x0 < cx + vis;
+  const f1 = R.cam.frame(R.W, R.H, 1);
+  const sunX = 0.9;
+  const hzY = horizonY(R);
+  const sunR = R.H * 0.11;
+  // the sun sits on the horizon, half of it up
+  dawnSky(R, g, k, { open: true, hy: hzY / R.H, sunR, sunX, sunY: (hzY - sunR * 0.5) / R.H });
+
+  const vx = layerX(R, 1, sunX * R.W);
+  const vy = (hzY - f1.oy) / f1.s;
+  const A0 = -90;
+  const B0 = 90;
+  const lam = (x) => (vx - x) / (vx - cx);
+  const yA = (x) => vy + (A0 - vy) * lam(x);
+  const yB = (x) => vy + (B0 - vy) * lam(x);
+  const xL = cx - vis;
+  const baseScreen = f1.oy + A0 * f1.s;
+
+  farPlain(R, k, { seed: 5, pylons: true, haze: 0.36, furrow: 0.3, bare: 0.3, fields: ['#5f6c3e', '#76733f', '#566638', '#80763f', '#64703f'] });
+  // a nearer row of farms and poplars by the road
+  arbours(R, k, t, { d: 0.62, seed: 9, from: 58900, baseScreenY: baseScreen - 4, low: 64 });
+  arbours(R, k, t, { d: 0.8, seed: 3, from: 58750, baseScreenY: baseScreen + 2, low: 74 });
+
+  // the verge: dry grass, thistle and dust, as far as the road's far edge
+  const h = hazeOf(k);
+  R.paint((c) => {
+    c.fillStyle = '#6f6a40';
+    c.fillRect(xL, A0, 2 * vis, 700);
+    const vg = c.createLinearGradient(0, A0, 0, A0 + 160);
+    vg.addColorStop(0, 'rgba(120,110,60,0.0)');
+    vg.addColorStop(1, 'rgba(30,26,12,0.3)');
+    c.fillStyle = vg;
+    c.fillRect(xL, A0, 2 * vis, 160);
+    const r = rng(41);
+    for (let x = Math.floor((cx - vis) / 24) * 24; x < cx + vis; x += 24) {
+      const q = rng(Math.floor(x / 24) * 7 + 1);
+      if (q() < 0.25) continue;
+      c.strokeStyle = q() < 0.5 ? '#55562e' : '#94854a';
+      c.lineWidth = 1.2;
+      c.beginPath();
+      const by = A0 + 4 + q() * 30;
+      c.moveTo(x, by);
+      c.quadraticCurveTo(x + 3, by - 12, x + 8 + q() * 6, by - 18 - q() * 12);
+      c.stroke();
+    }
+    void r;
+    void h;
+  });
+
+  // ---- the road itself, running to the sun
+  R.paint((c) => {
+    const rd = c.createLinearGradient(xL, 0, vx, 0);
+    rd.addColorStop(0, '#7e6f58');
+    rd.addColorStop(1, '#b89a6c');
+    c.fillStyle = rd;
+    c.beginPath();
+    c.moveTo(xL, yA(xL));
+    c.lineTo(vx, vy);
+    c.lineTo(xL, yB(xL));
+    c.closePath();
+    c.fill();
+    // shoulders: a paler band of dust along both edges
+    c.fillStyle = 'rgba(214,196,160,0.35)';
+    for (const [t0, t1] of [[0, 0.07], [0.93, 1]]) {
+      c.beginPath();
+      c.moveTo(xL, yA(xL) + (yB(xL) - yA(xL)) * t0);
+      c.lineTo(vx, vy);
+      c.lineTo(xL, yA(xL) + (yB(xL) - yA(xL)) * t1);
+      c.fill();
+    }
+    // wheel ruts
+    for (const rt of [0.33, 0.68]) {
+      c.fillStyle = 'rgba(60,46,32,0.36)';
+      c.beginPath();
+      c.moveTo(xL, yA(xL) + (yB(xL) - yA(xL)) * (rt - 0.045));
+      c.lineTo(vx, vy);
+      c.lineTo(xL, yA(xL) + (yB(xL) - yA(xL)) * (rt + 0.045));
+      c.fill();
+    }
+    // stones, ruts' crumbs and dried mud
+    for (let x = Math.floor((xL) / 40) * 40; x < vx; x += 40) {
+      const q = rng(Math.floor(x / 40) * 11 + 3);
+      const l = lam(x);
+      if (l <= 0.05) continue;
+      for (let n = 0; n < 3; n++) {
+        if (q() < 0.4) continue;
+        const ty = yA(x) + (yB(x) - yA(x)) * (0.05 + q() * 0.9);
+        c.fillStyle = `rgba(${150 + q() * 50},${130 + q() * 30},${100 + q() * 30},0.8)`;
+        c.fillRect(x + q() * 30, ty, (2 + q() * 4) * Math.min(1, l), (2 + q() * 2) * Math.min(1, l));
+      }
+    }
+  });
+  R.surface((c) => {
+    c.moveTo(xL, yA(xL));
+    c.lineTo(vx, vy);
+    c.lineTo(xL, yB(xL));
+    c.closePath();
+  }, 'asphalt', { scale: 1.6, seed: 4, alpha: 0.3 });
+
+  // potholes, in the road's own perspective
+  for (let x = Math.floor(xL / 150) * 150; x < vx - 40; x += 150) {
+    const q = rng(Math.floor(x / 150) * 19 + 7);
+    if (q() < 0.3) continue;
+    const l = lam(x);
+    const sx = x + q() * 80;
+    const ty = yA(sx) + (yB(sx) - yA(sx)) * (0.12 + q() * 0.76);
+    const w = (30 + q() * 40) * Math.min(1.6, lam(sx)) ;
+    const hh = w * 0.2;
+    R.paint((c) => {
+      c.fillStyle = 'rgba(40,30,22,0.78)';
+      c.beginPath();
+      c.ellipse(sx, ty, w, hh, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillStyle = 'rgba(210,190,150,0.5)';
+      c.beginPath();
+      c.ellipse(sx, ty - hh * 0.35, w * 0.95, hh * 0.55, 0, Math.PI, Math.PI * 2);
+      c.fill();
+      c.fillStyle = 'rgba(30,22,16,0.8)';
+      c.beginPath();
+      c.ellipse(sx + w * 0.1, ty + hh * 0.1, w * 0.8, hh * 0.7, 0, 0, Math.PI * 2);
+      c.fill();
+    });
+    // dew standing in it, holding the sky
+    R.glow((c) => {
+      c.fillStyle = k > 0.5 ? `rgba(255,214,150,${0.45 * smooth(0.4, 1, k)})` : 'rgba(140,160,215,0.2)';
+      c.beginPath();
+      c.ellipse(sx + w * 0.15, ty + hh * 0.15, w * 0.7, hh * 0.5, 0, 0, Math.PI * 2);
+      c.fill();
+    });
+  }
+  // the sun on the road: a path of gold to the horizon
+  const lit = smooth(0.3, 1, k);
+  R.glow((c) => {
+    const g1 = c.createLinearGradient(cx - 200, 0, vx, 0);
+    g1.addColorStop(0, 'rgba(255,200,120,0)');
+    g1.addColorStop(0.7, `rgba(255,206,130,${0.08 * lit})`);
+    g1.addColorStop(1, `rgba(255,236,190,${0.45 * lit})`);
+    c.fillStyle = g1;
+    c.beginPath();
+    c.moveTo(cx - 200, yA(cx - 200));
+    c.lineTo(vx, vy);
+    c.lineTo(cx - 200, yB(cx - 200));
+    c.fill();
+    // water in the ruts, bright strips
+    for (const rt of [0.33, 0.68]) {
+      c.fillStyle = `rgba(255,224,170,${0.22 * lit})`;
+      c.beginPath();
+      c.moveTo(cx, yA(cx) + (yB(cx) - yA(cx)) * (rt - 0.012));
+      c.lineTo(vx, vy);
+      c.lineTo(cx, yA(cx) + (yB(cx) - yA(cx)) * (rt + 0.012));
+      c.fill();
+    }
+  });
+
+  // the last buildings, at the left end of the road
+  for (const b of EDGE_BLOCKS) if (near(b.x, b.x + b.w)) T.block(R, b, t);
+  if (near(58700, 59200)) {
+    // a garden wall, a gate with its leaf hanging, the first vine over it
+    T.lowWall(R, 58720, 190, 96, '#a79a84');
+    T.rubble(R, 58880, 150, 52, { seed: 811, color: '#a39a8c' });
+    T.vine(R, 59020, t, { wallH: 90, lush: 1 });
+    R.cast((c) => {
+      c.fillStyle = '#4a3a2c';
+      c.fillRect(58930, -130, 8, 130);
+      c.save();
+      c.translate(58934, -126);
+      c.rotate(0.35);
+      c.fillStyle = '#51463a';
+      c.fillRect(0, 0, 70, 6);
+      c.fillRect(0, 40, 70, 6);
+      c.fillRect(0, 0, 6, 100);
+      c.restore();
+    });
+  }
+
+  // things beside the road: a signpost shot through, a barrel, a cart wheel
+  if (near(59300, 59500)) {
+    R.cast((c) => {
+      c.fillStyle = '#3a342d';
+      c.fillRect(59380, -150, 5, 150);
+      c.save();
+      c.translate(59382, -146);
+      c.rotate(0.18);
+      c.fillStyle = '#2a5f8a';
+      c.fillRect(-36, -6, 74, 24);
+      c.fillStyle = '#e9e4d4';
+      c.fillRect(-32, -2, 66, 1.4);
+      c.fillRect(-32, 14, 66, 1.4);
+      c.fillStyle = '#1a1612';
+      for (const [bx, by] of [[-14, 6], [6, 9], [18, 4], [-4, 12]]) {
+        c.beginPath();
+        c.arc(bx, by, 2.4, 0, Math.PI * 2);
+        c.fill();
+      }
+      c.restore();
+    });
+  }
+  if (near(60400, 60600)) {
+    R.cast((c) => {
+      // a drum on its side, rust-red, and a cart wheel against it
+      c.fillStyle = '#7a3f2c';
+      c.fillRect(60450, -36, 44, 36);
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      c.fillRect(60450, -26, 44, 3);
+      c.fillRect(60450, -12, 44, 3);
+      c.strokeStyle = '#4a3a2c';
+      c.lineWidth = 3;
+      c.beginPath();
+      c.arc(60520, -26, 26, 0, Math.PI * 2);
+      c.stroke();
+      c.lineWidth = 1.6;
+      for (let a = 0; a < 6; a++) {
+        c.beginPath();
+        c.moveTo(60520, -26);
+        c.lineTo(60520 + Math.cos(a * 1.047) * 26, -26 + Math.sin(a * 1.047) * 26);
+        c.stroke();
+      }
+    });
+  }
+  T.cables(R, cx, { seed: 205, from: 58800, to: 62600 });
+
+  g.act?.drawProps?.(R, g);
+  people(R, g, k, near);
+  openLight(R, g, k, vx, vy);
+  g.effects?.draw?.(R);
+  nearGrass(R, k, 77);
+}
+
+// ====================================================== the farm edge ==
+
+// A building of dry-laid stone, flat-roofed, its parapet and its thickness.
+function stoneBox(R, x, w, h, o = {}) {
+  const col = o.color || '#a39880';
+  R.cast((c) => {
+    const pts = [[x, 0], [x, -h], [x + w, -h], [x + w, 0]];
+    extrudePoly(c, pts, o.depth || 40, { color: col });
+    c.fillStyle = col;
+    c.fillRect(x, -h, w, h);
+    // courses of rough stone, each block a shade apart
+    const r = rng(o.seed || 1);
+    c.save();
+    c.beginPath();
+    c.rect(x, -h, w, h);
+    c.clip();
+    for (let row = 0; row * 17 < h; row++) {
+      const y0 = -h + row * 17;
+      for (let bx = x - (row % 2) * 14; bx < x + w; bx += 28 + r() * 10) {
+        const v = (r() - 0.5) * 0.2;
+        c.fillStyle = v > 0 ? `rgba(255,246,226,${v})` : `rgba(40,30,20,${-v})`;
+        c.fillRect(bx + 1, y0 + 1, 24, 14);
+      }
+      c.fillStyle = 'rgba(60,48,36,0.35)';
+      c.fillRect(x, y0 + 16, w, 1.5);
+    }
+    const dg = c.createLinearGradient(0, 0, 0, -36);
+    dg.addColorStop(0, 'rgba(50,40,30,0.35)');
+    dg.addColorStop(1, 'rgba(50,40,30,0)');
+    c.fillStyle = dg;
+    c.fillRect(x, -36, w, 36);
+    c.restore();
+    // parapet, a course proud of the wall
+    extrudeRect(c, x - 4, -h - 10, w + 8, 12, (o.depth || 40) + 4, { color: col });
+    c.fillStyle = col;
+    c.fillRect(x - 4, -h - 10, w + 8, 12);
+    c.fillStyle = 'rgba(255,250,236,0.2)';
+    c.fillRect(x - 4, -h - 10, w + 8, 1.6);
+  });
+  R.surface((c) => c.rect(x, -h, w, h), 'limestone', { scale: 0.7, seed: o.seed || 1, alpha: 0.7 });
+}
+
+function farmPlain(R, k, t, cx, vis, near) {
+  const E = END.edge[0];
+  const hw = END.edge[1];
+  const doorX = E + hw - 160;
+
+  // ---- the farmhouse
+  if (near(E - 880, E - 380)) {
+    const x = E - 840;
+    // a lean-to of corrugated tin on poles, bales under it
+    R.cast((c) => {
+      c.fillStyle = '#4a3a2c';
+      c.fillRect(x - 130, -90, 6, 90);
+      c.fillRect(x - 6, -112, 6, 112);
+      c.fillStyle = '#7d7f7a';
+      c.beginPath();
+      c.moveTo(x - 140, -92);
+      c.lineTo(x + 4, -118);
+      c.lineTo(x + 4, -110);
+      c.lineTo(x - 140, -84);
+      c.fill();
+      c.strokeStyle = 'rgba(0,0,0,0.3)';
+      c.lineWidth = 1;
+      for (let i = 0; i < 12; i++) {
+        c.beginPath();
+        c.moveTo(x - 138 + i * 12, -92 + i * 2);
+        c.lineTo(x - 138 + i * 12, -84 + i * 2);
+        c.stroke();
+      }
+      // straw bales stacked
+      c.fillStyle = '#c4a85c';
+      for (const [bx, by] of [[x - 120, 0], [x - 84, 0], [x - 102, -26], [x - 60, 0]]) {
+        c.fillRect(bx, by - 26, 34, 26);
+        c.fillStyle = 'rgba(80,60,20,0.35)';
+        c.fillRect(bx, by - 14, 34, 1.4);
+        c.fillStyle = '#c4a85c';
+      }
+    });
+    stoneBox(R, x, 460, 190, { seed: 4, color: '#a69b82' });
+    R.paint((c) => {
+      // a doorway hung with a blanket, two barred slits
+      c.fillStyle = '#17120e';
+      c.fillRect(x + 90, -118, 62, 118);
+      c.fillStyle = '#7a5a46';
+      c.beginPath();
+      c.moveTo(x + 88, -122);
+      c.lineTo(x + 156, -122);
+      c.lineTo(x + 150, -34);
+      c.lineTo(x + 94, -28);
+      c.fill();
+      c.fillStyle = 'rgba(0,0,0,0.2)';
+      for (let i = 0; i < 6; i++) c.fillRect(x + 92, -118 + i * 14, 60, 2);
+      for (const wx of [x + 250, x + 360]) {
+        c.fillStyle = '#16120e';
+        c.fillRect(wx, -128, 38, 44);
+        c.strokeStyle = '#3a3a3a';
+        c.lineWidth = 2;
+        c.beginPath();
+        for (let i = 1; i < 4; i++) {
+          c.moveTo(wx + i * 9.5, -128);
+          c.lineTo(wx + i * 9.5, -84);
+        }
+        c.stroke();
+      }
+      // strings of dried red peppers beside the door
+      for (let i = 0; i < 3; i++) {
+        c.strokeStyle = '#4a3a2c';
+        c.lineWidth = 1;
+        c.beginPath();
+        c.moveTo(x + 176 + i * 9, -150);
+        c.lineTo(x + 176 + i * 9, -150 + 56 + i * 6);
+        c.stroke();
+        c.fillStyle = '#a32f1e';
+        for (let n = 0; n < 6; n++) c.fillRect(x + 173 + i * 9, -146 + n * 9, 6, 8);
+      }
+    });
+    // the ladder to the roof, and the water tank up there
+    R.cast((c) => {
+      c.strokeStyle = '#5a4630';
+      c.lineWidth = 3;
+      c.beginPath();
+      c.moveTo(x + 410, 0);
+      c.lineTo(x + 440, -196);
+      c.moveTo(x + 428, 0);
+      c.lineTo(x + 458, -196);
+      c.stroke();
+      c.lineWidth = 2;
+      for (let i = 1; i < 9; i++) {
+        c.beginPath();
+        c.moveTo(x + 410 + 2.2 * i * 1.7 - 0, -i * 22);
+        c.lineTo(x + 428 + 2.2 * i * 1.7, -i * 22);
+        c.stroke();
+      }
+      c.fillStyle = '#2f4a6a';
+      c.beginPath();
+      c.ellipse(x + 120, -222, 28, 20, 0, 0, Math.PI * 2);
+      c.fill();
+      c.fillRect(x + 92, -222, 56, 14);
+      c.fillStyle = '#3a3a3a';
+      c.fillRect(x + 100, -204, 4, 14);
+      c.fillRect(x + 136, -204, 4, 14);
+    });
+  }
+
+  // ---- the collapsed house: one corner wall still up, the roof lying in it
+  if (near(E - 340, E + 60)) {
+    const x = E - 340;
+    T.rubble(R, x + 40, 280, 100, { seed: 91, color: '#a0957f' });
+    R.cast((c) => {
+      const wp = [[x, 0], [x, -212], [x + 24, -230], [x + 40, -196], [x + 66, -204], [x + 74, -150], [x + 68, 0]];
+      extrudePoly(c, wp, 30, { color: '#a69b82' });
+      c.fillStyle = '#a69b82';
+      c.beginPath();
+      wp.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
+      c.fill();
+      c.fillStyle = '#17120e';
+      c.fillRect(x + 20, -170, 28, 46);
+      c.strokeStyle = '#4a3a2c';
+      c.lineWidth = 3;
+      c.strokeRect(x + 18, -172, 32, 50);
+      // the roof slab slid down, one edge on the heap, rebar out of it
+      const sl = [[x + 100, -120], [x + 250, -64], [x + 252, -48], [x + 100, -102]];
+      extrudePoly(c, sl, 26, { top: '#b4aa98', side: '#4a4339' });
+      c.fillStyle = '#948b7b';
+      c.beginPath();
+      sl.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
+      c.fill();
+      c.strokeStyle = '#4a3b2e';
+      c.lineWidth = 1.8;
+      c.beginPath();
+      for (let i = 0; i < 4; i++) {
+        c.moveTo(x + 100 + i * 2, -118 + i * 4);
+        c.quadraticCurveTo(x + 84 + i * 3, -144, x + 74 + i * 6, -166 - i * 4);
+      }
+      c.stroke();
+    });
+    // a child's chair among the stones; a goat's tether
+    R.cast((c) => {
+      c.fillStyle = '#7a5a46';
+      c.fillRect(x + 300, -22, 18, 3);
+      c.fillRect(x + 300, -44, 3, 24);
+      c.fillRect(x + 300, -20, 3, 20);
+      c.fillRect(x + 315, -20, 3, 20);
+    });
+  }
+
+  // ---- the dry-stone wall, a well, olive crates, a tyre
+  if (near(E + 60, E + 520)) {
+    R.cast((c) => {
+      const x0 = E + 80;
+      const pts = [[x0, 0], [x0, -76], [x0 + 150, -80], [x0 + 150, 0]];
+      for (const [a, b] of [[x0, x0 + 150], [x0 + 250, x0 + 440]]) {
+        const p = [[a, 0], [a, -78 + (a % 7)], [a + 40, -84], [b - 20, -74], [b, -80], [b, 0]];
+        extrudePoly(c, p, 24, { color: '#a69b82' });
+        c.fillStyle = '#a69b82';
+        c.beginPath();
+        p.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
+        c.fill();
+        c.fillStyle = 'rgba(0,0,0,0.16)';
+        for (let y = -62; y < 0; y += 16) c.fillRect(a, y, b - a, 1.5);
+        c.fillStyle = 'rgba(255,246,226,0.1)';
+        for (let bx = a + 10; bx < b; bx += 34) c.fillRect(bx, -80 + ((bx / 9) % 3) * 4, 22, 12);
+      }
+      void pts;
+      // gate posts
+      c.fillStyle = '#8f8572';
+      c.fillRect(x0 + 150, -112, 16, 112);
+      c.fillRect(x0 + 234, -112, 16, 112);
+      // a well: ring of stone, a beam and pulley, a bucket
+      const wx = E + 500;
+      extrudeRect(c, wx - 30, -52, 60, 52, 22, { color: '#a69b82' });
+      c.fillStyle = '#a69b82';
+      c.fillRect(wx - 30, -52, 60, 52);
+      c.fillStyle = '#17120e';
+      c.fillRect(wx - 22, -52, 44, 10);
+      c.strokeStyle = '#4a3a2c';
+      c.lineWidth = 4;
+      c.beginPath();
+      c.moveTo(wx - 28, -52);
+      c.lineTo(wx - 28, -116);
+      c.lineTo(wx + 28, -116);
+      c.lineTo(wx + 28, -52);
+      c.stroke();
+      c.lineWidth = 1.4;
+      c.beginPath();
+      c.moveTo(wx, -116);
+      c.lineTo(wx, -74);
+      c.stroke();
+      c.fillStyle = '#6a6a66';
+      c.fillRect(wx - 6, -74, 12, 12);
+      // olive crates in a stack, and a tyre
+      c.fillStyle = '#8a6a3e';
+      for (const [bx, by] of [[E + 190, 0], [E + 226, 0], [E + 208, -24]]) {
+        c.fillRect(bx, by - 24, 34, 24);
+        c.fillStyle = 'rgba(0,0,0,0.3)';
+        c.fillRect(bx + 2, by - 18, 30, 2);
+        c.fillRect(bx + 2, by - 8, 30, 2);
+        c.fillStyle = '#8a6a3e';
+      }
+      c.strokeStyle = '#1e1c1a';
+      c.lineWidth = 9;
+      c.beginPath();
+      c.ellipse(E + 40, -18, 17, 17, 0, 0, Math.PI * 2);
+      c.stroke();
+    });
+  }
+
+  // ---- the lone building at the right: its door leads down
+  if (near(doorX - 300, doorX + 300)) {
+    const bx = doorX - 190;
+    const bw = 330;
+    // fresh earth under a tarpaulin behind it, and a barrow
+    R.cast((c) => {
+      c.fillStyle = '#9a8a6c';
+      c.beginPath();
+      c.moveTo(bx + bw + 4, 0);
+      c.quadraticCurveTo(bx + bw + 40, -50, bx + bw + 90, -46);
+      c.quadraticCurveTo(bx + bw + 126, -28, bx + bw + 150, 0);
+      c.fill();
+      c.fillStyle = '#3d5a6a';
+      c.beginPath();
+      c.moveTo(bx + bw + 20, -20);
+      c.quadraticCurveTo(bx + bw + 52, -52, bx + bw + 96, -40);
+      c.lineTo(bx + bw + 106, -20);
+      c.fill();
+      c.fillStyle = '#6a6a66';
+      c.fillRect(bx + bw + 130, -28, 34, 14);
+      c.fillRect(bx + bw + 160, -30, 22, 3);
+      c.strokeStyle = '#3a3a3a';
+      c.lineWidth = 3;
+      c.beginPath();
+      c.arc(bx + bw + 168, -9, 9, 0, Math.PI * 2);
+      c.stroke();
+    });
+    // the building: raw concrete block, an unfinished upper storey's rebar
+    R.cast((c) => {
+      const h = 188;
+      const pts = [[bx, 0], [bx, -h], [bx + bw, -h], [bx + bw, 0]];
+      extrudePoly(c, pts, 44, { color: '#9a9a96' });
+      c.fillStyle = '#9a9a96';
+      c.fillRect(bx, -h, bw, h);
+      c.fillStyle = 'rgba(0,0,0,0.12)';
+      for (let y = -h + 20; y < 0; y += 20) c.fillRect(bx, y, bw, 1.5);
+      for (let row = 0; row * 20 < h; row++) {
+        for (let x = bx + (row % 2) * 24; x < bx + bw; x += 48) c.fillRect(x, -h + row * 20, 1.5, 20);
+      }
+      c.strokeStyle = '#4a3328';
+      c.lineWidth = 2;
+      c.beginPath();
+      for (let i = 0; i < 8; i++) {
+        const sx = bx + 14 + i * 44;
+        c.moveTo(sx, -h - 8);
+        c.lineTo(sx + (i % 3 - 1) * 3, -h - 52 - (i % 2) * 14);
+      }
+      c.stroke();
+      // a sheet-tin roof flung over half of it
+      c.fillStyle = '#6f736e';
+      c.beginPath();
+      c.moveTo(bx - 20, -h - 4);
+      c.lineTo(bx + 210, -h - 30);
+      c.lineTo(bx + 210, -h - 22);
+      c.lineTo(bx - 20, 4 - h);
+      c.fill();
+    });
+    R.surface((c) => c.rect(bx, -188, bw, 188), 'concrete', { scale: 1.1, seed: 6, alpha: 0.5 });
+    // the door that leads down: a cut in the ground, steps, the door below
+    R.paint((c) => {
+      c.fillStyle = '#05060a';
+      c.fillRect(doorX - 60, -4, 120, 76);
+      holeReveal(c, [[doorX - 60, -4], [doorX + 60, -4], [doorX + 60, 72], [doorX - 60, 72]], 24, '#2a2c36');
+      for (let i = 0; i < 5; i++) {
+        c.fillStyle = `rgb(${120 - i * 12},${110 - i * 11},${96 - i * 10})`;
+        c.fillRect(doorX - 56 + i * 12, 2 + i * 10, 12, 4);
+      }
+      // the door itself, planks, set low in the wall, ajar
+      c.fillStyle = '#3a2b1f';
+      c.fillRect(doorX + 8, 28, 46, 44);
+      c.fillStyle = '#0a0806';
+      c.fillRect(doorX + 34, 28, 20, 44);
+      c.fillStyle = 'rgba(0,0,0,0.3)';
+      for (let i = 1; i < 4; i++) c.fillRect(doorX + 8 + i * 8, 28, 1.4, 44);
+      extrudeRect(c, doorX - 66, -8, 12, 12, 18, { color: '#9a9a96' });
+      extrudeRect(c, doorX + 54, -8, 12, 12, 18, { color: '#9a9a96' });
+    });
+    // a plank awning over the stairwell, sandbags either side
+    R.cast((c) => {
+      c.fillStyle = '#5a4630';
+      c.fillRect(doorX - 56, -86, 4, 82);
+      c.fillRect(doorX + 52, -86, 4, 82);
+      c.fillRect(doorX - 66, -92, 132, 8);
+      c.fillStyle = '#b8a888';
+      for (const sx of [doorX - 98, doorX + 66]) {
+        for (let r2 = 0; r2 < 2; r2++) {
+          for (let i = 0; i < 2 - r2; i++) {
+            c.beginPath();
+            c.ellipse(sx + 16 + i * 30 + r2 * 15, -9 - r2 * 16, 15, 9, 0, 0, Math.PI * 2);
+            c.fill();
+          }
+        }
+      }
+    });
+    // a very thin warm line under the door: someone is down there
+    R.glow((c) => {
+      const fl = 0.8 + 0.2 * Math.sin(t * 4.1);
+      const g2 = c.createRadialGradient(doorX + 44, 62, 0, doorX + 44, 62, 40);
+      g2.addColorStop(0, `rgba(255,190,110,${0.28 * fl})`);
+      g2.addColorStop(1, 'rgba(255,170,90,0)');
+      c.fillStyle = g2;
+      c.fillRect(doorX - 10, 20, 100, 60);
+    });
+  }
+  void cx;
+  void vis;
+}
+
+export function drawFarmEdge(R, g, { k = 0.25, t = g.time } = {}) {
+  k = clamp(k);
+  const cx = R.cam.x;
+  const vis = Math.max(1700, R.cam.view * 0.78);
+  const near = (x0, x1) => x1 > cx - vis && x0 < cx + vis;
+  const hzY = horizonY(R);
+  dawnSky(R, g, k, { open: true, hy: hzY / R.H, sunR: R.H * 0.03 });
+  const f1 = R.cam.frame(R.W, R.H, 1);
+
+  farPlain(R, k, { seed: 12, pylons: true, bare: 0.5, furrow: 0.3, haze: 0.42, fields: ['#6a6d52', '#74714f', '#5f6648', '#7a7552', '#65694c'] });
+  // the siege line: a long earth berm and a watchtower on it, far off
+  {
+    const d = 0.55;
+    const base = layerY(R, d, hzY + 14);
+    const h = hazeOf(k);
+    const c0 = cx * d;
+    const hw = halfW(R, d);
+    R.layer(d);
+    R.paint((c) => {
+      c.fillStyle = toward('#6a6048', h, 0.5);
+      c.beginPath();
+      c.moveTo(c0 - hw, base);
+      for (let x = c0 - hw; x <= c0 + hw; x += 40) c.lineTo(x, base - 12 - Math.sin(x * 0.011) * 4 - Math.sin(x * 0.037) * 2);
+      c.lineTo(c0 + hw, base);
+      c.fill();
+      const tx = Math.round((c0 + 500) / 900) * 900 - 200;
+      c.fillStyle = toward('#4a4438', h, 0.5);
+      c.fillRect(tx, base - 46, 3, 36);
+      c.fillRect(tx + 16, base - 46, 3, 36);
+      c.fillRect(tx - 6, base - 56, 32, 12);
+      c.beginPath();
+      c.moveTo(tx - 9, base - 56);
+      c.lineTo(tx + 9, base - 66);
+      c.lineTo(tx + 29, base - 56);
+      c.fill();
+    });
+    R.layer(1);
+  }
+  // olives and cypress nearer, in rows across the fields
+  {
+    const d = 0.75;
+    const base = layerY(R, d, hzY + 40);
+    const h = hazeOf(k);
+    R.layer(d);
+    R.paint((c) => {
+      c.fillStyle = toward('#6e6a4c', h, 0.25);
+      c.fillRect(cx * d - halfW(R, d), base, 2 * halfW(R, d), 600);
+      cells(R, d, 90, (i, x) => {
+        const r = rng(i * 41 + 17);
+        const v = r();
+        if (v < 0.4) return;
+        if (v < 0.72) {
+          // an olive: a knotted trunk and a grey-green cloud
+          c.fillStyle = toward('#4a3f32', h, 0.2);
+          c.fillRect(x - 2, base - 22, 5, 22);
+          c.fillStyle = toward('#68735a', h, 0.22);
+          for (let n = 0; n < 4; n++) {
+            c.beginPath();
+            c.ellipse(x + (n - 1.5) * 9, base - 30 - (n % 2) * 6, 13, 9, 0, 0, Math.PI * 2);
+            c.fill();
+          }
+        } else {
+          c.fillStyle = toward('#2f4030', h, 0.22);
+          c.beginPath();
+          c.ellipse(x, base - 46, 7, 48, 0, 0, Math.PI * 2);
+          c.fill();
+        }
+      });
+    });
+    R.layer(1);
+  }
+
+  // the ground: dry earth, stubble, a worn track
+  const groundTop = 0;
+  R.paint((c) => {
+    c.fillStyle = '#827656';
+    c.fillRect(cx - vis, groundTop - 2, 2 * vis, 700);
+    const g1 = c.createLinearGradient(0, 0, 0, 120);
+    g1.addColorStop(0, 'rgba(0,0,0,0.0)');
+    g1.addColorStop(1, 'rgba(0,0,0,0.2)');
+    c.fillStyle = g1;
+    c.fillRect(cx - vis, 0, 2 * vis, 120);
+    // stubble
+    for (let x = Math.floor((cx - vis) / 18) * 18; x < cx + vis; x += 18) {
+      const q = rng(Math.floor(x / 18) * 13 + 2);
+      if (q() < 0.35) continue;
+      c.strokeStyle = q() < 0.5 ? '#a8955c' : '#6a6240';
+      c.lineWidth = 1.2;
+      const by = 4 + q() * 70;
+      c.beginPath();
+      c.moveTo(x, by);
+      c.lineTo(x + (q() - 0.3) * 8, by - 8 - q() * 12);
+      c.stroke();
+    }
+    // the track to the door: two pale lines worn in the earth
+    c.fillStyle = 'rgba(214,196,156,0.35)';
+    c.beginPath();
+    c.moveTo(END.edge[0] - 1000, 14);
+    c.lineTo(END.edge[0] + END.edge[1], 10);
+    c.lineTo(END.edge[0] + END.edge[1], 24);
+    c.lineTo(END.edge[0] - 1000, 34);
+    c.fill();
+  });
+  R.surface((c) => c.rect(cx - vis, 6, 2 * vis, 700), 'asphalt', { scale: 2.0, seed: 3, alpha: 0.22 });
+
+  farmPlain(R, k, t, cx, vis, near);
+
+  T.cables(R, cx, { seed: 313, from: END.edge[0] - 1400, to: END.edge[0] + 1400, y: -300 });
+  g.act?.drawProps?.(R, g);
+  people(R, g, k, near);
+  g.effects?.draw?.(R);
+  nearGrass(R, k, 29);
+  void f1;
+}
