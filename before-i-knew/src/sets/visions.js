@@ -2814,19 +2814,26 @@ function bus(c, x, yb, dir, t) {
     const wx = -L + 56 + k * 120;
     c.fillStyle = wg;
     c.fillRect(wx, -Ht + 34, 104, 106);
-    c.fillStyle = 'rgba(30,26,24,0.8)';
+    // passengers seen through the glass: heads and shoulders, cut by the sill
     const q = rng(k * 5 + 1);
-    if (q() < 0.8) {
+    c.save();
+    c.beginPath();
+    c.rect(wx, -Ht + 34, 104, 106);
+    c.clip();
+    const sitter = (px, hy, tone) => {
+      c.fillStyle = tone;
       c.beginPath();
-      c.arc(wx + 32 + q() * 30, -128, 12, 0, TAU);
+      c.ellipse(px, hy + 34, 20, 18, 0, Math.PI, 0); // shoulders
       c.fill();
-      c.fillRect(wx + 18 + q() * 30, -116, 28, 26);
-    }
-    if (q() < 0.5) {
+      c.fillRect(px - 20, hy + 34, 40, 30);
       c.beginPath();
-      c.arc(wx + 80, -132, 11, 0, TAU);
+      c.ellipse(px, hy, 10.5, 12.5, 0, 0, TAU); // head
       c.fill();
-    }
+      c.fillRect(px - 4, hy + 10, 8, 12); // neck
+    };
+    if (q() < 0.8) sitter(wx + 34 + q() * 22, -Ht + 92 + q() * 6, 'rgba(38,32,30,0.78)');
+    if (q() < 0.5) sitter(wx + 82, -Ht + 96, 'rgba(52,44,40,0.7)');
+    c.restore();
     c.fillStyle = 'rgba(255,255,255,0.25)';
     c.beginPath();
     c.moveTo(wx + 10, -Ht + 34);

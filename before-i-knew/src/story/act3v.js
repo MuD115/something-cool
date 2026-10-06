@@ -261,10 +261,13 @@ export const ACT3V = {
     ahmad.face?.('back');
     ahmad.override = WRITE;
     yield* say(g, 'tenses');
-    // he may go in among them
+    // he may come in as far as the back row, not walk through them
+    const edge = DESKS[0][0] - 70;
+    g.gate = (m) => (m > 0 && p.x >= edge ? 0 : m);
     g.lock(false);
     const t0 = g.time;
-    yield () => g.time - t0 > 9 || Math.abs(p.x - ahmad.x) < 190;
+    yield () => g.time - t0 > 9 || p.x >= edge - 4;
+    g.gate = null;
     g.lock();
     p.vx = 0;
     ahmad.face?.('side');
@@ -472,6 +475,8 @@ export const ACT3V = {
     }
     const kids = [actor(g, 'boy', EID_DOOR_X + 140, { f: 1, scale: 0.6, pose: POSES.sitGround }), actor(g, 'kid3', EID_DOOR_X + 200, { f: -1, scale: 0.55, pose: POSES.sitGround })];
     const father = actor(g, 'abuyazan', EID_HEAD_X, { f: -1, o: { headwear: null, layer: { kind: 'jacket', color: '#4a4740' } }, pose: { ...POSES.stand } });
+    // drawn first, so when he walks to the door he passes behind the diners
+    g.npcs = [father, ...g.npcs.filter((w) => w !== father)];
     const all = [mother, uncle, ...others, ...kids, father];
     yield* fadeTo(g, 0, 1.4);
     yield 2.4;

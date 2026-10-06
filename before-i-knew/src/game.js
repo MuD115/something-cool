@@ -489,7 +489,8 @@ export class Game {
       p.update(dt, { move: this.gate ? this.gate(move) : move, run: input.held('run') && !this.stanceLock, jump: input.hit('jump') && p.stance === 'stand' && !this.stanceLock, stance });
       if (stance && p.stance !== stance && stance !== 'stand') {
         /* couldn't change stance */
-      } else if (stance === 'stand' && p.stance !== 'stand' && told) {
+      } else if (stance === 'stand' && p.stance !== 'stand' && told && !p.override && this.level.ceilingAt(p.x, p.y) > p.y - 165) {
+        // (only when something overhead is what stops him)
         this.line(null, ['لا مجال للوقوف هنا.', 'No room to stand here.'], 1.6, 'examine');
       }
     } else {
@@ -574,6 +575,8 @@ export class Game {
       if (this.torch.charge <= 0) this.torch.on = false;
     }
     this.text.tools(list, this.active, this.torch.charge, this.torch.on, this.input.label('use'));
+    // on a fully black screen (a title card, the last words) the tools step out too
+    this.text.toolsEl.classList.toggle('dark', this.fade > 0.98);
   }
 
   interact() {

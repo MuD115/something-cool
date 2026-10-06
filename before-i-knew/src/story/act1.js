@@ -143,8 +143,8 @@ export const ACT1 = {
     // The player can't outwalk him.
     g.gate = (move) => {
       if (g.a.khaledMode !== 'follow' || move <= 0) return move;
-      if (g.player.x > kh.x + 20) return 0;
-      return g.player.x > kh.x - 60 ? move * 0.55 : move; // fall into step with him
+      if (g.player.x > kh.x - 42) return 0; // a step behind, never walking inside him
+      return g.player.x > kh.x - 100 ? move * 0.55 : move; // fall into step with him
     };
 
     g.runner.run(this.walk(g));

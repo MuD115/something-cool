@@ -170,7 +170,8 @@ export function nightLook(g) {
   }
   if (a.shotAt && g.time - a.shotAt < 0.12) lights.push({ x: a.shotX, y: a.shotY, color: [1, 0.9, 0.7], intensity: 1.2, radius: 0.06, rim: 0.4 });
   return {
-    ambient: a.inside ? [0.09, 0.096, 0.13] : [0.11, 0.125, 0.19],
+    // inside, dark but never black: enough to read Sami and the floor outside the beam
+    ambient: a.inside ? [0.135, 0.142, 0.19] : [0.11, 0.125, 0.19],
     lights: lights.slice(0, 8),
     groundShadow: 0.55,
     bloom: 0.7,

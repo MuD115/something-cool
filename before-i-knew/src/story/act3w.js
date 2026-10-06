@@ -187,7 +187,7 @@ export const ACT3W = {
     yield* say(g, 'door');
     yield 0.3;
     g.sound.noise({ dur: 0.5, freq: 260, q: 0.8, vol: 0.18 }); // the steel door scraping
-    g.camOverride = { x: X3.basement + 10, y: -40, view: 440 };
+    g.camOverride = { x: X3.basement + 10, y: -70, view: 720 }; // the door, and Sami above it, whole
     // looking down the steps into the crack of light
     p.override = { ...POSES.stand, head: 0.42, torso: 0.06 };
     yield* tween(g, 'doorOpen', 1, 1.1);

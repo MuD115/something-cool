@@ -32,6 +32,7 @@ export class Text {
     this.toolsEl = $('tools');
     this.lineTimer = 0;
     this.lineId = 0;
+    this.floatId = 0; // captions keep their own count, so a spoken line can't strand one
     // Lines and cards run on game time (tick), so a pause holds them up.
     this.clock = 0;
     this.due = { line: null, float: null, card: null };
@@ -102,6 +103,7 @@ export class Text {
 
   clearLine() {
     this.lineId++;
+    this.floatId++;
     this.sub.hidden = true;
     this.hideFloat();
   }
@@ -114,7 +116,8 @@ export class Text {
   // What Sami makes of a thing: a caption floating above it, not a subtitle.
   // placeFloat() keeps it over the thing each frame.
   float(line, dur = 4, style = 'examine') {
-    const id = ++this.lineId;
+    ++this.lineId;
+    const id = ++this.floatId;
     this.lineStart = this.clock;
     const last = this.log[this.log.length - 1];
     if (!last || last.line[1] !== line[1]) {
@@ -149,7 +152,10 @@ export class Text {
     const el = this.floatEl;
     if (el.hidden) return;
     el.style.left = `${Math.min(88, Math.max(12, u * 100))}%`;
-    el.style.top = `${Math.min(70, Math.max(22, v * 100))}%`;
+    // it hangs above its point: keep the whole bubble on screen, however tall
+    const H = el.parentElement?.clientHeight || window.innerHeight;
+    const minTop = H ? Math.min(70, ((el.offsetHeight + H * 0.04) / H) * 100) : 22;
+    el.style.top = `${Math.min(70, Math.max(22, minTop, v * 100))}%`;
   }
 
   hideFloat() {
@@ -187,7 +193,7 @@ export class Text {
       d.line = null;
     }
     if (d.float && this.clock >= d.float.at) {
-      if (this.lineId === d.float.id) this.hideFloat();
+      if (this.floatId === d.float.id) this.hideFloat();
       d.float = null;
     }
     if (d.card && this.clock >= d.card.at) {

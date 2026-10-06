@@ -37,7 +37,7 @@ export const X = {
   ruinDoor: 5860,
   climb: [5960, 6100],
   guard: 6150,
-  stop: 6110,
+  stop: 6060, // where Sami stops at the sandbags, a step short of the man kneeling there
   mouth: [6200, 6700],
   end: 6260,
 };

@@ -89,13 +89,14 @@ export function stairLook(g) {
     lights.push({ x: s.x + 6, y: s.y + 18, color: [0.5, 0.62, 1.0], intensity: 0.55, radius: 0.1, rim: 0.4 });
   }
   return {
-    ambient: [0.07, 0.075, 0.1],
+    // dark, but never black: the steps and Sami still read outside the beam
+    ambient: [0.12, 0.126, 0.165],
     lights,
     groundShadow: 0.4,
     bloom: 0.85,
     exposure: 1.02,
     grain: 0.08,
-    grade: { sat: 0.5, contrast: 1.12, lift: 0.0, tint: [0.93, 0.97, 1.07], shadows: [0.85, 0.95, 1.15], highs: [1.06, 1.0, 0.92] },
+    grade: { sat: 0.5, contrast: 1.12, lift: 0.012, tint: [0.93, 0.97, 1.07], shadows: [0.85, 0.95, 1.15], highs: [1.06, 1.0, 0.92] },
     fog: { density: 0.03, height: 60, color: [0.1, 0.12, 0.18] },
     time: g.time,
   };

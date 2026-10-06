@@ -712,6 +712,8 @@
   .tpad button.down, #t-skip.down { background: rgba(174, 193, 120, 0.35); }
   #t-menu { position: absolute; top: 4%; right: 3%; pointer-events: auto; width: 44px; height: 44px; font-size: 16px; }
   #t-skip { position: absolute; top: calc(4% + 52px); right: 3%; pointer-events: auto; width: 44px; height: 44px; }
+  #tools { transition: opacity 0.6s; }
+  #stage #tools.dark { opacity: 0 !important; }
   @media (pointer: coarse) { #stage.playing #tools { bottom: auto; top: 16%; } }
   /* a choice is tapped directly: the pads step aside so they don't cover it */
   #stage:has(#choice:not([hidden])) #touch .tpad { visibility: hidden; }
