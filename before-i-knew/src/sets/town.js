@@ -316,7 +316,7 @@ function facade(spec, H, draw, mat, matSeed) {
   ch.beginPath();
   ch.rect(x0, y0, w, h);
   heightWall(ch, mat, { seed: matSeed });
-  const fh = spec.fh || 140;
+  const fh = storeyH(spec);
   for (let f = 0; f <= spec.floors; f++) {
     // the slab edge stands out of the wall
     ch.fillStyle = 'rgb(225,225,225)';
@@ -443,8 +443,26 @@ function roofTop(R, spec, H, t) {
   });
 }
 
+// Storeys to the people's scale (Sami is 170): a spec's nominal storey of
+// about 140 is drawn 1.6 times as tall, so a door is a head above a man and
+// a window sits at a real sill and head height. Lit-window overlays use
+// windowRect() so they land on the same openings.
+export const STOREY = 1.6;
+export const storeyH = (spec) => (spec.fh ?? 140) * STOREY;
+export const DOOR_H = 205;
+const SILL = 86;
+const windowCols = (spec) => Math.max(2, Math.round(spec.w / 110));
+export function windowRect(spec, f, k) {
+  const fh = storeyH(spec);
+  const cols = windowCols(spec);
+  const ww = Math.min(74, (spec.w / cols) * 0.66);
+  const wh = Math.min(112, fh * 0.48);
+  return [spec.x + ((k + 0.5) * spec.w) / cols - ww / 2, -f * fh - SILL - wh, ww, wh];
+}
+
 export function block(R, spec, t = 0) {
-  const { x, w, floors, fh = 140, color = CONCRETE[0], seed = 1 } = spec;
+  const { x, w, floors, color = CONCRETE[0], seed = 1 } = spec;
+  const fh = storeyH(spec);
   const H = floors * fh;
   const top = -H;
   const torn = spec.torn || 0;
@@ -517,20 +535,18 @@ export function block(R, spec, t = 0) {
       }
 
       // windows (and on the ground floor, a door or two)
-      const cols = Math.max(2, Math.round(w / 110));
+      const cols = windowCols(spec);
       const doorCols = spec.shopFront || spec.noDoors ? new Map() : pickDoors(cols, seed);
-      const ww = Math.min(58, (w / cols) * 0.5);
-      const wh = fh * 0.46;
       for (let f = 0; f < floors; f++) {
         for (let k = 0; k < cols; k++) {
-          const wx = x + ((k + 0.5) * w) / cols - ww / 2;
-          const wy = -f * fh - fh * 0.72;
+          const [wx, wy, ww, wh] = windowRect(spec, f, k);
           const kind = r();
           if (f === 0 && spec.shopFront) continue;
           if (f === 0 && doorCols.has(k)) {
-            const dw = Math.min(74, (w / cols) * 0.62);
-            syrianDoor(c, x + ((k + 0.5) * w) / cols, dw, fh * 0.8, doorCols.get(k), seed * 7 + k);
-            recess.push({ rect: [x + ((k + 0.5) * w) / cols - dw / 2, -fh * 0.8, dw, fh * 0.8], door: true });
+            const dw = Math.min(92, (w / cols) * 0.8);
+            const dh = Math.min(DOOR_H, fh * 0.92);
+            syrianDoor(c, x + ((k + 0.5) * w) / cols, dw, dh, doorCols.get(k), seed * 7 + k);
+            recess.push({ rect: [x + ((k + 0.5) * w) / cols - dw / 2, -dh, dw, dh], door: true });
             continue;
           }
           if (kind < 0.12) {
@@ -719,56 +735,79 @@ export function block(R, spec, t = 0) {
 
   // balconies and laundry cast shadows onto the façade
   if (spec.balcony) {
+    // on the first floor, where the street sees it; built to a person's
+    // scale: a rail at hand height, washing a person could wear
     const [fl, side, hang] = spec.balcony;
-    const by = -fl * fh - 8;
-    const bx = side < 0.5 ? x + w * 0.15 : x + w * 0.55;
+    const by = -Math.min(fl, 1) * fh - 8;
+    const bw = Math.max(150, w * 0.32);
+    const bx = side < 0.5 ? x + w * 0.12 : x + w - bw - w * 0.12;
     R.cast((c) => {
       c.save();
       c.translate(bx, by);
-      c.rotate(hang || 0);
+      c.rotate((hang || 0) * 0.5);
       c.fillStyle = shade(color, 0.85);
-      c.fillRect(0, 0, w * 0.3, 10);
+      c.fillRect(-6, 0, bw + 12, 14);
+      c.fillStyle = 'rgba(0,0,0,0.25)';
+      c.fillRect(-6, 12, bw + 12, 3);
       c.strokeStyle = '#3a3230';
+      c.lineWidth = 3;
+      c.strokeRect(2, -92, bw - 4, 92);
       c.lineWidth = 2;
-      c.strokeRect(2, -34, w * 0.3 - 4, 34);
-      for (let i = 10; i < w * 0.3; i += 10) {
+      for (let i = 12; i < bw - 4; i += 13) {
         c.beginPath();
-        c.moveTo(i, -34);
+        c.moveTo(i, -92);
         c.lineTo(i, 0);
         c.stroke();
       }
       if (!spec.laundry || spec.plants) {
         // someone still waters these
         for (let i = 0; i < 3; i++) {
-          const px = 10 + i * (w * 0.3 - 20) / 2;
+          const px = 14 + (i * (bw - 44)) / 2;
+          const sw = Math.sin(t * 1.1 + i * 1.7 + x * 0.01) * 0.06;
           c.fillStyle = '#8a5a3a';
-          c.fillRect(px, -10, 10, 10);
+          c.fillRect(px, -18, 18, 18);
+          c.save();
+          c.translate(px + 9, -18);
+          c.rotate(sw);
           c.fillStyle = ['#5e7a3a', '#6e8a44', '#4e6a32'][i];
           c.beginPath();
-          c.arc(px + 5, -13, 7, 0, Math.PI * 2);
-          c.arc(px + 1, -17, 4, 0, Math.PI * 2);
-          c.arc(px + 9, -18, 4, 0, Math.PI * 2);
+          c.arc(0, -10, 12, 0, Math.PI * 2);
+          c.arc(-7, -18, 7, 0, Math.PI * 2);
+          c.arc(7, -20, 7, 0, Math.PI * 2);
           c.fill();
+          c.restore();
         }
       }
       if (spec.laundry) {
+        // a line strung above the rail, and the washing moving on it
+        const ly = -128;
         c.strokeStyle = '#2a2420';
-        c.lineWidth = 1;
+        c.lineWidth = 1.3;
         c.beginPath();
-        c.moveTo(0, -40);
-        c.lineTo(w * 0.3, -44);
+        c.moveTo(0, ly);
+        c.quadraticCurveTo(bw / 2, ly + 8, bw, ly - 2);
         c.stroke();
-        const cols = ['#9a8a70', '#6f7e86', '#b8a79a', '#7a5a50'];
-        for (let i = 0; i < 4; i++) {
-          const lx = 8 + i * (w * 0.3 - 16) / 4;
-          const sway = Math.sin(t * 1.3 + i) * 2;
-          c.fillStyle = cols[i];
+        const cols = ['#9a8a70', '#6f7e86', '#b8a79a', '#7a5a50', '#c9c2b2'];
+        const n = Math.max(3, Math.floor(bw / 44));
+        for (let i = 0; i < n; i++) {
+          const lx = 8 + (i * (bw - 40)) / n;
+          const gw = 26 + ((i * 7) % 12);
+          const gh = 44 + ((i * 13) % 26);
+          const gy = ly + 4 + 8 * Math.sin((Math.PI * (lx + gw / 2)) / bw);
+          const sway = Math.sin(t * 1.6 + i * 1.3 + x * 0.003) * 4 + Math.sin(t * 3.7 + i) * 1.5;
+          c.fillStyle = cols[(i + seed) % cols.length];
           c.beginPath();
-          c.moveTo(lx, -41 - i);
-          c.lineTo(lx + 16, -41 - i);
-          c.lineTo(lx + 16 + sway, -14 - i);
-          c.lineTo(lx + sway, -12 - i);
+          c.moveTo(lx, gy);
+          c.lineTo(lx + gw, gy);
+          c.quadraticCurveTo(lx + gw + sway * 0.6, gy + gh * 0.6, lx + gw + sway, gy + gh);
+          c.lineTo(lx + sway, gy + gh + 2);
+          c.quadraticCurveTo(lx + sway * 0.5, gy + gh * 0.5, lx, gy);
           c.fill();
+          c.fillStyle = 'rgba(0,0,0,0.12)';
+          c.fillRect(lx + gw * 0.55 + sway * 0.5, gy + 2, 3, gh - 4);
+          c.fillStyle = '#d8d0c0';
+          c.fillRect(lx + 3, gy - 3, 3, 6);
+          c.fillRect(lx + gw - 6, gy - 3, 3, 6);
         }
       }
       c.restore();

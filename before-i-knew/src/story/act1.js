@@ -9,6 +9,7 @@ import { jerryCan } from '../sets/town.js';
 import { X, drawStreet, sunLook, drawStairwell, stairLook, drawFlashback, flashLook, surfaceAt } from './act1-set.js';
 import { Walker } from '../world/walker.js';
 import { writeSave } from '../engine/save.js';
+import { populate, tickLife } from './life.js';
 
 const SAMI = ['سامي', 'Sami'];
 const AHMAD = ['أحمد', 'Ahmad'];
@@ -92,6 +93,18 @@ export const ACT1 = {
     if (['walk', 'hour'].includes(s.checkpoint)) this.buildHour(g);
     if (['walk', 'hour', 'school'].includes(s.checkpoint)) this.buildSchool(g);
     this.buildNews(g);
+    // the street at its afternoon's work, between the places the story uses
+    populate(g, [
+      ['water', 380, { f: 1 }],
+      ['sweep', 1210, { f: -1 }],
+      ['hammer', 2720, { f: 1 }],
+      ['dig', 3330, { f: 1, outfit: 'man2' }],
+      ['rug', 5480, { f: 1, outfit: 'woman2' }],
+      ['saw', 6010, { f: -1 }],
+      ['ball', 6760, { f: 1 }],
+      ['smoke', 8330, { f: -1 }],
+      ['sew', 8860, { f: -1 }],
+    ]);
 
     if (s.checkpoint !== 'walk') g.a.sunK = { hour: 0.2, school: 0.55, news: 0.8 }[s.checkpoint] || 0;
     if (s.checkpoint === 'hour') g.text.objective(['اتجه شرقاً نحو الأنابيب', 'Head east, to the pipes']);
@@ -1400,6 +1413,9 @@ export const ACT1 = {
     }
     if (a.curtainPrompt && g.player.x > X.sag1 + 40) a.curtainPrompt = false;
     streetLife(g, dt);
+    // at shelling, or a jet or a helicopter called on the radio, the street's
+    // workers drop where they are
+    tickLife(g, a.shelling || (a.jetFly && g.time < a.jetFly.t0 + 14) || (a.heliWarn && g.time < a.heliWarn + 12));
   },
 
   useTool(g, id) {

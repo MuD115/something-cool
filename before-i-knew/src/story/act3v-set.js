@@ -141,11 +141,7 @@ const blockOf = (seed) => BLOCKS.find((b) => b.seed === seed);
 
 // A candle in a window: a dark window cut into the facade, one tiny flame.
 function candle(R, spec, f, k, t, flick = 0) {
-  const cols = Math.max(2, Math.round(spec.w / 110));
-  const ww = Math.min(58, (spec.w / cols) * 0.5);
-  const wh = spec.fh * 0.46;
-  const wx = spec.x + ((k + 0.5) * spec.w) / cols - ww / 2;
-  const wy = -f * spec.fh - spec.fh * 0.72;
+  const [wx, wy, ww, wh] = T.windowRect(spec, f, k);
   R.paint((c) => {
     c.fillStyle = '#0b0c10';
     c.fillRect(wx, wy, ww, wh);

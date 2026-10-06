@@ -388,11 +388,7 @@ const BLOCK = (seed) => BLOCKS.find((b) => b.seed === seed);
 
 // A window with a candle or a generator lamp in it, going out with the dark.
 function lamp(R, spec, floor, col, t, k, flick = 0) {
-  const cols = Math.max(2, Math.round(spec.w / 110));
-  const ww = Math.min(58, (spec.w / cols) * 0.5);
-  const wh = spec.fh * 0.46;
-  const wx = spec.x + ((col + 0.5) * spec.w) / cols - ww / 2;
-  const wy = -floor * spec.fh - spec.fh * 0.72;
+  const [wx, wy, ww, wh] = T.windowRect(spec, floor, col);
   const on = 1 - smooth(0.25, 0.9, k);
   if (on < 0.02) return;
   const fl = 0.82 + 0.18 * Math.sin(t * 6.1 + flick) * Math.sin(t * 2.3 + flick * 2);
