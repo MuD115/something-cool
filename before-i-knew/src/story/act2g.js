@@ -28,7 +28,8 @@ const OBJ = {
 const CORNER = [(XG.east + XG.end) / 2, (XG.end - XG.east) / 2 + 300];
 const YOUNG = { ...OUTFITS.sami, beard: 'none', top: '#3f6f8a', sleeve: 'short', rolled: false, pouch: false, watch: false, satchel: '#5a4630' };
 const YOUNG_AHMAD = { ...OUTFITS.khaled, beard: 'stubble', layer: null, top: '#d2c7ae' };
-const KERB = { ...POSES.kerb };
+// forearms on his knees
+const KERB = { ...POSES.kerb, armN: 0.6, foreN: 1.45, armF: 0.5, foreF: 1.35 };
 
 export const ACT2G = {
   bounds: [-300, 50000],
@@ -62,7 +63,7 @@ export const ACT2G = {
     g.fade = 1;
     g.checkpoint('kerbG');
     p.override = KERB;
-    const abu = actor(g, 'abuyazan', XG.kerb + 70, { f: 1, pose: { ...POSES.kerb, head: 0.4 } });
+    const abu = actor(g, 'abuyazan', XG.kerb + 105, { f: 1, pose: { ...KERB, head: 0.4 } });
     a.abu = abu;
     g.text.titleCard(CARDS.open, 5);
     yield 2.2;
@@ -171,7 +172,7 @@ export const ACT2G = {
     p.rig.o = a.back.o;
     moveTo(g, CORNER, XG.kerb);
     p.override = KERB;
-    a.abu = actor(g, 'abuyazan', XG.kerb + 70, { f: 1, pose: { ...POSES.kerb, head: 0.4 } });
+    a.abu = actor(g, 'abuyazan', XG.kerb + 105, { f: 1, pose: { ...KERB, head: 0.4 } });
     a.k = 0.62;
     a.edge = 0.25;
     g.sound.setMuffle(0, 0.5);
@@ -195,7 +196,7 @@ export const ACT2G = {
     s.ahmad_journal = true;
     g.sound.cloth();
     yield* say(g, 'lighter');
-    abu.override = { ...POSES.kerb, head: 0.4 };
+    abu.override = { ...KERB, head: 0.4 };
     yield 3; // a long pause
     yield* say(g, 'need');
     yield 2; // Sami doesn't respond

@@ -2299,13 +2299,50 @@ export function drawUmSaidRoom(R, g, { t = 0, bag = 0 } = {}) {
     // a framed photograph, a young man in a school jacket, a black ribbon across a corner
     c.fillStyle = '#4a3326';
     c.fillRect(RC - 50, -216, 40, 52);
-    c.fillStyle = '#b8a88a';
+    c.fillStyle = '#6b4c38';
+    c.fillRect(RC - 48, -214, 36, 48);
+    // the print: a studio's faded backdrop, lighter at the head
+    const bg = c.createRadialGradient(RC - 30, -196, 2, RC - 30, -192, 26);
+    bg.addColorStop(0, '#d9c9a6');
+    bg.addColorStop(1, '#9c8a6c');
+    c.fillStyle = bg;
     c.fillRect(RC - 46, -212, 32, 44);
-    c.fillStyle = '#5a5648';
+    // shoulders in a dark jacket, a white collar
+    c.fillStyle = '#3e3a34';
     c.beginPath();
-    c.arc(RC - 30, -194, 7, 0, TAU);
+    c.moveTo(RC - 45, -168);
+    c.quadraticCurveTo(RC - 44, -182, RC - 30, -184);
+    c.quadraticCurveTo(RC - 16, -182, RC - 15, -168);
     c.fill();
-    c.fillRect(RC - 38, -186, 16, 20);
+    c.fillStyle = '#e8e0cc';
+    c.beginPath();
+    c.moveTo(RC - 34, -184);
+    c.lineTo(RC - 30, -178);
+    c.lineTo(RC - 26, -184);
+    c.fill();
+    // neck, face, hair
+    c.fillStyle = '#8f6c52';
+    c.fillRect(RC - 32.5, -188, 5, 5);
+    c.beginPath();
+    c.ellipse(RC - 30, -194, 5.6, 7, 0, 0, TAU);
+    c.fill();
+    c.fillStyle = '#2a211b';
+    c.beginPath();
+    c.ellipse(RC - 30, -199, 6, 3.6, 0, Math.PI, TAU);
+    c.fill();
+    c.fillRect(RC - 36, -199.5, 12, 1.6);
+    c.fillStyle = 'rgba(40,28,20,0.55)';
+    c.fillRect(RC - 32.6, -195, 1.6, 1.1);
+    c.fillRect(RC - 29, -195, 1.6, 1.1);
+    // the glass: a sheen across one corner
+    c.fillStyle = 'rgba(255,245,225,0.12)';
+    c.beginPath();
+    c.moveTo(RC - 14, -212);
+    c.lineTo(RC - 22, -212);
+    c.lineTo(RC - 46, -184);
+    c.lineTo(RC - 46, -176);
+    c.fill();
+    // the black ribbon
     c.fillStyle = '#16120f';
     c.beginPath();
     c.moveTo(RC - 50, -216);

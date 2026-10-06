@@ -1334,15 +1334,19 @@ function orangeTree(seed) {
   return bake('camp-tree-' + seed, 300, 330, 0.9, (c) => {
     c.translate(150, 322);
     const rg = rng(seed * 31 + 5);
-    extrudeRect(c, -8, -150, 16, 150, 7, { color: '#6a5038' });
-    c.fillStyle = '#6a5038';
-    c.fillRect(-8, -150, 16, 150);
-    c.fillStyle = '#e8e2d2';
-    c.fillRect(-8, -44, 16, 44);
+    extrudeRect(c, -14, -150, 28, 150, 7, { color: '#5e4630' });
+    c.fillStyle = '#5e4630';
+    c.fillRect(-14, -150, 28, 150);
+    c.fillStyle = 'rgba(0,0,0,0.18)';
+    c.fillRect(4, -150, 10, 150);
+    c.fillStyle = 'rgba(255,226,180,0.4)'; // the sun on its left side
+    c.fillRect(-14, -150, 5, 150);
+    c.fillStyle = '#ece6d6';
+    c.fillRect(-14, -48, 28, 48);
     c.fillStyle = 'rgba(0,0,0,0.12)';
-    c.fillRect(2, -44, 6, 44);
-    c.strokeStyle = '#6a5038';
-    c.lineWidth = 6;
+    c.fillRect(4, -48, 10, 48);
+    c.strokeStyle = '#5e4630';
+    c.lineWidth = 9;
     c.beginPath();
     c.moveTo(0, -140);
     c.lineTo(-34, -190);
@@ -2426,25 +2430,7 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
     );
   }
 
-  // ---- trees, lamps, the gate -----------------------------------------------------------
-  [CC - 505, CC - 22, CC + 468].forEach((tx, i) => {
-    if (!near(tx - 200, tx + 200)) return;
-    const cv = orangeTree(i + 1);
-    R.cast(wp((c) => c.drawImage(cv, tx - 120, -266, 240, 272), i + 0.5));
-    R.shadow(
-      (c) => {
-        c.fillStyle = 'rgba(0,0,0,0.5)';
-        c.fillRect(tx - 6, -120, 12, 120);
-        c.beginPath();
-        c.ellipse(tx, -184, 85, 53, 0, 0, TAU);
-        c.fill();
-      },
-      tx,
-      0,
-      -0.9,
-      0.2,
-    );
-  });
+  // ---- lamps, the gate -----------------------------------------------------------
   const lamps = [CC - 880, CC - 370, CC + 120, CC + 600];
   R.cast(wp((c) => { for (const lx of lamps) if (near(lx - 80, lx + 80)) lampPost(c, lx); }, 0.7));
   if (near(CC - 1300, CC - 700)) uniGate(R, wp);
@@ -2483,13 +2469,32 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
     );
   }
 
+  // ---- the orange trees, on the pavement in front of the shops -------------------------------
+  [CC - 505, CC - 22, CC + 468].forEach((tx, i) => {
+    if (!near(tx - 200, tx + 200)) return;
+    const cv = orangeTree(i + 1);
+    R.cast(wp((c) => c.drawImage(cv, tx - 120, -266, 240, 272), i + 0.5));
+    R.shadow(
+      (c) => {
+        c.fillStyle = 'rgba(0,0,0,0.5)';
+        c.fillRect(tx - 6, -120, 12, 120);
+        c.beginPath();
+        c.ellipse(tx, -184, 85, 53, 0, 0, TAU);
+        c.fill();
+      },
+      tx,
+      0,
+      -0.9,
+      0.2,
+    );
+  });
   // ---- traffic, in the road in front of the pavement ----------------------------------------------------
   for (const v of trafficAt(tt)) {
     if (!near(v.x - 200, v.x + 200)) continue;
-    R.cast(wp((c) => { c.save(); c.translate(v.x, v.y); c.scale(0.62, 0.62); vehicle(c, 0, 0, v.dir, v, tt); c.restore(); }, v.x * 0.01));
+    R.cast(wp((c) => { c.save(); c.translate(v.x, v.y); c.scale(1.45, 1.45); vehicle(c, 0, 0, v.dir, v, tt); c.restore(); }, v.x * 0.01));
     if (d < 0.5) R.shadow((c) => {
       c.fillStyle = 'rgba(0,0,0,0.5)';
-      c.fillRect(v.x - 56, v.y - (v.kind === 'van' ? 70 : 58), 112, v.kind === 'van' ? 70 : 58);
+      c.fillRect(v.x - 130, v.y - (v.kind === 'van' ? 160 : 135), 260, v.kind === 'van' ? 160 : 135);
     }, v.x, v.y, -0.9, 0.14);
   }
 

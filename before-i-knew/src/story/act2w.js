@@ -105,6 +105,7 @@ export const ACT2W = {
     g.sound.noise({ dur: 0.08, freq: 200, q: 1.4, vol: 0.4, type: 'lowpass' });
     yield* say(g, 'umSaid');
     yield* fadeTo(g, 1, 0.8);
+    clearPeople(g);
     a.mem = 'umSaid';
     a.back = p.x;
     const [c] = UM_SAID;
