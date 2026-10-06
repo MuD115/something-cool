@@ -9,6 +9,7 @@ import { horizon, rgbOf } from '../sets/horizon.js';
 import { depthCast, deepScenery, figureBox } from '../engine/dof.js';
 import { DEPTH, extrudePoly, extrudeRect } from '../sets/depth.js';
 import { Person, POSES } from '../rigs/person.js';
+import * as A from '../sets/ambient.js';
 
 export const X = {
   start: 150,
@@ -180,7 +181,168 @@ function sideStreet(R, x0, x1, { minaret = false, t = 0, curtainWindow = false, 
   deepScenery(R, fn, [x0, -520, x1, 4], xc, vy, x1 - x0, mode);
 }
 
+
+// ------------------------------------------------------- shop and olive --
+
+// Abu Rayyan's shopfront, at people's scale: a rolling shutter 235 tall, half
+// down and dented, a sign above it, and a torn awning whose fringe stirs.
+function shopFront(R, x, t, { w = 220, sign = 'دكّان أبو ريّان', open = 0.45 } = {}) {
+  const H = 235;
+  R.paint((c) => {
+    c.fillStyle = '#1b1612';
+    c.fillRect(x, -H, w, H);
+    c.fillStyle = 'rgba(80,66,52,0.6)'; // empty shelves inside
+    for (let i = 0; i < 5; i++) c.fillRect(x + 10, -200 + i * 40, w - 20, 5);
+    c.fillStyle = '#8c8a86';
+    c.fillRect(x - 5, -H - 12, w + 10, 14);
+    c.fillStyle = '#2f4a5a'; // the sign
+    c.fillRect(x + 8, -H - 54, w - 16, 44);
+    c.fillStyle = '#e8dcc0';
+    c.font = '28px "Aref Ruqaa", "Noto Naskh Arabic", serif';
+    c.textAlign = 'center';
+    c.direction = 'rtl';
+    c.fillText(sign, x + w / 2, -H - 22);
+  });
+  R.cast((c) => {
+    const sh = H * (1 - open);
+    c.fillStyle = '#7d7c78';
+    c.beginPath();
+    c.moveTo(x, -H);
+    c.lineTo(x + w, -H);
+    c.lineTo(x + w, -H + sh);
+    c.quadraticCurveTo(x + w * 0.55, -H + sh + 24, x + w * 0.4, -H + sh - 4);
+    c.lineTo(x, -H + sh + 6);
+    c.closePath();
+    c.fill();
+    c.strokeStyle = 'rgba(0,0,0,0.25)';
+    c.lineWidth = 1.5;
+    for (let y = -H + 4; y < -H + sh; y += 8) {
+      c.beginPath();
+      c.moveTo(x, y);
+      c.lineTo(x + w, y);
+      c.stroke();
+    }
+    // a strip of the awning that did not fall, fringe moving in the draught
+    const n = 11;
+    for (let i = 0; i < n; i++) {
+      const fx = x - 4 + (i * (w + 8)) / n;
+      const sw = A.wind(t, i * 0.7) * 3 + Math.sin(t * 2.4 + i * 1.9) * 1.5;
+      c.fillStyle = i % 2 ? '#c9bfa6' : '#8a3a30';
+      c.beginPath();
+      c.moveTo(fx, -H - 12);
+      c.lineTo(fx + (w + 8) / n, -H - 12);
+      c.lineTo(fx + (w + 8) / n + sw, -H + 18 + (i % 3) * 5);
+      c.lineTo(fx + sw * 1.1, -H + 14);
+      c.closePath();
+      c.fill();
+    }
+  });
+}
+
+// The dead olive, its twigs just stirring: the trunk is still, the fine
+// branches give a little.
+function deadOlive(R, x, t) {
+  R.cast((c) => {
+    c.strokeStyle = '#6a625a';
+    c.lineCap = 'round';
+    const w0 = A.wind(t, x * 0.01);
+    const branch = (bx, by, ang, len, w, d) => {
+      const a2 = ang + (d > 1 ? w0 * 0.035 * (d - 1) + Math.sin(t * 1.9 + d * 1.3 + bx * 0.05) * 0.008 * d : 0);
+      const ex = bx + Math.cos(a2) * len;
+      const ey = by + Math.sin(a2) * len;
+      c.lineWidth = w;
+      c.beginPath();
+      c.moveTo(bx, by);
+      c.quadraticCurveTo(bx + Math.cos(a2 + 0.4) * len * 0.5, by + Math.sin(a2 + 0.4) * len * 0.5, ex, ey);
+      c.stroke();
+      if (d < 4) {
+        branch(ex, ey, a2 - 0.45 - d * 0.05, len * 0.7, w * 0.62, d + 1);
+        branch(ex, ey, a2 + 0.5, len * 0.62, w * 0.6, d + 1);
+      }
+    };
+    branch(x, 0, -Math.PI / 2 - 0.1, 90, 22, 0);
+  });
+}
+
+// What moves on the street on its own: curtains in empty windows, a washing
+// line across a side street, smoke from stove pipes, pigeons, a bag on the
+// draught, a dripping pipe.
+function streetLife(R, g, t, near) {
+  const a = g.a;
+  const cx = R.cam.x;
+  const warm = clamp(a.sunK || 0);
+  // curtains blown out of first-floor windows (a few, spread along the street)
+  const CUR = [[1, 1, 0], [3, 2, 1], [5, 1, 2], [8, 0, 3], [10, 2, 4], [12, 1, 5], [17, 2, 6], [18, 1, 7], [19, 1, 8], [21, 2, 9]];
+  for (const [bi, k, ph] of CUR) {
+    const b = BLOCKS[bi];
+    if (!near(b.x, b.x + b.w)) continue;
+    const [wx, wy, ww, wh] = T.windowRect(b, 1, Math.min(k, Math.max(2, Math.round(b.w / 110)) - 1));
+    if (wy + wh > -30) continue;
+    R.cast((c) => {
+      const cols = ['#c9bfa6', '#8e6f5a', '#b9b4a6', '#7d8a8e'];
+      // one drawn half back, one lifting out over the sill
+      A.cloth(c, wx + 2, wy + 4, ww * 0.34, wh * 0.9, cols[ph % 4], t, ph, { amp: 2.4, sag: 2, folds: 0.08, period: 3.1 });
+      A.cloth(c, wx + ww - 6, wy + 2, 12, wh * 0.45, cols[(ph + 1) % 4], t, ph + 2, { amp: 7, sag: 2, folds: 0, period: 2.6 });
+    });
+  }
+  // a washing line across the junction's side street
+  if (near(2890, 3320)) {
+    R.cast((c) => {
+      c.strokeStyle = '#2a2420';
+      c.lineWidth = 1.2;
+      A.wire(c, 2896, -318, 3316, -332, 34, t, 1.1);
+      const items = [[0.18, 40, 70, '#d9d2c2'], [0.36, 28, 46, '#6f7e86'], [0.52, 30, 64, '#a25a46'], [0.7, 44, 74, '#b9ab8e']];
+      for (const [u, w, h, col] of items) {
+        const lx = 2896 + 420 * u;
+        const ly = -318 - 14 * u + 34 * 4 * u * (1 - u) * 0.5 + A.wind(t, 1.1) * 0.8;
+        A.cloth(c, lx - w / 2, ly, w, h, col, t, u * 9, { amp: 4, sag: 3 });
+      }
+    });
+  }
+  // thin smoke: a cook-fire pipe out of one ground-floor window, a stove pipe on two low roofs
+  if (near(3710, 4000)) {
+    const [wx, wy, ww] = T.windowRect(BLOCKS[9], 0, 1);
+    R.cast((c) => {
+      c.fillStyle = '#4a4540';
+      c.fillRect(wx + ww * 0.6, wy - 70, 6, 80);
+      c.fillRect(wx + ww * 0.6 - 3, wy - 74, 12, 5);
+    });
+    A.smoke(R, wx + ww * 0.6 + 3, wy - 76, t, { warm, h: 190, w: 20, alpha: 0.28, seed: 1 });
+  }
+  for (const [px, py, sd] of [[6130, -226, 2], [6640, -226, 3]]) {
+    if (!near(px - 40, px + 40)) continue;
+    R.cast((c) => {
+      c.fillStyle = '#3f3a36';
+      c.fillRect(px - 4, py - 46, 8, 48);
+      c.fillRect(px - 8, py - 50, 16, 5);
+    });
+    A.smoke(R, px, py - 52, t, { warm, h: 170, w: 18, alpha: 0.26, seed: sd });
+  }
+  // pigeons: two on rooftops and walls, a flock across the sky now and then
+  const sit = [[6160, -224, 1], [X.coverWall + 20, -108, 2], [X.catWall - 28, -151, 3], [X.kerb + 140, -41, 4]];
+  for (const [px, py, sd] of sit) if (near(px - 30, px + 30)) A.perch(R, px, py, t, sd);
+  A.flock(R, cx, t, { y: -360, n: 5, every: 47, dur: 11, seed: 1 });
+  A.flock(R, cx, t, { y: -300, n: 3, every: 61, dur: 13, seed: 5, dir: -1 });
+  // a plastic bag on the draught, a drip from a broken pipe by the wall
+  A.bag(R, cx, t, { every: 43, dur: 16, seed: 2 });
+  for (const [dx, dy, sd] of [[1262, -118, 1], [7128, -140, 2]]) {
+    if (!near(dx - 30, dx + 30)) continue;
+    R.cast((c) => {
+      c.fillStyle = '#4a4d52';
+      c.fillRect(dx - 16, dy - 4, 20, 6); // the pipe's broken mouth
+      c.fillRect(dx - 18, dy - 40, 5, 38);
+    });
+    A.drip(R, dx, dy + 2, 0, t, sd);
+  }
+  // a sunbeam through the stairwell's doorway
+  if (near(X.stairs - 80, X.stairs + 80)) A.sunMotes(R, X.stairs - 40, X.stairs + 40, -180, -20, t, { n: 8, seed: 3 });
+}
+
 // --------------------------------------------------------------- scenes --
+
+// the daughter's door, at people's scale (it was 64 x 170)
+const DOOR_H = 205;
+const DOOR_W = 80;
 
 // the spotter's window (world units)
 const SPOT_WIN = { x0: X.spotter - 40, x1: X.spotter + 85, top: -470, sill: -372, floor: -330 };
@@ -270,22 +432,31 @@ export function drawStreet(R, g) {
 
   T.street(R, -500, 10800);
   T.cables(R, cx);
+  streetLife(R, g, t, near);
 
   // --- props behind the actors ---
-  if (near(X.vine - 100, X.vine + 100)) T.vine(R, X.vine, t);
+  if (near(X.vine - 100, X.vine + 100)) {
+    T.vine(R, X.vine, t);
+    // the crown of the vine moves as one in the draught, with a few extra leaves
+    R.cast((c) => {
+      const v = X.vine;
+      A.leaves(c, v + 10, -70, [[-26, -50, 11], [-6, -88, 10], [14, -112, 11], [-34, -108, 9], [26, -66, 10], [-14, -140, 9], [10, -150, 10], [-44, -132, 8]], ['#5f7a3a', '#6d8a44', '#587236'], t, 0.7, 0.05);
+    });
+  }
   if (near(X.wall0 - 60, X.wall1 + 60)) T.rubble(R, X.wall0 - 20, X.wall1 - X.wall0 + 40, 100, { seed: 21 });
-  if (near(X.shop, X.shop + 240)) T.shop(R, X.shop);
+  if (near(X.shop, X.shop + 240)) shopFront(R, X.shop, t);
   if (near(X.oldMan - 200, X.door + 200)) {
     // the daughter's door at the end of the alley
     R.paint((c) => {
+      // a door at people's scale: 205 tall, 92 wide, the frame 6 thick
       c.fillStyle = '#3a2c20';
-      c.fillRect(X.door, -170, 64, 170);
+      c.fillRect(X.door - 14, -DOOR_H, DOOR_W + 12, DOOR_H);
       c.fillStyle = '#1a130e';
-      c.fillRect(X.door + 6, -164, 52 * (1 - (a.doorOpen || 0)), 164);
+      c.fillRect(X.door - 8, -DOOR_H + 6, (DOOR_W) * (1 - (a.doorOpen || 0)), DOOR_H - 6);
     });
     if (a.doorOpen) R.glow((c) => {
       c.fillStyle = `rgba(255,190,120,${0.25 * a.doorOpen})`;
-      c.fillRect(X.door + 6 + 52 * (1 - a.doorOpen), -164, 52 * a.doorOpen, 164);
+      c.fillRect(X.door - 8 + DOOR_W * (1 - a.doorOpen), -DOOR_H + 6, DOOR_W * a.doorOpen, DOOR_H - 6);
     });
     if (a.cansOnGround) R.cast((c) => {
       T.jerryCan(c, X.oldMan + 30, 0);
@@ -348,20 +519,23 @@ export function drawStreet(R, g) {
     T.rubble(R, X.collapsed, 400, 230, { seed: 50, color: '#b9aa8a' });
     T.block(R, { x: X.school, w: 520, floors: 3, fh: 130, color: '#c8b999', seed: 44, pocks: 6, graffiti: [['مدرسة', 0.45, -320, 30, 'rgba(60,70,90,0.7)']] }, t);
     R.paint((c) => {
-      // the basement stairwell
+      // the basement stairwell: a doorway a man walks into without stooping
       c.fillStyle = '#0c0a08';
-      c.fillRect(X.stairs - 40, -110, 80, 110);
-      extrudeRect(c, X.stairs - 48, -118, 96, 10, 16, { color: '#8f846e' });
+      c.fillRect(X.stairs - 50, -205, 100, 205);
+      extrudeRect(c, X.stairs - 58, -216, 116, 11, 16, { color: '#8f846e' });
       c.fillStyle = '#8f846e';
-      c.fillRect(X.stairs - 48, -118, 96, 10);
-      // classroom windows on the ground floor
+      c.fillRect(X.stairs - 58, -216, 116, 11);
+      c.fillStyle = 'rgba(160,148,120,0.55)'; // steps going down, seen through
+      for (let i = 0; i < 4; i++) c.fillRect(X.stairs - 46, -22 + i * 5, 92 - i * 16, 3);
+      // classroom windows on the ground floor: 76 x 108, the sill 86 up
       for (let i = 0; i < 3; i++) {
+        const wx = X.classroom - 110 + i * 110;
         c.fillStyle = '#2a2420';
-        c.fillRect(X.classroom - 110 + i * 110, -110, 80, 70);
+        c.fillRect(wx, -194, 76, 108);
         c.fillStyle = 'rgba(120,96,70,0.5)';
-        c.fillRect(X.classroom - 100 + i * 110, -64, 60, 3);
+        c.fillRect(wx + 8, -116, 60, 3);
         c.fillStyle = 'rgba(40,40,40,0.8)';
-        c.fillRect(X.classroom - 95 + i * 110, -100, 50, 22); // a blackboard glimpsed
+        c.fillRect(wx + 10, -178, 56, 30); // a blackboard glimpsed
       }
     });
     T.scrapPiles(R, X.scrap, a.crater ? 1 : 0);
@@ -383,7 +557,7 @@ export function drawStreet(R, g) {
     });
   }
   if (near(X.battery - 100, X.battery + 200)) {
-    T.roomDoor(R, X.battery, { w: 120, h: 180, light: 'rgba(160,190,220,0.12)' });
+    T.roomDoor(R, X.battery, { w: 120, h: 205, light: 'rgba(160,190,220,0.12)' });
     R.paint((c) => {
       // the table, the battery, the tangle of cables
       extrudeRect(c, X.battery + 20, -70, 80, 6, 18, { color: '#4a3b2e', topK: 1.2, sideK: 0.55 });
@@ -450,7 +624,7 @@ export function drawStreet(R, g) {
       c.fillStyle = 'rgba(0,0,0,0.25)';
       for (let i = 0; i < 3; i++) c.fillRect(X.olive - 30, -26 + i * 9, 40, 2);
     });
-    T.deadOlive(R, X.olive);
+    deadOlive(R, X.olive, t);
   }
 
   // --- the people ---
@@ -693,16 +867,16 @@ export function drawFlashback(R, g) {
     c.fillStyle = '#c9a987';
     c.fillRect(-700, -420, 1400, 424);
     c.fillStyle = '#2d241e';
-    c.fillRect(260, -300, 110, 90);
+    c.fillRect(260, -196, 90, 110); // the window: sill 86 up
     c.fillStyle = '#8c6a52';
-    c.fillRect(-640, -200, 90, 204); // door
+    c.fillRect(-640, -205, 94, 209); // door
     c.fillStyle = '#6f5a48';
     c.fillRect(-700, 0, 1400, 300);
   });
   R.glow((c) => {
     const f = 0.35 + 0.25 * Math.sin(t * 13) * Math.sin(t * 5.3);
     c.fillStyle = `rgba(120,160,255,${f})`;
-    c.fillRect(268, -292, 94, 74);
+    c.fillRect(266, -190, 78, 98);
   });
   // the arbour: posts, beams, vines and ripe grapes
   R.cast((c) => {

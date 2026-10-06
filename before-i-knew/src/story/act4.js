@@ -26,6 +26,7 @@ import { POSES } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
 import { writeSave } from '../engine/save.js';
 import { lines, tween, fadeTo, actor, clearPeople, moveTo, floorSolid, rampSolids, groundFrom } from './kit.js';
+import { populate } from './life.js';
 import { MEM } from './act3v-map.js';
 import { X5, END, NOMANS, TUNNEL, SCHOOL, RUBBLE } from './act4-map.js';
 import { LINES, WHO, CARDS, CHOICE_H } from './act4-lines.js';
@@ -210,6 +211,15 @@ export const ACT4 = {
     a.jerry.rig.prop = (c, hand) => jerryCan(c, hand[0] + 4, hand[1] + 24, 0.72);
     a.sweeper = actor(g, 'woman2', X5.sweeper, { f: -1, pose: { ...POSES.stand, torso: 0.3, armN: 0.9, foreN: 0.7, armF: 0.7, foreF: 0.5 } });
     a.boys = null;
+    // and the street starting its day: a bed dug, washing pegged out, a
+    // window boarded, cans filled at the standpipe
+    g.workers = [];
+    populate(g, [
+      ['dig', 830, { f: 1 }],
+      ['laundry', 1440, { f: -1, outfit: 'woman' }],
+      ['ladder', 1990, { f: 1 }],
+      ['tap', 2200, { f: 1 }],
+    ]);
     yield* fadeTo(g, 0, 2);
     g.text.objective(OBJ.junction);
     g.lock(false);

@@ -26,6 +26,112 @@ const tiltRect = (cx, cy, ang, x, y, w, h) => {
   return [[x, y], [x + w, y], [x + w, y + h], [x, y + h]].map(([px, py]) => [cx + px * co - py * si, cy + px * si + py * co]);
 };
 
+
+// ------------------------------------------------- small continuous motion --
+// Shared by the night sets: nothing here allocates, each effect is a handful
+// of draw calls, and every amplitude is small.
+
+// A breeze that comes and goes: 0..1, slow, with an occasional gust.
+export const gust = (t, ph = 0) => {
+  const a = Math.sin(t * 0.37 + ph) * Math.sin(t * 0.23 + 1.3 + ph * 0.5);
+  return a > 0 ? Math.min(1, a * 1.6) : 0;
+};
+// A swaying angle: period seconds, amp radians, a per-thing phase, and the gust on top.
+export const swayAng = (t, ph, amp, period = 4) => Math.sin((t * Math.PI * 2) / period + ph) * amp * (1 + 0.7 * gust(t, ph));
+
+// A thin thread of smoke rising from (x, y): faintly lit by the moon. `lean`
+// is how far it drifts over its height (night air is nearly still).
+export function wisp(R, x, y, t, { h = 240, w = 20, seed = 1, lean = 20, a = 0.2, tint = [150, 162, 200], glow = 0.35 } = {}) {
+  const n = 12;
+  const pts = [];
+  for (let i = 0; i < n; i++) {
+    const age = (t * 0.1 + i / n + seed * 0.37) % 1;
+    const wob = Math.sin(age * 6 + seed + t * 0.35) * w * age;
+    pts.push([x + wob + lean * age * age, y - age * h, 3 + age * 15, a * Math.sin(Math.min(1, age * 5) * 1.5708) * (1 - age)]);
+  }
+  R.paint((c) => {
+    for (const [px, py, r, al] of pts) {
+      c.fillStyle = `rgba(${tint[0] * 0.5 | 0},${tint[1] * 0.5 | 0},${tint[2] * 0.55 | 0},${al})`;
+      c.beginPath();
+      c.arc(px, py, r, 0, 6.2832);
+      c.fill();
+    }
+  });
+  if (glow > 0)
+    R.glow((c) => {
+      for (const [px, py, r, al] of pts) {
+        c.fillStyle = `rgba(${tint[0]},${tint[1]},${tint[2]},${al * glow})`;
+        c.beginPath();
+        c.arc(px - r * 0.25, py - r * 0.2, r * 0.7, 0, 6.2832);
+        c.fill();
+      }
+    });
+}
+
+// A plastic bag blown along the ground between x0 and x1, tumbling, hopping.
+export function tumbleBag(R, t, x0, x1, { seed = 0, speed = 34, tone = '#a8aebd' } = {}) {
+  const span = x1 - x0;
+  const u = ((t * speed + seed * 211) % (span * 1.25)) - span * 0.12;
+  const x = x0 + u;
+  if (x < x0 || x > x1) return;
+  const hop = Math.abs(Math.sin(t * 2.6 + seed)) * 18 * (0.4 + gust(t, seed) * 0.9);
+  const y = -6 - hop;
+  const rot = t * 2.2 + seed;
+  R.cast((c) => {
+    c.save();
+    c.translate(x, y);
+    c.rotate(rot);
+    c.fillStyle = tone;
+    c.globalAlpha = 0.8;
+    c.beginPath();
+    c.moveTo(-8, 0);
+    c.quadraticCurveTo(-4, -8 - Math.sin(t * 7) * 2, 3, -6);
+    c.quadraticCurveTo(10, -2, 7, 5 + Math.sin(t * 6 + 1) * 1.5);
+    c.quadraticCurveTo(0, 8, -8, 0);
+    c.fill();
+    c.restore();
+  });
+}
+
+// A drip: a bead swelling on the lip at (x, y0), falling to y1, a ring where it lands.
+export function drip(R, x, y0, y1, t, { seed = 0, every = 2.6, glow = 0.5 } = {}) {
+  const p = ((t + seed * 1.7) % every) / every;
+  const fall = 0.28;
+  R.paint((c) => {
+    if (p < 1 - fall) {
+      // swelling on the lip
+      const k = p / (1 - fall);
+      c.fillStyle = `rgba(120,140,185,${0.35 + 0.3 * k})`;
+      c.beginPath();
+      c.ellipse(x, y0 + k * 3, 1 + k * 1.2, 1.4 + k * 2.2, 0, 0, 6.2832);
+      c.fill();
+    } else {
+      const k = (p - (1 - fall)) / fall;
+      const y = y0 + (y1 - y0) * k * k;
+      c.fillStyle = 'rgba(140,160,205,0.7)';
+      c.fillRect(x - 0.8, y - 5, 1.6, 7);
+      if (k > 0.97) c.fillRect(x - 3, y1 - 1, 6, 1.2);
+    }
+  });
+  if (p > 1 - fall + 0.02)
+    R.glow((c) => {
+      const k = (p - (1 - fall)) / fall;
+      c.fillStyle = `rgba(190,206,250,${glow * 0.3})`;
+      c.fillRect(x - 0.6, y0 + (y1 - y0) * k * k - 5, 1.2, 5);
+    });
+  // the ring where the last one landed
+  const q = (p + 0.0) % 1;
+  if (q < 0.12) {
+    R.paint((c) => {
+      c.strokeStyle = `rgba(150,170,215,${0.4 * (1 - q / 0.12)})`;
+      c.lineWidth = 1;
+      c.beginPath();
+      c.ellipse(x, y1, 3 + q * 60, 0.8 + q * 8, 0, 0, 6.2832);
+      c.stroke();
+    });
+  }
+}
+
 // ------------------------------------------------------------- Part 1 --
 
 export const X1 = {
@@ -226,6 +332,19 @@ export function drawApproach(R, g) {
   if (near(X1.wall[0], X1.wall[1])) T.lowWall(R, X1.wall[0], X1.wall[1] - X1.wall[0], 120, '#57554f');
   // the checkpoint: sandbags, the lamp, the table, a flag
   if (near(X1.bags[0] - 200, X1.flag + 200)) checkpoint(R, g, t);
+  // a stove pipe out of a ground-floor window across the way, and a thread of
+  // smoke from it, thin and faintly silver in the moon
+  if (near(1500, 2200)) {
+    const [wx, wy, ww] = T.windowRect({ x: 1500, w: 700, floors: 5, fh: 140 }, 0, 3);
+    R.cast((c) => {
+      c.fillStyle = '#25262c';
+      c.fillRect(wx + ww * 0.55, wy - 56, 6, 100);
+      c.fillRect(wx + ww * 0.55 - 3, wy - 60, 12, 5);
+    });
+    wisp(R, wx + ww * 0.55 + 3, wy - 60, t, { h: 230, w: 14, seed: 3, lean: 26, a: 0.2 });
+  }
+  // a plastic bag, pushed along the open ground by the night air
+  if (near(X1.open, X1.bags[0])) tumbleBag(R, t, X1.open + 30, X1.bags[0] - 40, { seed: 2 });
   T.cables(R, cx, { seed: 61, from: -900, to: 2800, y: -380 });
 
   // the people
@@ -245,22 +364,30 @@ function checkpoint(R, g, t) {
   R.cast((c) => {
     c.fillStyle = '#2a2a2a';
     c.fillRect(X1.flag, -330, 4, 334);
-    const sway = Math.sin(t * 0.8) * 3;
-    c.fillStyle = '#8d2a2a';
-    c.fillRect(X1.flag + 4, -328, 70 + sway, 16);
-    c.fillStyle = '#e8e4dc';
-    c.fillRect(X1.flag + 4, -312, 70 + sway, 16);
-    c.fillStyle = '#1b1b1b';
-    c.fillRect(X1.flag + 4, -296, 70 + sway, 16);
+    // the flag hangs from its pole and ripples along its length
+    const FW = 74;
+    const wave = (u) => Math.sin(t * 1.9 - u * 3.4 + 0.6) * 2.4 * u * (1 + 0.8 * gust(t));
+    const stripe = (y0, col) => {
+      c.fillStyle = col;
+      c.beginPath();
+      const steps = 8;
+      for (let i = 0; i <= steps; i++) c.lineTo(X1.flag + 4 + (i / steps) * FW, y0 + wave(i / steps));
+      for (let i = steps; i >= 0; i--) c.lineTo(X1.flag + 4 + (i / steps) * FW, y0 + 16 + wave(i / steps));
+      c.fill();
+    };
+    stripe(-328, '#8d2a2a');
+    stripe(-312, '#e8e4dc');
+    stripe(-296, '#1b1b1b');
     // the regime's flag: two green stars on the white
     c.fillStyle = '#2f7a3a';
     for (const sx of [0.34, 0.66]) {
-      const px = X1.flag + 4 + (70 + sway) * sx;
+      const px = X1.flag + 4 + FW * sx;
+      const py = -304 + wave(sx);
       c.beginPath();
       for (let i = 0; i < 10; i++) {
         const r = i % 2 ? 2.4 : 5.6;
         const ang = -Math.PI / 2 + (i * Math.PI) / 5;
-        c.lineTo(px + Math.cos(ang) * r, -304 + Math.sin(ang) * r);
+        c.lineTo(px + Math.cos(ang) * r, py + Math.sin(ang) * r);
       }
       c.fill();
     }
@@ -301,6 +428,9 @@ function checkpoint(R, g, t) {
       }
     }
   });
+  // steam from the two tea glasses, going straight up in the still air
+  wisp(R, X1.table - 9, -94, t, { h: 46, w: 4, seed: 7, lean: 3, a: 0.2, glow: 0.5, tint: [235, 225, 205] });
+  wisp(R, X1.table + 5, -94, t, { h: 40, w: 4, seed: 9, lean: 3, a: 0.18, glow: 0.5, tint: [235, 225, 205] });
   // the battery lamp: on the sandbags, then on the table
   const lx = a.lampAtTable ? X1.table : X1.lamp;
   const ly = a.lampAtTable ? -90 : -128;
@@ -546,11 +676,11 @@ export function drawBuilding(R, g) {
         c.strokeStyle = '#2a2724';
         c.lineWidth = 2;
         c.beginPath();
-        c.moveTo(s.x0, s.y0 - 36);
-        c.lineTo(s.x1, s.y0 - 36);
-        for (let bx = s.x0 + 6; bx < s.x1; bx += 10) {
+        c.moveTo(s.x0, s.y0 - 92);
+        c.lineTo(s.x1, s.y0 - 92);
+        for (let bx = s.x0 + 6; bx < s.x1; bx += 13) {
           c.moveTo(bx, s.y0);
-          c.lineTo(bx, s.y0 - 36);
+          c.lineTo(bx, s.y0 - 92);
         }
         c.stroke();
       }
@@ -621,6 +751,43 @@ export function drawBuilding(R, g) {
       c.stroke();
     }
   });
+
+  // dust turning slowly in each shaft of moon
+  R.glow((c) => {
+    MOON_HOLES.forEach(([hx, hy], k) => {
+      for (let i = 0; i < 9; i++) {
+        const u = (i * 0.137 + k * 0.31) % 1;
+        const px = hx - 30 + u * 140 + Math.sin(t * 0.35 + i * 1.9 + k) * 12;
+        const py = hy + 10 + ((u * 7.3 + i * 0.43) % 1) * 140 + Math.sin(t * 0.27 + i * 2.3) * 9;
+        c.fillStyle = `rgba(205,218,255,${0.14 + 0.12 * Math.sin(t * 1.1 + i * 2.1 + k)})`;
+        c.fillRect(px, py, 1.6, 1.6);
+      }
+    });
+  });
+  // water, from the broken end of the fourth floor onto the rubble below
+  drip(R, X2.f4edge - 3, floorY(4) + 17, floorY(3) - 58, t, { seed: 1, every: 2.9 });
+  drip(R, X2.stairs2[1] + 60, floorY(3) + 17, floorY(2) - 2, t, { seed: 4, every: 3.7 });
+  // a torn curtain half out of the hole in the fifth-floor wall, lifting in the draught
+  {
+    const hx = X2.b1 - 8;
+    const hy = floorY(5) - 140;
+    R.cast((c) => {
+      c.fillStyle = '#6a6470';
+      c.globalAlpha = 0.9;
+      c.beginPath();
+      c.moveTo(hx - 4, hy);
+      const sw = swayAng(t, 0.8, 1, 3.4);
+      for (let i = 0; i <= 6; i++) {
+        const u = i / 6;
+        c.lineTo(hx - 4 + u * 30 + sw * u * 8, hy + u * 90 + Math.sin(t * 2.1 + u * 3) * 3 * u);
+      }
+      c.lineTo(hx + 14, hy + 100);
+      c.lineTo(hx - 4, hy + 80);
+      c.closePath();
+      c.fill();
+      c.globalAlpha = 1;
+    });
+  }
 
   // outside: the alley, the fallen arch, the street, the blanket
   R.paint((c) => {
@@ -752,15 +919,17 @@ function wardrobe(R, x0, fy) {
 }
 
 function doorFrame(R, x, fy) {
+  // a door a man walks through: 96 wide, as tall as the storey allows (the
+  // slab above is at fy - 184)
   R.cast((c) => {
-    for (const [rx, ry, rw, rh] of [[x - 36, fy - 180, 6, 180], [x + 30, fy - 180, 6, 180], [x - 36, fy - 186, 72, 8]]) extrudeRect(c, rx, ry, rw, rh, 12, { color: '#6a5a48' });
+    for (const [rx, ry, rw, rh] of [[x - 48, fy - 182, 7, 182], [x + 41, fy - 182, 7, 182], [x - 48, fy - 184, 96, 9]]) extrudeRect(c, rx, ry, rw, rh, 12, { color: '#6a5a48' });
     c.fillStyle = '#6a5a48';
-    c.fillRect(x - 36, fy - 180, 6, 180);
-    c.fillRect(x + 30, fy - 180, 6, 180);
-    c.fillRect(x - 36, fy - 186, 72, 8);
+    c.fillRect(x - 48, fy - 182, 7, 182);
+    c.fillRect(x + 41, fy - 182, 7, 182);
+    c.fillRect(x - 48, fy - 184, 96, 9);
     // pencil marks up the frame, each with a year
     c.fillStyle = '#20180f';
-    [[-70, 2009], [-86, 2010], [-100, 2011]].forEach(([h]) => c.fillRect(x + 30, fy + h, 10, 1.5));
+    [[-70, 2009], [-86, 2010], [-100, 2011]].forEach(([h]) => c.fillRect(x + 41, fy + h, 12, 1.5));
   });
 }
 

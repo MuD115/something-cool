@@ -14,7 +14,7 @@
 
 import { lerp, rng } from '../engine/util.js';
 import * as T from '../sets/town.js';
-import { nightSky } from './act3r-set.js';
+import { nightSky, wisp, tumbleBag, drip, gust, swayAng } from './act3r-set.js';
 import { extrudePoly, extrudeRect } from '../sets/depth.js';
 import { X4 } from './act3v-map.js';
 
@@ -35,11 +35,12 @@ const SHEAR = -1.3;
 const SQUASH = 0.11;
 
 // Landmark geometry shared with the story.
-const SHOP = { x: X4.shop - 70, y: -134, w: 140, h: 98 };
+// (a full-height shop window, sill at 34: a man's whole reflection fits in it)
+const SHOP = { x: X4.shop - 96, y: -214, w: 150, h: 180 };
 export function shopWindowRect() {
   return { ...SHOP };
 }
-export const PORTRAIT = { x: X4.portrait - 28, y: -124, w: 56, h: 76 };
+export const PORTRAIT = { x: X4.portrait - 31, y: -186, w: 62, h: 84 };
 
 // ------------------------------------------------------------ the look --
 
@@ -115,7 +116,7 @@ const BLOCKS = [
   { x: -480, w: 470, floors: 4, fh: 134, color: '#bcb7ad', seed: 603, mat: 'limestone', balcony: [2, 0.5, 0], laundry: true },
   { x: -10, w: 490, floors: 3, fh: 140, color: '#b3b0a9', seed: 604, mat: 'plaster', torn: 0.35, tornLeft: false },
   // Ahmad's classroom building: the basement door is in the pavement in front
-  { x: 480, w: 460, floors: 3, fh: 140, color: '#aeaca7', seed: 605, mat: 'concrete', noDoors: true, balcony: [2, 0.7, 0.05] },
+  { x: 480, w: 460, floors: 3, fh: 140, color: '#aeaca7', seed: 605, mat: 'concrete', noDoors: true, shopFront: true, balcony: [2, 0.7, 0.05] },
   { x: 940, w: 240, floors: 3, fh: 136, color: '#bab5aa', seed: 606, mat: 'plaster', torn: 0.5, tornLeft: true, holes: [[0.5, 0.35, 26]] },
   // either side of the arch's wall
   { x: 1150, w: 230, floors: 4, fh: 134, color: '#b0ada8', seed: 607, mat: 'limestone', noDoors: true },
@@ -125,7 +126,7 @@ const BLOCKS = [
   { x: 2160, w: 300, floors: 3, fh: 138, color: '#b5b1a6', seed: 610, mat: 'plaster', noDoors: true, balcony: [2, 0.5, 0] },
   { x: 2460, w: 320, floors: 3, fh: 140, color: '#a9a8a6', seed: 611, mat: 'concrete', torn: 0.45, tornLeft: true, holes: [[0.4, 0.5, 22]] },
   // the family house with the shutter (five columns, the middle one the door)
-  { x: 2725, w: 550, floors: 3, fh: 138, color: '#c0baae', seed: 612, mat: 'limestone', noDoors: true, balcony: [3, 0.6, 0.02], laundry: true },
+  { x: 2725, w: 550, floors: 3, fh: 138, color: '#c0baae', seed: 612, mat: 'limestone', noDoors: true, shopFront: true },
   { x: 3275, w: 225, floors: 3, fh: 136, color: '#adaba6', seed: 613, mat: 'plaster', torn: 0.35, tornLeft: false },
   // (the mosque is drawn by hand, 3500 to 3960)
   { x: 3960, w: 220, floors: 3, fh: 138, color: '#b3afa5', seed: 614, mat: 'concrete', noDoors: true },
@@ -133,7 +134,7 @@ const BLOCKS = [
   { x: 4180, w: 460, floors: 3, fh: 138, color: '#a8a5a1', seed: 615, mat: 'concrete', noDoors: true, holes: [[0.25, 0.62, 30], [0.8, 0.5, 26]], torn: 0.3, tornLeft: true },
   { x: 4640, w: 185, floors: 3, fh: 136, color: '#b1aea8', seed: 616, mat: 'plaster', torn: 0.5, tornLeft: false },
   // the tower: six storeys, tall, little hurt
-  { x: 4825, w: 550, floors: 6, fh: 134, color: '#bfbaaf', seed: 617, mat: 'limestone', noDoors: true, balcony: [3, 0.5, 0], laundry: true },
+  { x: 4825, w: 550, floors: 6, fh: 134, color: '#bfbaaf', seed: 617, mat: 'limestone', noDoors: true, shopFront: true },
   { x: 5375, w: 520, floors: 4, fh: 136, color: '#aeaba6', seed: 618, mat: 'plaster', torn: 0.4, tornLeft: true },
   { x: 5895, w: 600, floors: 3, fh: 138, color: '#a9a8a4', seed: 619, mat: 'concrete' },
 ];
@@ -170,8 +171,8 @@ function candle(R, spec, f, k, t, flick = 0) {
 // door in the foot of the building at the bottom left.
 function classroom(R, g) {
   const x0 = X4.classroom;
-  const L = x0 - 74;
-  const Rr = x0 + 96;
+  const L = x0 - 100;
+  const Rr = x0 + 100;
   const depth = 92;
   const floor = 76;
   R.paint((c) => {
@@ -210,9 +211,9 @@ function classroom(R, g) {
       c.fillRect(x, y + 3, 2.4, rise - 3); // the riser in shade
     }
     // the door: a stone frame 14 deep, the leaf a little open, black beyond
-    const dx = L + 12;
-    const dw = 62;
-    const dh = 106;
+    const dx = L + 14;
+    const dw = 92;
+    const dh = 205;
     extrudeRect(c, dx - 6, floor - dh - 7, dw + 12, dh + 7, 14, { top: '#8f93a4', side: '#262935' });
     c.fillStyle = '#7a7e8e';
     c.fillRect(dx - 6, floor - dh - 7, dw + 12, dh + 7);
@@ -220,13 +221,13 @@ function classroom(R, g) {
     c.fillRect(dx, floor - dh, dw, dh);
     // the leaf, hinged on the left, swung in a hand's breadth: a wedge of black beside it
     c.fillStyle = '#3e4a64';
-    poly(c, [[dx, floor - dh], [dx + 40, floor - dh + 5], [dx + 40, floor - 4], [dx, floor]]);
+    poly(c, [[dx, floor - dh], [dx + 52, floor - dh + 7], [dx + 52, floor - 5], [dx, floor]]);
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.3)';
-    c.fillRect(dx + 5, floor - dh + 12, 28, 34);
-    c.fillRect(dx + 5, floor - dh + 52, 28, 34);
+    c.fillRect(dx + 6, floor - dh + 18, 38, 70);
+    c.fillRect(dx + 6, floor - dh + 98, 38, 80);
     c.fillStyle = '#9aa0b4';
-    c.fillRect(dx + 34, floor - 52, 3, 8); // the handle
+    c.fillRect(dx + 45, floor - 100, 3, 9); // the handle
     // dust and grit on the landing, a drift of leaves against the door
     c.fillStyle = 'rgba(20,22,30,0.7)';
     c.beginPath();
@@ -244,16 +245,16 @@ function classroom(R, g) {
     c.strokeStyle = '#2a2d3a';
     c.lineWidth = 2.4;
     c.beginPath();
-    c.moveTo(Rr - 2, -52);
-    c.lineTo(Rr - run0(), 38);
+    c.moveTo(Rr - 2, -92);
+    c.lineTo(Rr - run0(), -29);
     c.stroke();
     c.lineWidth = 2;
     for (let i = 0; i < 4; i++) {
       const px = Rr - 2 - (i * (run0() - 2)) / 3;
-      const py = -52 + (i * 90) / 3;
+      const py = -92 + (i * 63) / 3;
       c.beginPath();
       c.moveTo(px, py);
-      c.lineTo(px, py + 48);
+      c.lineTo(px, py + 92);
       c.stroke();
     }
   });
@@ -265,7 +266,7 @@ function classroom(R, g) {
     c.fillStyle = 'rgba(176,196,250,0.16)';
     for (let i = 0; i < 5; i++) c.fillRect(Rr - 16 * (i + 1), (i * floor) / 5, 16, 1.6);
     c.fillStyle = 'rgba(176,196,250,0.22)';
-    c.fillRect(L + 6, floor - 105, 74, 1.4);
+    c.fillRect(L + 6, floor - 205, 104, 1.4);
   });
   // faded chalk squares on the road: a child's hopscotch
   R.paint((c) => {
@@ -283,10 +284,10 @@ function archWall(R, g) {
   const cx = X4.arch;
   const x0 = cx - ARCH_W / 2;
   const x1 = cx + ARCH_W / 2;
-  const top = -236;
-  const hw = 56;
-  const spring = -118;
-  const rise = 74;
+  const top = -330;
+  const hw = 70;
+  const spring = -165;
+  const rise = 72;
   const outline = [[x0, 0], [x0, top + 14], [x0 + 24, top + 14], [x0 + 24, top], [x0 + 60, top], [x0 + 60, top + 14], [x0 + 100, top + 14], [x0 + 100, top + 4], [x0 + 128, top + 12], [x1 - 70, top + 20], [x1 - 70, top], [x1 - 30, top], [x1 - 30, top + 14], [x1, top + 14], [x1, 0]];
   // the wall is 28 deep between the two buildings: its coping and far side
   R.cast((c) => {
@@ -409,47 +410,62 @@ function archWall(R, g) {
 function shopFront(R, g) {
   const t = g.time;
   const x0 = 2176;
-  const x1 = 2444;
+  const x1 = 2472;
   const S = SHOP;
+  const DX = 2372; // the shop door: 92 wide, 205 tall
   R.cast((c) => {
     // the shopfront is a slab 12 proud of the wall; the window is cut into it
-    slab(c, x0, -168, x1 - x0, 168, 12, '#77746c');
+    slab(c, x0, -266, x1 - x0, 266, 12, '#77746c');
     // fascia board, its sign long since sun-faded
-    slab(c, x0 + 4, -166, x1 - x0 - 8, 26, 8, '#34424c', '#6f7c88', '#20262c');
+    slab(c, x0 + 4, -262, x1 - x0 - 8, 36, 8, '#34424c', '#6f7c88', '#20262c');
     // stall riser under the window
-    slab(c, x0, -36, x1 - x0, 36, 10, '#68665f');
+    slab(c, x0, -34, DX - x0 - 4, 34, 10, '#68665f');
     c.fillStyle = 'rgba(0,0,0,0.25)';
-    for (let y = -30; y < 0; y += 12) c.fillRect(x0, y, x1 - x0, 1.4);
+    for (let y = -28; y < 0; y += 12) c.fillRect(x0, y, DX - x0 - 4, 1.4);
     // pilaster
-    slab(c, x0, -140, 54, 104, 10, '#85827a');
+    slab(c, x0, -226, 22, 192, 10, '#85827a');
     // the window frame, 14 deep, in steel
     extrudeRect(c, S.x - 6, S.y - 6, S.w + 12, S.h + 12, 14, { top: '#8b92a2', side: '#22252f' });
     c.fillStyle = '#4c515f';
     c.fillRect(S.x - 6, S.y - 6, S.w + 12, S.h + 12);
     // the door: shut, its steel plate dented, the padlock on
-    slab(c, 2384, -134, 54, 134, 8, '#3a3d48', '#6a6e7c', '#1c1e26');
+    slab(c, DX, -205, 92, 205, 8, '#3a3d48', '#6a6e7c', '#1c1e26');
     c.fillStyle = 'rgba(255,255,255,0.05)';
-    c.fillRect(2388, -128, 46, 3);
+    c.fillRect(DX + 5, -198, 82, 3);
+    c.fillStyle = 'rgba(0,0,0,0.22)';
+    c.fillRect(DX + 8, -180, 76, 70);
+    c.fillRect(DX + 8, -100, 76, 80);
     c.fillStyle = '#9a9fb0';
-    c.fillRect(2392, -70, 6, 10);
+    c.fillRect(DX + 74, -108, 6, 12);
     c.fillStyle = '#12131a';
-    c.fillRect(2393, -62, 4, 6);
+    c.fillRect(DX + 75, -98, 4, 7);
+    // a torn notice on the door, one corner lifting in the draught
+    const lift = swayAng(t, 2.1, 1, 3.2) * 5 + gust(t, 1) * 2;
+    c.fillStyle = '#b9b3a2';
+    c.beginPath();
+    c.moveTo(DX + 22, -150);
+    c.lineTo(DX + 54, -150 + 2);
+    c.lineTo(DX + 52 + lift * 0.6, -128 - lift * 0.2);
+    c.lineTo(DX + 24, -112);
+    c.closePath();
+    c.fill();
+    c.fillStyle = 'rgba(40,36,30,0.5)';
+    for (let i = 0; i < 4; i++) c.fillRect(DX + 27, -142 + i * 6, 22 - i * 2, 1.4);
   });
   R.paint((c) => {
     // the sign, a shadow of lettering
     c.fillStyle = 'rgba(180,170,140,0.22)';
-    c.font = '20px "Aref Ruqaa", "Noto Naskh Arabic", serif';
+    c.font = '26px "Aref Ruqaa", "Noto Naskh Arabic", serif';
     c.textAlign = 'center';
     c.direction = 'rtl';
-    c.fillText('دكّان', (x0 + x1) / 2 - 30, -146);
+    c.fillText('دكّان', (x0 + x1) / 2 - 30, -236);
     // the window, set back: the reveal, then the empty dark room
     pit(c, [[S.x, S.y], [S.x + S.w, S.y], [S.x + S.w, S.y + S.h], [S.x, S.y + S.h]], 16, '#2a2e3c', '#0a0c13');
     // empty shelves, one fallen, a shoebox
     c.fillStyle = 'rgba(70,76,96,0.7)';
-    c.fillRect(S.x + 10, S.y + 30, S.w - 20, 3);
-    c.fillRect(S.x + 10, S.y + 62, S.w - 20, 3);
+    for (const sy of [40, 85, 130]) c.fillRect(S.x + 10, S.y + sy, S.w - 20, 3);
     c.save();
-    c.translate(S.x + 70, S.y + 70);
+    c.translate(S.x + 70, S.y + 135);
     c.rotate(0.18);
     c.fillRect(0, 0, 44, 3);
     c.restore();
@@ -540,23 +556,24 @@ function shopFront(R, g) {
 
 function shutterDoor(R, g) {
   const x0 = X4.shutter;
-  const w = 106;
-  const top = -156;
+  const w = 100;
+  const top = -250;
+  const base = -32; // two steps of 16 up from the street
   R.cast((c) => {
     // the stone surround, 16 deep, and its two worn steps
     slab(c, x0 - w / 2 - 14, top - 16, w + 28, -top + 16, 16, '#aaa59a', '#c6c2b6', '#2a2c36');
-    slab(c, x0 - w / 2 - 22, -7, w + 44, 7, 22, '#8e8b84', '#b4b0a4', '#26282f');
-    slab(c, x0 - w / 2 - 12, -14, w + 24, 7, 14, '#97948c', '#bcb8ac', '#26282f');
+    slab(c, x0 - w / 2 - 22, -16, w + 44, 16, 22, '#8e8b84', '#b4b0a4', '#26282f');
+    slab(c, x0 - w / 2 - 12, -32, w + 24, 16, 14, '#97948c', '#bcb8ac', '#26282f');
     // the shutter well, dark, set into the surround
-    pit(c, [[x0 - w / 2, top], [x0 + w / 2, top], [x0 + w / 2, -6], [x0 - w / 2, -6]], 14, '#2a2d3a', '#05060a');
+    pit(c, [[x0 - w / 2, top], [x0 + w / 2, top], [x0 + w / 2, base], [x0 - w / 2, base]], 14, '#2a2d3a', '#05060a');
   });
   R.cast((c) => {
     // the rolled steel shutter: corrugated, down to the step
     const sx = x0 - w / 2 + 3;
     const sw = w - 6;
     c.fillStyle = '#6e7381';
-    c.fillRect(sx, top + 14, sw, -top - 20);
-    for (let y = top + 18; y < -8; y += 5.5) {
+    c.fillRect(sx, top + 14, sw, base - top - 14);
+    for (let y = top + 18; y < base - 2; y += 5.5) {
       c.fillStyle = 'rgba(0,0,0,0.28)';
       c.fillRect(sx, y, sw, 1.8);
       c.fillStyle = 'rgba(190,200,230,0.14)';
@@ -564,21 +581,21 @@ function shutterDoor(R, g) {
     }
     // dents and rust: a long streak from the box, one kicked-in dent
     c.fillStyle = 'rgba(110,62,34,0.35)';
-    c.fillRect(x0 - 28, top + 18, 5, 90);
-    c.fillRect(x0 + 18, top + 20, 3, 60);
+    c.fillRect(x0 - 28, top + 18, 5, 120);
+    c.fillRect(x0 + 18, top + 20, 3, 80);
     c.fillStyle = 'rgba(0,0,0,0.22)';
     c.beginPath();
-    c.ellipse(x0 + 12, -60, 20, 11, -0.4, 0, Math.PI * 2);
+    c.ellipse(x0 + 12, -100, 20, 11, -0.4, 0, Math.PI * 2);
     c.fill();
     c.fillStyle = 'rgba(210,220,250,0.1)';
     c.beginPath();
-    c.ellipse(x0 + 9, -64, 14, 5, -0.4, 0, Math.PI * 2);
+    c.ellipse(x0 + 9, -104, 14, 5, -0.4, 0, Math.PI * 2);
     c.fill();
     // the bottom bar and its lock
     c.fillStyle = '#41454f';
-    c.fillRect(sx, -13, sw, 7);
+    c.fillRect(sx, base - 7, sw, 7);
     c.fillStyle = '#a9aebf';
-    c.fillRect(x0 - 2, -12, 4, 5);
+    c.fillRect(x0 - 2, base - 6, 4, 5);
     // the roller box across the top, 12 deep
     extrudeRect(c, x0 - w / 2 - 6, top - 2, w + 12, 20, 12, { top: '#9094a2', side: '#23262f' });
     c.fillStyle = '#585c6a';
@@ -587,12 +604,12 @@ function shutterDoor(R, g) {
     c.fillRect(x0 - w / 2 - 6, top + 12, w + 12, 4);
     // the guide rails either side
     c.fillStyle = '#3e424e';
-    c.fillRect(x0 - w / 2, top + 16, 5, -top - 22);
-    c.fillRect(x0 + w / 2 - 5, top + 16, 5, -top - 22);
+    c.fillRect(x0 - w / 2, top + 16, 5, base - top - 16);
+    c.fillRect(x0 + w / 2 - 5, top + 16, 5, base - top - 16);
   });
   // where the Eid wreath hung: a nail, a ghost ring on the plaster, one dry leaf
   const nx = x0;
-  const ny = -214;
+  const ny = -332;
   R.paint((c) => {
     c.strokeStyle = 'rgba(224,216,196,0.24)';
     c.lineWidth = 7;
@@ -633,7 +650,7 @@ function shutterDoor(R, g) {
 
 // ----------------------------------------------------------- 5. the mosque --
 
-const MOS = { x0: 3500, x1: 3960, top: -244 };
+const MOS = { x0: 3500, x1: 3960, top: -330 };
 
 // The minaret and the dome, on a layer a little further off than the street:
 // drawn before the buildings so the mosque's wall stands in front of them.
@@ -787,8 +804,8 @@ function mosqueWall(R, g) {
     merl.push([x, top + 24], [x, top + (broken ? 18 : 2)], [x + 14, top + (broken ? 18 : 2)], [x + 14, top + 24]);
   }
   merl.push([x1, top + 24], [x1, 0]);
-  const dHW = 40;
-  const dSpring = -118;
+  const dHW = 48;
+  const dSpring = -170;
   const dRise = 66;
   R.cast((c) => {
     extrudePoly(c, merl, 26, { top: '#c8c6bc', side: '#2a2c36' });
@@ -822,7 +839,7 @@ function mosqueWall(R, g) {
     }
     c.restore();
     // narrow windows with pointed heads: black, barred, their sills proud
-    for (const wx of [3545, 3615, 3860, 3925]) {
+    for (const wx of [3545, 3625, 3875, 3935]) {
       extrudePath2(c, wx);
     }
     // the door: a pointed surround of voussoirs, 18 deep
@@ -856,16 +873,16 @@ function mosqueWall(R, g) {
     c.fill();
     // studs and boards
     c.fillStyle = 'rgba(0,0,0,0.3)';
-    for (let x = dx - dHW + 10; x < dx + dHW; x += 12) if (Math.abs(x - dx) > 6) c.fillRect(x, dSpring - 40, 1.4, 118);
+    for (let x = dx - dHW + 10; x < dx + dHW; x += 12) if (Math.abs(x - dx) > 6) c.fillRect(x, dSpring - 40, 1.4, 210);
     c.fillStyle = '#7e6a3c';
-    for (let y = -30; y > -100; y -= 18) {
-      c.fillRect(dx - 24, y, 3, 3);
-      c.fillRect(dx + 20, y, 3, 3);
+    for (let y = -40; y > -150; y -= 24) {
+      c.fillRect(dx - 28, y, 3, 3);
+      c.fillRect(dx + 24, y, 3, 3);
     }
     // the stone step
-    extrudeRect(c, dx - dHW - 20, -7, 2 * dHW + 40, 7, 16, { top: '#bab6aa', side: '#26282f' });
+    extrudeRect(c, dx - dHW - 20, -16, 2 * dHW + 40, 16, 16, { top: '#bab6aa', side: '#26282f' });
     c.fillStyle = '#8f8c84';
-    c.fillRect(dx - dHW - 20, -7, 2 * dHW + 40, 7);
+    c.fillRect(dx - dHW - 20, -16, 2 * dHW + 40, 16);
   });
   R.surface((c) => c.rect(x0, top, x1 - x0, -top), 'limestone', { scale: 0.9, seed: 5, alpha: 0.45 });
   R.glow((c) => {
@@ -887,28 +904,28 @@ function mosqueWall(R, g) {
 
 // A narrow pointed window in the mosque wall (cast layer context).
 function extrudePath2(c, wx) {
-  const y0 = -90;
-  const y1 = -176;
-  extrudePoly(c, [[wx - 10, y0], [wx - 10, y1 + 10], [wx, y1 - 6], [wx + 10, y1 + 10], [wx + 10, y0]], 12, { top: '#8a8c98', side: '#1e2029' });
+  const y0 = -112;
+  const y1 = -240;
+  extrudePoly(c, [[wx - 15, y0], [wx - 15, y1 + 14], [wx, y1 - 8], [wx + 15, y1 + 14], [wx + 15, y0]], 12, { top: '#8a8c98', side: '#1e2029' });
   c.fillStyle = '#0a0b11';
   c.beginPath();
-  c.moveTo(wx - 8, y0);
-  c.lineTo(wx - 8, y1 + 10);
-  c.quadraticCurveTo(wx, y1 - 8, wx + 8, y1 + 10);
-  c.lineTo(wx + 8, y0);
+  c.moveTo(wx - 12, y0);
+  c.lineTo(wx - 12, y1 + 14);
+  c.quadraticCurveTo(wx, y1 - 10, wx + 12, y1 + 14);
+  c.lineTo(wx + 12, y0);
   c.fill();
   c.strokeStyle = '#2d303c';
-  c.lineWidth = 1.4;
+  c.lineWidth = 1.6;
   c.beginPath();
-  for (let y = y0 - 8; y > y1 + 14; y -= 12) {
-    c.moveTo(wx - 8, y);
-    c.lineTo(wx + 8, y);
+  for (let y = y0 - 10; y > y1 + 18; y -= 14) {
+    c.moveTo(wx - 12, y);
+    c.lineTo(wx + 12, y);
   }
   c.moveTo(wx, y0);
-  c.lineTo(wx, y1 + 8);
+  c.lineTo(wx, y1 + 10);
   c.stroke();
   c.fillStyle = '#9a9ca8';
-  c.fillRect(wx - 13, y0, 26, 5);
+  c.fillRect(wx - 19, y0, 38, 6);
 }
 
 // ---------------------------------------------------------- 6. the portrait --
@@ -918,7 +935,7 @@ function portraitRoom(R, g) {
   const t = g.time;
   const x0 = 4215;
   const x1 = 4605;
-  const top = -138;
+  const top = -214;
   const w = x1 - x0;
   const bw = '#5a606e';
   R.paint((c) => {
@@ -926,9 +943,9 @@ function portraitRoom(R, g) {
     c.fillStyle = bw;
     c.fillRect(x0, top, w, -top);
     c.fillStyle = 'rgba(8,10,18,0.3)';
-    c.fillRect(x0, -50, w, 50);
+    c.fillRect(x0, -90, w, 90);
     c.fillStyle = 'rgba(8,10,18,0.4)';
-    c.fillRect(x0, -53, w, 3); // the dado rail
+    c.fillRect(x0, -93, w, 3); // the dado rail
     const sg = c.createRadialGradient(x0 + 120, top, 6, x0 + 120, top, 170);
     sg.addColorStop(0, 'rgba(6,6,10,0.65)');
     sg.addColorStop(1, 'rgba(6,6,10,0)');
@@ -941,10 +958,10 @@ function portraitRoom(R, g) {
     }
     // a door in the back wall, blown off its hinges: a black frame
     c.fillStyle = '#0a0b10';
-    c.fillRect(x0 + 34, -112, 54, 112);
+    c.fillRect(x0 + 34, -203, 92, 203);
     c.fillStyle = '#383c48';
-    c.fillRect(x0 + 28, -118, 66, 6);
-    c.fillRect(x0 + 28, -118, 6, 118);
+    c.fillRect(x0 + 28, -210, 104, 7);
+    c.fillRect(x0 + 28, -210, 7, 210);
     // the room is in the dark of the slab above it: a settling gradient
     const dk = c.createLinearGradient(0, top, 0, 0);
     dk.addColorStop(0, 'rgba(3,4,10,0.32)');
@@ -983,7 +1000,7 @@ function portraitRoom(R, g) {
     c.stroke();
     // the piers either side: the left whole to the slab, the right broken short
     const pl = [[x0 - 14, 0], [x0 - 14, top - 8], [x0 + 16, top - 8], [x0 + 16, 0]];
-    const pr = [[x1 - 18, 0], [x1 - 18, -76], [x1 - 6, -92], [x1 + 4, -70], [x1 + 14, -84], [x1 + 14, 0]];
+    const pr = [[x1 - 18, 0], [x1 - 18, -140], [x1 - 6, -164], [x1 + 4, -128], [x1 + 14, -150], [x1 + 14, 0]];
     extrudePoly(c, pl, 22, { top: '#9a9cac', side: '#30323c' });
     extrudePoly(c, pr, 22, { top: '#9a9cac', side: '#30323c' });
     c.fillStyle = '#70727c';
@@ -994,7 +1011,7 @@ function portraitRoom(R, g) {
   });
   R.surface((c) => {
     c.rect(x0 - 14, top - 8, 30, -top + 8);
-    c.rect(x1 - 18, -92, 32, 92);
+    c.rect(x1 - 18, -164, 32, 164);
   }, 'plaster', { scale: 1.2, seed: 4, alpha: 0.8 });
 
   // what the room still holds, black against the grey
@@ -1002,23 +1019,23 @@ function portraitRoom(R, g) {
     const dark = '#14161e';
     c.fillStyle = dark;
     // a desk on its side, a drawer open
-    c.fillRect(x0 + 230, -64, 8, 64);
-    c.fillRect(x0 + 238, -64, 82, 6);
-    c.fillRect(x0 + 312, -64, 8, 64);
+    c.fillRect(x0 + 230, -75, 8, 75);
+    c.fillRect(x0 + 238, -75, 82, 7);
+    c.fillRect(x0 + 312, -75, 8, 75);
     c.fillStyle = '#23262f';
-    c.fillRect(x0 + 242, -58, 66, 54);
+    c.fillRect(x0 + 242, -68, 66, 62);
     // a chair upturned
     c.fillStyle = dark;
-    c.fillRect(x0 + 330, -34, 30, 4);
-    c.fillRect(x0 + 332, -30, 3, 30);
-    c.fillRect(x0 + 355, -30, 3, 30);
-    c.fillRect(x0 + 330, -34, 3, -40);
+    c.fillRect(x0 + 176, -42, 32, 4);
+    c.fillRect(x0 + 178, -38, 3, 38);
+    c.fillRect(x0 + 203, -38, 3, 38);
+    c.fillRect(x0 + 176, -42, 3, -46);
     // a steel filing cabinet, drawers hanging
-    c.fillRect(x0 + 122, -86, 44, 86);
+    c.fillRect(x0 + 322, -132, 46, 132);
     c.fillStyle = '#2c303c';
-    for (let i = 0; i < 3; i++) c.fillRect(x0 + 126, -82 + i * 28, 36, 24);
+    for (let i = 0; i < 4; i++) c.fillRect(x0 + 326, -128 + i * 31, 38, 27);
     c.fillStyle = dark;
-    c.fillRect(x0 + 122, -34, 44, 3);
+    c.fillRect(x0 + 322, -52, 46, 3);
     // the ceiling lamp, hanging by its flex, turning a little
     const sw = Math.sin(t * 0.6) * 2.5;
     c.strokeStyle = dark;
@@ -1153,41 +1170,43 @@ function portraitRoom(R, g) {
 
 function towerDoor(R, g) {
   const x0 = X4.tower;
-  const dw = 62;
-  const dh = 128;
-  const top = -(6 * 134);
+  const dw = 96;
+  const base = -16; // one step of 16 up from the street
+  const dtop = -221; // a door 205 tall above the step
+  const top = -(6 * T.storeyH(blockOf(617)));
   R.cast((c) => {
     // the surround: 16 deep, with a lintel and a worn step
-    slab(c, x0 - dw / 2 - 16, -dh - 20, dw + 32, dh + 20, 16, '#aaa69c', '#c6c2b6', '#2a2c36');
-    slab(c, x0 - dw / 2 - 24, -7, dw + 48, 7, 20, '#8e8b84', '#b4b0a4', '#26282f');
+    slab(c, x0 - dw / 2 - 16, dtop - 20, dw + 32, -dtop + 20, 16, '#aaa69c', '#c6c2b6', '#2a2c36');
+    slab(c, x0 - dw / 2 - 24, -16, dw + 48, 16, 20, '#8e8b84', '#b4b0a4', '#26282f');
     // the open doorway: a black stairwell
-    pit(c, [[x0 - dw / 2, -dh], [x0 + dw / 2, -dh], [x0 + dw / 2, -7], [x0 - dw / 2, -7]], 18, '#1c2030', '#020308');
+    pit(c, [[x0 - dw / 2, dtop], [x0 + dw / 2, dtop], [x0 + dw / 2, base], [x0 - dw / 2, base]], 18, '#1c2030', '#020308');
     // the leaf, swung out against the wall on the right: a green steel door
-    extrudePoly(c, [[x0 + dw / 2, -dh], [x0 + dw / 2 + 26, -dh + 7], [x0 + dw / 2 + 26, -2], [x0 + dw / 2, -7]], 6, { color: '#33423e' });
+    const lf = [[x0 + dw / 2, dtop], [x0 + dw / 2 + 36, dtop + 10], [x0 + dw / 2 + 36, base - 4], [x0 + dw / 2, base]];
+    extrudePoly(c, lf, 6, { color: '#33423e' });
     c.fillStyle = '#33423e';
-    poly(c, [[x0 + dw / 2, -dh], [x0 + dw / 2 + 26, -dh + 7], [x0 + dw / 2 + 26, -2], [x0 + dw / 2, -7]]);
+    poly(c, lf);
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.3)';
-    c.fillRect(x0 + dw / 2 + 4, -dh + 14, 18, 40);
-    c.fillRect(x0 + dw / 2 + 4, -dh + 62, 18, 40);
+    c.fillRect(x0 + dw / 2 + 6, dtop + 22, 24, 70);
+    c.fillRect(x0 + dw / 2 + 6, dtop + 104, 24, 80);
     // a transom light above, a small fan of dark glass
     c.fillStyle = '#05060a';
     c.beginPath();
-    c.moveTo(x0 - dw / 2 + 4, -dh - 6);
-    c.quadraticCurveTo(x0, -dh - 24, x0 + dw / 2 - 4, -dh - 6);
+    c.moveTo(x0 - dw / 2 + 4, dtop - 6);
+    c.quadraticCurveTo(x0, dtop - 30, x0 + dw / 2 - 4, dtop - 6);
     c.closePath();
     c.fill();
     // the first stair inside: a hint of a banister, just visible
     c.fillStyle = '#0a0b12';
-    for (let i = 0; i < 3; i++) c.fillRect(x0 - dw / 2 + 6 + i * 4, -30 - i * 12, 3, 30 + i * 12);
+    for (let i = 0; i < 4; i++) c.fillRect(x0 - dw / 2 + 8 + i * 5, -50 - i * 14, 3, 50 + i * 14 + base);
   });
   R.glow((c) => {
     // the pale threshold, the moon across the step
     c.fillStyle = 'rgba(176,196,250,0.18)';
-    c.fillRect(x0 - dw / 2, -7, dw, 3);
+    c.fillRect(x0 - dw / 2, base, dw, 3);
     c.fillStyle = 'rgba(200,214,250,0.3)';
-    c.fillRect(x0 - dw / 2 - 16, -dh - 20, dw + 32, 1.4);
-    c.fillRect(x0 - dw / 2 - 24, -7, dw + 48, 1.2);
+    c.fillRect(x0 - dw / 2 - 16, dtop - 20, dw + 32, 1.4);
+    c.fillRect(x0 - dw / 2 - 24, -16, dw + 48, 1.2);
   });
   // the roof: a water tank, a stair-head box, an aerial or two
   R.cast((c) => {
@@ -1333,6 +1352,33 @@ export function drawStreet(R, g) {
   roadSheen(R);
   if (near(X4.classroom - 120, X4.classroom + 300)) classroom(R, g);
   streetDebris(R, near);
+  // the small moving things of a still night
+  if (near(1620, 1920)) {
+    // a stove pipe out of a ground-floor window, and its thread of smoke
+    const [wx, wy, ww] = T.windowRect(blockOf(608), 0, 1);
+    R.cast((c) => {
+      c.fillStyle = '#25272f';
+      c.fillRect(wx + ww * 0.5, wy - 50, 6, 96);
+      c.fillRect(wx + ww * 0.5 - 3, wy - 54, 12, 5);
+    });
+    wisp(R, wx + ww * 0.5 + 3, wy - 54, t, { h: 260, w: 16, seed: 2, lean: -28, a: 0.2 });
+  }
+  if (near(4215, 4605)) drip(R, 4215 + 340, -180, -4, t, { seed: 6, every: 3.9 });
+  if (near(0, 700)) tumbleBag(R, t, 60, 560, { seed: 3 });
+  if (near(3100, 3480)) tumbleBag(R, t, 3100, 3480, { seed: 5, speed: 28 });
+  if (near(5000, 5400)) {
+    // the aerial on the tower's roof, hardly moving, and a thread of washing line
+    const ax = 4825 + 150 + 120;
+    const rtop = -(6 * T.storeyH(blockOf(617)));
+    R.cast((c) => {
+      c.strokeStyle = '#25272f';
+      c.lineWidth = 1.2;
+      c.beginPath();
+      c.moveTo(ax + 4, rtop - 70);
+      c.lineTo(ax + 40 + Math.sin(t * 0.9) * 1.2, rtop - 4 + Math.sin(t * 1.3) * 1.5);
+      c.stroke();
+    });
+  }
   T.cables(R, cx, { seed: 175, from: -400, to: X4.end + 400 });
 
   // the scene's own props

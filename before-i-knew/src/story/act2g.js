@@ -15,6 +15,7 @@ import { clamp } from '../engine/util.js';
 import { POSES, OUTFITS } from '../rigs/person.js';
 import { writeSave } from '../engine/save.js';
 import { lines, tween, fadeTo, actor, clearPeople, moveTo } from './kit.js';
+import { populate, restoreWorkers } from './life.js';
 import { XG, LECTURE, CAMPUS, UM_AHMAD } from './act2bc-map.js';
 import { LINES, WHO, CARDS } from './act2g-lines.js';
 import { drawCorner, cornerLook, drawLecture, lectureLook, LECTURE_SEATS, LECTERN_X, drawCampus, campusLook, CAFE_DOOR_X, drawUmAhmad, umAhmadLook, SEWING_X, UM_DOOR_X } from '../sets/grief.js';
@@ -45,6 +46,11 @@ export const ACT2G = {
     for (const id of ['torch', 'mirror', 'walkie']) if (!s.tools.includes(id)) s.tools.push(id);
     g.active = 'torch';
     moveTo(g, CORNER, XG.kerb);
+    // the street carries on, a little, far off: a woman sweeping, two men talking
+    populate(g, [
+      ['sweep', 1290, { f: -1, outfit: 'woman' }],
+      ['chat', -270, { f: 1, outfit: 'oldman' }],
+    ]);
     g.sound.ambience({ wind: 0.16, air: 0.3, crowd: 0, generator: 0.04, traffic: 0 }, 2);
     g.sound.life(0.08);
     g.sound.score?.mood('silence', 3);
@@ -205,6 +211,7 @@ export const ACT2G = {
     a.dissolve = 0;
     p.rig.o = a.back.o;
     moveTo(g, CORNER, XG.kerb);
+    restoreWorkers(g);
     p.override = KERB;
     a.abu = actor(g, 'abuyazan', XG.kerb + 105, { f: 1, pose: { ...KERB, head: 0.4 } });
     a.k = 0.62;

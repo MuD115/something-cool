@@ -10,6 +10,7 @@
 import { lerp, clamp } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
 import { writeSave } from '../engine/save.js';
+import { populate, tickLife } from './life.js';
 import { X, LANES, drawStreet, eveLook, surfaceAt } from './act2r-set.js';
 import { LINES, WHO, CARDS } from './act2r-lines.js';
 
@@ -70,6 +71,14 @@ export const ACT2R = {
     const cp = s.checkpoint;
     g.a = { duskK: { lanes: 0.12, front: 0.62 }[cp] || 0, watch2: 1, watch3: 1, smoke: 0, tyreGlow: 1, expose: 0, laneState: null, t2: 0, t3: 0 };
     g.surface = surfaceAt;
+    // the quarter's people keep to the sheltered stretches between the lanes
+    populate(g, [
+      ['cook', 560, { f: 1 }],
+      ['tap', 1880, { f: -1 }],
+      ['generator', 2140, { f: 1 }],
+      ['hammer', 4120, { f: -1 }],
+      ['chat', 4300, { f: 1 }],
+    ]);
     s.lane_retries ||= 0;
     for (const id of ['torch', 'mirror', 'walkie']) if (!s.tools.includes(id)) s.tools.push(id);
     s.tools = s.tools.filter((id) => id !== 'whitecloth');
@@ -521,6 +530,8 @@ export const ACT2R = {
   update(g, dt) {
     const a = g.a;
     const p = g.player;
+    // a shot cracks: everyone out on the street drops for a while
+    tickLife(g, a.shotAt && g.time - a.shotAt < 4);
     // the light goes as he goes south
     const k = clamp((p.x - X.start) / (X.stop - X.start)) * 0.5;
     a.duskK = a.duskEnd ? lerp(a.duskK, 0.8, 1 - Math.exp(-dt * 0.35)) : Math.max(a.duskK, k);

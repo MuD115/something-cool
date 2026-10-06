@@ -13,7 +13,7 @@
 
 import { lerp, rng, smooth } from '../engine/util.js';
 import * as T from '../sets/town.js';
-import { nightSky } from './act3r-set.js';
+import { nightSky, wisp, tumbleBag, drip, gust, swayAng } from './act3r-set.js';
 import { extrudePoly, extrudeRect, holeReveal } from '../sets/depth.js';
 
 // A rectangle turned by `ang` about (cx, cy), as world points, so a tilted
@@ -103,7 +103,7 @@ const BLOCKS = [
   { x: 3370, w: 470, floors: 3, fh: 138, color: '#b8b3aa', seed: 509, mat: 'limestone', laundry: true, balcony: [2, 0.6, 0.03] },
   { x: 3840, w: 620, floors: 4, fh: 134, color: '#a9a7a3', seed: 510, mat: 'concrete', torn: 0.3, tornLeft: true, holes: [[0.4, 0.45, 22]] },
 ];
-const GARDEN_WALL = { x: 3000, w: 400, floors: 3, fh: 138, color: '#9c9990', seed: 511, mat: 'plaster', noDoors: true, torn: 0.25, tornLeft: true };
+const GARDEN_WALL = { x: 3000, w: 400, floors: 3, fh: 138, color: '#9c9990', seed: 511, mat: 'plaster', noDoors: true, shopFront: true, torn: 0.25, tornLeft: true };
 
 // A candle in a window: a dark window cut into the façade, one tiny flame.
 function candle(R, spec, f, k, t, flick = 0) {
@@ -131,7 +131,8 @@ function candle(R, spec, f, k, t, flick = 0) {
 
 // ------------------------------------------------------------- the ruin --
 
-const RUIN_FH = 130;
+// (storeys at people's scale: 200 floor to floor, so a man stands in a room)
+const RUIN_FH = 200;
 
 // The bombed building seen in section, its front torn off: three rooms
 // stacked, the roof gone, a heap of its own front wall in the street, and the
@@ -172,7 +173,7 @@ function ruin(R, g) {
       c.fillRect(x0, ty, x1 - x0, by - ty);
       // a darker dado rail to waist height
       c.fillStyle = 'rgba(10,12,22,0.28)';
-      c.fillRect(x0, by - 52, x1 - x0, 52);
+      c.fillRect(x0, by - 90, x1 - x0, 90);
       // soot where the blast went up the wall
       const sg = c.createRadialGradient(x0 + 330 + n * 40, ty + 20, 4, x0 + 330 + n * 40, ty + 20, 150);
       sg.addColorStop(0, 'rgba(6,6,10,0.55)');
@@ -192,12 +193,12 @@ function ruin(R, g) {
 
   // windows in the back wall: the night beyond, pale, and a curtain in each
   const openings = [
-    [x0 + 120, 1, 46, 70],
-    [x0 + 400, 2, 50, 74],
-    [x0 + 250, 3, 46, 70],
+    [x0 + 110, 1, 74, 100],
+    [x0 + 390, 2, 74, 100],
+    [x0 + 240, 3, 74, 100],
   ];
   for (const [wx, n, ww, wh] of openings) {
-    const by = room(n)[1] - 56;
+    const by = room(n)[1] - 84;
     R.paint((c) => {
       c.fillStyle = '#10131f';
       c.fillRect(wx, by - wh, ww, wh);
@@ -353,19 +354,19 @@ function ruin(R, g) {
   // room 1: a wardrobe with its door off, a table, a chair on its side
   R.cast((c) => {
     c.fillStyle = dark;
-    c.fillRect(x0 + 48, -126, 70, 126);
+    c.fillRect(x0 + 48, -184, 84, 184);
     c.fillStyle = '#2b2e3a';
-    c.fillRect(x0 + 52, -122, 28, 118); // the open door's inside
+    c.fillRect(x0 + 52, -180, 34, 176); // the open door's inside
     c.fillStyle = dark;
-    c.fillRect(x0 + 52, -122, 4, 118);
+    c.fillRect(x0 + 52, -180, 4, 176);
     // table
-    c.fillRect(x0 + 250, -62, 86, 6);
-    c.fillRect(x0 + 256, -56, 5, 56);
-    c.fillRect(x0 + 325, -56, 5, 56);
+    c.fillRect(x0 + 250, -75, 96, 7);
+    c.fillRect(x0 + 256, -68, 5, 68);
+    c.fillRect(x0 + 335, -68, 5, 68);
     // glass and teapot
-    c.fillRect(x0 + 270, -74, 8, 12);
-    c.fillRect(x0 + 296, -80, 18, 18);
-    c.fillRect(x0 + 312, -76, 8, 3);
+    c.fillRect(x0 + 270, -87, 8, 12);
+    c.fillRect(x0 + 296, -93, 18, 18);
+    c.fillRect(x0 + 312, -89, 8, 3);
     // a chair
     c.fillRect(x0 + 370, -44, 28, 4);
     c.fillRect(x0 + 372, -40, 3, 40);
@@ -377,26 +378,26 @@ function ruin(R, g) {
     const by = room(2)[1];
     c.fillStyle = dark;
     // headboard and footboard
-    c.fillRect(x0 + 70, by - 78, 5, 78);
-    c.fillRect(x0 + 232, by - 52, 5, 52);
-    c.fillRect(x0 + 70, by - 30, 167, 5);
+    c.fillRect(x0 + 70, by - 104, 5, 104);
+    c.fillRect(x0 + 232, by - 66, 5, 66);
+    c.fillRect(x0 + 70, by - 36, 167, 5);
     c.lineWidth = 1.6;
     c.strokeStyle = dark;
     c.beginPath();
     for (let i = 0; i < 6; i++) {
-      c.moveTo(x0 + 70 + i * 9, by - 78);
-      c.lineTo(x0 + 70 + i * 9, by - 30);
+      c.moveTo(x0 + 70 + i * 9, by - 104);
+      c.lineTo(x0 + 70 + i * 9, by - 36);
     }
     for (let i = 0; i < 4; i++) {
-      c.moveTo(x0 + 232 - i * 9, by - 52);
-      c.lineTo(x0 + 232 - i * 9, by - 30);
+      c.moveTo(x0 + 232 - i * 9, by - 66);
+      c.lineTo(x0 + 232 - i * 9, by - 36);
     }
     c.stroke();
     // a mattress half off, bare springs
     c.fillStyle = '#23262f';
     c.beginPath();
-    c.moveTo(x0 + 78, by - 30);
-    c.lineTo(x0 + 220, by - 30);
+    c.moveTo(x0 + 78, by - 36);
+    c.lineTo(x0 + 220, by - 36);
     c.lineTo(x0 + 232, by - 4);
     c.lineTo(x0 + 82, by - 8);
     c.fill();
@@ -417,7 +418,7 @@ function ruin(R, g) {
     c.fill();
     // a picture frame, slipped
     c.save();
-    c.translate(x0 + 330, by - 108);
+    c.translate(x0 + 330, by - 150);
     c.rotate(-0.22);
     c.fillRect(-18, -14, 36, 28);
     c.fillStyle = '#4a5064';
@@ -442,7 +443,7 @@ function ruin(R, g) {
   });
   // curtains stirring at the back-wall windows
   for (const [wx, n, ww, wh] of openings) {
-    const by = room(n)[1] - 56;
+    const by = room(n)[1] - 84;
     const sway = Math.sin(t * 0.9 + wx * 0.01) * 3 + Math.sin(t * 2.3 + wx) * 0.8;
     R.cast((c) => {
       c.fillStyle = '#7f879e';
@@ -471,7 +472,7 @@ function ruin(R, g) {
   // a slab standing on its edge, a door leaning on it
   R.cast((c) => {
     extrudePoly(c, tiltRect(x0 + 520, 2, -0.42, -4, -96, 60, 96), 14, { top: '#9a9da6', side: '#383a42' });
-    extrudePoly(c, tiltRect(x1 - 40, 2, 0.32, -6, -104, 40, 104), 8, { color: '#5b4a3c' });
+    extrudePoly(c, tiltRect(x1 - 70, 2, 0.25, -41, -200, 82, 200), 8, { color: '#5b4a3c' });
     c.save();
     c.translate(x0 + 520, 2);
     c.rotate(-0.42);
@@ -480,9 +481,11 @@ function ruin(R, g) {
     c.restore();
     c.fillStyle = '#5b4a3c';
     c.save();
-    c.translate(x1 - 40, 2);
-    c.rotate(0.32);
-    c.fillRect(-6, -104, 40, 104);
+    c.translate(x1 - 70, 2);
+    c.rotate(0.25);
+    c.fillRect(-41, -200, 82, 200);
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    for (const px of [-34, 4]) for (const py of [-184, -100]) c.fillRect(px, py, 30, 70);
     c.restore();
   });
 
@@ -549,7 +552,7 @@ const alleyK = (cx) => smooth(X3.alley[0] - 300, X3.alley[0] + 40, cx) * (1 - sm
 function alleyBack(R, g) {
   const t = g.time;
   const [a0, a1] = X3.alley;
-  T.block(R, { x: a0, w: a1 - a0, floors: 4, fh: 130, color: '#a29f9a', seed: 77, mat: 'plaster', noDoors: true, torn: 0.15, tornLeft: false }, t);
+  T.block(R, { x: a0, w: a1 - a0, floors: 3, fh: 140, color: '#a29f9a', seed: 77, mat: 'plaster', noDoors: true, torn: 0.15, tornLeft: false }, t);
   // the alley is narrow: most of it lies in the shadow of the walls either
   // side, with a slant of moon down the far wall
   R.paint((c) => {
@@ -587,26 +590,33 @@ function alleyBack(R, g) {
     c.fillStyle = pg;
     c.fillRect(mx + 110, -4, 330, 24);
   });
-  // a laundry line across the back, slack, and a few stiff garments
+  // a laundry line across the back, slack, and the washing stirring on it
   R.cast((c) => {
+    const bob = Math.sin(t * 0.9) * 1.6 * (1 + gust(t));
     c.strokeStyle = '#1a1b22';
     c.lineWidth = 1.2;
     c.beginPath();
-    c.moveTo(a0 + 20, -300);
-    c.quadraticCurveTo((a0 + a1) / 2, -270, a1 - 20, -306);
+    c.moveTo(a0 + 20, -330);
+    c.quadraticCurveTo((a0 + a1) / 2, -296 + bob, a1 - 20, -336);
     c.stroke();
     const cols = ['#9aa0b4', '#6f7690', '#aab0c4', '#59607a', '#8c92a8'];
     for (let i = 0; i < 6; i++) {
       const px = a0 + 110 + i * 70;
-      const py = -300 + Math.sin((i / 6) * 3.1) * 26 + 6;
-      const sway = Math.sin(t * 1.1 + i * 1.7) * 2;
+      const py = -330 + Math.sin((i / 6) * 3.1) * 26 + 6 + bob * 0.5;
+      const sw = Math.sin(t * 1.5 + i * 1.7) * 3.2 + Math.sin(t * 3.3 + i) * 1;
+      const sway = sw * (1 + 0.8 * gust(t, i));
+      const gh = 54 + (i % 3) * 10;
       c.fillStyle = cols[i % cols.length];
       c.beginPath();
       c.moveTo(px, py);
-      c.lineTo(px + 22, py);
-      c.lineTo(px + 20 + sway, py + 36 + (i % 3) * 6);
-      c.lineTo(px + 2 + sway, py + 34 + (i % 2) * 8);
+      c.lineTo(px + 34, py);
+      c.quadraticCurveTo(px + 34 + sway * 0.7, py + gh * 0.55, px + 31 + sway, py + gh);
+      c.lineTo(px + 3 + sway, py + gh - 3 + (i % 2) * 8);
+      c.quadraticCurveTo(px + sway * 0.4, py + gh * 0.5, px, py);
       c.fill();
+      c.fillStyle = '#c9c4b6';
+      c.fillRect(px + 4, py - 3, 3, 6);
+      c.fillRect(px + 27, py - 3, 3, 6);
     }
   });
   // a drainpipe, a water tank, a gas cylinder by the door
@@ -620,8 +630,9 @@ function alleyBack(R, g) {
     c.ellipse(a1 - 106, -28, 12, 8, 0, 0, Math.PI * 2);
     c.fill();
     c.fillStyle = '#2e303a';
-    c.fillRect(a0 + 410, -36, 30, 36);
-    c.fillRect(a0 + 414, -44, 22, 10);
+    c.fillRect(a0 + 410, -62, 32, 62);
+    c.fillRect(a0 + 416, -72, 20, 12);
+    c.fillRect(a0 + 421, -78, 10, 6);
   });
 }
 
@@ -683,16 +694,16 @@ function alleyWalls(R, g) {
         const px = i * 280 + 40 + q() * 160;
         if (px + 60 < xa || px > xb) continue;
         for (let f = 0; f < 4; f++) {
-          const fy = -f * 170 - 150;
+          const fy = -f * 224 - 86 - 107;
           c.fillStyle = '#0d0e14';
-          c.fillRect(px, fy, 46, 84);
+          c.fillRect(px, fy, 74, 107);
           if (q() < 0.6) {
             c.fillStyle = '#2a2c37';
-            c.fillRect(px + 2, fy + 2, 21, 80);
-            c.fillRect(px + 25, fy + 2, 19, 40);
+            c.fillRect(px + 3, fy + 3, 33, 101);
+            c.fillRect(px + 38, fy + 3, 33, 50);
           }
           c.fillStyle = '#3a3d4a';
-          c.fillRect(px - 6, fy + 84, 58, 5);
+          c.fillRect(px - 7, fy + 107, 88, 6);
         }
         // a drainpipe
         c.fillStyle = '#16171d';
@@ -702,7 +713,7 @@ function alleyWalls(R, g) {
       }
       // slab edges
       c.fillStyle = 'rgba(70,74,92,0.5)';
-      for (let f = 0; f < 6; f++) c.fillRect(xa, -f * 170 - 62, xb - xa, 7);
+      for (let f = 0; f < 5; f++) c.fillRect(xa, -f * 224 - 8, xb - xa, 8);
       // the wall's return at the corner: its thickness, turned towards the
       // alley, so the near walls read as buildings and not as flat panels
       const rw = 34 * k;
@@ -714,7 +725,7 @@ function alleyWalls(R, g) {
       c.fillRect(r0x, -900, rw, 1200);
       // the slab ends and window reveals carry round the corner
       c.fillStyle = 'rgba(90,96,120,0.45)';
-      for (let f = 0; f < 6; f++) c.fillRect(r0x, -f * 170 - 62, rw, 7);
+      for (let f = 0; f < 5; f++) c.fillRect(r0x, -f * 224 - 8, rw, 8);
     });
     R.surface(wall, 'plaster', { scale: 1.6, seed: 5 + (side > 0 ? 1 : 0), alpha: 0.55 });
     // the moon on the inner edge: a thread of silver, and a lit crest
@@ -794,8 +805,9 @@ function streetDebris(R, near) {
       } else if (kind === 'can') {
         c.fillRect(x - 6, -6, 12, 6);
       } else {
-        c.fillRect(x - 7, -30, 14, 30);
-        c.fillRect(x - 3, -35, 6, 5);
+        c.fillRect(x - 15, -62, 30, 62);
+        c.fillRect(x - 10, -72, 20, 12);
+        c.fillRect(x - 5, -78, 10, 6);
       }
     }
   });
@@ -862,11 +874,20 @@ export function drawWalk(R, g) {
       const gx = X3.garden[0] + 150 + dx;
       c.fillStyle = '#0a0b10';
       c.beginPath();
-      c.moveTo(gx - 40, 0);
-      c.lineTo(gx - 40, -92);
-      c.quadraticCurveTo(gx, -128, gx + 40, -92);
-      c.lineTo(gx + 40, 0);
+      c.moveTo(gx - 52, 0);
+      c.lineTo(gx - 52, -190);
+      c.quadraticCurveTo(gx, -250, gx + 52, -190);
+      c.lineTo(gx + 52, 0);
       c.fill();
+      // its stone surround, and a leaf of the gate standing a little open
+      c.strokeStyle = '#bdb8aa';
+      c.lineWidth = 6;
+      c.beginPath();
+      c.moveTo(gx - 58, 0);
+      c.lineTo(gx - 58, -190);
+      c.quadraticCurveTo(gx, -258, gx + 58, -190);
+      c.lineTo(gx + 58, 0);
+      c.stroke();
     });
     R.layer(1);
   }
@@ -884,6 +905,25 @@ export function drawWalk(R, g) {
   if (near(X3.vine - 200, X3.vine + 200)) vineWall(R, g);
   if (near(X3.catWall[0], X3.catWall[1])) catWall(R);
   streetDebris(R, near);
+  // the small moving things of a still night
+  if (near(X3.ruin[0], X3.ruin[1])) {
+    const [rx0, rx1] = X3.ruin;
+    drip(R, rx1 - 160, -2 * RUIN_FH + 16, -RUIN_FH - 2, t, { seed: 2, every: 3.1 });
+    drip(R, rx0 + 300, -3 * RUIN_FH + 16, -2 * RUIN_FH - 2, t, { seed: 5, every: 4.3 });
+  }
+  if (near(2440, 2780)) {
+    // a stove pipe out of a window, and its thread of smoke
+    const [wx, wy, ww] = T.windowRect(BLOCKS[5], 0, 2);
+    R.cast((c) => {
+      c.fillStyle = '#25272f';
+      c.fillRect(wx + ww * 0.5, wy - 50, 6, 96);
+      c.fillRect(wx + ww * 0.5 - 3, wy - 54, 12, 5);
+    });
+    wisp(R, wx + ww * 0.5 + 3, wy - 54, t, { h: 250, w: 16, seed: 5, lean: 30, a: 0.2 });
+  }
+  if (near(X3.alley[0], X3.alley[1])) drip(R, X3.alley[1] - 95, -17, 0, t, { seed: 3, every: 3.4 });
+  if (near(X3.start, X3.start + 600)) tumbleBag(R, t, -150, 420, { seed: 1 });
+  if (near(1900, 2500)) tumbleBag(R, t, 1980, 2500, { seed: 4, speed: 26 });
   T.cables(R, cx, { seed: 165, from: -400, to: 4200 }); // (one span snapped, the rest still strung)
 
   // the scene's own props: the basement door, the wedding glimpse, the garden

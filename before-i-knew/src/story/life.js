@@ -708,7 +708,7 @@ const TASKS = {
   ladder: {
     outfit: 'man2',
     period: 1.0,
-    lift: 96,
+    lift: 196,
     pose: loop([
       [0, { torso: 0.06, head: -0.3, armN: 2.5, foreN: 3.3, armF: 1.9, foreF: 2.3 }],
       [0.45, { torso: 0.1, head: -0.2, armN: 1.7, foreN: 2.4, armF: 1.9, foreF: 2.3 }],
@@ -737,29 +737,29 @@ const TASKS = {
       c.lineWidth = 4;
       c.beginPath();
       c.moveTo(w.x - f * 26, 0);
-      c.lineTo(w.x + f * 24, -330);
+      c.lineTo(w.x + f * 30, -440);
       c.moveTo(w.x - f * 2, 0);
-      c.lineTo(w.x + f * 48, -330);
+      c.lineTo(w.x + f * 54, -440);
       c.stroke();
       c.lineWidth = 3;
-      for (let i = 1; i < 11; i++) {
-        const k = i / 11;
+      for (let i = 1; i < 15; i++) {
+        const k = i / 15;
         c.beginPath();
-        c.moveTo(w.x - f * 26 + f * 50 * k, -330 * k);
-        c.lineTo(w.x - f * 2 + f * 50 * k, -330 * k);
+        c.moveTo(w.x - f * 26 + f * 56 * k, -440 * k);
+        c.lineTo(w.x - f * 2 + f * 56 * k, -440 * k);
         c.stroke();
       }
       const sx = w.x + f * 70;
       const sw = Math.sin(t * 1.5) * 4;
       c.fillStyle = 'rgba(196,206,214,0.7)';
       c.beginPath();
-      c.moveTo(sx - 46, -330);
-      c.lineTo(sx + 46, -330);
-      c.lineTo(sx + 46 + sw, -206);
-      c.quadraticCurveTo(sx + sw * 0.5, -214, sx - 46 + sw, -206);
+      c.moveTo(sx - 46, -428);
+      c.lineTo(sx + 46, -428);
+      c.lineTo(sx + 46 + sw, -300);
+      c.quadraticCurveTo(sx + sw * 0.5, -308, sx - 46 + sw, -300);
       c.fill();
       c.fillStyle = '#6a4e30';
-      c.fillRect(sx - 48, -334, 96, 6);
+      c.fillRect(sx - 48, -432, 96, 6);
       void u;
     },
     beats: [[0.47, 'tap']],
@@ -986,3 +986,12 @@ export function tickLife(g, danger) {
 }
 
 export const WORK = Object.keys(TASKS);
+
+// Back on the street after a room or a memory cleared the scene's people:
+// the workers return to where they were, at their work.
+export function restoreWorkers(g) {
+  for (const w of g.workers || []) {
+    w.visible = true;
+    if (!g.npcs.includes(w)) g.npcs.push(w);
+  }
+}

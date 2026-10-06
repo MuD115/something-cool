@@ -15,6 +15,7 @@ import * as T from '../sets/town.js';
 import { horizon, rgbOf } from '../sets/horizon.js';
 import { depthCast, deepScenery, figureBox } from '../engine/dof.js';
 import { DEPTH, extrudePoly, extrudeRect } from '../sets/depth.js';
+import * as A from '../sets/ambient.js';
 
 export const X = {
   start: 150,
@@ -220,12 +221,10 @@ function tornCurtain(R, x0, x1, t) {
     c.strokeStyle = '#2a2622';
     c.lineWidth = 2;
     c.beginPath();
-    c.moveTo(x0, -300);
-    c.quadraticCurveTo((x0 + x1) / 2, -270, x1, -305);
-    c.stroke();
+    A.wire(c, x0, -300, x1, -305, 30, t, x0 * 0.01);
     const rags = [[x0 + 10, 50, 120, '#cfc6b4'], [x0 + 70, 26, 60, '#8e6f5a'], [x1 - 60, 44, 90, '#6d7a82']];
     for (const [rx, w, h, col] of rags) {
-      const sway = Math.sin(t * 1.4 + rx) * 4;
+      const sway = Math.sin(t * 1.4 + rx) * 4 + A.wind(t, rx) * 4 + Math.sin(t * 4.3 + rx * 2) * 1.2;
       c.fillStyle = col;
       c.beginPath();
       c.moveTo(rx, -298);
@@ -410,9 +409,10 @@ function fieldHospital(R, x0, x1, t) {
   const w = x1 - x0;
   const ox = x0 + 150; // the opening
   const ow = 300;
+  const OH = 212; // the opening: a man and a stretcher walk through it (was 190)
   R.paint((c) => {
     c.fillStyle = '#2e2822';
-    c.fillRect(ox, -190, ow, 190);
+    c.fillRect(ox, -OH, ow, OH);
     c.fillStyle = '#3a332b';
     c.fillRect(ox, -30, ow, 30);
     // the table and its supplies
@@ -430,16 +430,16 @@ function fieldHospital(R, x0, x1, t) {
     c.fillRect(ox + 118, -86, 24, 8);
     // the drip stand: a coat rack, a bag hung on a hook
     c.fillStyle = '#4a3a2c';
-    c.fillRect(ox + 190, -170, 4, 170);
+    c.fillRect(ox + 190, -196, 4, 196);
     c.fillRect(ox + 176, -4, 32, 4);
-    c.fillRect(ox + 182, -170, 20, 3);
+    c.fillRect(ox + 182, -196, 20, 3);
     c.fillStyle = 'rgba(220,230,235,0.8)';
-    c.fillRect(ox + 196, -164, 12, 22);
+    c.fillRect(ox + 196, -190, 12, 22);
     c.strokeStyle = 'rgba(210,220,225,0.7)';
     c.lineWidth = 1;
     c.beginPath();
-    c.moveTo(ox + 202, -142);
-    c.quadraticCurveTo(ox + 214, -90, ox + 200, -60);
+    c.moveTo(ox + 202, -168);
+    c.quadraticCurveTo(ox + 214, -110, ox + 200, -66);
     c.stroke();
     // the fridge, and the generator's cable to the lamp
     extrudeRect(c, ox + 238, -80, 44, 80, 16, { color: '#b8b4aa' });
@@ -450,40 +450,40 @@ function fieldHospital(R, x0, x1, t) {
     c.strokeStyle = '#141210';
     c.lineWidth = 1.5;
     c.beginPath();
-    c.moveTo(ox + 150, -190);
-    c.quadraticCurveTo(ox + 160, -176, ox + 150, -160);
+    c.moveTo(ox + 150, -OH);
+    c.quadraticCurveTo(ox + 160, -198, ox + 150, -182);
     c.stroke();
   });
   R.glow((c) => {
     // the single bulb, and its pool of light
     const f = 0.92 + 0.08 * Math.sin(t * 17) * Math.sin(t * 3.1);
-    const grd = c.createRadialGradient(ox + 150, -156, 0, ox + 150, -156, 170);
+    const grd = c.createRadialGradient(ox + 150, -178, 0, ox + 150, -178, 190);
     grd.addColorStop(0, `rgba(255,236,190,${0.55 * f})`);
     grd.addColorStop(1, 'rgba(255,220,160,0)');
     c.fillStyle = grd;
-    c.fillRect(ox, -190, ow, 190);
+    c.fillRect(ox, -OH, ow, OH);
     c.fillStyle = `rgba(255,245,215,${f})`;
-    c.fillRect(ox + 147, -160, 6, 7);
+    c.fillRect(ox + 147, -182, 6, 7);
     // a Red Crescent daubed by the door
   });
   R.cast((c) => {
     // what's left of the front wall either side of the opening: a wall 24 thick
-    extrudePoly(c, [[ox - 4, 2], [ox - 4, -190], [ox + 40, -196], [ox + 30, -150], [ox + 12, -120], [ox + 10, 2]], 24, { color: '#a2967f' });
+    extrudePoly(c, [[ox - 4, 2], [ox - 4, -OH], [ox + 40, -OH - 6], [ox + 30, -OH + 40], [ox + 12, -OH + 70], [ox + 10, 2]], 24, { color: '#a2967f' });
     c.fillStyle = '#a2967f';
     c.beginPath();
     c.moveTo(ox - 4, 2);
-    c.lineTo(ox - 4, -190);
-    c.lineTo(ox + 40, -196);
-    c.lineTo(ox + 30, -150);
-    c.lineTo(ox + 12, -120);
+    c.lineTo(ox - 4, -OH);
+    c.lineTo(ox + 40, -OH - 6);
+    c.lineTo(ox + 30, -OH + 40);
+    c.lineTo(ox + 12, -OH + 70);
     c.lineTo(ox + 10, 2);
     c.fill();
     // the tarp, flapping in the wind
     const flap = Math.sin(t * 2.3) * 10 + Math.sin(t * 5.1) * 4;
     c.fillStyle = '#3f6a78';
     c.beginPath();
-    c.moveTo(ox + ow - 110, -192);
-    c.lineTo(ox + ow + 4, -192);
+    c.moveTo(ox + ow - 110, -OH - 2);
+    c.lineTo(ox + ow + 4, -OH - 2);
     c.lineTo(ox + ow + 4 + flap * 0.3, -20);
     c.quadraticCurveTo(ox + ow - 50 + flap, -12, ox + ow - 110 + flap, -40);
     c.closePath();
@@ -491,14 +491,14 @@ function fieldHospital(R, x0, x1, t) {
     c.strokeStyle = 'rgba(0,0,0,0.2)';
     c.lineWidth = 1.5;
     c.beginPath();
-    c.moveTo(ox + ow - 60, -190);
+    c.moveTo(ox + ow - 60, -OH);
     c.lineTo(ox + ow - 58 + flap * 0.8, -30);
     c.stroke();
     // a red crescent, painted on the wall by hand
     c.fillStyle = '#a23a30';
     c.beginPath();
-    c.arc(ox - 70, -150, 22, 0, Math.PI * 2);
-    c.arc(ox - 62, -152, 18, 0, Math.PI * 2, true);
+    c.arc(ox - 70, -170, 22, 0, Math.PI * 2);
+    c.arc(ox - 62, -172, 18, 0, Math.PI * 2, true);
     c.fill();
   });
   void w;
@@ -537,47 +537,86 @@ function crawlWall(R) {
   });
 }
 
-// A first-floor balcony, and on its rail a sheet drying in the last sun.
+// A first-floor balcony (its slab 224 up, over the ground-floor door), the rail
+// a man's hand-height (92), and on it a sheet drying in the last sun.
 function balcony(R, x, t, sheet) {
+  const SY = -224; // the slab's top
+  const RH = 92;
+  const BW = 90; // half-width
   R.cast((c) => {
-    extrudeRect(c, x - 70, -150, 140, 10, 22, { color: '#8a7f6c' });
+    extrudeRect(c, x - BW, SY, BW * 2, 14, 24, { color: '#8a7f6c' });
     c.fillStyle = '#8a7f6c';
-    c.fillRect(x - 70, -150, 140, 10);
+    c.fillRect(x - BW, SY, BW * 2, 14);
+    c.fillStyle = 'rgba(0,0,0,0.25)';
+    c.fillRect(x - BW, SY + 11, BW * 2, 3);
     // the far rail, set back across the slab
     c.strokeStyle = 'rgba(40,32,26,0.55)';
     c.lineWidth = 1.5;
     c.beginPath();
-    c.moveTo(x - 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
-    c.lineTo(x + 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
-    c.moveTo(x + 70, -190);
-    c.lineTo(x + 70 + DEPTH.x * 22, -190 + DEPTH.y * 22);
-    c.moveTo(x + 70, -150);
-    c.lineTo(x + 70 + DEPTH.x * 22, -150 + DEPTH.y * 22);
+    c.moveTo(x - BW + DEPTH.x * 24, SY - RH + DEPTH.y * 24);
+    c.lineTo(x + BW + DEPTH.x * 24, SY - RH + DEPTH.y * 24);
+    c.moveTo(x + BW, SY - RH);
+    c.lineTo(x + BW + DEPTH.x * 24, SY - RH + DEPTH.y * 24);
+    c.moveTo(x + BW, SY);
+    c.lineTo(x + BW + DEPTH.x * 24, SY + DEPTH.y * 24);
     c.stroke();
     c.strokeStyle = '#3a312a';
+    c.lineWidth = 2.5;
+    c.beginPath();
+    c.moveTo(x - BW, SY - RH);
+    c.lineTo(x + BW, SY - RH);
+    c.moveTo(x - BW, SY - RH * 0.5);
+    c.lineTo(x + BW, SY - RH * 0.5);
+    c.stroke();
     c.lineWidth = 2;
     c.beginPath();
-    c.moveTo(x - 70, -190);
-    c.lineTo(x + 70, -190);
     for (let i = 0; i <= 14; i++) {
-      c.moveTo(x - 70 + i * 10, -190);
-      c.lineTo(x - 70 + i * 10, -150);
+      c.moveTo(x - BW + i * (BW / 7), SY - RH);
+      c.lineTo(x - BW + i * (BW / 7), SY);
     }
     c.stroke();
     if (sheet) {
-      const sway = Math.sin(t * 1.5) * 4;
+      // draped over the rail, hanging on the street side down past the slab
+      const top = SY - RH - 2;
+      const x0 = x - 66;
+      const w = 128;
+      const h = 190;
+      const wv = A.wind(t, 0.6);
+      const off = (v) => Math.sin(t * 2.6 - v * 2.4 + 0.5) * 4.5 * v * v + wv * 7 * v;
       c.fillStyle = '#e6e1d4';
       c.beginPath();
-      c.moveTo(x - 50, -192);
-      c.lineTo(x + 40, -192);
-      c.lineTo(x + 42 + sway, -96);
-      c.lineTo(x + 20 + sway, -104);
-      c.lineTo(x - 10 + sway, -94);
-      c.lineTo(x - 48 + sway, -100);
+      c.moveTo(x0, top);
+      c.lineTo(x0 + w, top);
+      c.lineTo(x0 + w + off(0.5), top + h * 0.5);
+      c.lineTo(x0 + w - 4 + off(1), top + h);
+      c.lineTo(x0 + w * 0.7 + off(1), top + h - 9);
+      c.lineTo(x0 + w * 0.4 + off(1), top + h + 3);
+      c.lineTo(x0 + 8 + off(1), top + h - 6);
+      c.lineTo(x0 + off(0.5), top + h * 0.5);
       c.closePath();
       c.fill();
+      c.fillStyle = 'rgba(0,0,0,0.07)';
+      for (let i = 1; i < 6; i++) c.fillRect(x0 + (w * i) / 6 + off(0.6) * 0.6, top + 6, 2, h - 14);
       c.fillStyle = 'rgba(160,140,110,0.3)';
-      c.fillRect(x + 20, -170, 16, 30); // a sun-rotted patch
+      c.fillRect(x0 + w * 0.6, top + 60, 24, 40); // a sun-rotted patch
+    }
+  });
+  // geranium pots on the slab, nodding
+  R.cast((c) => {
+    for (let i = 0; i < 2; i++) {
+      const px = x - BW + 12 + i * 52;
+      c.fillStyle = '#8a5a3a';
+      c.fillRect(px, SY - 20, 18, 20);
+      c.save();
+      c.translate(px + 9, SY - 20);
+      c.rotate(A.wind(t, i + 2) * 0.07);
+      c.fillStyle = i ? '#4e6a32' : '#6e8a44';
+      c.beginPath();
+      c.arc(0, -10, 12, 0, Math.PI * 2);
+      c.arc(-7, -17, 7, 0, Math.PI * 2);
+      c.arc(8, -18, 7, 0, Math.PI * 2);
+      c.fill();
+      c.restore();
     }
   });
 }
@@ -586,28 +625,28 @@ function balcony(R, x, t, sheet) {
 function guttedFlat(R, x) {
   R.paint((c) => {
     c.fillStyle = '#0f0c0a';
-    c.fillRect(x - 45, -175, 90, 175);
+    c.fillRect(x - 46, -205, 92, 205);
     // the burnt reveal: the wall's thickness down the left-hand side
     c.save();
     c.beginPath();
-    c.rect(x - 45, -175, 90, 175);
+    c.rect(x - 46, -205, 92, 205);
     c.clip();
     c.fillStyle = '#2a211b';
     c.beginPath();
-    c.moveTo(x - 45, -175);
-    c.lineTo(x - 45 + DEPTH.x * 24, -175 + DEPTH.y * 24);
-    c.lineTo(x - 45 + DEPTH.x * 24, DEPTH.y * 24);
-    c.lineTo(x - 45, 0);
+    c.moveTo(x - 46, -205);
+    c.lineTo(x - 46 + DEPTH.x * 24, -205 + DEPTH.y * 24);
+    c.lineTo(x - 46 + DEPTH.x * 24, DEPTH.y * 24);
+    c.lineTo(x - 46, 0);
     c.fill();
     c.restore();
-    const grd = c.createLinearGradient(0, -175, 0, -420);
+    const grd = c.createLinearGradient(0, -205, 0, -440);
     grd.addColorStop(0, 'rgba(18,14,12,0.85)');
     grd.addColorStop(1, 'rgba(18,14,12,0)');
     c.fillStyle = grd;
     c.beginPath();
-    c.moveTo(x - 50, -175);
-    c.quadraticCurveTo(x - 60, -320, x - 10, -420);
-    c.quadraticCurveTo(x + 30, -320, x + 55, -175);
+    c.moveTo(x - 52, -205);
+    c.quadraticCurveTo(x - 62, -340, x - 10, -440);
+    c.quadraticCurveTo(x + 30, -340, x + 57, -205);
     c.fill();
   });
 }
@@ -663,21 +702,22 @@ function ruin(R, t, cut) {
     }
     // windows on the standing half
     c.fillStyle = '#1c1714';
-    for (let f = 0; f < 3; f++) for (let i = 0; i < 2; i++) c.fillRect(x0 + 30 + i * 70, -480 + f * 130, 40, 60);
-    // the doorway
+    // (74 x 107, the sill 86 above its floor; storeys of 224)
+    for (const [wx, fl] of [[x0 + 10, 0], [x0 + 10, 1], [x0 + 100, 1]]) c.fillRect(wx, -fl * 224 - 86 - 107, 74, 107);
+    // the doorway: 92 wide, 205 tall
     c.fillStyle = '#0b0908';
-    c.fillRect(X.ruinDoor - 36, -160, 72, 160);
+    c.fillRect(X.ruinDoor - 46, -205, 92, 205);
     // the doorway cut through a 28 thick wall: its left jamb
     c.save();
     c.beginPath();
-    c.rect(X.ruinDoor - 36, -160, 72, 160);
+    c.rect(X.ruinDoor - 46, -205, 92, 205);
     c.clip();
     c.fillStyle = '#5a5143';
     c.beginPath();
-    c.moveTo(X.ruinDoor - 36, -160);
-    c.lineTo(X.ruinDoor - 36 + DEPTH.x * 28, -160 + DEPTH.y * 28);
-    c.lineTo(X.ruinDoor - 36 + DEPTH.x * 28, DEPTH.y * 28);
-    c.lineTo(X.ruinDoor - 36, 0);
+    c.moveTo(X.ruinDoor - 46, -205);
+    c.lineTo(X.ruinDoor - 46 + DEPTH.x * 28, -205 + DEPTH.y * 28);
+    c.lineTo(X.ruinDoor - 46 + DEPTH.x * 28, DEPTH.y * 28);
+    c.lineTo(X.ruinDoor - 46, 0);
     c.fill();
     c.restore();
   });
@@ -697,7 +737,7 @@ function ruin(R, t, cut) {
       // first floor
       c.globalAlpha = cut;
       c.fillStyle = '#231d18';
-      c.fillRect(X.ruinDoor + 36, -250, x1 - X.ruinDoor - 36, 254);
+      c.fillRect(X.ruinDoor + 46, -250, x1 - X.ruinDoor - 46, 254);
       c.fillStyle = '#4a4034';
       c.beginPath();
       c.moveTo(X.climb[0], 0);
@@ -826,6 +866,40 @@ function schoolStreet(R, g, t) {
   });
 }
 
+// What moves on its own: smoke from the hospital's stove and the dead car,
+// pigeons on the cover, a bag on the draught, a drip, light in the lanes.
+function streetLife(R, g, t, near, k) {
+  const cx = R.cam.x;
+  const warm = clamp(0.4 + k);
+  if (near(X.hosp[0], X.hosp[1])) {
+    const px = X.hosp[0] + 150 + 24;
+    R.cast((c) => {
+      c.fillStyle = '#3f3a36';
+      c.fillRect(px - 4, -258, 8, 56);
+      c.fillRect(px - 8, -262, 16, 5);
+    });
+    A.smoke(R, px, -264, t, { warm, h: 200, w: 20, alpha: 0.3, seed: 2 });
+  }
+  if (near(X.car[0], X.car[1])) A.smoke(R, X.car[0] + 62, -104, t, { warm: 0, h: 110, w: 11, alpha: 0.14, seed: 4 });
+  for (const [px, py, sd] of [[X.wall1[0] + 120, -106, 1], [X.car[0] + 150, -113, 2], [X.sheet + 40, -316, 3], [X.guard + 90, -92, 4]]) {
+    if (near(px - 20, px + 20)) A.perch(R, px, py, t, sd, { color: k > 0.5 ? '#2c2a30' : '#4a4640' });
+  }
+  A.flock(R, cx, t, { y: -380, n: 4, every: 57, dur: 12, seed: 2, color: k > 0.5 ? 'rgba(34,30,40,0.8)' : 'rgba(52,48,50,0.75)' });
+  A.bag(R, cx, t, { every: 49, dur: 16, seed: 6 });
+  for (const [dx, dy, sd] of [[2200, -128, 1], [4300, -150, 2]]) {
+    if (!near(dx - 30, dx + 30)) continue;
+    R.cast((c) => {
+      c.fillStyle = '#4a4d52';
+      c.fillRect(dx - 16, dy - 4, 20, 6);
+      c.fillRect(dx - 18, dy - 40, 5, 38);
+    });
+    A.drip(R, dx, dy + 2, 0, t, sd);
+  }
+  LANES.forEach((L) => {
+    if (near(L.x0, L.x1)) A.sunMotes(R, L.x0 + 20, L.x1 + 100, -280, -20, t, { n: 16, seed: L.id, color: '255,200,140' });
+  });
+}
+
 // ---------------------------------------------------------------- scene --
 
 export function drawStreet(R, g) {
@@ -906,6 +980,7 @@ export function drawStreet(R, g) {
 
   T.street(R, -500, 7200);
   T.cables(R, cx, { seed: 23, to: 7000 });
+  streetLife(R, g, t, near, k);
   LANES.forEach((L) => {
     if (near(L.x0, L.x1)) laneLight(R, L.x0, L.x1, k);
   });
@@ -918,13 +993,11 @@ export function drawStreet(R, g) {
       c.strokeStyle = '#2a2622';
       c.lineWidth = 2;
       c.beginPath();
-      c.moveTo(X.mouth[0] - 10, -330);
-      c.quadraticCurveTo((X.mouth[0] + X.mouth[1]) / 2, -300, X.mouth[1] + 10, -336);
-      c.stroke();
+      A.wire(c, X.mouth[0] - 10, -330, X.mouth[1] + 10, -336, 36, t, 2.2);
       const cols = ['#6b3f36', '#4a5260', '#8a7a5a', '#6b3f36'];
       for (let i = 0; i < 4; i++) {
         const bx = X.mouth[0] + i * 125;
-        const sway = Math.sin(t * 1.1 + i) * 4;
+        const sway = Math.sin(t * 1.1 + i) * 4 + A.wind(t, i * 1.3) * 6 + Math.sin(t * 3.1 + i * 2) * 1.4;
         c.fillStyle = cols[i];
         c.beginPath();
         c.moveTo(bx, -326 + i * 2);
@@ -991,7 +1064,7 @@ export function drawStreet(R, g) {
     R.paint((c) => {
       c.globalAlpha = 1 - (a.cut || 0);
       c.fillStyle = '#8f846f';
-      c.fillRect(X.ruinDoor + 36, -250, X.ruin[1] - X.ruinDoor - 36, 254);
+      c.fillRect(X.ruinDoor + 46, -250, X.ruin[1] - X.ruinDoor - 46, 254);
       c.globalAlpha = 1;
     });
   }

@@ -15,6 +15,7 @@
 import { clamp, lerp, smooth } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
+import { populate } from './life.js';
 import { writeSave } from '../engine/save.js';
 import { X3, buildWalkLevel, surfaceAt, walkLook, drawWalk } from './act3w-set.js';
 import { basementDoor, weddingGlimpse, nightGarden, wateringCan, waterPour } from '../sets/night-props.js';
@@ -71,6 +72,11 @@ export const ACT3W = {
     const p = g.player;
     g.a = { part: 3, beds: [false, false, false, false], nextChirp: 0, nextShot: 18, nextDog: 9, nextCreak: 5, nextNey: 12, doorOpen: 0, doorGlow: 0, wet: 0, canTaken: false };
     g.surface = surfaceAt;
+    // up late: a man smoking on his step, another at a generator that won't start
+    populate(g, [
+      ['smoke', 1330, { f: -1 }],
+      ['generator', 2820, { f: 1 }],
+    ]);
     for (const id of ['torch']) if (!s.tools.includes(id)) s.tools.push(id);
     g.active = 'torch';
     g.torch.charge = 0.5;

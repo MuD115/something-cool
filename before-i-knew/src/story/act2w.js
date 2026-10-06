@@ -14,6 +14,7 @@
 import { POSES } from '../rigs/person.js';
 import { writeSave } from '../engine/save.js';
 import { lines, tween, fadeTo, actor, clearPeople, moveTo } from './kit.js';
+import { populate, tickLife, restoreWorkers } from './life.js';
 import { XW, UM_SAID } from './act2bc-map.js';
 import { LINES, WHO, CARDS } from './act2w-lines.js';
 import { drawQuarter, quarterLook, surfaceAt, drawUmSaidRoom, umSaidLook, UM_SAID_SEAT, BAG_X } from '../sets/witness.js';
@@ -54,6 +55,14 @@ export const ACT2W = {
     const p = g.player;
     g.a = { part: 'witness', mem: null, k: 0, photos: [] };
     g.surface = (x) => (g.a.mem ? 'tile' : surfaceAt(x));
+    // the quarter in the evening: people at what's left of the day's work
+    populate(g, [
+      ['knead', 830, { f: 1 }],
+      ['chat', 1460, { f: -1 }],
+      ['generator', 2230, { f: 1 }],
+      ['laundry', 3700, { f: 1 }],
+      ['tap', 4260, { f: -1 }],
+    ]);
     for (const id of ['torch', 'mirror', 'walkie']) if (!s.tools.includes(id)) s.tools.push(id);
     g.active = s.tools.includes('camera') ? 'camera' : 'torch';
     g.level.bounds = [STREET[0] - STREET[1], STREET[0] + STREET[1]];
@@ -162,6 +171,7 @@ export const ACT2W = {
     clearPeople(g);
     a.mem = null;
     moveTo(g, STREET, XW.umSaid + 60);
+    restoreWorkers(g);
     g.a.woman = null;
     g.a.hanger = hanger(g);
     g.a.baker = actor(g, 'man3', XW.bakery + 110, { f: -1, o: { top: '#d8d0c0', beard: 'long', beardColor: '#cfc8bc' }, pose: { ...POSES.stand, torso: 0.25, armN: 0.9, foreN: 1.1 } });
@@ -369,6 +379,7 @@ export const ACT2W = {
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;
+    tickLife(g, false);
     // she pegs out the washing: reach to the line, a pause, again
     if (a.hanger) {
       const r = 0.5 + 0.5 * Math.sin(g.time * 1.3);
