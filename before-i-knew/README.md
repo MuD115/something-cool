@@ -8,7 +8,8 @@ yet.
 - [`STORY.md`](STORY.md) is the story bible: characters, tools, the four acts, the endings
   and the state that carries between them.
 - [`script/act1.md`](script/act1.md) to [`script/act4.md`](script/act4.md) are the production
-  scripts. Act One and Act Two's Retrieval path are built, and follow them line for line.
+  scripts. All four acts are built, with all three of Act Two's paths and all five endings,
+  and follow them line for line.
 
 Dialogue is in the Damascus dialect with English subtitles. Menus and on-screen hints use
 Modern Standard Arabic. The depiction is restrained: violence
@@ -43,7 +44,12 @@ From 3:05 to 4:15 pm, about 10–20 minutes to play.
    ◆ **Choice C:** *I need to see him*, *Who did this?* or silence. Each answer takes Sami
    into a different night.
 
-## Act Two: The Evening (Retrieval)
+## Act Two: The Evening
+
+Act One's last choice decides which evening follows: going to see him (Retrieval), asking who
+did this (the Witness), or saying nothing (Grief). Each is about 8 to 10 minutes to play.
+
+### Retrieval
 
 From 4:30 pm, on the path that begins with «بدي شوفو» (*I need to see him*). About 10 minutes to
 play.
@@ -65,7 +71,39 @@ play.
    rail), or look for another way, through the half-collapsed building.
 4. **Abu Yazan** has followed you south. He gives you Ahmad's lighter and his journal.
 
-## Act Three: The Night (Retrieval), Parts One to Three
+### The Witness
+
+From 4:35 pm, into the southern quarter to find the people who saw.
+
+1. **Um Said**, behind her green door, went out under the sniper to cover Ahmad. She gives
+   you his bag, and his camera in it.
+2. **The bakery.** Abu Firas hands bread over a low wall: it's made from animal feed.
+3. **The wall of children's drawings.** You sit on the low wall in front of it, holding the camera.
+   ◆ **Choice E:** photograph it, so that something survives (then the balcony, the building
+   with its face torn off, and the far-off shape under the blanket), or put the camera away and
+   be with people (sit with a woman on what's left of her balcony; help an old man carry a
+   sack of flour).
+4. **Abu Yazan** finds you in an alley, with the lighter and the journal.
+
+### Grief
+
+From 4:20 pm, on the kerb at the corner where you were told.
+
+1. **Thirty seconds** with no control at all, Abu Yazan beside you, while the light moves and
+   the screen's edges darken. Then you can look about you, no more.
+2. **Damascus, 2009.** The kerb becomes a lecture hall: Ahmad whispering beside you while the
+   professor drones about load-bearing walls. Then outside into the sun, a falafel cart, a
+   jasmine seller, and the walk to the cafeteria for a Nescafé that solves all the world's
+   problems, until the street dissolves into dust.
+3. **The lighter and the journal**, and Abu Nidal, sent for, at the end of the street.
+   ◆ **Choice F:** go with him to Um Ahmad (her sewing machine, the wind-up clock, the
+   unfinished white shirt, and the light crossing the wall towards her son's photograph), or
+   walk east alone.
+
+All three evenings hand on to the night: Retrieval to Act Three's Part One, the Witness and
+Grief straight to the night walk.
+
+## Act Three: The Night
 
 From 8 pm, whichever way Choice D went. Each route is about 8 minutes to play.
 
@@ -101,8 +139,41 @@ From 8 pm, whichever way Choice D went. Each route is about 8 minutes to play.
   half full: you can water it. It ends at midnight; the end card tells the whole night.
 
 Officer Maher is written as the regime's checkpoints were: he trades in what he controls, and
-the game doesn't ask you to understand him. The visions, the flashbacks and the rooftop
-(Parts Four to Six) are still to come.
+the game doesn't ask you to understand him.
+
+- **The small hours** (Parts Four to Six, every path), about 12 minutes:
+  - **Three visions.** The street becomes Ahmad's basement classroom (*you're late, ya
+    handasa*); an orchard where your hand goes through the grapes; a shop window that opens
+    onto Damascus in 2010, a café, and two young men laughing on the other side of the glass.
+  - **Three memories.** Eid before the revolution, the family at table, and a knock at the
+    door that holds the room silent for three seconds. The first Friday protest: you walk with
+    the chant until the shots, and run for the dumpster with Ahmad (*they're never going to
+    silence us again*). A portrait in the dark, lit by your torch, opens onto a schoolroom
+    note and a father's warning.
+  - **The roof.** Six flights up with the torch, then stars and the Milky Way, Damascus a band
+    of light to the west and Ghouta dark. Nothing is asked of you. After a while the dawn azan
+    rises, a single synthesised voice, and the east goes grey.
+
+## Act Four: Dawn
+
+About 8 minutes, then one of five endings. Down the stairs past each landing's life (a pot
+still on a stove, a bicycle, laundry), into the dawn street: a man with a jerrycan hugging the
+wall, a woman sweeping half a building, two boys with handmade exercise books. At the junction
+from Act One, the night you've had decides the road. Only when it hasn't is there a choice:
+◆ **Choice H:** south, the tunnels, or the classroom.
+
+1. **The Witness.** You look back through the camera's photographs, then walk east, past
+   the last gardens, towards the sun.
+2. **The Last Farewell.** Ahmad brought home and buried under the vine, with the line from his
+   journal if you have it (there's a variant for a negotiation that went badly).
+3. **The Tunnel.** Down into the dark under the farms, the crank torch's light shrinking.
+4. **The One Who Remains.** The basement classroom at dawn: a boy's question, and you write
+   the date on the board, stroke by stroke.
+5. **The Wolf's Hour.** A rubble room, a sunbeam, the black cat yawning beside you, and the
+   town waking.
+
+Every ending closes on the same words: *The characters are fictional. The siege was real.*
+Endings aren't ranked, and nothing counts how many you've seen.
 
 Your choices set the story state that later acts build on: compassion, courage, isolation,
 the children and the path. It's saved in the browser.
@@ -133,8 +204,8 @@ You can rebind every key under **Controls**. On phones and tablets, on-screen bu
 **Menus.** The main menu has Continue (from the last checkpoint, in whichever act), New game,
 Chapters, Your story, Settings, Controls and About. Finishing Act One, with any ending, unlocks Act Two:
 the end card offers **Continue to Act Two**, carrying your choices and tools over, and so does
-Continue on the main menu. (The Witness and Grief evenings are still to come; for now Act Two
-follows Sami south, to Ahmad.)
+Continue on the main menu. Each act's end card continues to the next in the same way, through
+to the ending.
 
 - **Chapters** lists each act's scenes. A scene opens once you've reached it in the story,
   and it starts from the state you last reached it with.
@@ -291,11 +362,13 @@ people walk, run, crouch and bend is motion-captured (below).
 
 ## Acts and dialogue
 
-- **Acts.** Each act is a module in [`src/story/`](src/story) (`act1.js`, `act2r.js`, `act3r.js`), with
-  its set beside it (`act1-set.js`, `act2r-set.js`). [`src/main.js`](src/main.js) keeps a
+- **Acts.** Each act is a module in [`src/story/`](src/story) (`act1.js`; `act2r.js`, `act2w.js`,
+  `act2g.js`; `act3r.js`, `act3w.js`, `act3v.js`; `act4.js`), with its set beside it or in
+  [`src/sets/`](src/sets). [`src/story/endings.js`](src/story/endings.js) resolves the ending from
+  the story state, as `script/act4.md`'s pseudocode does. [`src/main.js`](src/main.js) keeps a
   registry of them. The save names the act and its checkpoint.
-- **Act Two's dialogue** is data, in [`src/story/act2r-lines.js`](src/story/act2r-lines.js),
-  keyed by line. The lines from `script/act2.md` are final. A few gameplay barks the script
+- **The dialogue** from Act Two on is data, in the `*-lines.js` file beside each act (for
+  example [`src/story/act2r-lines.js`](src/story/act2r-lines.js)), keyed by line. The lines from the scripts are final. A few gameplay barks the script
   doesn't cover (the lanes, the near misses, the crawl) are placeholders marked
   `draft: true`, and the dialogue log tags them **[draft]**. To replace one, edit its `ar` and
   `en` and delete the flag. No code changes are needed.
