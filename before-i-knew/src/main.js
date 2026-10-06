@@ -995,16 +995,30 @@ const touchMap = [
   ['t-light', 'use'],
   ['t-skip', 'skip'],
 ];
+// A second tap on an arrow, held, runs (as a stick pushed all the way does).
+const lastTap = {};
 for (const [id, action] of touchMap) {
   const b = $(id);
   if (!b) continue;
+  const arrow = action === 'left' || action === 'right';
+  let running = false;
   const down = (e) => {
     e.preventDefault();
     input.touchDown(action);
+    if (arrow && performance.now() - (lastTap[action] || -1e9) < 320) {
+      running = true;
+      input.touchDown('run');
+    }
     b.classList.add('down');
   };
   const up = () => {
+    if (!b.classList.contains('down')) return;
     input.touchUp(action);
+    if (arrow) lastTap[action] = performance.now();
+    if (running) {
+      running = false;
+      input.touchUp('run');
+    }
     b.classList.remove('down');
   };
   b.addEventListener('pointerdown', down);

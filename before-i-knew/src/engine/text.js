@@ -228,7 +228,10 @@ export class Text {
     });
     el.appendChild(row);
     el.hidden = false;
-    requestAnimationFrame(() => el.classList.add('show'));
+    // (a timer as well as the next frame, in case frames are held back)
+    const show = () => el.classList.add('show');
+    requestAnimationFrame(show);
+    setTimeout(show, 60);
     this.choiceOpen = true;
   }
 

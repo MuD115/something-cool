@@ -573,7 +573,7 @@ export class Game {
       this.torch.charge = Math.max(0, this.torch.charge - dt * 0.03);
       if (this.torch.charge <= 0) this.torch.on = false;
     }
-    this.text.tools(list, this.active, this.torch.charge, this.torch.on, keyLabel(this.input.bindings().use?.[0]));
+    this.text.tools(list, this.active, this.torch.charge, this.torch.on, this.input.label('use'));
   }
 
   interact() {

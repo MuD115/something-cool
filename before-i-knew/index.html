@@ -694,7 +694,7 @@
   .tpad { position: absolute; bottom: 4%; display: flex; gap: 8px; pointer-events: auto; }
   .tpad.left { left: 3%; }
   .tpad.right { right: 3%; flex-wrap: wrap; justify-content: flex-end; max-width: 46%; }
-  .tpad button, #t-menu {
+  .tpad button, #t-menu, #t-skip {
     width: 52px;
     height: 52px;
     border-radius: 50%;
@@ -709,10 +709,12 @@
     place-items: center;
   }
   .tpad button svg { width: 22px; height: 22px; }
-  .tpad button.down { background: rgba(174, 193, 120, 0.35); }
+  .tpad button.down, #t-skip.down { background: rgba(174, 193, 120, 0.35); }
   #t-menu { position: absolute; top: 4%; right: 3%; pointer-events: auto; width: 44px; height: 44px; font-size: 16px; }
   #t-skip { position: absolute; top: calc(4% + 52px); right: 3%; pointer-events: auto; width: 44px; height: 44px; }
   @media (pointer: coarse) { #stage.playing #tools { bottom: auto; top: 16%; } }
+  /* a choice is tapped directly: the pads step aside so they don't cover it */
+  #stage:has(#choice:not([hidden])) #touch .tpad { visibility: hidden; }
 
   #nogl { position: absolute; inset: 0; display: grid; place-items: center; padding: 0 12%; text-align: center; color: var(--dust); font: 15px/1.5 var(--mono); }
 
