@@ -1361,7 +1361,7 @@ export function drawStreet(R, g) {
       c.fillRect(wx + ww * 0.5, wy - 50, 6, 96);
       c.fillRect(wx + ww * 0.5 - 3, wy - 54, 12, 5);
     });
-    wisp(R, wx + ww * 0.5 + 3, wy - 54, t, { h: 260, w: 16, seed: 2, lean: -28, a: 0.2 });
+    wisp(R, wx + ww * 0.5 + 3, wy - 54, t, { h: 260, w: 16, seed: 2, lean: -28, a: 0.45, dark: 0.9, glow: 0.7 });
   }
   if (near(4215, 4605)) drip(R, 4215 + 340, -180, -4, t, { seed: 6, every: 3.9 });
   if (near(0, 700)) tumbleBag(R, t, 60, 560, { seed: 3 });

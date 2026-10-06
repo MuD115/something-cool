@@ -2078,7 +2078,7 @@ function smokeThread(c, x, y, t, dawn, seed) {
   const tint = dawn > 0.4 ? [118, 134, 168] : [96, 108, 150];
   const n = 12;
   for (let i = 0; i < n; i++) {
-    const age = (t * 0.07 + i / n + seed * 0.0123) % 1;
+    const age = (t * 0.07 + i / n + Math.abs(seed) * 0.0123) % 1;
     const wob = Math.sin(age * 6 + seed + t * 0.3) * 8 * age * (1 - dawn * 0.7);
     const a = Math.sin(Math.min(1, age * 5) * 1.5708) * (1 - age) * (0.34 + 0.14 * dawn);
     c.fillStyle = `rgba(${tint[0]},${tint[1]},${tint[2]},${a})`;
@@ -2092,7 +2092,7 @@ function smokeThread(c, x, y, t, dawn, seed) {
 function birds(R, t, dawn) {
   const k = smooth(0.32, 0.56, dawn);
   if (k < 0.02) return;
-  const perch = [RX0 + 380, RX0 + 410, RX0 + 770, RX0 + 1180, RX0 + 1215];
+  const perch = [RX0 + 520, RX0 + 548, RX0 + 1100, RX0 + 1128, RX0 + 1630];
   const cy = PVY - PAR_H - 2; // the coping of the back parapet
   R.cast((c) => {
     c.globalAlpha = k;

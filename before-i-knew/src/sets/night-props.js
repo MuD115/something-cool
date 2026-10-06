@@ -26,13 +26,37 @@ function crack(x, open) {
   return { left, right: x + DOOR_W / 2, leafW, w: x + DOOR_W / 2 - left };
 }
 
+// The well and its door were drawn small; they're drawn here through a
+// renderer that scales every layer about the doorway's foot, so a man would
+// fit the door (about 94 x 166, the lower part sunk below the street).
+const DOOR_SCALE = 1.8;
+function scaledR(R, x, k) {
+  const wrap = (fn) => (c, ...rest) => {
+    c.save();
+    c.translate(x, 0);
+    c.scale(k, k);
+    c.translate(-x, 0);
+    const v = fn(c, ...rest);
+    c.restore();
+    return v;
+  };
+  return new Proxy(R, {
+    get(t, key) {
+      const v = t[key];
+      if (typeof v !== 'function') return v;
+      return (...args) => v.apply(t, args.map((a) => (typeof a === 'function' ? wrap(a) : a)));
+    },
+  });
+}
+
 const flicker = (t, s = 0) => clamp(0.82 + Math.sin(t * 7.1 + s) * 0.07 + Math.sin(t * 13.7 + s * 2.1) * 0.05 + noise1(t * 5 + s) * 0.06, 0.45, 1.1);
 
 // Four concrete steps down into a narrow well beside the building, a low
 // parapet at the far end, and a rail along the street edge. At night the
 // well is the darkest place on the street, until the door opens.
 // Call weddingGlimpse straight after this one, with the same x and open.
-export function basementDoor(R, x, { open = 0, t = 0 } = {}) {
+export function basementDoor(R0, x, { open = 0, t = 0 } = {}) {
+  const R = scaledR(R0, x, DOOR_SCALE);
   const o = clamp(open);
   const g = crack(x, o);
   const fl = flicker(t);
@@ -366,7 +390,8 @@ function body(c, px, fy, h, { col, skin = '#c99a74', w = 0.17, skirt = 0, bob = 
 // What the crack shows: a basement full of people, the lamp turned low, a
 // wedding. Drawn small and warm and clipped to the gap, so it reads as a
 // handful of heads, two clapping hands, a white shape in the middle.
-export function weddingGlimpse(R, x, { open = 0, t = 0 } = {}) {
+export function weddingGlimpse(R0, x, { open = 0, t = 0 } = {}) {
+  const R = scaledR(R0, x, DOOR_SCALE);
   const k = smooth(0.03, 0.55, open);
   if (k <= 0.01) return;
   const g = crack(x, open);

@@ -40,5 +40,5 @@ export const CAFE_X = MEM.damascus[0] + 820;
 export const DUMPSTER_X = MEM.protest[0] + 1450;
 // The stairwell: six flights, each a straight run up and to the right then
 // back, landing to landing; FLOOR_H a storey.
-export const FLOOR_H = 150;
+export const FLOOR_H = 222;
 export const FLIGHTS = 6;

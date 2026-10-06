@@ -41,31 +41,35 @@ export const swayAng = (t, ph, amp, period = 4) => Math.sin((t * Math.PI * 2) / 
 
 // A thin thread of smoke rising from (x, y): faintly lit by the moon. `lean`
 // is how far it drifts over its height (night air is nearly still).
-export function wisp(R, x, y, t, { h = 240, w = 20, seed = 1, lean = 20, a = 0.2, tint = [150, 162, 200], glow = 0.35 } = {}) {
-  const n = 12;
+export function wisp(R, x, y, t, { h = 240, w = 20, seed = 1, lean = 20, a = 0.3, tint = [150, 162, 200], glow = 1.4, dark = 0 } = {}) {
+  const n = 24;
   const pts = [];
   for (let i = 0; i < n; i++) {
     const age = (t * 0.1 + i / n + seed * 0.37) % 1;
     const wob = Math.sin(age * 6 + seed + t * 0.35) * w * age;
-    pts.push([x + wob + lean * age * age, y - age * h, 3 + age * 15, a * Math.sin(Math.min(1, age * 5) * 1.5708) * (1 - age)]);
+    pts.push([x + wob + lean * age * age, y - age * h, 7 + age * 20, a * Math.sin(Math.min(1, age * 5) * 1.5708) * (1 - age)]);
   }
-  R.paint((c) => {
-    for (const [px, py, r, al] of pts) {
-      c.fillStyle = `rgba(${tint[0] * 0.5 | 0},${tint[1] * 0.5 | 0},${tint[2] * 0.55 | 0},${al})`;
-      c.beginPath();
-      c.arc(px, py, r, 0, 6.2832);
-      c.fill();
-    }
-  });
-  if (glow > 0)
-    R.glow((c) => {
+  // against a pale, moonlit wall smoke is a soft grey; in the dark it only shows by the light on it
+  if (dark > 0)
+    R.paint((c) => {
       for (const [px, py, r, al] of pts) {
-        c.fillStyle = `rgba(${tint[0]},${tint[1]},${tint[2]},${al * glow})`;
-        c.beginPath();
-        c.arc(px - r * 0.25, py - r * 0.2, r * 0.7, 0, 6.2832);
-        c.fill();
+        const gr = c.createRadialGradient(px, py, 0, px, py, r);
+        gr.addColorStop(0, `rgba(58,66,92,${Math.min(0.6, al * dark * 1.5)})`);
+        gr.addColorStop(0.5, `rgba(58,66,92,${Math.min(0.6, al * dark * 1.5) * 0.5})`);
+        gr.addColorStop(1, 'rgba(58,66,92,0)');
+        c.fillStyle = gr;
+        c.fillRect(px - r, py - r, r * 2, r * 2);
       }
     });
+  R.glow((c) => {
+    for (const [px, py, r, al] of pts) {
+      const gr = c.createRadialGradient(px, py, 0, px, py, r);
+      gr.addColorStop(0, `rgba(${tint[0]},${tint[1]},${tint[2]},${al * glow * 0.5})`);
+      gr.addColorStop(1, `rgba(${tint[0]},${tint[1]},${tint[2]},0)`);
+      c.fillStyle = gr;
+      c.fillRect(px - r, py - r, r * 2, r * 2);
+    }
+  });
 }
 
 // A plastic bag blown along the ground between x0 and x1, tumbling, hopping.
@@ -341,7 +345,7 @@ export function drawApproach(R, g) {
       c.fillRect(wx + ww * 0.55, wy - 56, 6, 100);
       c.fillRect(wx + ww * 0.55 - 3, wy - 60, 12, 5);
     });
-    wisp(R, wx + ww * 0.55 + 3, wy - 60, t, { h: 230, w: 14, seed: 3, lean: 26, a: 0.2 });
+    wisp(R, wx + ww * 0.55 + 3, wy - 60, t, { h: 230, w: 14, seed: 3, lean: 26, a: 0.34 });
   }
   // a plastic bag, pushed along the open ground by the night air
   if (near(X1.open, X1.bags[0])) tumbleBag(R, t, X1.open + 30, X1.bags[0] - 40, { seed: 2 });

@@ -919,7 +919,7 @@ export function drawWalk(R, g) {
       c.fillRect(wx + ww * 0.5, wy - 50, 6, 96);
       c.fillRect(wx + ww * 0.5 - 3, wy - 54, 12, 5);
     });
-    wisp(R, wx + ww * 0.5 + 3, wy - 54, t, { h: 250, w: 16, seed: 5, lean: 30, a: 0.2 });
+    wisp(R, wx + ww * 0.5 + 3, wy - 54, t, { h: 250, w: 16, seed: 5, lean: 30, a: 0.45, dark: 0.9, glow: 0.7 });
   }
   if (near(X3.alley[0], X3.alley[1])) drip(R, X3.alley[1] - 95, -17, 0, t, { seed: 3, every: 3.4 });
   if (near(X3.start, X3.start + 600)) tumbleBag(R, t, -150, 420, { seed: 1 });

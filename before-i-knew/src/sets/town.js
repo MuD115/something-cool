@@ -918,7 +918,7 @@ export function street(R, x0, x1, { color = '#6e6559', pave = '#8a8072' } = {}) 
 // blasts, with cables strung between them. Every cable ends somewhere: at
 // the next pole, at a bracket where it goes into a building, or snapped and
 // hanging to the ground. Cast, so they throw shadows.
-export function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000 } = {}) {
+export function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000, t = performance.now() / 1000 } = {}) {
   // the poles first: where they stand, how they lean, where the arm is
   const r = rng(seed);
   const poles = [];
@@ -941,7 +941,8 @@ export function cables(R, camX, { seed = 11, y = -330, from = -600, to = 11000 }
       for (let n = 0; n < s.wires; n++) {
         const [ax, ay] = armY(s.a, n);
         const [bx, by] = armY(s.b, n);
-        const sag = s.sag + n * 6;
+        // the wires breathe in the wind, each span and wire a little apart
+        const sag = s.sag + n * 6 + Math.sin(t * 0.9 + s.k * 9 + n * 1.3) * 2.5 + Math.sin(t * 2.3 + s.a.x * 0.01) * 0.8;
         if (s.kind < 0.6) {
           // strung between the two poles
           c.beginPath();
