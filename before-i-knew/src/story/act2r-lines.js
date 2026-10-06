@@ -30,21 +30,21 @@ export const LINES = {
   radio_west: s('radio', '...حركة عالحاجز الغربي... احترسوا...', '...movement at the western checkpoint... be careful...', 'radio', 3.4),
 
   // the sniper lanes (gameplay barks, not in the script)
-  lane_intro: d(null, 'فتحة بين بنايتين. من هون بيشوف القنّاص الشارع.', 'A gap between two buildings. From here the sniper can see the street.', 'examine', 5),
-  lane_light: d(null, 'وين في شمس، في عين.', 'Where the sun gets through, so does his eye.', 'examine', 3.6),
-  lane1_wall: d(null, 'حيط البناية اللي انهدّت. ما ضل منها غير هالحيط، لحد الخصر.', 'All that’s left of the flattened building: this wall, waist-high.', 'examine', 4.5),
-  warn_1: d(null, 'الطلقة ضربت بالحيط، شبر عن راسك. ما كان عم يحذّر.', 'The round hit the wall a hand’s width from your head. He wasn’t warning you.', 'examine', 4.5),
-  warn_2: d(null, 'عم يشوفك. وعم يقوّص ليقتل.', 'He can see you. He shoots to kill.', 'examine', 3.4),
-  warn_3: d(null, 'مرة تانية، شبر. لازم تستنّى.', 'A hand’s width, again. You have to wait.', 'examine', 3.4),
-  lane2_car: d(null, 'سيارة محروقة. بتغطّي نص الطريق بس.', 'A burnt-out car. It only covers half the way.', 'examine', 4.5),
-  lane2_hint: d(null, 'اسمع اللاسلكي. أو طلّع بالمراية.', 'Listen to the radio. Or look with the mirror.', 'examine', 4),
-  radio_watch: d('radio', '...عالشبّاك... لسا عالشبّاك...', '...at the window... still at the window...', 'radio', 2.6),
-  radio_away: d('radio', '...فات لجوّا... هلّق...', '...he’s gone inside... now...', 'radio', 2.6),
-  mirror_lane: d(null, 'بالمراية: البناية اللي عليها العلم. لمعة بالشبّاك.', 'In the mirror: the building with the flag. A glint in the window.', 'examine', 4.5),
-  mirror_away: d(null, 'الشبّاك فاضي. هلّق.', 'The window is empty. Now.', 'examine', 3),
-  crawl: d(null, 'فتحة بالحيط، قد الكتاف. الباطون فوقها لسا معلّق.', 'A gap in the wall, shoulder-width. The concrete above it is still hanging.', 'examine', 4.5),
-  lane3_tyre: d('tyre', 'استنّى الدخنة. لمّا تغطّي، روح.', 'Wait for the smoke. When it covers, go.', '', 4),
-  lane3_smoke: d(null, 'دولاب عم يحترق. حدا ولّعو قصداً.', 'A tyre burning. Someone lit it on purpose.', 'examine', 4),
+  lane_intro: s(null, 'فتحة بين بنايتين. القنّاص بيشوف الشارع من هون.', 'A gap between two buildings. The sniper can see the street from here.', 'examine', 5),
+  lane_light: s(null, 'وين في شمس، في عين.', 'Where the sun gets through, so does his eye.', 'examine', 3.6),
+  lane1_wall: s(null, 'حيط البناية يلي انهدّت. ما ضل منها غير هالحيط، لحد الخصر.', 'All that’s left of the flattened building is this wall, waist-high.', 'examine', 4.5),
+  warn_1: s(null, 'الطلقة ضربت بالحيط، شبر عن راسي. ما كان عم يحذّر.', 'The round hit the wall a hand’s width from my head. He wasn’t warning me.', 'examine', 4.5),
+  warn_2: s(null, 'شايفني. وما بيرمي ليخوّف.', 'He can see me. He doesn’t shoot to frighten.', 'examine', 3.4),
+  warn_3: s(null, 'شبر تاني. لازم استنّى.', 'A hand’s width again. I have to wait.', 'examine', 3.4),
+  lane2_car: s(null, 'سيارة محروقة. بتغطّي نص الطريق بس.', 'A burnt-out car. It only covers half the road.', 'examine', 4.5),
+  lane2_hint: s(null, 'اللاسلكي. أو المراية.', 'The radio. Or the mirror.', 'examine', 3),
+  radio_watch: s('radio', '...عالشبّاك... استنّى...', '...at the window... wait...', 'radio', 2.6),
+  radio_away: s('radio', '...فات لجوّا... هلّق...', '...he’s gone inside... now...', 'radio', 2.6),
+  mirror_lane: s(null, 'بالمراية: البناية يلي عليها العلم. لمعة بالشبّاك.', 'In the mirror: the building with the flag. A glint in the window.', 'examine', 4.5),
+  mirror_away: s(null, 'الشبّاك فاضي. هلّق.', 'The window is empty. Now.', 'examine', 3),
+  crawl: s(null, 'فتحة بالحيط، قد الكتاف. الباطون فوقها لسا معلّق.', 'A gap in the wall, shoulder-width. The concrete above it is still hanging.', 'examine', 4.5),
+  lane3_tyre: s('tyre', 'استنّى الدخّان. لمّا يكتر، قطّع.', 'Wait for the smoke. When it thickens, cross.', '', 4),
+  lane3_smoke: s(null, 'دولاب عم يحترق. حدا ولّعو عن قصد.', 'A tyre burning. Someone lit it on purpose.', 'examine', 4),
 
   // -------------------------------------- 2A-1b: the field hospital --
   hospital: s(null, 'نقطة طبية. طبيب واحد ومسعف. بداوو كل شي من جروح القنّاص لحالات الجفاف. ما عندهن بنج كافي. ساعات بيضطرّوا يخيّطو بلا بنج.', 'A medical point. One doctor and a paramedic. They treat everything from sniper wounds to dehydration. They don’t have enough anaesthetic. Sometimes they stitch without it.', 'examine', 8.5),
@@ -63,8 +63,8 @@ export const LINES = {
   man_4: s('man', 'ما فينا نجيبو. الشارع مكشوف. القنّاص بالمبنى يلي فيه العلم، عالتلّة. بيشوف كل شي.', 'We can’t get him. The street is exposed. The sniper is in the building with the flag, on the hill. He can see everything.', 'whisper', 7),
 
   // ------------------------------------------ D1: the white cloth --
-  sheet: d(null, 'شرشف منشور عالدرابزين. أبيض، أو قريب.', 'A sheet hanging on a balcony rail. White, or near enough.', 'examine', 4),
-  rail: d(null, 'سكّة برداية، حديد.', 'A curtain rail. Metal.', 'examine', 3),
+  sheet: s(null, 'شرشف منشور عالدرابزين. أبيض، أو قريب.', 'A sheet hanging on a balcony rail. White, or near enough.', 'examine', 4),
+  rail: s(null, 'سكّة برداية. حديد.', 'A curtain rail. Metal.', 'examine', 3),
   cloth_item: s(null, 'قماشة بيضا. الرصاصة ما بتسأل شو رافع. بس ما في غيرها.', 'White cloth. A bullet doesn’t ask what you’re holding up. But it’s all there is.', 'item', 6),
   cloth_1: s('man', 'شو عم تساوي؟', 'What are you doing?', 'whisper', 2.4),
   cloth_2: s('sami', 'بدي احكي معهن.', 'I’m going to talk to them.', '', 2.8),
@@ -87,8 +87,8 @@ export const LINES = {
   // --------------------------------------------------------- tools --
   mirror_plain: s(null, 'شقفة مراية. بتشوف فيها حالك.', 'A shard of mirror. You can see yourself in it.', 'examine', 3),
   radio_plain: s('radio', '...الموجة ٣...', '...channel 3...', 'radio', 2),
-  cloth_wrong: d(null, 'مو هون.', 'Not here.', 'examine', 2),
-  lighter_use: d(null, 'الولّاعة بتشعل من أول مرة.', 'The lighter catches first time.', 'examine', 3),
+  cloth_wrong: s(null, 'مو هون.', 'Not here.', 'examine', 2),
+  lighter_use: s(null, 'ولّعت من أول مرة.', 'It lit first time.', 'examine', 3),
 };
 
 // Title cards (scene intros, in Aref Ruqaa).

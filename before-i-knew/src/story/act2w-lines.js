@@ -16,8 +16,8 @@ const d = (...a) => ({ ...s(...a), draft: true });
 
 export const LINES = {
   // the quarter, on the way
-  quiet: d(null, 'الحارة الجنوبية ساكتة. الناس فاتوا لجوّا من بعد القنّاص.', 'The southern quarter has gone quiet. People went indoors after the sniper.', 'examine', 5),
-  directions: d('woman', 'أم سعيد؟ البيت التالت، الباب الأخضر. هيي يلي طلعت عليه.', 'Um Said? The third house, the green door. She’s the one who went out to him.', 'whisper', 5),
+  quiet: s(null, 'الحارة ساكتة. الناس فاتوا لجوّا من بعد القنّاص.', 'The quarter has gone quiet. People went indoors after the sniper.', 'examine', 4.5),
+  directions: s('woman', 'عم تدوّر على أم سعيد؟ البيت التالت، الباب الأخضر.', 'Looking for Um Said? The third house, the green door.', 'whisper', 4.5),
 
   // 2B-1a: Um Said
   umSaid: s('sami', 'أم سعيد؟', 'Um Said?', '', 2),
@@ -45,10 +45,10 @@ export const LINES = {
 
   // 2B-2: the wall, and Choice E
   graffiti: s(null, 'رسمات ولاد ع الحيط. بيت وشمس وشجرة. طيّارة مرسومة بالأحمر. عائلة بتبتسم — محاطة بنار. تحتها بخط ولد: "بكرا أحلى."', 'Children’s drawings on the wall. A house, a sun, a tree. A helicopter drawn in red. A family smiling — surrounded by fire. Below it, in a child’s handwriting: “Tomorrow is more beautiful.”', 'examine', 10),
-  scroll: d(null, 'صور أحمد. الولاد بالصف. بناية واقعة. ختيارة عم تعجن. عنب عالدالية. البلد من فوق سطح. حياة عادية، مصوّرة بعناية.', 'Ahmad’s photos. The children in class. A collapsed building. An old woman kneading dough. Grapes on a vine. The town from a rooftop. Ordinary life, recorded with care.', 'examine', 9),
+  scroll: s(null, 'صور أحمد. الولاد بالصف. بناية واقعة. ختيارة عم تعجن. عنب عالدالية. البلد من فوق سطح.', 'Ahmad’s photos. The children in class. A collapsed building. An old woman kneading dough. Grapes on a vine. The town from a rooftop.', 'examine', 7),
   // E2: listening (barks for the quiet path)
-  son: d('woman', 'ابني طلع قبل الحصار بشهر. قال راجع بعد أسبوع.', 'My son left a month before the siege. He said he’d be back in a week.', '', 5),
-  carry: d('baker', 'تعا ساعدني بهالكيس.', 'Come and help me with this sack.', '', 3),
+  son: s('woman', 'ابني طلع قبل الحصار بشهر. قال راجع بعد أسبوع.', 'My son left a month before the siege. He said he’d be back in a week.', '', 5),
+  carry: s('baker', 'تعا ساعدني بهالكيس.', 'Come and help me with this sack.', '', 3),
 
   // 2B-3: the lighter
   sami: s('abu', 'سامي.', 'Sami.', '', 1.6),

@@ -368,7 +368,7 @@ people walk, run, crouch and bend is motion-captured (below).
   the story state, as `script/act4.md`'s pseudocode does. [`src/main.js`](src/main.js) keeps a
   registry of them. The save names the act and its checkpoint.
 - **The dialogue** from Act Two on is data, in the `*-lines.js` file beside each act (for
-  example [`src/story/act2r-lines.js`](src/story/act2r-lines.js)), keyed by line. The lines from the scripts are final. A few gameplay barks the script
-  doesn't cover (the lanes, the near misses, the crawl) are placeholders marked
-  `draft: true`, and the dialogue log tags them **[draft]**. To replace one, edit its `ar` and
-  `en` and delete the flag. No code changes are needed.
+  example [`src/story/act2r-lines.js`](src/story/act2r-lines.js)), keyed by line. Every line is final: the scripts' own, and the short gameplay barks they
+  don't cover (the lanes, the near misses, the crawl, the landings), written to match. To change
+  one, edit its `ar` and `en`; no code changes are needed. A line made with the `d(…)` helper is
+  marked as a draft, and the dialogue log tags it **[draft]**.

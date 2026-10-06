@@ -19,31 +19,31 @@ const d = (...a) => ({ ...s(...a), draft: true });
 
 export const LINES = {
   // ---- the street between the memories
-  stair: d(null, 'صف أحمد. نص درج لتحت، وباب.', 'Ahmad’s classroom. Half a flight down, and a door.', 'examine', 4),
-  arch: d(null, 'قنطرة. ورا منها العتمة، وريحة تراب.', 'An archway. Darkness behind it, and the smell of earth.', 'examine', 4),
-  window: d(null, 'هاد مو أنا. أو هاد أنا، من زمان.', 'That isn’t me. Or it is — a long time ago.', 'examine', 4),
-  shutter: d(null, 'باب بيت مسكّر. في بسمار فوقو لزينة العيد.', 'A house door, shuttered. A nail above it where the Eid wreath hung.', 'examine', 4.5),
-  minaret: d(null, 'المادنة. مشقوقة من فوق لتحت، وبعدها واقفة.', 'The minaret. Split from top to bottom, and still standing.', 'examine', 4.5),
-  portrait: d(null, 'في شي معلّق عالحيط جوّا.', 'Something hanging on the wall inside.', 'examine', 3.5),
-  tower: d(null, 'أعلى بناية بالحارة. الدرج لسا سليم.', 'The tallest building in the quarter. The stairs are still whole.', 'examine', 4),
+  stair: s(null, 'صف أحمد. نص درج لتحت، وباب.', 'Ahmad’s classroom. Half a flight down, and a door.', 'examine', 4),
+  arch: s(null, 'قنطرة. وراها عتمة، وريحة تراب.', 'An archway. Darkness behind it, and the smell of earth.', 'examine', 4),
+  window: s(null, 'هاد مو أنا. أو كنت أنا، من زمان.', 'That isn’t me. Or it was, a long time ago.', 'examine', 3.6),
+  shutter: s(null, 'باب بيت مسكّر. في بسمار فوقو لزينة العيد.', 'A house door, shuttered. A nail above it where the Eid wreath hung.', 'examine', 4.5),
+  minaret: s(null, 'المادنة. مشقوقة من فوق لتحت، ولسا واقفة.', 'The minaret. Split from top to bottom, and still standing.', 'examine', 4.5),
+  portrait: s(null, 'في إطار معلّق عالحيط جوّا. نصّو محروق.', 'A frame hanging on the wall inside. Half of it burned.', 'examine', 3.5),
+  tower: s(null, 'أعلى بناية بالحارة. الدرج لسا سليم.', 'The tallest building in the quarter. The stairs are still whole.', 'examine', 4),
 
   // ---- 3D-1: the classroom vision
   late: s('ahmad', 'تأخّرت، يا هندسة.', 'You’re late, ya handasa.', '', 3.4),
   tenses: s('ahmad', 'ماضي... حاضر... مستقبل.', 'Past... present... future.', '', 4),
   lesson: s('ahmad', 'خلّص الدرس يا هندسة.', 'Finish the lesson, ya handasa.', 'whisper', 4.5),
-  noVoice: d(null, '...', '...', 'whisper', 2),
+  noVoice: s(null, '...', '...', 'whisper', 2),
 
   // ---- 3D-2: the orchard vision
-  grape: d(null, 'إيدي عم تمرق فيها. موجودة ومش موجودة.', 'My hand goes straight through it. There and not there.', 'whisper', 4.5),
-  ahmadFar: d(null, 'أحمد!', 'Ahmad!', 'shout', 1.6),
+  grape: s(null, 'إيدي بتمرق منها.', 'My hand goes through it.', 'whisper', 3),
+  ahmadFar: s(null, 'أحمد!', 'Ahmad!', 'shout', 1.6),
 
   // ---- 3D-3: the Damascus vision
-  glass: d(null, 'الزجاج بارد.', 'The glass is cold.', 'whisper', 3),
+  glass: s(null, 'الزجاج بارد.', 'The glass is cold.', 'whisper', 3),
 
   // ---- 3E-1: Eid before the revolution
   eid: s('father', 'كل عام وإنتو بخير.', 'Happy Eid, everyone.', '', 3),
   andYou: s('all', 'وإنت بخير!', 'And you!', 'shout', 2),
-  baklava: d('neighbour', 'مرتي عملت كتير. كل عام وإنتو بخير.', 'My wife made too much. Happy Eid.', '', 3.6),
+  baklava: s('neighbour', 'مرتي عملت كتير. كل عام وإنتو بخير.', 'My wife made too much. Happy Eid.', '', 3.6),
 
   // ---- 3E-2: the first protest
   chant: s('crowd', 'الشعب يريد إسقاط النظام!', 'The people want the fall of the regime!', 'shout', 3),

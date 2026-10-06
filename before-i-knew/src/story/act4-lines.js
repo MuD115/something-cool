@@ -17,10 +17,10 @@ const d = (...a) => ({ ...s(...a), draft: true });
 export const LINES = {
   // ---- 4A: the descent, the dawn street
   morning: s(null, 'أول ضو. الصبح بالحصار إلو طعم — مش فرح ومش حزن. بس إنك لسا هون. لسا عم تتنفس. هاد بيكفي ليكون بداية.', 'First light. Morning in the siege has a taste — not happiness, not sadness. Just that you’re still here. Still breathing. That’s enough to be a beginning.', 'examine', 9),
-  pots: d(null, 'طناجر عالغاز. حدا كان عم يطبخ لمّا تركوا.', 'Pots on the stove. Someone was cooking when they left.', 'examine', 4),
-  bike: d(null, 'بسكليت ولد، على جنبو.', 'A child’s bicycle, on its side.', 'examine', 3.5),
-  laundry: d(null, 'غسيل عالبلكون من شهور. الشمس أكلت لونو.', 'Washing on the balcony for months. The sun has eaten its colour.', 'examine', 4),
-  boys: d(null, 'رايحين عالدرس. بعدهن ما بيعرفوا.', 'Going to their lesson. They don’t know yet.', 'whisper', 4),
+  pots: s(null, 'طناجر لسا عالغاز.', 'Pots still on the stove.', 'examine', 3),
+  bike: s(null, 'بسكليت ولد، على جنبو.', 'A child’s bicycle, on its side.', 'examine', 3.5),
+  laundry: s(null, 'غسيل عالبلكون من شهور. الشمس أكلت لونو.', 'Washing on the balcony for months. The sun has eaten its colour.', 'examine', 4),
+  boys: s(null, 'ولدين رايحين عالصف، ضامّين دفاترهن عصدرهن.', 'Two boys on their way to class, exercise books held to their chests.', 'whisper', 4),
 
   // ---- 4B: the junction, and Choice H
   junction: s(null, 'هون افترقنا. "بشوفك بالليل إن شاء الله." أربعتعشر ساعة من وقتها. أطول أربعتعشر ساعة بحياتي.', 'This is where we parted. “See you tonight, God willing.” Fourteen hours since then. The longest fourteen hours of my life.', 'examine', 8.5),
@@ -34,10 +34,10 @@ export const LINES = {
   lastSaw: s(null, 'هون كان آخر مرة شفتو. ما كنت عارف. ما كنت عارف إنو عم ودّعو.', 'This is where I last saw him. I didn’t know. I didn’t know I was saying goodbye.', 'examine', 6.5),
 
   // ---- Ending 2: the Last Farewell
-  ready: d('abu', 'عشرين دقيقة. يلا، على مهل.', 'Twenty minutes. Come on. Slowly.', 'whisper', 3.6),
-  readyAnger: d('abu', 'خمس دقايق، واتنين بس. ما في وقف.', 'Five minutes, and two of us only. No stopping.', 'whisper', 3.6),
-  crackle: d('radio', '...', '...', 'radio', 1.6),
-  shoes: d(null, 'صبّاطو. حدا حطّن جنب بعض.', 'His shoes. Someone set them side by side.', 'whisper', 4),
+  ready: s('abu', 'عشرين دقيقة. يلا، على مهل.', 'Twenty minutes. Come on. Slowly.', 'whisper', 3.6),
+  readyAnger: s('abu', 'خمس دقايق. نحنا اتنين بس. بلا وقفة.', 'Five minutes. Just the two of us. No stopping.', 'whisper', 3.6),
+  crackle: s('radio', '...', '...', 'radio', 1.6),
+  shoes: s(null, 'صبّاطو. حدا حطّن جنب بعض.', 'His shoes. Someone set them side by side.', 'whisper', 4),
   recite: s('abu', 'اللهم اغفرلو وارحمو... وعافيه واعف عنو... اللهم أكرم نزلو... ووسّع مدخلو...', 'O God, forgive him and have mercy on him... pardon him and grant him well-being... honour the place where he arrives... and make his entrance wide...', 'whisper', 11),
   ifYouWant: s('abu', 'إذا بدّك تقول شي.', 'If you want to say something.', 'whisper', 3.4),
   poem1: s('sami', '"على هذي الأرض ما يستحق الحياة..."', '“On this earth, there is that which deserves life...”', '', 5),
