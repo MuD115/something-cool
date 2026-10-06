@@ -29,6 +29,8 @@ const CORNER = [(XG.east + XG.end) / 2, (XG.end - XG.east) / 2 + 300];
 const YOUNG = { ...OUTFITS.sami, beard: 'none', top: '#3f6f8a', sleeve: 'short', rolled: false, pouch: false, watch: false, satchel: '#5a4630' };
 const YOUNG_AHMAD = { ...OUTFITS.khaled, beard: 'stubble', layer: null, top: '#d2c7ae' };
 // forearms on his knees
+// a floor cushion in front of Um Ahmad's sideboard, where Sami sits
+const CUSHION_X = UM_AHMAD[0] - 120;
 const KERB = { ...POSES.kerb, armN: 0.6, foreN: 1.45, armF: 0.5, foreF: 1.35 };
 
 export const ACT2G = {
@@ -52,7 +54,23 @@ export const ACT2G = {
     L.add({ id: 'olive', x: XG.olive, y: -200, range: 360, look: true, label: ['تفحّص', 'Examine'], box: [150, 260], by: 60, enabled: () => !g.a.mem && g.a.looking && !g.locked, use: () => { line(g, 'olive'); g.a.sawOlive = true; } });
 
     p.f = 1;
-    g.runner.run(this.sitting(g));
+    const cp = s.checkpoint;
+    if (cp === 'campusG') g.runner.run(this.resume(g, 'campus'));
+    else if (cp === 'choiceG') g.runner.run(this.resume(g, 'kerb'));
+    else g.runner.run(this.sitting(g));
+  },
+
+  // From a checkpoint: out of black, straight into the campus or back on the kerb.
+  *resume(g, where) {
+    const a = g.a;
+    g.lock();
+    g.fade = 1;
+    a.back = { o: g.player.rig.o };
+    if (where === 'campus') {
+      g.player.rig.o = YOUNG;
+      g.sound.score?.mood('memory', 1);
+      yield* this.campus(g);
+    } else yield* this.backToKerb(g);
   },
 
   // 2C-1: sitting. Thirty seconds in which he cannot act; the light moves.
@@ -132,6 +150,14 @@ export const ACT2G = {
     // the lecture ends; out into the sun
     a.drone = false;
     yield* fadeTo(g, 1, 1);
+    yield* this.campus(g);
+  },
+
+  // 2C-1a, outside: a Damascus street in the sun, and the walk to the cafeteria.
+  *campus(g) {
+    const a = g.a;
+    const p = g.player;
+    g.checkpoint('campusG');
     clearPeople(g);
     a.mem = 'campus';
     const [cc, chw] = CAMPUS;
@@ -166,6 +192,14 @@ export const ACT2G = {
     g.sound.setMuffle(0.9, 2.5);
     yield* tween(g, 'dissolve', 1, 2.6);
     yield* fadeTo(g, 1, 0.6);
+    yield* this.backToKerb(g);
+  },
+
+  // Back on the kerb as the memory lets go; then the lighter.
+  *backToKerb(g) {
+    const a = g.a;
+    const p = g.player;
+    g.checkpoint('choiceG');
     clearPeople(g);
     a.mem = null;
     a.dissolve = 0;
@@ -268,7 +302,13 @@ export const ACT2G = {
     a.clock = true;
     g.runner.run(tween(g, 'light', 1, 70)); // the gold light crosses the wall towards his photograph
     yield* fadeTo(g, 0, 1.6);
-    yield 1.6;
+    // she nods him to the cushion by the sideboard; he sits, facing her
+    yield 0.8;
+    yield* g.walkPlayer(CUSHION_X);
+    p.f = 1;
+    a.cushion = true;
+    p.override = { ...POSES.sitGround, torso: 0.08, head: 0.15, armN: 0.7, foreN: 1.5 };
+    yield 1.2;
     um.override = { ...POSES.sitChair, head: -0.05, armN: 0.6, foreN: 1.4 };
     yield 1.2;
     yield* say(g, 'ahmad');
@@ -349,6 +389,24 @@ export const ACT2G = {
 
   useTool(g, id) {
     if (id === 'lighter') g.sound.click();
+  },
+
+  drawProps(R, g) {
+    if (g.a.mem !== 'umAhmad' || !g.a.cushion) return;
+    R.cast((c) => {
+      const x = CUSHION_X;
+      c.fillStyle = '#7a2f2a';
+      c.beginPath();
+      c.moveTo(x - 46, 0);
+      c.lineTo(x - 44, -12);
+      c.quadraticCurveTo(x, -17, x + 44, -12);
+      c.lineTo(x + 46, 0);
+      c.fill();
+      c.fillStyle = 'rgba(232,196,120,0.55)';
+      for (let i = -3; i <= 3; i++) c.fillRect(x + i * 12 - 3, -9, 6, 2.4);
+      c.fillStyle = 'rgba(0,0,0,0.22)';
+      c.fillRect(x - 46, -3, 92, 3);
+    });
   },
 
   draw(R, g) {

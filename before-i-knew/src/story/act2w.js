@@ -35,6 +35,16 @@ const SPOTS = [
   ['view', XW.view, -140],
 ];
 
+// The woman hanging laundry on what's left of her balcony, on its slab.
+const BALC_Y = -148;
+function hanger(g) {
+  // the balcony is set back from the street, so she is drawn to its scale
+  const w = actor(g, 'woman', XW.balcony - 40, { f: 1, scale: 0.56, pose: { ...POSES.stand, torso: 0.15, head: 0.2, armN: 0.95, foreN: 1.2, armF: 0.85, foreF: 1.1 } });
+  w.scripted = true;
+  w.place(XW.balcony - 40, BALC_Y);
+  return w;
+}
+
 export const ACT2W = {
   bounds: [-300, 50000],
 
@@ -67,6 +77,7 @@ export const ACT2W = {
     // people: the woman who points the way; Abu Firas at his oven
     g.a.woman = actor(g, 'woman2', XW.woman, { f: -1, pose: { ...POSES.leanWall, head: 0.1 } });
     g.a.baker = actor(g, 'man3', XW.bakery + 110, { f: -1, o: { top: '#d8d0c0', beard: 'long', beardColor: '#cfc8bc' }, pose: { ...POSES.stand, torso: 0.25, armN: 0.9, foreN: 1.1 } });
+    if (s.e_choice !== 'people') g.a.hanger = hanger(g);
 
     const cp = s.checkpoint;
     p.f = 1;
@@ -152,6 +163,7 @@ export const ACT2W = {
     a.mem = null;
     moveTo(g, STREET, XW.umSaid + 60);
     g.a.woman = null;
+    g.a.hanger = hanger(g);
     g.a.baker = actor(g, 'man3', XW.bakery + 110, { f: -1, o: { top: '#d8d0c0', beard: 'long', beardColor: '#cfc8bc' }, pose: { ...POSES.stand, torso: 0.25, armN: 0.9, foreN: 1.1 } });
     g.sound.ambience({ wind: 0.12, air: 0.3, crowd: 0.04 }, 0.8);
     a.k = 0.3;
@@ -230,7 +242,13 @@ export const ACT2W = {
       g.active = 'torch';
       yield 1.4;
       g.text.objective(OBJ.people);
-      // someone to sit with, someone to help
+      // someone to sit with, someone to help: the woman from the balcony
+      // has come down to the ledge below it
+      if (a.hanger) {
+        a.hanger.visible = false;
+        g.npcs = g.npcs.filter((w) => w !== a.hanger);
+        a.hanger = null;
+      }
       a.sitter = actor(g, 'woman', XW.balcony + 90, { f: -1, pose: { ...POSES.sitLedge, seat: 44, head: 0.2 } });
       a.carrier = actor(g, 'man3', XW.torn + 60, { f: -1, o: { top: '#d8d0c0', beard: 'long', beardColor: '#cfc8bc' }, pose: { ...POSES.squat, armN: 1.3, foreN: 1.3 } });
     }
@@ -351,6 +369,11 @@ export const ACT2W = {
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;
+    // she pegs out the washing: reach to the line, a pause, again
+    if (a.hanger) {
+      const r = 0.5 + 0.5 * Math.sin(g.time * 1.3);
+      a.hanger.override = { ...POSES.stand, torso: 0.12 + 0.08 * r, head: 0.2, armN: 0.7 + 0.45 * r, foreN: 1.0 + 0.35 * r, armF: 0.6 + 0.4 * r, foreF: 0.95 + 0.3 * r };
+    }
     if (a.mem || g.locked) return;
     a.k = Math.max(a.k, Math.min(0.9, (p.x - XW.start) / (XW.end - XW.start) * 0.85));
     if (a.woman && !a.saidWay && Math.abs(p.x - XW.woman) < 170) {

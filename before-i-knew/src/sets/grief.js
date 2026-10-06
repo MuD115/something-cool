@@ -2691,18 +2691,24 @@ function photoCanvas() {
     c.moveTo(w * 0.5, h * 0.38);
     c.quadraticCurveTo(w * 0.52, h * 0.44, w * 0.49, h * 0.455);
     c.stroke();
-    c.strokeStyle = '#8a3a2e';
-    c.lineWidth = 1.2;
+    // a small smile, the mouth closed, the way people stood for these
+    c.strokeStyle = 'rgba(112,62,44,0.85)';
+    c.lineWidth = 1;
     c.beginPath();
-    c.moveTo(w * 0.4, h * 0.485);
-    c.quadraticCurveTo(w * 0.5, h * 0.54, w * 0.61, h * 0.48);
+    c.moveTo(w * 0.44, h * 0.49);
+    c.quadraticCurveTo(w * 0.5, h * 0.512, w * 0.56, h * 0.488);
     c.stroke();
-    c.fillStyle = 'rgba(248,240,226,0.9)';
+    // the cheek and jaw in shadow on the right
+    c.fillStyle = 'rgba(90,56,36,0.18)';
     c.beginPath();
-    c.moveTo(w * 0.43, h * 0.492);
-    c.quadraticCurveTo(w * 0.5, h * 0.52, w * 0.58, h * 0.488);
-    c.quadraticCurveTo(w * 0.5, h * 0.505, w * 0.43, h * 0.492);
+    c.ellipse(w * 0.6, h * 0.44, w * 0.08, h * 0.12, 0.2, 0, TAU);
     c.fill();
+    // the whole print gone to sepia
+    c.save();
+    c.globalCompositeOperation = 'color';
+    c.fillStyle = 'rgba(150,112,72,0.6)';
+    c.fillRect(0, 0, w, h);
+    c.restore();
     // age: the print's faded fold and a stain at one corner
     c.fillStyle = 'rgba(255,240,210,0.1)';
     c.fillRect(0, h * 0.5, w, 1);

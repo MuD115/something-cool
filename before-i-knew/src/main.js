@@ -651,7 +651,7 @@ function pauseAside() {
 }
 
 // The scenes of each act, in order: the first is the act's own start.
-const SCENES = { act1: ['walk', 'hour', 'school', 'news'], act2r: ['south', 'lanes', 'front'], act3r: ['night', 'table', 'building', 'floor4', 'descent'], act3w: ['moon', 'wedding', 'garden'], act2w: ['quarterW', 'wallW'], act2g: ['kerbG'], act3v: ['classroom', 'orchard', 'damascus', 'eid', 'protest', 'mukhabarat', 'roof'], act4: ['roof4', 'street', 'e1', 'e2', 'e3', 'e4', 'e5'] };
+const SCENES = { act1: ['walk', 'hour', 'school', 'news'], act2r: ['south', 'lanes', 'front'], act3r: ['night', 'table', 'building', 'floor4', 'descent'], act3w: ['moon', 'wedding', 'garden'], act2w: ['quarterW', 'wallW'], act2g: ['kerbG', 'campusG', 'choiceG'], act3v: ['classroom', 'orchard', 'damascus', 'eid', 'protest', 'mukhabarat', 'roof'], act4: ['roof4', 'street', 'e1', 'e2', 'e3', 'e4', 'e5'] };
 const sceneName = (cp) => String(t('checkpoints')[cp] || cp).split(' · ').pop();
 
 function chaptersPage(panel, m) {

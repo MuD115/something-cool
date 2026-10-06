@@ -239,12 +239,16 @@ export function dawnSky(R, g, k = 0, opts = {}) {
       c.save();
       c.setTransform(1, 0, 0, 1, 0, 0);
       c.globalCompositeOperation = 'lighter';
-      const halo = c.createRadialGradient(sx, sy, sr * 0.6, sx, sy, sr * 11);
-      halo.addColorStop(0, `rgba(255,196,110,${0.5 * up})`);
-      halo.addColorStop(0.2, `rgba(255,160,80,${0.2 * up})`);
+      // the glow round it, kept in proportion for a big low sun so the disc
+      // keeps its edge
+      const hr = Math.min(sr * 11, H * 0.5);
+      const ha = sr > H * 0.06 ? 0.3 : 0.5;
+      const halo = c.createRadialGradient(sx, sy, sr * 1.02, sx, sy, hr);
+      halo.addColorStop(0, `rgba(255,196,110,${ha * up})`);
+      halo.addColorStop(0.2, `rgba(255,160,80,${ha * 0.4 * up})`);
       halo.addColorStop(1, 'rgba(255,140,70,0)');
       c.fillStyle = halo;
-      c.fillRect(sx - sr * 11, sy - sr * 11, sr * 22, sr * 22);
+      c.fillRect(sx - hr, sy - hr, hr * 2, hr * 2);
       c.globalCompositeOperation = 'source-over';
       const disc = c.createRadialGradient(sx, sy, 0, sx, sy, sr);
       disc.addColorStop(0, `rgba(255,252,236,${up})`);
@@ -1300,11 +1304,33 @@ function farPlain(R, k, o = {}) {
   R.paint((c) => {
     c.fillStyle = toward(fields[0], h, hf);
     c.fillRect(c0 - hw, hz, 2 * hw, 400);
-    cells(R, d, 150, (i, x) => {
-      const r = rng(i * 977 + seed);
-      c.fillStyle = toward(fields[Math.floor(r() * fields.length)], h, hf - 0.02);
-      c.fillRect(x, hz + r() * 3, 151, 400);
-    });
+    // fields in rows that recede: each row's boundaries run to the vanishing
+    // point, nearer rows wider and less hazed
+    {
+      const vpx = c0 + hw * 0.8;
+      const rows = [0, 3, 8, 16, 28, 46, 74, 116, 400];
+      for (let j = 0; j < rows.length - 1; j++) {
+        const ya = hz + rows[j];
+        const yb = hz + rows[j + 1];
+        const span = 90 + j * j * 26;
+        const near = j / (rows.length - 2);
+        const at = (x, y) => vpx + (x - vpx) * ((y - hz) / Math.max(1, yb - hz));
+        const i0 = Math.floor((c0 - hw * 3) / span);
+        const i1 = Math.ceil((c0 + hw * 3) / span);
+        for (let i = i0; i <= i1; i++) {
+          const r = rng(i * 977 + j * 131 + seed);
+          c.fillStyle = toward(fields[Math.floor(r() * fields.length)], h, hf - 0.02 - 0.1 * near);
+          const xa = i * span;
+          const xb = xa + span + 1;
+          c.beginPath();
+          c.moveTo(xa, yb);
+          c.lineTo(xb, yb);
+          c.lineTo(at(xb, ya), ya);
+          c.lineTo(at(xa, ya), ya);
+          c.fill();
+        }
+      }
+    }
     // furrows running away to the sun
     const vx = c0 + hw * 0.8;
     c.lineWidth = 1.1;
