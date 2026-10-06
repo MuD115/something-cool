@@ -1315,8 +1315,10 @@ function farPlain(R, k, o = {}) {
         const span = 90 + j * j * 26;
         const near = j / (rows.length - 2);
         const at = (x, y) => vpx + (x - vpx) * ((y - hz) / Math.max(1, yb - hz));
-        const i0 = Math.floor((c0 - hw * 3) / span);
-        const i1 = Math.ceil((c0 + hw * 3) / span);
+        // the cells under the screen (a far row's tails, squeezed to the
+        // vanishing point, are slivers and can go)
+        const i0 = Math.floor((c0 - hw * 1.25) / span);
+        const i1 = Math.ceil((c0 + hw * 1.25) / span);
         for (let i = i0; i <= i1; i++) {
           const r = rng(i * 977 + j * 131 + seed);
           c.fillStyle = toward(fields[Math.floor(r() * fields.length)], h, hf - 0.02 - 0.1 * near);

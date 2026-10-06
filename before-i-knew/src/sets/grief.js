@@ -2488,7 +2488,15 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
       0.2,
     );
   });
-  // ---- traffic, in the road in front of the pavement ----------------------------------------------------
+  g.act?.drawProps?.(R, g);
+
+  // ---- people (rigs) -----------------------------------------------------------------------------------------
+  for (const w of [...(g.npcs || []), g.player]) {
+    if (!w || !w.visible || !near(w.x - 100, w.x + 100)) continue;
+    R.cast(wp((c) => w.draw(c), (w.x * 0.003) % 6));
+    if (d < 0.6) R.shadow((c) => w.draw(c), w.x, w.y, -0.9, 0.12);
+  }
+  // ---- traffic, in the road in front of the pavement: nearer than the people, so drawn after them ----------------------------------------------------
   for (const v of trafficAt(tt)) {
     if (!near(v.x - 200, v.x + 200)) continue;
     R.cast(wp((c) => { c.save(); c.translate(v.x, v.y); c.scale(1.45, 1.45); vehicle(c, 0, 0, v.dir, v, tt); c.restore(); }, v.x * 0.01));
@@ -2498,14 +2506,6 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
     }, v.x, v.y, -0.9, 0.14);
   }
 
-  g.act?.drawProps?.(R, g);
-
-  // ---- people (rigs) -----------------------------------------------------------------------------------------
-  for (const w of [...(g.npcs || []), g.player]) {
-    if (!w || !w.visible || !near(w.x - 100, w.x + 100)) continue;
-    R.cast(wp((c) => w.draw(c), (w.x * 0.003) % 6));
-    if (d < 0.6) R.shadow((c) => w.draw(c), w.x, w.y, -0.9, 0.12);
-  }
   g.effects?.draw?.(R);
 
   // ---- light and air --------------------------------------------------------------------------------------
