@@ -23,6 +23,7 @@ import { horizon, rgbOf } from './horizon.js';
 import { depthCast } from '../engine/dof.js';
 import { extrudePoly, extrudeRect } from './depth.js';
 import { XW, UM_SAID } from '../story/act2bc-map.js';
+import * as A from './ambient.js';
 
 const CONC = T.CONCRETE;
 const TAU = Math.PI * 2;
@@ -33,9 +34,9 @@ const TAU = Math.PI * 2;
 const OVEN = { x: XW.bakery - 105, mouthY: -92 }; // centre of the clay oven, and the glow of its mouth
 const WALL = { x0: 2395, x1: 2765, h: 255 }; // the wall of drawings
 const SIT = { x0: 2455, x1: 2715, h: 46 }; // the low wall in front of it
-const BALC = { x: XW.balcony, y: -148 }; // the balcony slab
+const BALC = { x: XW.balcony, y: -224 }; // the balcony slab: the first floor, over the ground-floor shopfront (was -148)
 const LEDGE = { x0: XW.balcony + 30, x1: XW.balcony + 190, h: 44 }; // the ledge below it, to sit on
-const TORN = { x0: 3300, x1: 3640, fh: 140 };
+const TORN = { x0: 3300, x1: 3640, fh: 224 }; // a storey is 224 now (was 140)
 const GAP = { x0: 3830, x1: 4070 }; // between buildings: School Street, far off
 const ALLEY = { x0: XW.alley - 100, x1: XW.alley + 100 };
 const MILL = { x: XW.bakery + 62, y: -82 }; // the hand mill, on its table
@@ -290,9 +291,9 @@ function rubbleWall(R, x0, x1, h, seed, cap = true) {
 // ----------------------------------------------------------- the façades --
 
 // A pointed dark opening with a lit interior behind it.
-function womanDoorway(R, x) {
-  const w = 88;
-  const h = 178;
+function womanDoorway(R, x, t = 0) {
+  const w = 96;
+  const h = 205;
   const x0 = x - w / 2;
   R.cast((c) => {
     // the surround, with its thickness, and the step
@@ -320,9 +321,10 @@ function womanDoorway(R, x) {
     // a curtain hung in the doorway, drawn to one side
     c.fillStyle = '#5e382e';
     c.beginPath();
+    const cw = A.wind(t, 5) * 3;
     c.moveTo(x0 + w - 4, -h + 2);
     c.lineTo(x0 + w - 36, -h + 2);
-    c.quadraticCurveTo(x0 + w - 28, -h * 0.5, x0 + w - 40, -9);
+    c.quadraticCurveTo(x0 + w - 28 + cw, -h * 0.5, x0 + w - 40 + cw * 1.6, -9);
     c.lineTo(x0 + w - 4, -9);
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.2)';
@@ -340,8 +342,9 @@ function womanDoorway(R, x) {
 // Um Said's flat: a green door, ajar; beside it a window with the curtains
 // drawn; a lamp inside, a slit of it showing.
 function umSaidFlat(R, x, t) {
-  const w = 84;
-  const h = 178;
+  const w = 96;
+  const h = 205;
+  const hf = w / 2; // where the open leaf's free edge falls
   const x0 = x - w / 2;
   R.cast((c) => {
     c.fillStyle = 'rgba(214,202,176,0.6)';
@@ -355,43 +358,43 @@ function umSaidFlat(R, x, t) {
     // the doorway: dark, a lit hall at the back
     c.fillStyle = '#100b08';
     c.fillRect(x0, -h, w, h - 6);
-    const hall = c.createLinearGradient(x0 + 48, 0, x0 + w, 0);
+    const hall = c.createLinearGradient(x0 + hf, 0, x0 + w, 0);
     hall.addColorStop(0, '#150e09');
     hall.addColorStop(0.7, '#2a1b10');
     hall.addColorStop(1, '#4a3016');
     c.fillStyle = hall;
-    c.fillRect(x0 + 48, -h + 4, w - 48, h - 10);
+    c.fillRect(x0 + hf, -h + 4, w - hf, h - 10);
     // the leaf, swung inward on its left hinge: its free edge recedes
     c.fillStyle = '#3d7a55';
     c.beginPath();
     c.moveTo(x0, -6);
     c.lineTo(x0, -h);
-    c.lineTo(x0 + 48, -h + 15);
-    c.lineTo(x0 + 48, -22);
+    c.lineTo(x0 + hf, -h + 15);
+    c.lineTo(x0 + hf, -22);
     c.closePath();
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.22)';
     c.beginPath();
     c.moveTo(x0 + 28, -h + 8);
-    c.lineTo(x0 + 48, -h + 15);
-    c.lineTo(x0 + 48, -22);
+    c.lineTo(x0 + hf, -h + 15);
+    c.lineTo(x0 + hf, -22);
     c.lineTo(x0 + 28, -14);
     c.fill();
     // raised panels, and the paint worn through along the edge
     c.strokeStyle = 'rgba(0,0,0,0.3)';
     c.lineWidth = 1.5;
-    c.strokeRect(x0 + 6, -h + 22, 30, 52);
-    c.strokeRect(x0 + 6, -h + 88, 30, 62);
+    c.strokeRect(x0 + 6, -h + 22, hf - 18, 58);
+    c.strokeRect(x0 + 6, -h + 96, hf - 18, 70);
     c.strokeStyle = 'rgba(255,255,255,0.14)';
     c.beginPath();
-    c.moveTo(x0 + 7, -h + 75);
-    c.lineTo(x0 + 35, -h + 75);
+    c.moveTo(x0 + 7, -h + 85);
+    c.lineTo(x0 + hf - 13, -h + 85);
     c.stroke();
     c.fillStyle = '#a99a72';
-    c.fillRect(x0 + 40, -h * 0.52, 5, 3);
+    c.fillRect(x0 + hf - 8, -h * 0.52, 5, 3);
     // the other leaf is shut, we see only a dark edge; a latch plate
     c.fillStyle = '#1b2f24';
-    c.fillRect(x0 + 48, -h + 15, 2, h - 37);
+    c.fillRect(x0 + hf, -h + 15, 2, h - 37);
   });
   R.glow((c) => {
     // the lamp inside, showing as a slit down the open side
@@ -426,69 +429,83 @@ function umSaidFlat(R, x, t) {
       c.fill();
     }
   });
-  // the window, grille and heavy curtains drawn closed
+  // the window, grille and heavy curtains drawn closed: 76 x 107, sill 86 up
   const wx = x + 100;
-  const wy = -150;
+  const wy = -193;
+  const WW = 76;
+  const WH = 107;
   R.cast((c) => {
-    extrudeRect(c, wx - 4, wy - 4, 66, 78, 12, { color: '#bdb092' });
+    extrudeRect(c, wx - 4, wy - 4, WW + 8, WH + 8, 12, { color: '#bdb092' });
     c.fillStyle = '#bdb092';
-    c.fillRect(wx - 4, wy - 4, 66, 78);
+    c.fillRect(wx - 4, wy - 4, WW + 8, WH + 8);
     c.fillStyle = '#1b1612';
-    c.fillRect(wx, wy, 58, 70);
-    // the curtain: dark maroon cloth, drawn, pleated, a thin pale edge of light
-    const cg = c.createLinearGradient(wx, 0, wx + 58, 0);
+    c.fillRect(wx, wy, WW, WH);
+    // the curtain: dark maroon cloth, drawn, pleated, a thin pale edge of light;
+    // it stirs a little where the window is not quite shut
+    const cg = c.createLinearGradient(wx, 0, wx + WW, 0);
     cg.addColorStop(0, '#5a302c');
     cg.addColorStop(0.5, '#693c32');
     cg.addColorStop(1, '#4a2824');
     c.fillStyle = cg;
-    c.fillRect(wx + 1, wy + 3, 56, 66);
+    const bw = A.wind(t, 3.3);
+    c.beginPath();
+    c.moveTo(wx + 1, wy + 3);
+    c.lineTo(wx + WW - 1, wy + 3);
+    c.lineTo(wx + WW - 1 + bw * 1.2, wy + WH - 4);
+    for (let i = 0; i <= 8; i++) c.lineTo(wx + WW - 1 - (i * (WW - 2)) / 8 + bw * 1.2 * (1 - i / 8), wy + WH - 4 + Math.sin(t * 1.9 + i * 1.3) * 1.2 + (i % 2) * 1.5);
+    c.closePath();
+    c.fill();
     c.fillStyle = 'rgba(0,0,0,0.22)';
-    for (let i = 0; i < 9; i++) c.fillRect(wx + 3 + i * 6.2, wy + 3, 2.4, 66);
+    for (let i = 0; i < 12; i++) c.fillRect(wx + 3 + i * 6.2, wy + 3, 2.4, WH - 6);
     c.fillStyle = 'rgba(255,230,190,0.14)';
-    for (let i = 0; i < 9; i++) c.fillRect(wx + 5.4 + i * 6.2, wy + 3, 1, 66);
+    for (let i = 0; i < 12; i++) c.fillRect(wx + 5.4 + i * 6.2, wy + 3, 1, WH - 6);
     // the rod, and the grille
     c.fillStyle = '#2a2420';
-    c.fillRect(wx - 2, wy + 1, 62, 3);
+    c.fillRect(wx - 2, wy + 1, WW + 4, 3);
     c.strokeStyle = 'rgba(30,26,22,0.9)';
     c.lineWidth = 1.6;
     c.beginPath();
-    for (let gx = wx + 7; gx < wx + 58; gx += 10) {
+    for (let gx = wx + 7; gx < wx + WW; gx += 10) {
       c.moveTo(gx, wy);
-      c.lineTo(gx, wy + 70);
+      c.lineTo(gx, wy + WH);
     }
-    c.moveTo(wx, wy + 35);
-    c.lineTo(wx + 58, wy + 35);
+    c.moveTo(wx, wy + WH / 2);
+    c.lineTo(wx + WW, wy + WH / 2);
     c.stroke();
     // sill
     c.fillStyle = '#c9bc9c';
-    c.fillRect(wx - 7, wy + 70, 72, 6);
+    c.fillRect(wx - 7, wy + WH, WW + 14, 6);
   });
   R.glow((c) => {
     // the lamp's warmth through the cloth
     c.fillStyle = `rgba(255,150,70,${0.05 + 0.015 * Math.sin(t * 2.3 + 1)})`;
-    c.fillRect(wx + 1, wy + 3, 56, 66);
+    c.fillRect(wx + 1, wy + 3, WW - 2, WH - 6);
   });
 }
 
-// What is left of a balcony on the first floor: one half of the slab, a
-// railing bent like a hand, the other half hanging by its rebar; laundry
-// on a line that still holds.
+// What is left of a balcony on the first floor (its slab 224 up, over the
+// shopfront): one half of the slab, a railing bent like a hand, the other
+// half hanging by its rebar; laundry on a line that still holds. Built for a
+// person: the rail 92 high, the door 205, a woman 170 tall stands on the slab.
 function balcony(R, x, y, t) {
-  const sway = (s) => Math.sin(t * 1.25 + s) * 2;
+  const sway = (s) => Math.sin(t * 1.25 + s) * 2 + A.wind(t, s) * 1.5;
+  const RH = 92;
+  const SL = x - 112; // the slab's left end
+  const SR = x + 52; // and where the good half stops
   // the balcony door and the wall torn round it
   R.cast((c) => {
-    const dx = x - 8;
+    const dx = x - 20;
     c.fillStyle = '#17110e';
     c.beginPath();
-    c.moveTo(dx - 4, y);
-    c.lineTo(dx - 10, y - 88);
-    c.lineTo(dx + 6, y - 99);
-    c.lineTo(dx + 40, y - 96);
-    c.lineTo(dx + 64, y - 105);
-    c.lineTo(dx + 70, y - 70);
-    c.lineTo(dx + 82, y - 52);
-    c.lineTo(dx + 64, y - 24);
-    c.lineTo(dx + 70, y);
+    c.moveTo(dx - 8, y);
+    c.lineTo(dx - 16, y - 190);
+    c.lineTo(dx + 6, y - 222);
+    c.lineTo(dx + 50, y - 212);
+    c.lineTo(dx + 90, y - 228);
+    c.lineTo(dx + 104, y - 150);
+    c.lineTo(dx + 120, y - 110);
+    c.lineTo(dx + 98, y - 50);
+    c.lineTo(dx + 106, y);
     c.closePath();
     c.fill();
     // a lit ring of broken render round the tear
@@ -497,41 +514,42 @@ function balcony(R, x, y, t) {
     c.stroke();
     // the door frame and what is left of the glass door, hanging by one hinge
     c.strokeStyle = '#3a2f28';
-    c.lineWidth = 3;
-    c.strokeRect(dx + 4, y - 94, 38, 92);
+    c.lineWidth = 3.5;
+    c.strokeRect(dx + 4, y - 205, 90, 203);
     c.fillStyle = 'rgba(120,150,170,0.18)';
     c.beginPath();
-    c.moveTo(dx + 6, y - 92);
-    c.lineTo(dx + 28, y - 92);
-    c.lineTo(dx + 14, y - 40);
-    c.lineTo(dx + 6, y - 40);
+    c.moveTo(dx + 7, y - 202);
+    c.lineTo(dx + 40, y - 202);
+    c.lineTo(dx + 22, y - 90);
+    c.lineTo(dx + 7, y - 90);
     c.fill();
     // a curtain blown out through the gap, a rust-coloured cloth
+    const w1 = A.wind(t, 1.7);
     c.fillStyle = '#9a6a4c';
     c.beginPath();
-    c.moveTo(dx + 38, y - 94);
-    c.lineTo(dx + 72, y - 90);
-    c.quadraticCurveTo(dx + 84 + sway(1) * 3, y - 54, dx + 70 + sway(2) * 3, y - 22);
-    c.lineTo(dx + 56, y - 30);
-    c.quadraticCurveTo(dx + 56, y - 60, dx + 38, y - 66);
+    c.moveTo(dx + 62, y - 200);
+    c.lineTo(dx + 100, y - 196);
+    c.quadraticCurveTo(dx + 116 + sway(1) * 4 + w1 * 6, y - 130, dx + 98 + sway(2) * 4 + w1 * 5, y - 50);
+    c.lineTo(dx + 80, y - 60);
+    c.quadraticCurveTo(dx + 80 + w1 * 2, y - 110, dx + 62, y - 140);
     c.fill();
   });
   // the slab
   R.cast((c) => {
-    const slab = [[x - 82, y], [x + 42, y], [x + 42, y + 12], [x - 82, y + 12]];
-    extrudePoly(c, slab, 42, { color: '#a89c86' });
+    const slab = [[SL, y], [SR, y], [SR, y + 14], [SL, y + 14]];
+    extrudePoly(c, slab, 44, { color: '#a89c86' });
     c.fillStyle = '#a89c86';
     c.beginPath();
     slab.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.28)';
-    c.fillRect(x - 82, y + 8, 124, 4);
+    c.fillRect(SL, y + 10, SR - SL, 4);
     // the far half has sheared and hangs from its rebar
     c.save();
-    c.translate(x + 42, y);
-    c.rotate(0.62);
-    const hang = [[0, 0], [66, 0], [70, 6], [64, 12], [0, 12]];
-    extrudePoly(c, hang, 42, { color: '#a89c86' });
+    c.translate(SR, y);
+    c.rotate(0.62 + Math.sin(t * 0.9) * 0.008);
+    const hang = [[0, 0], [70, 0], [74, 7], [68, 14], [0, 14]];
+    extrudePoly(c, hang, 44, { color: '#a89c86' });
     c.fillStyle = '#9a8e79';
     c.beginPath();
     hang.forEach(([px, py], i) => (i ? c.lineTo(px, py) : c.moveTo(px, py)));
@@ -541,87 +559,88 @@ function balcony(R, x, y, t) {
     c.lineWidth = 2;
     for (let i = 0; i < 4; i++) {
       c.beginPath();
-      c.moveTo(x + 40, y + 6 + i * 2);
-      c.quadraticCurveTo(x + 52, y + 22 + i * 3, x + 58 + i * 3, y + 40 + i * 3);
+      c.moveTo(SR - 2, y + 7 + i * 2);
+      c.quadraticCurveTo(SR + 10, y + 24 + i * 3, SR + 16 + i * 3, y + 42 + i * 3);
       c.stroke();
     }
-    // the railing: upright on the good half, bent and torn at the break
+    // the railing, 92 high: upright on the good half, bent and torn at the break
     c.strokeStyle = '#2f2825';
-    c.lineWidth = 2.4;
+    c.lineWidth = 3;
     c.beginPath();
-    c.moveTo(x - 80, y - 34);
-    c.lineTo(x + 34, y - 36);
-    for (let px = x - 80; px <= x + 36; px += 11) {
+    c.moveTo(SL + 2, y - RH);
+    c.lineTo(SR - 8, y - RH - 2);
+    c.moveTo(SL + 2, y - RH * 0.5);
+    c.lineTo(SR - 8, y - RH * 0.5);
+    c.stroke();
+    c.lineWidth = 2.2;
+    c.beginPath();
+    for (let px = SL + 2; px <= SR - 6; px += 13) {
       c.moveTo(px, y);
-      c.lineTo(px + (px > x + 4 ? (px - x) * 0.05 : 0), y - 34);
+      c.lineTo(px + (px > SR - 40 ? (px - SR + 40) * 0.05 : 0), y - RH);
     }
     c.stroke();
+    c.lineWidth = 3;
     // the end of the rail, bent out and down like a hand
     c.beginPath();
-    c.moveTo(x + 34, y - 36);
-    c.quadraticCurveTo(x + 62, y - 40, x + 70, y - 6);
-    c.moveTo(x + 24, y - 35);
-    c.quadraticCurveTo(x + 44, y - 20, x + 40, y + 14);
+    c.moveTo(SR - 8, y - RH - 2);
+    c.quadraticCurveTo(SR + 22, y - RH - 6, SR + 36, y - RH * 0.4);
+    c.moveTo(SR - 18, y - RH * 0.5);
+    c.quadraticCurveTo(SR + 4, y - RH * 0.3, SR + 2, y + 24);
     c.stroke();
     // a dry pot with the stalks of something somebody watered
     c.fillStyle = '#8a5a3a';
-    c.fillRect(x - 70, y - 13, 14, 13);
+    c.fillRect(SL + 10, y - 22, 20, 22);
     c.strokeStyle = '#6a5a38';
-    c.lineWidth = 1.5;
+    c.lineWidth = 1.6;
     c.beginPath();
-    for (const dx of [-66, -63, -60]) {
-      c.moveTo(x + dx, y - 13);
-      c.lineTo(x + dx + (dx + 63) * 0.7, y - 30);
+    for (const dx of [-3, 3, 9]) {
+      c.moveTo(SL + 20 + dx, y - 22);
+      c.lineTo(SL + 20 + dx + dx * 0.7 + A.wind(t, dx) * 1.5, y - 48);
     }
     c.stroke();
   });
   // the laundry: a line from the rail to a bracket in the wall, still taut
-  const ax = x - 72;
-  const ay = y - 36;
-  const bx = x + 200;
-  const by = y - 62;
+  const ax = SL + 6;
+  const ay = y - RH - 18;
+  const bx = x + 250;
+  const by = y - RH - 40;
   R.cast((c) => {
     c.strokeStyle = '#2a2420';
-    c.lineWidth = 1.2;
-    c.beginPath();
-    c.moveTo(ax, ay);
-    c.quadraticCurveTo((ax + bx) / 2, Math.max(ay, by) + 26, bx, by);
-    c.stroke();
+    c.lineWidth = 1.3;
+    A.wire(c, ax, ay, bx, by, 34, t, 0.4, 1.2);
     // the bracket
     c.fillStyle = '#3a2f28';
     c.fillRect(bx - 2, by - 4, 10, 4);
-    c.fillRect(bx + 2, by - 4, 3, 30);
+    c.fillRect(bx + 2, by - 4, 3, 34);
     const sag = (u) => {
-      const yy = lerp(ay, by, u) + 26 * 4 * u * (1 - u) * 0.9;
+      const yy = lerp(ay, by, u) + 34 * 4 * u * (1 - u) * 0.9;
       return [lerp(ax, bx, u), yy];
     };
     // a pale sheet, two shirts, a pair of trousers, a headscarf
-    let p = sag(0.12);
-    cloth(c, p[0] - 16, p[1], 46, 74, '#d8cfbd', sway(0) * 1.4, { sag: 6, fold: 0.1 });
-    p = sag(0.34);
-    cloth(c, p[0] - 8, p[1], 26, 38, '#6f7e86', sway(1), { sag: 3 });
-    p = sag(0.47);
-    cloth(c, p[0] - 7, p[1], 22, 32, '#a25a46', sway(2), { sag: 3 });
-    p = sag(0.62);
+    const cl = (u, dx, w, h, col, ph) => {
+      const p = sag(u);
+      A.cloth(c, p[0] + dx, p[1], w, h, col, t, ph, { amp: 3.4, sag: 4, folds: 0.1 });
+      c.fillStyle = '#d8b04a';
+      c.fillRect(p[0] + dx + 3, p[1] - 3, 3, 7);
+      c.fillRect(p[0] + dx + w - 6, p[1] - 3, 3, 7);
+    };
+    cl(0.1, -22, 66, 104, '#d8cfbd', 0);
+    cl(0.3, -12, 38, 56, '#6f7e86', 1);
+    cl(0.44, -10, 34, 50, '#a25a46', 2);
+    // trousers
+    let p = sag(0.6);
     c.fillStyle = '#4d5666';
     c.beginPath();
-    c.moveTo(p[0] - 10, p[1]);
-    c.lineTo(p[0] + 12, p[1]);
-    c.lineTo(p[0] + 11 + sway(3), p[1] + 54);
-    c.lineTo(p[0] + 2 + sway(3), p[1] + 54);
-    c.lineTo(p[0], p[1] + 14);
-    c.lineTo(p[0] - 2 + sway(4), p[1] + 54);
-    c.lineTo(p[0] - 11 + sway(4), p[1] + 54);
+    c.moveTo(p[0] - 14, p[1]);
+    c.lineTo(p[0] + 16, p[1]);
+    c.lineTo(p[0] + 15 + sway(3), p[1] + 78);
+    c.lineTo(p[0] + 3 + sway(3), p[1] + 78);
+    c.lineTo(p[0], p[1] + 20);
+    c.lineTo(p[0] - 3 + sway(4), p[1] + 78);
+    c.lineTo(p[0] - 15 + sway(4), p[1] + 78);
     c.closePath();
     c.fill();
-    p = sag(0.8);
-    cloth(c, p[0] - 9, p[1], 20, 20, '#b8a78a', sway(5), { sag: 2 });
-    // pegs
-    c.fillStyle = '#d8b04a';
-    for (const u of [0.12, 0.34, 0.47, 0.62, 0.8]) {
-      const q = sag(u);
-      c.fillRect(q[0] - 1, q[1] - 3, 3, 6);
-    }
+    cl(0.78, -11, 26, 28, '#b8a78a', 5);
   });
 }
 
@@ -697,6 +716,10 @@ function tornFace(R, g, t) {
   // what the rooms held
   R.cast((c) => {
     const f0 = -0;
+    const RS = 1.2; // the rooms are taller now; what they held grows with them
+    const room = (fy) => { c.translate(x0, fy); c.scale(RS, RS); c.translate(-x0, -fy); };
+    c.save();
+    room(f0);
     // ground floor: a kitchen. A shelf with pots, a gas cylinder, a table on its side
     c.fillStyle = '#5a4634';
     c.fillRect(x0 + 40, f0 - 98, 90, 5);
@@ -722,6 +745,9 @@ function tornFace(R, g, t) {
     c.fillRect(2, -34, 5, 34);
     c.fillRect(62, -34, 5, 34);
     c.restore();
+    c.restore();
+    c.save();
+    room(-fh);
     // first floor: a bedroom. A wardrobe, door open; a bed, its blanket half over the edge
     const f1 = -fh;
     c.fillStyle = '#4a3326';
@@ -755,6 +781,9 @@ function tornFace(R, g, t) {
     c.quadraticCurveTo(x0 + 236, f1 - 30, x0 + 232, f1 - 6);
     c.lineTo(x0 + 220, f1 - 6);
     c.fill();
+    c.restore();
+    c.save();
+    room(-2 * fh);
     // second floor: the sitting room. A sofa, a clock stopped, a picture hung crooked
     const f2 = -2 * fh;
     c.fillStyle = '#5a4a58';
@@ -787,6 +816,7 @@ function tornFace(R, g, t) {
     c.moveTo(x0 + 250, f2 - 104);
     c.lineTo(x0 + 257, f2 - 100);
     c.stroke();
+    c.restore();
   });
 
   // the floor slabs and the stubs of the side walls
@@ -842,7 +872,7 @@ function tornFace(R, g, t) {
     }
     // a torn window left in the standing wall
     c.fillStyle = '#17110e';
-    c.fillRect(x0 - 6, -fh * 1.7, 22, 46);
+    c.fillRect(x0 - 6, -fh - 86 - 107, 26, 107); // (74 x 107 once: the edge of it shows)
     // a cable from the roof, swinging
     c.strokeStyle = '#2a2420';
     c.lineWidth = 1.4;
@@ -1084,15 +1114,12 @@ function alley(R, g, t, k) {
   R.cast((c) => {
     c.strokeStyle = '#2a2420';
     c.lineWidth = 1.1;
-    c.beginPath();
-    c.moveTo(x0 + 6, -300);
-    c.quadraticCurveTo(xc, -268, x1 - 6, -312);
-    c.stroke();
+    A.wire(c, x0 + 6, -300, x1 - 6, -312, 32, t, 0.8);
     const items = [[0.2, 30, 46, '#d6cdb8'], [0.4, 22, 34, '#6f7e86'], [0.58, 28, 52, '#a25a46'], [0.76, 20, 28, '#b8a78a']];
     for (const [u, w, h, col] of items) {
       const lx = lerp(x0 + 6, x1 - 6, u);
       const ly = lerp(-300, -312, u) + 32 * 4 * u * (1 - u) * 0.7;
-      cloth(c, lx - w / 2, ly, w, h, col, Math.sin(t * 1.3 + u * 9) * 2, { sag: 3 });
+      cloth(c, lx - w / 2, ly, w, h, col, Math.sin(t * 1.3 + u * 9) * 2 + A.wind(t, u * 9) * 3, { sag: 3 });
     }
   });
   // the low sun slants into the alley, a bar of amber down the lit wall
@@ -1433,13 +1460,15 @@ function courtyardBack(R, g, t, k) {
     c.quadraticCurveTo(tx + 30, -118, tx + 52, -112);
     c.stroke();
     const r = rng(66);
+    c.save();
+    A.lean(c, tx, -110, t, 2.1, 0.035); // the crown moves as one, the leaves a little more
     for (let i = 0; i < 26; i++) {
       const lx = tx - 70 + r() * 134;
       const ly = -170 + r() * 80;
       c.fillStyle = ['#6a7a30', '#8a8a38', '#a89a40', '#5a6a2c'][i % 4];
       c.save();
-      c.translate(lx, ly + Math.sin(t * 1.1 + i) * 1.4);
-      c.rotate((r() - 0.5) * 2);
+      c.translate(lx + Math.sin(t * 1.7 + i * 1.3) * 1.6, ly + Math.sin(t * 1.1 + i) * 1.4);
+      c.rotate((r() - 0.5) * 2 + Math.sin(t * 2 + i) * 0.12);
       c.beginPath();
       c.moveTo(0, 0);
       c.quadraticCurveTo(7, -9, 14, -3);
@@ -1447,6 +1476,7 @@ function courtyardBack(R, g, t, k) {
       c.fill();
       c.restore();
     }
+    c.restore();
     // a fig, still green
     c.fillStyle = '#7a8a3a';
     c.beginPath();
@@ -1932,6 +1962,35 @@ function dressing(R, near) {
 
 // ---------------------------------------------------------------- scene --
 
+// What moves on its own: thin smoke from a stove pipe, pigeons on the walls
+// and the rail, a flock over the roofs, a bag on the draught, a drip, and dust
+// turning in the low sun.
+function streetLife(R, g, t, k, near) {
+  const cx = R.cam.x;
+  if (near(2160, 2400)) {
+    const [wx, wy, ww] = T.windowRect(BLOCKS[10], 0, 1);
+    R.cast((c) => {
+      c.fillStyle = '#4a4540';
+      c.fillRect(wx + ww * 0.55, wy - 64, 6, 76);
+      c.fillRect(wx + ww * 0.55 - 3, wy - 68, 12, 5);
+    });
+    A.smoke(R, wx + ww * 0.55 + 3, wy - 70, t, { warm: 0.5 + k * 0.5, h: 190, w: 20, alpha: 0.3, seed: 2 });
+  }
+  const sit = [[2490, -WALL.h + 2, 1], [2688, -WALL.h + 6, 2], [BALC.x + 34, BALC.y - 94, 3], [LEDGE.x1 - 10, -LEDGE.h - 2, 4], [XW.bakery + 150, -52, 5]];
+  for (const [px, py, sd] of sit) if (near(px - 30, px + 30)) A.perch(R, px, py, t, sd);
+  A.flock(R, cx, t, { y: -400, n: 4, every: 51, dur: 12, seed: 3, dir: -1, color: 'rgba(60,44,46,0.75)' });
+  A.bag(R, cx, t, { every: 53, dur: 17, seed: 4 });
+  if (near(1296, 1356)) {
+    R.cast((c) => {
+      c.fillStyle = '#4a4d52';
+      c.fillRect(1296, -134, 22, 6);
+      c.fillRect(1294, -170, 5, 38);
+    });
+    A.drip(R, 1318, -131, 0, t, 3);
+  }
+  if (near(WALL.x0, WALL.x1)) A.sunMotes(R, WALL.x0, WALL.x1, -250, -20, t, { n: 14, seed: 2, color: '255,200,140' });
+}
+
 export function drawQuarter(R, g, { k = 0, t = 0 } = {}) {
   k = clamp(k);
   const cx = R.cam.x;
@@ -1965,7 +2024,7 @@ export function drawQuarter(R, g, { k = 0, t = 0 } = {}) {
   for (const b of BLOCKS) if (near(b.x, b.x + b.w)) T.block(R, b, t);
   if (near(TORN.x0, TORN.x1)) tornFace(R, g, t);
   if (near(WALL.x0, WALL.x1)) graffitiWall(R, g, t);
-  if (near(XW.woman - 80, XW.woman + 80)) womanDoorway(R, XW.woman);
+  if (near(XW.woman - 80, XW.woman + 80)) womanDoorway(R, XW.woman, t);
   if (near(XW.umSaid - 120, XW.umSaid + 200)) umSaidFlat(R, XW.umSaid, t);
   if (near(BALC.x - 120, BALC.x + 220)) balcony(R, BALC.x, BALC.y, t);
 
@@ -2024,6 +2083,8 @@ export function drawQuarter(R, g, { k = 0, t = 0 } = {}) {
     });
   }
 
+  streetLife(R, g, t, k, near);
+
   // ---- the scene's own props (the camera's flash, a dropped thing...)
   g.act?.drawProps?.(R, g);
 
@@ -2046,7 +2107,7 @@ export function drawQuarter(R, g, { k = 0, t = 0 } = {}) {
 
 const [RC, RHW] = UM_SAID;
 const FLOOR = { x0: RC - RHW, x1: RC + RHW, h: 270 };
-const DOOR = { x: RC - 292, w: 86, h: 188 };
+const DOOR = { x: RC - 292, w: 96, h: 205 };
 export const UM_SAID_SEAT = [RC - 20, -44];
 export const BAG_X = UM_SAID_SEAT[0] - 74;
 const WIN = { x: RC + 150, w: 92, y: -208, h: 116 };

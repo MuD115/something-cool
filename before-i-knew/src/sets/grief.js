@@ -18,6 +18,7 @@ import { deepScenery } from '../engine/dof.js';
 import { horizon, rgbOf } from './horizon.js';
 import { extrudePoly, extrudeRect } from './depth.js';
 import { XG, LECTURE, CAMPUS, UM_AHMAD } from '../story/act2bc-map.js';
+import * as A from './ambient.js';
 
 const NASKH = '"Noto Naskh Arabic", "Aref Ruqaa", "IBM Plex Sans Arabic", serif';
 const RUQAA = '"Aref Ruqaa", "Noto Naskh Arabic", "IBM Plex Sans Arabic", serif';
@@ -536,6 +537,72 @@ function groundShadows(R, k) {
   }, XG.kerb - 160, 0, shear, sq);
 }
 
+// What moves on its own at the corner: smoke from a stove pipe, curtains,
+// a washing line across the north street, pigeons, a scrap of paper lifting,
+// a bag on the draught, a drip.
+function cornerLife(R, g, k, t, near) {
+  const cx = R.cam.x;
+  if (near(500, 780)) {
+    const [wx, wy, ww] = T.windowRect(BLOCKS[4], 0, 1);
+    R.cast((c) => {
+      c.fillStyle = '#4a4540';
+      c.fillRect(wx + ww * 0.6, wy - 64, 6, 76);
+      c.fillRect(wx + ww * 0.6 - 3, wy - 68, 12, 5);
+    });
+    A.smoke(R, wx + ww * 0.6 + 3, wy - 70, t, { warm: 0.4 + 0.6 * k, h: 190, w: 20, alpha: 0.3, seed: 3 });
+  }
+  // curtains lifting out of first-floor windows
+  for (const [bi, kk, ph] of [[0, 1, 1], [3, 1, 2], [5, 2, 3], [6, 1, 4], [7, 0, 5]]) {
+    const b = BLOCKS[bi];
+    if (!near(b.x, b.x + b.w)) continue;
+    const [wx, wy, ww, wh] = T.windowRect(b, 1, Math.min(kk, Math.max(2, Math.round(b.w / 110)) - 1));
+    R.cast((c) => {
+      const cols = ['#c9bfa6', '#8e6f5a', '#b9b4a6', '#7d8a8e'];
+      A.cloth(c, wx + 2, wy + 4, ww * 0.34, wh * 0.9, cols[ph % 4], t, ph, { amp: 2.4, sag: 2, folds: 0.08, period: 3.1 });
+      A.cloth(c, wx + ww - 6, wy + 2, 12, wh * 0.45, cols[(ph + 1) % 4], t, ph + 2, { amp: 7, sag: 2, folds: 0, period: 2.6 });
+    });
+  }
+  // a washing line across the north street
+  if (near(GAP[0], GAP[1])) {
+    R.cast((c) => {
+      c.strokeStyle = '#2a2420';
+      c.lineWidth = 1.2;
+      A.wire(c, GAP[0] + 6, -312, GAP[1] - 6, -326, 30, t, 0.6);
+      for (const [u, w, h, col] of [[0.2, 38, 66, '#d9d2c2'], [0.42, 26, 44, '#6f7e86'], [0.62, 32, 62, '#a25a46'], [0.8, 40, 70, '#b9ab8e']]) {
+        const lx = lerp(GAP[0] + 6, GAP[1] - 6, u);
+        const ly = lerp(-312, -326, u) + 30 * 4 * u * (1 - u) * 0.5 + A.wind(t, 0.6) * 0.8;
+        A.cloth(c, lx - w / 2, ly, w, h, col, t, u * 9, { amp: 4, sag: 3 });
+      }
+    });
+  }
+  // the scrap of paper on the low wall, a corner lifting under its stone
+  const sx = XG.kerb - 112;
+  R.paint((c) => {
+    const lift = Math.max(0, Math.sin(t * 1.1 + 1)) * (0.4 + 0.6 * Math.max(0, A.wind(t, 1)));
+    c.save();
+    c.translate(sx + 14, -68);
+    c.rotate(-lift * 0.7);
+    c.fillStyle = '#e8dfc6';
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.lineTo(-4, 0);
+    c.lineTo(0, 7);
+    c.fill();
+    c.restore();
+  });
+  for (const [px, py, sd] of [[KERB_X0 + 40, KERB_TOP - 1, 1], [XG.kerb - 118, -62, 2], [XG.olive - 12, -31, 3]]) if (near(px - 20, px + 20)) A.perch(R, px, py, t, sd, { color: k > 0.5 ? '#3a3638' : '#4a4640' });
+  A.flock(R, cx, t, { y: -360, n: 5, every: 55, dur: 12, seed: 4, dir: -1, color: 'rgba(60,44,46,0.75)' });
+  A.bag(R, cx, t, { every: 51, dur: 17, seed: 7 });
+  if (near(880, 940)) {
+    R.cast((c) => {
+      c.fillStyle = '#4a4d52';
+      c.fillRect(884, -150, 22, 6);
+      c.fillRect(882, -186, 5, 38);
+    });
+    A.drip(R, 906, -147, 0, t, 2);
+  }
+}
+
 export function drawCorner(R, g, { k = 0, t = g.time } = {}) {
   k = clamp(k);
   const cx = R.cam.x;
@@ -574,6 +641,7 @@ export function drawCorner(R, g, { k = 0, t = g.time } = {}) {
 
   T.street(R, -1500, 2600, { color: mh('#6e6559', '#5a5058', k * 0.6), pave: mh('#8a8072', '#7a6e70', k * 0.6) });
   T.cables(R, cx, { seed: 23, from: -1400, to: 2500 });
+  cornerLife(R, g, k, t, near);
 
   // --- the place itself, behind the people ---
   // the gap to the east where a building came down: open sky, and the town beyond
@@ -1284,8 +1352,11 @@ const SHOPS = [
   { w: 210, floors: 4, kind: 'pharmacy', sign: 'صيدلية النور', sc: '#0f5a3a', tc: '#ffffff', wall: '#efe0bd' },
 ];
 const SHOPS_X0 = CC - 750;
+const SHOP_GF = 272; // a shop's ground floor with its sign band, at people's scale (was 178)
+const SHOP_FL = 160; // and a storey above it (was 112)
 const shopX = (i) => SHOPS_X0 + SHOPS.slice(0, i).reduce((a, s) => a + s.w, 0);
 const CAFE = { x: CC + 690, w: 520, floors: 2 };
+const CAFE_H = 410; // the cafeteria's wall: a ground floor 262 tall (door 205) and offices over it (was 250)
 
 // the traffic's own clock: it slows when the memory goes
 const SLOW = { t: -1, acc: 0 };
@@ -1408,8 +1479,8 @@ function lampPost(c, x) {
 
 // a shop's face, baked: upper floors, balcony and A/C, the ground-floor opening
 function shopFace(spec, idx) {
-  const GF = 178; // ground floor, sign band included
-  const FL = 112;
+  const GF = SHOP_GF; // an opening 210 tall
+  const FL = SHOP_FL;
   const H = GF + spec.floors * FL + 30;
   const PAD = 24;
   return bake('camp-shop-' + idx, spec.w + PAD * 2, H + 30, 1.1, (c) => {
@@ -1454,109 +1525,110 @@ function shopFace(spec, idx) {
       c.lineTo(w * 0.3 - 6, top - 22);
       c.stroke();
     }
-    // the upper floors: shuttered windows, a balcony or two, an air conditioner
+    // the upper floors: shuttered windows (46 x 96, the sill 52 up), a balcony
+    // or two with a 92 rail, an air conditioner
     for (let f = 0; f < spec.floors; f++) {
-      const fy = -(GF + (f + 1) * FL) + 14;
+      const fl = -(GF + f * FL); // this storey's floor line
+      const fy = fl - 148; // the window's top
       const n = Math.max(2, Math.round(w / 78));
       for (let i = 0; i < n; i++) {
-        const wx = 16 + (i * (w - 32)) / n + (w - 32) / n / 2 - 17;
+        const wx = 16 + (i * (w - 32)) / n + (w - 32) / n / 2 - 23;
         const open = r() < 0.5;
         c.fillStyle = shadeHex(spec.wall, 0.8);
-        c.fillRect(wx - 4, fy - 3, 42, 70); // surround
+        c.fillRect(wx - 5, fy - 4, 56, 108); // surround
         c.fillStyle = '#2a2420';
-        c.fillRect(wx, fy, 34, 62);
+        c.fillRect(wx, fy, 46, 96);
         // the glass, a sky reflection
-        const gg = c.createLinearGradient(wx, fy, wx + 34, fy + 62);
+        const gg = c.createLinearGradient(wx, fy, wx + 46, fy + 96);
         gg.addColorStop(0, 'rgba(190,215,235,0.7)');
         gg.addColorStop(1, 'rgba(120,150,170,0.4)');
         c.fillStyle = gg;
-        c.fillRect(wx + 2, fy + 2, 30, 58);
+        c.fillRect(wx + 2, fy + 2, 42, 92);
         c.fillStyle = '#2a2420';
-        c.fillRect(wx + 16, fy + 2, 2, 58);
+        c.fillRect(wx + 22, fy + 2, 2, 92);
         // wooden shutters, half-open
         c.fillStyle = ['#5a7a5a', '#6a4a30', '#4a6a7a', '#7a5a38'][(idx + i + f) % 4];
         if (open) {
-          c.fillRect(wx - 14, fy, 12, 62);
-          c.fillRect(wx + 36, fy, 12, 62);
+          c.fillRect(wx - 17, fy, 15, 96);
+          c.fillRect(wx + 48, fy, 15, 96);
           c.fillStyle = 'rgba(0,0,0,0.2)';
-          for (let sy = fy + 4; sy < fy + 60; sy += 5) {
-            c.fillRect(wx - 14, sy, 12, 1);
-            c.fillRect(wx + 36, sy, 12, 1);
+          for (let sy = fy + 4; sy < fy + 94; sy += 6) {
+            c.fillRect(wx - 17, sy, 15, 1);
+            c.fillRect(wx + 48, sy, 15, 1);
           }
         } else {
-          c.fillRect(wx + 2, fy + 2, 30, 24);
+          c.fillRect(wx + 2, fy + 2, 42, 36);
           c.fillStyle = 'rgba(0,0,0,0.2)';
-          for (let sy = fy + 5; sy < fy + 26; sy += 4) c.fillRect(wx + 2, sy, 30, 1);
+          for (let sy = fy + 5; sy < fy + 38; sy += 5) c.fillRect(wx + 2, sy, 42, 1);
         }
-        // a curtain stirring behind it
+        // a curtain behind it
         if (!open && r() < 0.6) {
           c.fillStyle = 'rgba(240,230,205,0.75)';
-          c.fillRect(wx + 3, fy + 28, 12, 32);
+          c.fillRect(wx + 3, fy + 42, 17, 50);
         }
       }
       if (f === 0 && spec.floors > 2) {
-        // a balcony: slab, iron rail, laundry or a pot of basil
+        // a balcony: slab, iron rail 92 high, laundry or a pot of basil
         const bx = w * 0.18;
         const bw = w * 0.5;
-        const by = fy + 66;
-        extrudeRect(c, bx, by, bw, 6, 20, { color: shadeHex(spec.wall, 0.95) });
+        const by = fl;
+        extrudeRect(c, bx, by, bw, 8, 20, { color: shadeHex(spec.wall, 0.95) });
         c.fillStyle = shadeHex(spec.wall, 0.95);
-        c.fillRect(bx, by, bw, 6);
+        c.fillRect(bx, by, bw, 8);
         c.strokeStyle = '#1e1e22';
-        c.lineWidth = 1.4;
+        c.lineWidth = 1.6;
         c.beginPath();
-        c.moveTo(bx, by - 26);
-        c.lineTo(bx + bw, by - 26);
-        for (let x = bx + 3; x < bx + bw; x += 8) {
-          c.moveTo(x, by - 26);
+        c.moveTo(bx, by - 92);
+        c.lineTo(bx + bw, by - 92);
+        for (let x = bx + 3; x < bx + bw; x += 9) {
+          c.moveTo(x, by - 92);
           c.lineTo(x, by);
         }
         c.stroke();
-        if (idx % 3 === 0) {
-          for (let i = 0; i < 4; i++) {
-            c.fillStyle = ['#e8e0d0', '#9ab0c8', '#d8a890', '#f0e8c8'][i];
-            c.fillRect(bx + 10 + i * 20, by - 24, 14, 20 + (i % 2) * 6);
-          }
-        } else {
+        if (idx % 3 !== 0) {
           c.fillStyle = '#a0603a';
-          c.fillRect(bx + 8, by - 12, 12, 12);
+          c.fillRect(bx + 8, by - 20, 18, 20);
           c.fillStyle = '#3f7a2e';
           c.beginPath();
-          c.arc(bx + 14, by - 18, 9, 0, TAU);
+          c.arc(bx + 17, by - 30, 12, 0, TAU);
           c.fill();
         }
       }
       if (f === 1 && idx % 2 === 1) {
         // a split air conditioner bracketed on the wall
         c.fillStyle = '#e6e4de';
-        c.fillRect(w - 42, fy + 20, 30, 16);
+        c.fillRect(w - 46, fy + 40, 36, 20);
         c.fillStyle = 'rgba(0,0,0,0.2)';
-        c.fillRect(w - 42, fy + 33, 30, 3);
+        c.fillRect(w - 46, fy + 56, 36, 4);
       }
     }
-    // ----- the ground floor: opening, goods, sign, awning
+    // ----- the ground floor: a 210 opening, goods, sign, awning
     const ox = 14;
     const ow = w - 28;
+    const OP = 210;
     c.fillStyle = '#1c1612';
-    c.fillRect(ox, -150, ow, 150);
-    goods(c, spec.kind, ox, ow, r);
+    c.fillRect(ox, -OP, ow, OP);
+    c.save();
+    c.scale(1.4, 1.4); // goods were drawn for a 150 opening
+    goods(c, spec.kind, ox / 1.4, ow / 1.4, r);
+    c.restore();
     // the pulled-up shutter above the opening, and the shopfront frame
     c.fillStyle = '#8c8a86';
-    c.fillRect(ox - 4, -158, ow + 8, 10);
+    c.fillRect(ox - 4, -OP - 10, ow + 8, 12);
     c.fillStyle = 'rgba(0,0,0,0.25)';
-    for (let y = -156; y < -148; y += 3) c.fillRect(ox - 4, y, ow + 8, 0.8);
+    for (let y = -OP - 8; y < -OP; y += 3) c.fillRect(ox - 4, y, ow + 8, 0.8);
     // the sign: a lit board with the shop's name
     c.fillStyle = spec.sc;
-    c.fillRect(ox, -190, ow, 32);
+    c.fillRect(ox, -OP - 52, ow, 42);
     c.strokeStyle = 'rgba(255,255,255,0.35)';
     c.lineWidth = 1.5;
-    c.strokeRect(ox + 3, -187, ow - 6, 26);
+    c.strokeRect(ox + 3, -OP - 49, ow - 6, 36);
     c.fillStyle = spec.tc;
-    c.font = `${spec.sign.length > 14 ? 17 : 21}px ${RUQAA}`;
+    c.font = `${spec.sign.length > 14 ? 21 : 26}px ${RUQAA}`;
     c.textAlign = 'center';
     c.direction = 'rtl';
-    c.fillText(spec.sign, ox + ow / 2, -166);
-    // the awning: striped, scalloped
+    c.fillText(spec.sign, ox + ow / 2, -OP - 22);
+    // the awning: striped, scalloped (its fringe is stirred on the live layer)
     if (spec.awn) {
       const [a1, a2] = spec.awn;
       const aw = ow + 20;
@@ -1564,15 +1636,15 @@ function shopFace(spec, idx) {
         c.fillStyle = i % 2 ? a2 : a1;
         c.beginPath();
         const sx0 = ox - 10 + (i * aw) / 12;
-        c.moveTo(sx0, -150);
-        c.lineTo(sx0 + aw / 12, -150);
-        c.lineTo(sx0 + aw / 12 + 2, -118);
-        c.quadraticCurveTo(sx0 + aw / 24 + 1, -112, sx0 - 1, -118);
+        c.moveTo(sx0, -OP);
+        c.lineTo(sx0 + aw / 12, -OP);
+        c.lineTo(sx0 + aw / 12 + 2, -OP + 44);
+        c.quadraticCurveTo(sx0 + aw / 24 + 1, -OP + 52, sx0 - 1, -OP + 44);
         c.closePath();
         c.fill();
       }
       c.fillStyle = 'rgba(0,0,0,0.14)';
-      c.fillRect(ox - 10, -150, aw, 7);
+      c.fillRect(ox - 10, -OP, aw, 9);
     }
     // the step, and a worn threshold
     c.fillStyle = '#b3a589';
@@ -1711,7 +1783,7 @@ function goods(c, kind, ox, ow, r) {
 // the cafeteria: a long low front with an awning, a big window, the door
 function cafeFace() {
   const w = CAFE.w;
-  const H = 250;
+  const H = CAFE_H;
   return bake('camp-cafe', w + 60, H + 40, 1.1, (c) => {
     c.translate(30, H + 10);
     // the wall: pale stone and a green dado
@@ -1719,7 +1791,7 @@ function cafeFace() {
     c.fillStyle = '#e0cfa6';
     c.fillRect(0, -H, w, H);
     c.fillStyle = 'rgba(255,255,255,0.12)';
-    for (let y = -H + 10; y < -150; y += 22) c.fillRect(0, y, w, 1.2);
+    for (let y = -H + 10; y < -215; y += 22) c.fillRect(0, y, w, 1.2);
     extrudeRect(c, -8, -H - 10, w + 16, 14, 16, { color: '#cdb98c' });
     c.fillStyle = '#d4c094';
     c.fillRect(-8, -H - 10, w + 16, 14);
@@ -1729,130 +1801,130 @@ function cafeFace() {
     for (let i = 0; i < 4; i++) {
       const wx = 38 + i * 116;
       c.fillStyle = '#2a2420';
-      c.fillRect(wx, -H + 24, 52, 58);
-      const gg = c.createLinearGradient(wx, -H + 24, wx + 52, -H + 82);
+      c.fillRect(wx, -H + 24, 66, 100);
+      const gg = c.createLinearGradient(wx, -H + 24, wx + 66, -H + 124);
       gg.addColorStop(0, 'rgba(190,215,235,0.75)');
       gg.addColorStop(1, 'rgba(120,150,170,0.4)');
       c.fillStyle = gg;
-      c.fillRect(wx + 2, -H + 26, 48, 54);
+      c.fillRect(wx + 2, -H + 26, 62, 96);
       c.fillStyle = '#2a2420';
-      c.fillRect(wx + 25, -H + 26, 2, 54);
+      c.fillRect(wx + 32, -H + 26, 2, 96);
       c.fillStyle = '#cdb98c';
-      c.fillRect(wx - 5, -H + 82, 62, 6);
+      c.fillRect(wx - 5, -H + 124, 76, 6);
     }
     // the ground floor: glass front, left; the doorway, centre
     const doorX = CAFE_DOOR_X - CAFE.x;
     c.fillStyle = '#1c1612';
-    c.fillRect(30, -168, doorX - 70, 168);
-    c.fillRect(doorX + 52, -168, w - doorX - 70, 168);
+    c.fillRect(30, -215, doorX - 80, 215);
+    c.fillRect(doorX + 60, -215, w - doorX - 78, 215);
     // the room inside: warm, tables, a counter and the coffee machine, a glow
-    const wg = c.createLinearGradient(0, -168, 0, 0);
+    const wg = c.createLinearGradient(0, -215, 0, 0);
     wg.addColorStop(0, '#5a3e22');
     wg.addColorStop(1, '#8a5e30');
     c.fillStyle = wg;
-    c.fillRect(36, -162, doorX - 82, 162);
+    c.fillRect(36, -209, doorX - 92, 209);
     c.fillStyle = '#3a2a1c';
-    c.fillRect(46, -66, 120, 66);
+    c.fillRect(46, -90, 120, 90);
     c.fillStyle = '#d8d0b8';
-    c.fillRect(46, -70, 120, 6);
+    c.fillRect(46, -95, 120, 6);
     c.fillStyle = '#9a9a9c';
-    c.fillRect(70, -108, 26, 38);
+    c.fillRect(68, -142, 30, 47);
     c.fillStyle = '#2a2a2e';
-    c.fillRect(74, -100, 18, 6);
+    c.fillRect(73, -132, 20, 7);
     // the right-hand room: shelves of tins and glasses, the cash desk
-    const rx = doorX + 56;
-    const rw = w - doorX - 78;
-    const rg2 = c.createLinearGradient(0, -162, 0, 0);
+    const rx = doorX + 66;
+    const rw = w - doorX - 88;
+    const rg2 = c.createLinearGradient(0, -209, 0, 0);
     rg2.addColorStop(0, '#4a3220');
     rg2.addColorStop(1, '#7a5230');
     c.fillStyle = rg2;
-    c.fillRect(rx, -162, rw, 162);
+    c.fillRect(rx, -209, rw, 209);
     c.fillStyle = '#2e2218';
-    for (let i = 0; i < 3; i++) c.fillRect(rx + 6, -150 + i * 30, rw - 12, 3);
+    for (let i = 0; i < 3; i++) c.fillRect(rx + 6, -190 + i * 38, rw - 12, 3);
     for (let i = 0; i < 3; i++) for (let k2 = 0; k2 < 9; k2++) {
       c.fillStyle = ['#c8a050', '#e8e0c8', '#a05030', '#6a8a9a'][(i + k2) % 4];
-      c.fillRect(rx + 10 + k2 * ((rw - 24) / 9), -150 + i * 30 - 14, 8, 14);
+      c.fillRect(rx + 10 + k2 * ((rw - 24) / 9), -190 + i * 38 - 17, 8, 17);
     }
     // students inside as shapes
     c.fillStyle = 'rgba(30,22,16,0.8)';
     for (const px of [200, 262, 318]) {
       c.beginPath();
-      c.arc(px, -86, 9, 0, TAU);
+      c.arc(px, -128, 11, 0, TAU);
       c.fill();
-      c.fillRect(px - 10, -76, 20, 40);
+      c.fillRect(px - 12, -116, 24, 62);
     }
     c.fillStyle = '#8a6a44';
-    for (const px of [186, 300]) c.fillRect(px, -42, 70, 4);
+    for (const px of [186, 300]) c.fillRect(px, -60, 70, 4);
     // the glass's frame and the shine on it
     c.strokeStyle = '#3a3a3e';
     c.lineWidth = 4;
-    c.strokeRect(34, -164, doorX - 78, 164);
+    c.strokeRect(34, -211, doorX - 90, 211);
     c.beginPath();
-    c.moveTo((34 + doorX - 44) / 2, -164);
+    c.moveTo((34 + doorX - 56) / 2, -211);
     c.lineTo((34 + doorX - 44) / 2, 0);
     c.stroke();
     c.fillStyle = 'rgba(255,255,255,0.1)';
     c.beginPath();
-    c.moveTo(60, -164);
-    c.lineTo(110, -164);
+    c.moveTo(60, -211);
+    c.lineTo(110, -211);
     c.lineTo(60, 0);
     c.lineTo(20, 0);
     c.fill();
     // the doorway: deep, lit warm, a coir mat
     c.fillStyle = '#1c1612';
-    c.fillRect(doorX - 40, -150, 80, 150);
-    const dg = c.createLinearGradient(0, -150, 0, 0);
+    c.fillRect(doorX - 50, -205, 100, 205);
+    const dg = c.createLinearGradient(0, -205, 0, 0);
     dg.addColorStop(0, '#9a6a34');
     dg.addColorStop(1, '#d09a54');
     c.fillStyle = dg;
-    c.fillRect(doorX - 34, -144, 68, 144);
+    c.fillRect(doorX - 44, -199, 88, 199);
     c.fillStyle = 'rgba(40,26,14,0.5)';
-    c.fillRect(doorX - 34, -144, 10, 144);
+    c.fillRect(doorX - 44, -199, 10, 199);
     c.strokeStyle = '#3a2a1c';
     c.lineWidth = 5;
-    c.strokeRect(doorX - 40, -150, 80, 150);
+    c.strokeRect(doorX - 50, -205, 100, 205);
     c.fillStyle = '#6a5a44';
-    c.fillRect(doorX - 28, -3, 56, 3);
+    c.fillRect(doorX - 38, -3, 76, 3);
     // the sign: big, green, the faculty's name; and a red board for the coffee
     c.fillStyle = '#1d5a3c';
-    c.fillRect(24, -216, w - 220, 38);
+    c.fillRect(24, -268, w - 220, 44);
     c.strokeStyle = 'rgba(255,255,255,0.4)';
     c.lineWidth = 1.5;
-    c.strokeRect(28, -212, w - 228, 30);
+    c.strokeRect(28, -264, w - 228, 36);
     c.fillStyle = '#f6efd0';
-    c.font = `19px ${RUQAA}`;
+    c.font = `24px ${RUQAA}`;
     c.textAlign = 'center';
     c.direction = 'rtl';
-    c.fillText('كافتيريا كلية الهندسة', 24 + (w - 220) / 2, -192);
+    c.fillText('كافتيريا كلية الهندسة', 24 + (w - 220) / 2, -237);
     c.fillStyle = '#b02a22';
-    c.fillRect(w - 176, -216, 150, 38);
+    c.fillRect(w - 176, -268, 150, 44);
     c.fillStyle = '#fff';
-    c.font = `15px ${NASKH}`;
-    c.fillText('نسكافيه · شاي · عصير', w - 101, -193);
+    c.font = `18px ${NASKH}`;
+    c.fillText('نسكافيه · شاي · عصير', w - 101, -239);
     // the awning, green and cream, scalloped, over the whole front
     const n = 26;
     for (let i = 0; i < n; i++) {
       c.fillStyle = i % 2 ? '#f3e6c8' : '#2e7d4a';
       const x0 = -6 + (i * (w + 12)) / n;
       c.beginPath();
-      c.moveTo(x0, -168);
-      c.lineTo(x0 + (w + 12) / n, -168);
-      c.lineTo(x0 + (w + 12) / n + 3, -134);
-      c.quadraticCurveTo(x0 + (w + 12) / (2 * n) + 1.5, -127, x0, -134);
+      c.moveTo(x0, -215);
+      c.lineTo(x0 + (w + 12) / n, -215);
+      c.lineTo(x0 + (w + 12) / n + 3, -178);
+      c.quadraticCurveTo(x0 + (w + 12) / (2 * n) + 1.5, -170, x0, -178);
       c.closePath();
       c.fill();
     }
     c.fillStyle = 'rgba(0,0,0,0.14)';
-    c.fillRect(-6, -168, w + 12, 8);
+    c.fillRect(-6, -215, w + 12, 9);
     // the menu board by the door, chalk prices
     c.fillStyle = '#26302c';
-    c.fillRect(doorX + 60, -132, 56, 64);
+    c.fillRect(doorX + 64, -170, 60, 84);
     c.fillStyle = 'rgba(240,242,232,0.9)';
     c.font = `10px ${NASKH}`;
     c.textAlign = 'right';
-    c.fillText('نسكافيه ٣٥', doorX + 110, -116);
-    c.fillText('شاي ٢٠', doorX + 110, -100);
-    c.fillText('عصير ٣٠', doorX + 110, -84);
+    c.fillText('نسكافيه ٣٥', doorX + 118, -146);
+    c.fillText('شاي ٢٠', doorX + 118, -126);
+    c.fillText('عصير ٣٠', doorX + 118, -106);
     c.fillStyle = '#b3a589';
     c.fillRect(20, -4, w - 10, 6);
   });
@@ -2111,53 +2183,53 @@ function uniGate(R, wp) {
       rail(gx1, CC - 780);
       // the piers: Damascene ablaq courses, a capital, a lamp on top
       for (const px of [gx0 - 22, gx1 - 14]) {
-        extrudeRect(c, px, -190, 36, 190, 14, { color: '#d8cdb0' });
+        extrudeRect(c, px, -240, 36, 240, 14, { color: '#d8cdb0' });
         for (let i = 0; i < 12; i++) {
           c.fillStyle = i % 2 ? '#2e2a28' : '#e8dfc8';
-          c.fillRect(px, -190 + i * 15.8, 36, 15.8);
+          c.fillRect(px, -240 + i * 20, 36, 20);
         }
         c.fillStyle = 'rgba(255,255,255,0.18)';
-        c.fillRect(px, -190, 4, 190);
+        c.fillRect(px, -240, 4, 240);
         c.fillStyle = '#d0c4a4';
-        c.fillRect(px - 5, -202, 46, 14);
+        c.fillRect(px - 5, -252, 46, 14);
         c.fillStyle = 'rgba(255,250,235,0.5)';
-        c.fillRect(px - 5, -202, 46, 2);
+        c.fillRect(px - 5, -252, 46, 2);
         c.fillStyle = '#e4dcc4';
         c.beginPath();
-        c.arc(px + 18, -218, 12, 0, TAU);
+        c.arc(px + 18, -268, 12, 0, TAU);
         c.fill();
       }
       // the arch of iron over the opening, and the lettering in gilt
       c.strokeStyle = '#1e1e22';
       c.lineWidth = 5;
       c.beginPath();
-      c.moveTo(gx0 + 14, -190);
-      c.quadraticCurveTo(GATE_X, -262, gx1 - 14, -190);
+      c.moveTo(gx0 + 14, -240);
+      c.quadraticCurveTo(GATE_X, -312, gx1 - 14, -240);
       c.stroke();
       c.lineWidth = 2;
       c.beginPath();
-      c.moveTo(gx0 + 14, -176);
-      c.quadraticCurveTo(GATE_X, -244, gx1 - 14, -176);
+      c.moveTo(gx0 + 14, -226);
+      c.quadraticCurveTo(GATE_X, -294, gx1 - 14, -226);
       c.stroke();
       c.fillStyle = '#0f0f12';
-      c.fillRect(GATE_X - 62, -218, 124, 30);
+      c.fillRect(GATE_X - 62, -268, 124, 30);
       c.fillStyle = '#d8b64a';
       c.font = `22px ${RUQAA}`;
       c.textAlign = 'center';
       c.direction = 'rtl';
-      c.fillText('جامعة دمشق', GATE_X, -195);
+      c.fillText('جامعة دمشق', GATE_X, -245);
       // the gate leaves, swung open back against the piers
       c.fillStyle = '#1e1e22';
       for (const [lx, dir] of [[gx0 + 14, 1], [gx1 - 14, -1]]) {
-        for (let i = 0; i < 4; i++) c.fillRect(lx + dir * i * 5 - (dir < 0 ? 2.6 : 0), -150 + i * 1.5, 2.6, 150 - i * 1.5);
+        for (let i = 0; i < 4; i++) c.fillRect(lx + dir * i * 5 - (dir < 0 ? 2.6 : 0), -205 + i * 1.5, 2.6, 205 - i * 1.5);
       }
     }, 0.0),
   );
   R.shadow(
     (c) => {
       c.fillStyle = 'rgba(0,0,0,0.45)';
-      c.fillRect(gx0 - 22, -200, 36, 200);
-      c.fillRect(gx1 - 14, -200, 36, 200);
+      c.fillRect(gx0 - 22, -250, 36, 250);
+      c.fillRect(gx1 - 14, -250, 36, 250);
     },
     gx0,
     0,
@@ -2167,7 +2239,7 @@ function uniGate(R, wp) {
 }
 
 // the faculty beyond the railings: a long pale building, an arcade, palms
-function facultyBehind(R, wp, cam) {
+function facultyBehind(R, wp, cam, t = 0) {
   const d = 0.9;
   R.layer(d);
   R.paint(
@@ -2207,13 +2279,16 @@ function facultyBehind(R, wp, cam) {
         c.stroke();
         c.strokeStyle = '#4a7a30';
         c.lineWidth = 3;
+        c.save();
+        A.lean(c, px + 2, -250, t, px * 0.01, 0.05);
         for (let i = 0; i < 9; i++) {
-          const a = -Math.PI + (i / 8) * Math.PI;
+          const a = -Math.PI + (i / 8) * Math.PI + Math.sin(t * 1.5 + i * 0.9 + px) * 0.04;
           c.beginPath();
           c.moveTo(px + 2, -250);
           c.quadraticCurveTo(px + 2 + Math.cos(a) * 30, -250 + Math.sin(a) * 30 - 8, px + 2 + Math.cos(a) * 58, -250 + Math.sin(a) * 40 + 24);
           c.stroke();
         }
+        c.restore();
       }
     }, 0.9),
   );
@@ -2339,6 +2414,35 @@ function trafficAt(tt) {
   return defs.map((q) => ({ ...q, x: q.dir > 0 ? CC - 2600 + wrap(tt * q.sp + q.off) : CC + 2600 - wrap(tt * q.sp + q.off) }));
 }
 
+// What moves on its own on the campus street: live laundry on a balcony,
+// pigeons on the gate piers and the awnings, a flock, a bag on the draught,
+// dust in the sun. Gone before the dissolve takes hold.
+function campusLife(R, t, near, d, cx) {
+  if (d > 0.3) return;
+  // washing on the books shop's balcony and the fruit shop's: a line above the 92 rail
+  for (const i of [0, 3]) {
+    const sp = SHOPS[i];
+    const sx = shopX(i);
+    if (!near(sx, sx + sp.w)) continue;
+    const bx = sx + sp.w * 0.18;
+    const bw = sp.w * 0.5;
+    const by = -SHOP_GF;
+    R.cast((c) => {
+      c.strokeStyle = '#2a2420';
+      c.lineWidth = 1.1;
+      A.wire(c, bx, by - 98, bx + bw, by - 100, 8, t, i, 0.8);
+      const cols = ['#e8e0d0', '#9ab0c8', '#d8a890', '#f0e8c8'];
+      for (let k = 0; k < 4; k++) A.cloth(c, bx + 8 + k * (bw - 24) / 4, by - 96 + k * 0.4, 18, 46 + (k % 2) * 12, cols[k], t, i * 3 + k, { amp: 3, sag: 2 });
+    });
+  }
+  for (const [px, py, sd] of [[GATE_X - 92 - 4, -252, 1], [GATE_X + 92 + 4, -252, 2], [shopX(2) + 70, -SHOP_GF + 62 - 12, 3], [shopX(3) + 150, -SHOP_GF + 62 - 12, 4]]) {
+    if (near(px - 20, px + 20)) A.perch(R, px, py, t, sd, { s: 1.5, color: '#5a554e' });
+  }
+  A.flock(R, cx, t, { y: -420, n: 5, every: 49, dur: 11, seed: 5, color: 'rgba(70,60,60,0.7)' });
+  A.bag(R, cx, t, { every: 57, dur: 18, seed: 8, y: 0 });
+  A.sunMotes(R, cx - 500, cx + 500, -280, -20, t, { n: 14, seed: 6, color: '255,236,190' });
+}
+
 export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
   const d = clamp(dissolve);
   const cx = R.cam.x;
@@ -2401,18 +2505,55 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
   if (d < 0.2) R.surface((c) => c.rect(Math.max(x0, CC - 2000), 8, 3600, 500), 'asphalt', { scale: 1.1, seed: 2, alpha: 0.35 * (1 - d / 0.2) });
 
   // ---- the university behind its railings ------------------------------------------
-  if (near(CC - 1400, CC - 700)) facultyBehind(R, wp, cx);
+  if (near(CC - 1400, CC - 700)) facultyBehind(R, wp, cx, t);
 
   // ---- the shops, and the cafeteria ---------------------------------------------------
   SHOPS.forEach((s, i) => {
     const x = shopX(i);
     if (!near(x, x + s.w)) return;
     const F = shopFace(s, i);
-    R.paint(wp((c) => c.drawImage(F, x - 24, -(178 + s.floors * 112 + 30) - 10 + 10 - 0, s.w + 48, (178 + s.floors * 112 + 30) + 30), i * 0.37));
+    const SH = SHOP_GF + s.floors * SHOP_FL + 30;
+    R.paint(wp((c) => c.drawImage(F, x - 24, -SH, s.w + 48, SH + 30), i * 0.37));
+    // the awning's fringe, stirring
+    if (s.awn) {
+      R.cast(
+        wp((c) => {
+          const aw = s.w - 8;
+          for (let k = 0; k < 12; k++) {
+            const sx0 = x + 4 + (k * aw) / 12;
+            const sw = A.wind(t, k * 0.6 + i) * 2.6 + Math.sin(t * 2.6 + k * 1.7 + i) * 1.2;
+            c.fillStyle = k % 2 ? s.awn[1] : s.awn[0];
+            c.beginPath();
+            c.moveTo(sx0, -160);
+            c.lineTo(sx0 + aw / 12, -160);
+            c.lineTo(sx0 + aw / 24 + sw, -149 + Math.abs(sw) * 0.3);
+            c.closePath();
+            c.fill();
+          }
+        }, i * 0.37),
+      );
+    }
   });
   if (near(CAFE.x, CAFE.x + CAFE.w)) {
     const Cf = cafeFace();
-    R.paint(wp((c) => c.drawImage(Cf, CAFE.x - 30, -250 - 10 + 10, CAFE.w + 60, 290), 2.2));
+    R.paint(wp((c) => c.drawImage(Cf, CAFE.x - 30, -CAFE_H, CAFE.w + 60, CAFE_H + 40), 2.2));
+    // the awning's fringe, stirring
+    R.cast(
+      wp((c) => {
+        const n = 26;
+        for (let k = 0; k < n; k++) {
+          const sx0 = CAFE.x - 6 + (k * (CAFE.w + 12)) / n;
+          const sw = A.wind(t, k * 0.5) * 2.4 + Math.sin(t * 2.5 + k * 1.3) * 1.1;
+          c.fillStyle = k % 2 ? '#f3e6c8' : '#2e7d4a';
+          c.beginPath();
+          c.moveTo(sx0, -178);
+          c.lineTo(sx0 + (CAFE.w + 12) / n, -178);
+          c.lineTo(sx0 + (CAFE.w + 12) / (2 * n) + sw, -168 + Math.abs(sw) * 0.3);
+          c.closePath();
+          c.fill();
+        }
+      }, 2.2),
+    );
     // a lit doorway and the window, warm
     R.glow(
       wp((c) => {
@@ -2473,7 +2614,12 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
   [CC - 505, CC - 22, CC + 468].forEach((tx, i) => {
     if (!near(tx - 200, tx + 200)) return;
     const cv = orangeTree(i + 1);
-    R.cast(wp((c) => c.drawImage(cv, tx - 120, -266, 240, 272), i + 0.5));
+    R.cast(wp((c) => {
+      c.save();
+      A.lean(c, tx, -150, t, i * 1.7 + 0.4, 0.028); // the crown moves on its trunk
+      c.drawImage(cv, tx - 120, -266, 240, 272);
+      c.restore();
+    }, i + 0.5));
     R.shadow(
       (c) => {
         c.fillStyle = 'rgba(0,0,0,0.5)';
@@ -2488,6 +2634,7 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
       0.2,
     );
   });
+  campusLife(R, t, near, d, cx);
   g.act?.drawProps?.(R, g);
 
   // ---- people (rigs) -----------------------------------------------------------------------------------------
