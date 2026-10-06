@@ -184,6 +184,8 @@ the children and the path. It's saved in the browser.
   you're online, it loads its Arabic and Latin typefaces from Google Fonts.
 - **From source:** serve this folder, for example with `python3 -m http.server 8080`, then
   open the printed URL. Run `python3 build.py` to rebuild the single file.
+- **A release:** `python3 release.py` rebuilds, then gathers the single file, a plain
+  `README.txt` and the screenshots in `release/shots/` into `release/before-i-knew.zip`.
 
 | Action | Keys | Gamepad |
 | --- | --- | --- |
@@ -199,7 +201,9 @@ the children and the path. It's saved in the browser.
 | Next line (hold to keep skipping) | X or Backspace | LT |
 | Menu | Esc or P | Start |
 
-You can rebind every key under **Controls**. On phones and tablets, on-screen buttons appear.
+You can rebind every key under **Controls**. On phones and tablets, on-screen buttons appear
+(turn the phone sideways for the full frame). Tap an arrow twice and hold it to run; a choice is
+tapped directly, and the buttons step aside while one is open.
 
 **Menus.** The main menu has Continue (from the last checkpoint, in whichever act), New game,
 Chapters, Your story, Settings, Controls and About. Finishing Act One, with any ending, unlocks Act Two:
