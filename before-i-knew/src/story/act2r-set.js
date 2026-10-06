@@ -575,31 +575,6 @@ function balcony(R, x, t, sheet) {
       c.lineTo(x - BW + i * (BW / 7), SY);
     }
     c.stroke();
-    if (sheet) {
-      // draped over the rail, hanging on the street side down past the slab
-      const top = SY - RH - 2;
-      const x0 = x - 66;
-      const w = 128;
-      const h = 190;
-      const wv = A.wind(t, 0.6);
-      const off = (v) => Math.sin(t * 2.6 - v * 2.4 + 0.5) * 4.5 * v * v + wv * 7 * v;
-      c.fillStyle = '#e6e1d4';
-      c.beginPath();
-      c.moveTo(x0, top);
-      c.lineTo(x0 + w, top);
-      c.lineTo(x0 + w + off(0.5), top + h * 0.5);
-      c.lineTo(x0 + w - 4 + off(1), top + h);
-      c.lineTo(x0 + w * 0.7 + off(1), top + h - 9);
-      c.lineTo(x0 + w * 0.4 + off(1), top + h + 3);
-      c.lineTo(x0 + 8 + off(1), top + h - 6);
-      c.lineTo(x0 + off(0.5), top + h * 0.5);
-      c.closePath();
-      c.fill();
-      c.fillStyle = 'rgba(0,0,0,0.07)';
-      for (let i = 1; i < 6; i++) c.fillRect(x0 + (w * i) / 6 + off(0.6) * 0.6, top + 6, 2, h - 14);
-      c.fillStyle = 'rgba(160,140,110,0.3)';
-      c.fillRect(x0 + w * 0.6, top + 60, 24, 40); // a sun-rotted patch
-    }
   });
   // geranium pots on the slab, nodding
   R.cast((c) => {
@@ -619,6 +594,33 @@ function balcony(R, x, t, sheet) {
       c.restore();
     }
   });
+  if (sheet) {
+    R.cast((c) => {
+      // draped over the rail, hanging on the street side down past the slab
+      const top = SY - RH - 2;
+      const x0 = x - 52;
+      const w = 104;
+      const h = 218; // a bedsheet is two metres long: its foot hangs to -100, level with the pickup outline
+      const wv = A.wind(t, 0.6);
+      const off = (v) => Math.sin(t * 2.6 - v * 2.4 + 0.5) * 4.5 * v * v + wv * 7 * v;
+      c.fillStyle = '#e6e1d4';
+      c.beginPath();
+      c.moveTo(x0, top);
+      c.lineTo(x0 + w, top);
+      c.lineTo(x0 + w + off(0.5), top + h * 0.5);
+      c.lineTo(x0 + w - 4 + off(1), top + h);
+      c.lineTo(x0 + w * 0.7 + off(1), top + h - 9);
+      c.lineTo(x0 + w * 0.4 + off(1), top + h + 3);
+      c.lineTo(x0 + 8 + off(1), top + h - 6);
+      c.lineTo(x0 + off(0.5), top + h * 0.5);
+      c.closePath();
+      c.fill();
+      c.fillStyle = 'rgba(0,0,0,0.07)';
+      for (let i = 1; i < 6; i++) c.fillRect(x0 + (w * i) / 6 + off(0.6) * 0.6, top + 6, 2, h - 14);
+      c.fillStyle = 'rgba(160,140,110,0.3)';
+      c.fillRect(x0 + w * 0.6, top + 60, 24, 40); // a sun-rotted patch
+    });
+  }
 }
 
 // A flat burnt out from inside: soot licking up from the doorway.
@@ -878,7 +880,7 @@ function streetLife(R, g, t, near, k) {
       c.fillRect(px - 4, -258, 8, 56);
       c.fillRect(px - 8, -262, 16, 5);
     });
-    A.smoke(R, px, -264, t, { warm, h: 200, w: 20, alpha: 0.3, seed: 2 });
+    A.smoke(R, px, -264, t, { warm, h: 200, w: 20, alpha: 0.5, seed: 2 });
   }
   if (near(X.car[0], X.car[1])) A.smoke(R, X.car[0] + 62, -104, t, { warm: 0, h: 110, w: 11, alpha: 0.14, seed: 4 });
   for (const [px, py, sd] of [[X.wall1[0] + 120, -106, 1], [X.car[0] + 150, -113, 2], [X.sheet + 40, -316, 3], [X.guard + 90, -92, 4]]) {

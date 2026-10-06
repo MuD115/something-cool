@@ -11,7 +11,7 @@
 
 import { lerp, clamp, rng, mixc } from '../engine/util.js';
 import { extrudePoly, extrudeRect, extrudePath, DEPTH } from './depth.js';
-import { MEM, FLOOR_H, FLIGHTS } from '../story/act3v-map.js';
+import { MEM, FLIGHTS } from '../story/act3v-map.js';
 
 const TAU = Math.PI * 2;
 const mk = (w, h) => {
@@ -37,17 +37,21 @@ const WALL_T = 64; // thickness of the cut side walls
 const LAND = 130; // landing depth along the well
 const XL = SL + LAND; // the flights run between these two
 const XR = SR - LAND;
-const STEPS = 9;
+// A storey at a person's scale: 222 from floor to floor (the story reads the
+// stairs only through stairPath(), which follows this), so a man of 170 walks
+// upright and a door 205 tall fits under the next landing. 13 treads of 17.
+const FH = 222;
+const STEPS = 13;
 const SLAB = 34; // thickness of a flight's soffit
 const FLIGHT_D = 74; // how far back a flight reaches (its width)
-const TOP_Y = -FLIGHTS * FLOOR_H; // the roof-door landing
+const TOP_Y = -FLIGHTS * FH; // the roof-door landing
 const CEIL_Y = TOP_Y - 150;
-const DOOR_W = 64;
-const DOOR_H = 118;
+const DOOR_W = 92;
+const DOOR_H = 205;
 
 // Floor n is a landing at y = -n * FLOOR_H: even floors on the left, odd on
 // the right. Flight k runs from floor k up to floor k + 1.
-const levelY = (n) => -n * FLOOR_H;
+const levelY = (n) => -n * FH;
 const landCx = (n) => (n % 2 === 0 ? SL + LAND / 2 : SR - LAND / 2);
 const doorCx = (n) => (n === 0 ? SX - 260 : landCx(n));
 const flightEnds = (k) => (k % 2 === 0 ? [XL, levelY(k), XR, levelY(k + 1)] : [XR, levelY(k), XL, levelY(k + 1)]);
@@ -76,7 +80,8 @@ export function stairPath() {
 
 // The slits that let the moon in: one on the wall opposite each landing.
 const slits = [];
-for (let n = 0; n <= FLIGHTS; n++) slits.push({ n, x: n % 2 === 0 ? SR - LAND / 2 : SL + LAND / 2, y: levelY(n) - 72, w: 22, h: 84 });
+// (a window on the wall opposite each landing: 74 x 107 on an 86 sill)
+for (let n = 0; n <= FLIGHTS; n++) slits.push({ n, x: n % 2 === 0 ? SR - LAND / 2 : SL + LAND / 2, y: levelY(n) - 86 - 107, w: 74, h: 107 });
 
 // Torch-lit stairwell: cold moon through the slits, little else.
 export function stairLook(g) {
@@ -244,11 +249,11 @@ function bakeWall() {
     // water streaks running from the ceiling line
     for (let i = 0; i < 6; i++) {
       const sx = x0 + r() * (x1 - x0);
-      const g2 = c.createLinearGradient(0, fy - FLOOR_H, 0, fy - 60);
+      const g2 = c.createLinearGradient(0, fy - FH, 0, fy - 60);
       g2.addColorStop(0, 'rgba(20,18,12,0.28)');
       g2.addColorStop(1, 'rgba(20,18,12,0)');
       c.fillStyle = g2;
-      c.fillRect(sx, fy - FLOOR_H, 4 + r() * 10, FLOOR_H - 60);
+      c.fillRect(sx, fy - FH, 4 + r() * 10, FH - 60);
     }
   }
   // a crack and shrapnel pocks, the scars of a building that has been near things
@@ -256,7 +261,7 @@ function bakeWall() {
   c.lineWidth = 1.5;
   for (let i = 0; i < 4; i++) {
     let cx = SX + (r() - 0.5) * 400;
-    let cy = -150 - r() * 600;
+    let cy = -220 - r() * (FLIGHTS * FH * 0.62);
     c.beginPath();
     c.moveTo(cx, cy);
     for (let k = 0; k < 9; k++) {
@@ -269,11 +274,11 @@ function bakeWall() {
   c.fillStyle = 'rgba(12,10,8,0.7)';
   for (let i = 0; i < 40; i++) {
     c.beginPath();
-    c.arc(SX + (r() - 0.5) * 520, -40 - r() * 880, 1.5 + r() * 2.2, 0, TAU);
+    c.arc(SX + (r() - 0.5) * 520, -40 - r() * (FLIGHTS * FH - 140), 1.5 + r() * 2.2, 0, TAU);
     c.fill();
   }
   // the child's chalk drawing, on the wall above the fourth floor
-  chalkDrawing(c, 44112, -700);
+  chalkDrawing(c, SX + 112, levelY(4) - 192);
   // tally marks beside a door, five at a time
   c.strokeStyle = 'rgba(230,228,210,0.55)';
   c.lineWidth = 1.5;
@@ -421,7 +426,7 @@ function handrail(c, k, back) {
   const [xa, ya, xb, yb] = flightEnds(k);
   const tw = (xb - xa) / STEPS;
   const r = (yb - ya) / STEPS;
-  const hgt = 88;
+  const hgt = 92;
   const dark = back ? 0.6 : 1;
   c.lineCap = 'round';
   // balusters, one per tread
@@ -546,7 +551,7 @@ export function drawStairwell(R, g, { t = g?.time || 0 } = {}) {
   R.paint((c) => {
     c.drawImage(wallBake.cv, wallBake.x0, wallBake.y0);
   });
-  R.surface((c) => c.rect(SL - 4, topY, SR - SL + 8, 1000 + 90), 'plaster', { scale: 1.6, seed: 4, alpha: 0.45 });
+  R.surface((c) => c.rect(SL - 4, topY, SR - SL + 8, FLIGHTS * FH + 190), 'plaster', { scale: 1.6, seed: 4, alpha: 0.45 });
   R.paint((c) => {
     const kinds = ['steel', 'wood', 'blue', 'brown', 'wood', 'steel', 'steel'];
     for (let n = 0; n <= FLIGHTS; n++) {
@@ -618,8 +623,8 @@ export function drawStairwell(R, g, { t = g?.time || 0 } = {}) {
     c.fillStyle = '#403c36';
     c.fillRect(SL - WALL_T, 34, SR - SL + WALL_T * 2, 60);
   });
-  R.surface((c) => c.rect(SL - WALL_T, CEIL_Y - 44, WALL_T, 1070 + 60), 'concrete', { scale: 1.1, seed: 2, alpha: 0.6 });
-  R.surface((c) => c.rect(SR, CEIL_Y - 44, WALL_T, 1070 + 60), 'concrete', { scale: 1.1, seed: 3, alpha: 0.6 });
+  R.surface((c) => c.rect(SL - WALL_T, CEIL_Y - 44, WALL_T, FLIGHTS * FH + 230), 'concrete', { scale: 1.1, seed: 2, alpha: 0.6 });
+  R.surface((c) => c.rect(SR, CEIL_Y - 44, WALL_T, FLIGHTS * FH + 230), 'concrete', { scale: 1.1, seed: 3, alpha: 0.6 });
 
   // ---- the landings and the flights; the odd (returning) flights sit behind
   R.cast((c) => {
@@ -653,9 +658,9 @@ export function drawStairwell(R, g, { t = g?.time || 0 } = {}) {
   // ---- dust turning in the torch beam
   R.glow((c) => {
     const r = rng(12);
-    for (let i = 0; i < 46; i++) {
+    for (let i = 0; i < 64; i++) {
       const bx = SL + r() * (SR - SL);
-      const by = -40 - r() * 900;
+      const by = -40 - r() * (FLIGHTS * FH);
       const x = bx + Math.sin(t * 0.3 + i) * 14;
       const y = by + ((t * (3 + r() * 5)) % 40);
       c.fillStyle = `rgba(190,205,255,${0.06 + 0.1 * r() * (0.6 + 0.4 * Math.sin(t + i))})`;
@@ -1595,6 +1600,9 @@ function parapets(R) {
   });
 }
 
+// (the time of the frame being drawn: for the few movements inside static helpers)
+let T_NOW = 0;
+
 // The stair-head hut, its door at the left end.
 function hut(R) {
   const x = RX0 + 150;
@@ -1650,52 +1658,56 @@ function hut(R) {
   // the door, at the left end: dark doorway, its leaf swung out against the wall
   const [dx] = HUT_DOOR;
   R.cast((c) => {
+    // a door a man walks through: 92 wide, 205 tall
     c.fillStyle = '#22201d';
-    c.fillRect(dx - 40, -194, 80, 194);
+    c.fillRect(dx - 52, -212, 104, 212);
     c.fillStyle = '#04050a';
-    c.fillRect(dx - 33, -187, 66, 187);
+    c.fillRect(dx - 46, -205, 92, 205);
     // the leaf: a steel door, a faded green, open to a narrow edge-on slice against the left jamb
     c.fillStyle = '#34493f';
     c.beginPath();
-    c.moveTo(dx - 33, -187);
-    c.lineTo(dx - 14, -192);
-    c.lineTo(dx - 14, 4);
-    c.lineTo(dx - 33, 0);
+    c.moveTo(dx - 46, -205);
+    c.lineTo(dx - 20, -211);
+    c.lineTo(dx - 20, 4);
+    c.lineTo(dx - 46, 0);
     c.closePath();
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.28)';
-    c.fillRect(dx - 29, -170, 11, 60);
+    c.fillRect(dx - 41, -186, 16, 70);
+    c.fillRect(dx - 41, -104, 16, 80);
     c.fillStyle = '#8a7e5a';
-    c.fillRect(dx - 17, -96, 2.4, 10);
+    c.fillRect(dx - 24, -104, 2.8, 12);
     // the step: a concrete sill, worn
     c.fillStyle = '#6c685f';
-    c.fillRect(dx - 46, -4, 92, 4);
+    c.fillRect(dx - 58, -5, 116, 5);
     // a lintel
     c.fillStyle = '#6c685f';
-    c.fillRect(dx - 46, -203, 92, 9);
+    c.fillRect(dx - 58, -222, 116, 10);
   });
   // a cold breath of the stairwell's own blue through the door
   R.glow((c) => {
-    const gg = c.createLinearGradient(0, -187, 0, 0);
+    const gg = c.createLinearGradient(0, -205, 0, 0);
     gg.addColorStop(0, 'rgba(50,70,130,0.20)');
     gg.addColorStop(1, 'rgba(30,45,90,0.05)');
     c.fillStyle = gg;
-    c.fillRect(dx - 13, -187, 46, 187);
+    c.fillRect(dx - 18, -205, 64, 205);
   });
   // the aerial on the hut roof, a TV mast, bent
   R.cast((c) => {
     const mx = x + 70;
     c.strokeStyle = '#2a2a2c';
     c.lineWidth = 2.4;
+    // the mast hardly moves, but its crossbars shiver a little
+    const sh = Math.sin(T_NOW * 0.9) * 0.8 + Math.sin(T_NOW * 2.7) * 0.3;
     c.beginPath();
     c.moveTo(mx, -h - 20);
-    c.lineTo(mx - 2, -h - 120);
+    c.lineTo(mx - 2 + sh * 0.4, -h - 120);
     c.stroke();
     c.lineWidth = 1.8;
     for (let i = 0; i < 4; i++) {
       c.beginPath();
-      c.moveTo(mx - 14 + i * 1.5, -h - 60 - i * 15);
-      c.lineTo(mx + 15 - i * 1.5, -h - 62 - i * 15);
+      c.moveTo(mx - 14 + i * 1.5 + sh * (0.1 + i * 0.1), -h - 60 - i * 15);
+      c.lineTo(mx + 15 - i * 1.5 + sh * (0.1 + i * 0.1), -h - 62 - i * 15);
       c.stroke();
     }
   });
@@ -2060,8 +2072,93 @@ function clutterRoof(R) {
   });
 }
 
+// A thread of smoke from (x, y): a dozen soft puffs drifting up the same curve.
+function smokeThread(c, x, y, t, dawn, seed) {
+  const lean = 16 * (1 - dawn) + 2;
+  const tint = dawn > 0.4 ? [118, 134, 168] : [96, 108, 150];
+  const n = 12;
+  for (let i = 0; i < n; i++) {
+    const age = (t * 0.07 + i / n + seed * 0.0123) % 1;
+    const wob = Math.sin(age * 6 + seed + t * 0.3) * 8 * age * (1 - dawn * 0.7);
+    const a = Math.sin(Math.min(1, age * 5) * 1.5708) * (1 - age) * (0.34 + 0.14 * dawn);
+    c.fillStyle = `rgba(${tint[0]},${tint[1]},${tint[2]},${a})`;
+    c.beginPath();
+    c.arc(x + wob + lean * age * age, y - age * 190, 2.5 + age * 13, 0, TAU);
+    c.fill();
+  }
+}
+
+// Pigeons: at dawn they come to the parapet, sit, bob, hop; now and then a few cross.
+function birds(R, t, dawn) {
+  const k = smooth(0.32, 0.56, dawn);
+  if (k < 0.02) return;
+  const perch = [RX0 + 380, RX0 + 410, RX0 + 770, RX0 + 1180, RX0 + 1215];
+  const cy = PVY - PAR_H - 2; // the coping of the back parapet
+  R.cast((c) => {
+    c.globalAlpha = k;
+    perch.forEach((bx, i) => {
+      if (!near(R, bx, bx + 30)) return;
+      // every few seconds one hops a hand's breadth along, flaps once, settles
+      const cyc = 6.5 + i * 1.7;
+      const ph = ((t + i * 2.9) % cyc) / cyc;
+      const hop = ph > 0.9 ? Math.sin(((ph - 0.9) / 0.1) * Math.PI) : 0;
+      const x = bx + (ph > 0.95 ? 9 : 0) * (i % 2 ? 1 : -1);
+      const y = cy - hop * 12;
+      const bob = Math.max(0, Math.sin(t * 2.3 + i * 1.9)) * 1.2;
+      const dir = i % 2 ? 1 : -1;
+      c.fillStyle = i % 3 ? '#3a3c46' : '#4a4c58';
+      c.beginPath();
+      c.ellipse(x, y - 8, 9, 6.5, -0.15 * dir, 0, TAU);
+      c.fill();
+      c.beginPath();
+      c.arc(x + dir * 8, y - 14 - bob, 3.6, 0, TAU);
+      c.fill();
+      c.beginPath();
+      c.moveTo(x + dir * 11, y - 14 - bob);
+      c.lineTo(x + dir * 15, y - 13 - bob);
+      c.lineTo(x + dir * 11, y - 12 - bob);
+      c.fill();
+      c.beginPath();
+      c.moveTo(x - dir * 8, y - 9);
+      c.lineTo(x - dir * 17, y - 6 - hop * 6);
+      c.lineTo(x - dir * 8, y - 5);
+      c.fill();
+      if (hop > 0.2) {
+        const fl = Math.sin(t * 30) * 5;
+        c.beginPath();
+        c.moveTo(x - 2, y - 11);
+        c.quadraticCurveTo(x - 8, y - 18 - fl, x - 14, y - 12 + fl * 0.4);
+        c.quadraticCurveTo(x - 8, y - 12, x - 2, y - 9);
+        c.fill();
+      }
+    });
+    c.globalAlpha = 1;
+  });
+  // a small flock crossing the whole sky, high, every half minute or so
+  const span = RX1 - RX0 + 1400;
+  const u = ((t * 85) % (span * 1.9)) - 700;
+  if (u > span) return;
+  R.paint((c) => {
+    c.globalAlpha = k * 0.85;
+    c.strokeStyle = '#23252e';
+    c.lineWidth = 1.7;
+    c.lineCap = 'round';
+    for (let i = 0; i < 6; i++) {
+      const bx = RX0 - 400 + u - i * 34 + (i % 2) * 14;
+      const by = -330 - i * 9 - (i % 3) * 14 + Math.sin(t * 0.8 + i) * 8;
+      const fl = Math.sin(t * 11 + i * 1.7) * 6;
+      c.beginPath();
+      c.moveTo(bx - 10, by - fl * 0.7);
+      c.quadraticCurveTo(bx - 4, by - fl - 4, bx, by);
+      c.quadraticCurveTo(bx + 4, by - fl - 4, bx + 10, by - fl * 0.7);
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
 // The neighbouring roofs below and beside us, dark and low, seen past the ends of our roof.
-function neighbours(R) {
+function neighbours(R, t = 0, dawn = 0) {
   const d = 0.58;
   R.layer(d);
   R.paint((c) => {
@@ -2099,9 +2196,15 @@ function neighbours(R) {
         c.fillStyle = '#23242a';
         c.fillRect(u + w * 0.2, top - 30, w * 0.3, 28);
       }
-      // windows, all dark but for a rare candle
+      // windows, all dark but for a rare candle (74 x 107 would be near: these are far, so small)
       c.fillStyle = '#0a0b0e';
       for (let wx = u + 14; wx < u + w - 20; wx += 34) for (let wy = top + 24; wy < top + 150; wy += 40) c.fillRect(wx, wy, 14, 20);
+      // a stove pipe on some, and its smoke: thin and moon-silvered at night, grey-blue and straight at dawn
+      if ((Math.abs(Math.floor(u)) * 7919) % 100 < 22) {
+        c.fillStyle = '#0c0d10';
+        c.fillRect(u + w * 0.78, top - 36, 4, 34);
+        smokeThread(c, u + w * 0.78 + 2, top - 36, t, dawn, u);
+      }
       u += w + 14 + r() * 40;
     }
     c.restore();
@@ -2121,7 +2224,8 @@ export function drawRoof(R, g, { dawn = 0, t = g?.time || 0 } = {}) {
   const SHEAR = -1.5 + dawn * 2.4;
   const SQ = 0.13;
 
-  neighbours(R);
+  T_NOW = t;
+  neighbours(R, t, dawn);
   parapets(R);
   slab(R);
   hut(R);
@@ -2133,6 +2237,7 @@ export function drawRoof(R, g, { dawn = 0, t = g?.time || 0 } = {}) {
   dish(R, RX0 + 1160 + 50);
   washing(R, RX0 + 1330, RX0 + 1560, t);
   clutterRoof(R);
+  birds(R, t, dawn);
 
   // shadows on the floor: the moon from the west, low, throws them long to the right; the dawn turns them
   const hutX = RX0 + 150;

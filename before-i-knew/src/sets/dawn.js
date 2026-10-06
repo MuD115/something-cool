@@ -368,10 +368,10 @@ const BLOCKS = [
   { x: -1130, w: 500, floors: 3, fh: 140, color: '#9f9480', seed: 602, mat: 'concrete', torn: 0.4, tornLeft: true, holes: [[0.5, 0.4, 22]] },
   { x: -630, w: 400, floors: 4, fh: 136, color: '#ada390', seed: 603, mat: 'limestone', dishes: [[0.3, 3]], pocks: 8 },
   // the tall building he came down: six floors
-  { x: -230, w: 560, floors: 6, fh: 136, color: '#aaa292', seed: 604, mat: 'concrete', noDoors: true, balcony: [3, 0.35, 0.04], laundry: true, holes: [[0.82, 0.5, 20]], dishes: [[0.62, 5]] },
+  { x: -230, w: 560, floors: 6, fh: 136, color: '#aaa292', seed: 604, mat: 'concrete', noDoors: true, shopFront: true, balcony: [3, 0.35, 0.04], laundry: true, holes: [[0.82, 0.5, 20]], dishes: [[0.62, 5]] },
   { x: 330, w: 480, floors: 3, fh: 138, color: '#a99d89', seed: 605, mat: 'plaster', balcony: [2, 0.6, 0.02], laundry: true },
   // (the woman's half-collapsed building: ruin 810..1060, the standing half from 1060)
-  { x: 1060, w: 520, floors: 3, fh: 138, color: '#b3a68c', seed: 606, mat: 'limestone', noDoors: true, torn: 0.35, tornLeft: true, holes: [[0.15, 0.55, 18]] },
+  { x: 1060, w: 520, floors: 3, fh: 138, color: '#b3a68c', seed: 606, mat: 'limestone', noDoors: true, shopFront: true, torn: 0.35, tornLeft: true, holes: [[0.15, 0.55, 18]] },
   // the basement of the boys' building is at 1700
   { x: 1580, w: 520, floors: 4, fh: 136, color: '#9f9480', seed: 607, mat: 'plaster', noDoors: true, pocks: 8, dishes: [[0.82, 2]], balcony: [2, 0.7, 0.03] },
   { x: 2100, w: 150, floors: 3, fh: 140, color: '#948874', seed: 608, mat: 'concrete', noDoors: true },
@@ -444,9 +444,9 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
     c.fill();
     // the far cross-street's wall, and what stands at the end of the road
     c.fillStyle = '#a79b86';
-    c.fillRect(xc - 34, vy - 118, 68, 118);
+    c.fillRect(xc - 34, vy - 200, 68, 200);
     if (end === 'minaret') {
-      T.minaret(c, xc + 4, vy - 100, 0.5, '#a39784');
+      T.minaret(c, xc + 4, vy - 180, 0.5, '#a39784');
     } else {
       // a low school wall with its door, two windows and a flat roof, a lamp lit
       c.fillStyle = '#b9ad94';
@@ -467,8 +467,8 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
       c.fillStyle = col;
       c.beginPath();
       c.moveTo(edge, 6);
-      c.lineTo(edge, -540);
-      c.lineTo(xc + dir * 34, vy - 130);
+      c.lineTo(edge, -900);
+      c.lineTo(xc + dir * 34, vy - 225);
       c.lineTo(xc + dir * 34, vy);
       c.closePath();
       c.fill();
@@ -476,8 +476,8 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
       c.strokeStyle = shadeCol;
       c.lineWidth = 1.4;
       for (let f = 1; f <= 4; f++) {
-        const ye = -f * 130 + 4;
-        const yv = vy - f * 26;
+        const ye = -f * 224 + 4;
+        const yv = vy - f * 45;
         c.beginPath();
         c.moveTo(edge, ye);
         c.lineTo(xc + dir * 34, yv);
@@ -488,7 +488,7 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
       const r = rng(seed * 11 + (dir > 0 ? 3 : 1));
       const xv = xc + dir * 34;
       const fu = (u) => u * u * 0.9 + u * 0.1; // spacing: closer together as they go
-      const lineY = (n, tt) => lerp(-n * 130 + 4, vy - n * 26, tt);
+      const lineY = (n, tt) => lerp(-n * 224 + 4, vy - n * 45, tt); // a storey is 224 at the near edge
       for (let i = 0; i < 6; i++) {
         const ta = fu((i + 0.28) / 6.6);
         const tb = fu((i + 0.66) / 6.6);
@@ -499,18 +499,18 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
           const y = (tt, frac) => lerp(lineY(f + 1, tt), lineY(f, tt), frac);
           c.fillStyle = r() < 0.5 ? 'rgba(52,44,38,0.9)' : 'rgba(64,54,46,0.85)';
           c.beginPath();
-          c.moveTo(xa, y(ta, 0.3));
-          c.lineTo(xb, y(tb, 0.3));
-          c.lineTo(xb, y(tb, 0.74));
-          c.lineTo(xa, y(ta, 0.74));
+          c.moveTo(xa, y(ta, 0.14)); // 107 tall on an 86 sill
+          c.lineTo(xb, y(tb, 0.14));
+          c.lineTo(xb, y(tb, 0.62));
+          c.lineTo(xa, y(ta, 0.62));
           c.closePath();
           c.fill();
           // a pale sill under it
           c.strokeStyle = 'rgba(220,210,190,0.35)';
           c.lineWidth = 1;
           c.beginPath();
-          c.moveTo(xa, y(ta, 0.76));
-          c.lineTo(xb, y(tb, 0.76));
+          c.moveTo(xa, y(ta, 0.64));
+          c.lineTo(xb, y(tb, 0.64));
           c.stroke();
         }
         // a door at the foot of some
@@ -518,8 +518,8 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
           const y = (tt, frac) => lerp(lineY(1, tt), lineY(0, tt), frac);
           c.fillStyle = 'rgba(70,56,44,0.9)';
           c.beginPath();
-          c.moveTo(xa, y(ta, 0.45));
-          c.lineTo(xb, y(tb, 0.45));
+          c.moveTo(xa, y(ta, 0.085)); // 205 tall
+          c.lineTo(xb, y(tb, 0.085));
           c.lineTo(xb, y(tb, 1));
           c.lineTo(xa, y(ta, 1));
           c.closePath();
@@ -532,10 +532,10 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
     // a line of washing slung across, half way down
     c.strokeStyle = 'rgba(40,32,28,0.8)';
     c.lineWidth = 1.2;
-    const ly = -250;
+    const ly = -400;
     const lx0 = lerp(x0, xc - 34, 0.32);
     const lx1 = lerp(x1, xc + 34, 0.32);
-    const ly0 = lerp(ly, vy - 130, 0.32);
+    const ly0 = lerp(ly, vy - 225, 0.32);
     c.beginPath();
     c.moveTo(lx0, ly0);
     c.quadraticCurveTo(xc, ly0 + 14, lx1, ly0 - 2);
@@ -546,11 +546,12 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
       const px = lerp(lx0, lx1, u);
       const py = lerp(ly0, ly0 - 2, u) + Math.sin(u * Math.PI) * 11;
       c.fillStyle = cols[i];
+      const sw = Math.sin(t * 1.5 + i * 1.7) * 2.4 * (1 + 0.8 * Math.max(0, Math.sin(t * 0.37 + i)));
       c.beginPath();
       c.moveTo(px, py);
-      c.lineTo(px + 10, py);
-      c.lineTo(px + 9, py + 20 + (i % 2) * 6);
-      c.lineTo(px + 1, py + 19);
+      c.lineTo(px + 17, py);
+      c.lineTo(px + 16 + sw, py + 36 + (i % 2) * 8);
+      c.lineTo(px + 2 + sw, py + 34);
       c.fill();
     }
     // a spill of rubble at the foot of the near right wall
@@ -568,9 +569,9 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
     hz.addColorStop(0.35, rgbA(haze, 0.46));
     hz.addColorStop(1, rgbA(haze, 0));
     c.fillStyle = hz;
-    c.fillRect(x0 - 40, -560, x1 - x0 + 80, 580);
+    c.fillRect(x0 - 40, -900, x1 - x0 + 80, 920);
   };
-  deepScenery(R, fn, [x0 - 40, -560, x1 + 40, 10], xc, vy, x1 - x0, mode);
+  deepScenery(R, fn, [x0 - 40, -900, x1 + 40, 10], xc, vy, x1 - x0, mode);
   // the light at the end of it: the sun straight down the road, as it comes
   const lit = smooth(0.1, 1, k);
   R.glow((c) => {
@@ -579,7 +580,7 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
     grd.addColorStop(0.5, `rgba(255,176,110,${lerp(0.04, 0.16, lit)})`);
     grd.addColorStop(1, 'rgba(255,170,100,0)');
     c.fillStyle = grd;
-    c.fillRect(x0 - 60, -540, x1 - x0 + 120, 560);
+    c.fillRect(x0 - 60, -900, x1 - x0 + 120, 920);
     // the sunlit left wall: a gold wash along its length
     if (lit > 0.3) {
       const wg = c.createLinearGradient(x0, 0, xc, 0);
@@ -588,8 +589,8 @@ function sideRoad(R, g, x0, x1, k, { end = 'minaret', seed = 1, t = 0 } = {}) {
       c.fillStyle = wg;
       c.beginPath();
       c.moveTo(x0, 6);
-      c.lineTo(x0, -540);
-      c.lineTo(xc - 34, vy - 130);
+      c.lineTo(x0, -900);
+      c.lineTo(xc - 34, vy - 225);
       c.lineTo(xc - 34, vy);
       c.fill();
     }
@@ -612,29 +613,30 @@ function towerDoor(R, g, k) {
   const on = 1 - smooth(0.2, 0.8, k);
   R.paint((c) => {
     // a deep stone step and surround
-    extrudeRect(c, x - 62, -6, 124, 8, 18, { color: '#b3a589' });
+    extrudeRect(c, x - 62, -16, 124, 18, 18, { color: '#b3a589' });
     c.fillStyle = '#b3a589';
-    c.fillRect(x - 62, -6, 124, 8);
-    const top = -178;
+    c.fillRect(x - 62, -16, 124, 18);
+    const top = -221; // a door 205 tall, up from the step's top
     // the surround, the dark stairwell inside it, the door leaf folded back
     c.fillStyle = '#c4b79b';
-    c.fillRect(x - 58, top - 10, 116, 188);
+    c.fillRect(x - 58, top - 10, 116, 228);
     c.fillStyle = '#100d0b';
-    c.fillRect(x - 46, top, 92, 180);
+    c.fillRect(x - 46, top, 92, 222);
     holeReveal(c, [[x - 46, top], [x + 46, top], [x + 46, 2], [x - 46, 2]], 20, '#5a4e40');
     // the first flight of stairs rising inside
     c.fillStyle = '#1b1612';
-    for (let i = 0; i < 5; i++) c.fillRect(x - 40 + i * 12, -8 - i * 12, 12, 8 + i * 12);
+    for (let i = 0; i < 5; i++) c.fillRect(x - 40 + i * 12, -24 - i * 17, 12, 8 + i * 17);
     // an open door leaf, swung back against the jamb
     c.fillStyle = '#4a5a52';
     c.beginPath();
     c.moveTo(x + 46, top);
-    c.lineTo(x + 76, top + 8);
-    c.lineTo(x + 76, -6);
-    c.lineTo(x + 46, 0);
+    c.lineTo(x + 82, top + 10);
+    c.lineTo(x + 82, -18);
+    c.lineTo(x + 46, -16);
     c.fill();
     c.fillStyle = 'rgba(0,0,0,0.25)';
-    c.fillRect(x + 50, top + 22, 22, 56);
+    c.fillRect(x + 51, top + 24, 26, 70);
+    c.fillRect(x + 51, top + 106, 26, 80);
     // a plate with the flats' names, and a bell, long dead
     c.fillStyle = '#6b6c66';
     c.fillRect(x - 76, -126, 10, 28);
@@ -643,11 +645,11 @@ function towerDoor(R, g, k) {
   });
   // a very faint grey glow from the stair window above, spilling out
   R.glow((c) => {
-    const grd = c.createLinearGradient(x, -170, x, 0);
+    const grd = c.createLinearGradient(x, -215, x, 0);
     grd.addColorStop(0, `rgba(150,160,190,${0.05 + 0.04 * on})`);
     grd.addColorStop(1, 'rgba(150,160,190,0)');
     c.fillStyle = grd;
-    c.fillRect(x - 44, -170, 88, 170);
+    c.fillRect(x - 44, -215, 88, 215);
   });
   // a child's bicycle leaning on the wall beside it
   R.cast((c) => {
@@ -689,28 +691,28 @@ function sweeperRuin(R, g, k, t) {
     // the stair to nowhere: five treads climbing out of the rubble
     const x0 = 905;
     for (let i = 0; i < 6; i++) {
-      const y = -52 - i * 24;
-      extrudeRect(c, x0 + i * 26, y, 26, 24 + i * 24, 16, { color: '#9d9484' });
+      const y = -52 - i * 17;
+      extrudeRect(c, x0 + i * 26, y, 26, 24 + i * 17, 16, { color: '#9d9484' });
       c.fillStyle = '#a0978a';
-      c.fillRect(x0 + i * 26, y, 26, 24 + i * 24);
+      c.fillRect(x0 + i * 26, y, 26, 24 + i * 17);
       c.fillStyle = 'rgba(255,248,230,0.2)';
       c.fillRect(x0 + i * 26, y, 26, 2);
       c.fillStyle = 'rgba(0,0,0,0.18)';
-      c.fillRect(x0 + i * 26 + 24, y, 2, 24 + i * 24);
+      c.fillRect(x0 + i * 26 + 24, y, 2, 24 + i * 17);
     }
-    // its rail: a bent iron balustrade
+    // its rail: a bent iron balustrade, 92 above the treads
     c.strokeStyle = '#2f2823';
     c.lineWidth = 2;
     c.beginPath();
-    c.moveTo(x0 + 8, -88);
-    c.lineTo(x0 + 140, -214);
-    c.moveTo(x0 + 140, -214);
-    c.quadraticCurveTo(x0 + 150, -226, x0 + 142, -238);
+    c.moveTo(x0 + 6, -144);
+    c.lineTo(x0 + 150, -144 - 17 * 5);
+    c.moveTo(x0 + 150, -144 - 17 * 5);
+    c.quadraticCurveTo(x0 + 160, -144 - 17 * 5 - 12, x0 + 152, -144 - 17 * 5 - 24);
     c.stroke();
     for (let i = 0; i < 5; i++) {
       c.beginPath();
-      c.moveTo(x0 + 30 + i * 26, -108 - i * 24);
-      c.lineTo(x0 + 30 + i * 26, -76 - i * 24);
+      c.moveTo(x0 + 18 + i * 26, -144 - i * 17);
+      c.lineTo(x0 + 18 + i * 26, -52 - i * 17);
       c.stroke();
     }
     // the stub of a wall still standing at the back of the heap, wallpapered
@@ -770,31 +772,31 @@ function sweeperRuin(R, g, k, t) {
   R.paint((c) => {
     // the door: a pointed wooden arch, ajar, a lamp burning in the room behind
     c.fillStyle = '#c8bb9f';
-    c.fillRect(doorX - 56, -150, 112, 150);
+    c.fillRect(doorX - 62, -222, 124, 222);
     c.fillStyle = '#17120e';
     c.beginPath();
-    c.moveTo(doorX - 40, 0);
-    c.lineTo(doorX - 40, -112);
-    c.quadraticCurveTo(doorX - 40, -146, doorX, -158);
-    c.quadraticCurveTo(doorX + 40, -146, doorX + 40, -112);
-    c.lineTo(doorX + 40, 0);
+    c.moveTo(doorX - 46, 0);
+    c.lineTo(doorX - 46, -170);
+    c.quadraticCurveTo(doorX - 46, -206, doorX, -217);
+    c.quadraticCurveTo(doorX + 46, -206, doorX + 46, -170);
+    c.lineTo(doorX + 46, 0);
     c.fill();
     c.fillStyle = '#5a4330'; // the leaf, opened inwards, seen edge-on
-    c.fillRect(doorX + 34, -124, 8, 124);
+    c.fillRect(doorX + 39, -190, 8, 190);
   });
   const lampOn = 1 - smooth(0.2, 0.85, k);
   R.glow((c) => {
     const fl = 0.85 + 0.15 * Math.sin(t * 5.7) * Math.sin(t * 2.1);
-    const grd = c.createLinearGradient(doorX - 38, 0, doorX + 30, 0);
+    const grd = c.createLinearGradient(doorX - 44, 0, doorX + 34, 0);
     grd.addColorStop(0, `rgba(255,190,110,${0.38 * lampOn * fl})`);
     grd.addColorStop(1, `rgba(255,170,90,${0.08 * lampOn})`);
     c.fillStyle = grd;
     c.beginPath();
-    c.moveTo(doorX - 38, 0);
-    c.lineTo(doorX - 38, -110);
-    c.quadraticCurveTo(doorX - 38, -140, doorX, -150);
-    c.lineTo(doorX + 30, -140);
-    c.lineTo(doorX + 30, 0);
+    c.moveTo(doorX - 44, 0);
+    c.lineTo(doorX - 44, -168);
+    c.quadraticCurveTo(doorX - 44, -202, doorX, -212);
+    c.lineTo(doorX + 34, -200);
+    c.lineTo(doorX + 34, 0);
     c.fill();
     // a pool of it on the swept step
     const sp = c.createRadialGradient(doorX - 6, -2, 0, doorX - 6, -2, 70);
@@ -805,11 +807,11 @@ function sweeperRuin(R, g, k, t) {
   });
   R.cast((c) => {
     // the stone step, scrubbed pale, with the broom's arcs fading in the dust
-    extrudeRect(c, doorX - 70, -12, 140, 14, 16, { color: '#c7bba2' });
+    extrudeRect(c, doorX - 70, -16, 140, 18, 16, { color: '#c7bba2' });
     c.fillStyle = '#cfc4ac';
-    c.fillRect(doorX - 70, -12, 140, 14);
+    c.fillRect(doorX - 70, -16, 140, 18);
     c.fillStyle = 'rgba(255,250,236,0.35)';
-    c.fillRect(doorX - 70, -12, 140, 2);
+    c.fillRect(doorX - 70, -16, 140, 2);
     c.strokeStyle = 'rgba(110,96,76,0.35)';
     c.lineWidth = 1;
     c.beginPath();
@@ -833,12 +835,12 @@ function sweeperRuin(R, g, k, t) {
     c.fillRect(doorX + 168, -44, 4, 44);
     c.fillRect(doorX + 194, -44, 4, 44);
     c.fillStyle = '#8a5a3a';
-    c.fillRect(doorX - 62, -26, 14, 14);
+    c.fillRect(doorX - 70, -34, 16, 16);
     c.fillStyle = '#5e7a3a';
     c.beginPath();
-    c.arc(doorX - 55, -32, 9, 0, Math.PI * 2);
-    c.arc(doorX - 60, -38, 6, 0, Math.PI * 2);
-    c.arc(doorX - 50, -38, 6, 0, Math.PI * 2);
+    c.arc(doorX - 62, -40, 10, 0, Math.PI * 2);
+    c.arc(doorX - 68, -47, 6.5, 0, Math.PI * 2);
+    c.arc(doorX - 56, -47, 6.5, 0, Math.PI * 2);
     c.fill();
   });
   // rain barrel against the next wall, and a yellow can beside it
@@ -881,22 +883,22 @@ function basement(R, k) {
     c.strokeStyle = '#3a2f26';
     c.lineWidth = 2.6;
     c.beginPath();
-    c.moveTo(b - 64, -50);
+    c.moveTo(b - 64, -92);
     c.lineTo(b - 64, -6);
-    c.moveTo(b - 64, -50);
-    c.lineTo(b + 60, -50);
+    c.moveTo(b - 64, -92);
+    c.lineTo(b + 60, -92);
     c.lineTo(b + 60, -6);
     c.stroke();
     c.lineWidth = 1.6;
     c.beginPath();
     for (let i = 1; i < 6; i++) {
-      c.moveTo(b - 64 + i * 20.8, -50);
+      c.moveTo(b - 64 + i * 20.8, -92);
       c.lineTo(b - 64 + i * 20.8, -6);
     }
     c.stroke();
     // an exercise book's torn page, caught on it
     c.fillStyle = '#d9d2c0';
-    c.fillRect(b + 6, -44, 10, 12);
+    c.fillRect(b + 6, -86, 10, 14);
   });
   // the cool glow of the stairwell: a pale grey lamp far down
   const on = 1 - smooth(0.2, 0.7, k);
@@ -969,8 +971,9 @@ function junction(R, g, k, t) {
   // a gas cylinder and a crate by the shop
   R.cast((c) => {
     c.fillStyle = '#7a8a8e';
-    c.fillRect(2742, -42, 20, 42);
-    c.fillRect(2748, -50, 8, 8);
+    c.fillRect(2742, -62, 32, 62);
+    c.fillRect(2748, -72, 20, 12);
+    c.fillRect(2753, -78, 10, 6);
   });
   void t;
   void kq;
@@ -1002,10 +1005,10 @@ function washing(R, t, k, near) {
       for (let i = 0; i < 7; i++) {
         const u = 0.08 + i * 0.13 + r() * 0.04;
         const [px, py] = at(u);
-        const sway = Math.sin(t * 1.4 + i * 1.7 + L.seed) * (1 + 3 * k) * 0.6;
+        const sway = (Math.sin(t * 1.4 + i * 1.7 + L.seed) * (1 + 3 * k) * 0.8 + Math.sin(t * 3.3 + i * 2.3) * 0.9) * (1 + 0.7 * Math.max(0, Math.sin(t * 0.37 + L.seed)));
         const small = r() < 0.4; // children's clothes
-        const w = small ? 14 : 22;
-        const h = small ? 22 : 38 + r() * 12;
+        const w = small ? 22 : 36;
+        const h = small ? 36 : 62 + r() * 18;
         c.fillStyle = cols[(i + L.seed) % cols.length];
         c.beginPath();
         c.moveTo(px, py);
@@ -1043,6 +1046,71 @@ function washing(R, t, k, near) {
       }
     });
   }
+}
+
+// Pigeons come with the light: they sit on what is left of the walls and bob,
+// one hops now and then, and every half minute a few cross the street.
+function pigeon(c, x, y, dir, t, i) {
+  const cyc = 6 + i * 1.9;
+  const ph = ((t + i * 2.3) % cyc) / cyc;
+  const hop = ph > 0.9 ? Math.sin(((ph - 0.9) / 0.1) * Math.PI) : 0;
+  const px = x + (ph > 0.95 ? 8 * dir : 0);
+  const py = y - hop * 11;
+  const bob = Math.max(0, Math.sin(t * 2.2 + i * 1.7)) * 1.2;
+  c.fillStyle = i % 2 ? '#5c5c66' : '#6e6a70';
+  c.beginPath();
+  c.ellipse(px, py - 8, 9, 6.5, -0.15 * dir, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.arc(px + dir * 8, py - 14 - bob, 3.6, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.moveTo(px + dir * 11, py - 14 - bob);
+  c.lineTo(px + dir * 15, py - 13 - bob);
+  c.lineTo(px + dir * 11, py - 12 - bob);
+  c.fill();
+  c.beginPath();
+  c.moveTo(px - dir * 8, py - 9);
+  c.lineTo(px - dir * 17, py - 6 - hop * 6);
+  c.lineTo(px - dir * 8, py - 5);
+  c.fill();
+  c.fillStyle = 'rgba(190,200,120,0.5)';
+  c.fillRect(px + dir * 2, py - 12, 5, 3); // the green-gold of the neck
+}
+
+function pigeons(R, t, k, near, cx) {
+  const a = smooth(0.12, 0.4, k);
+  if (a < 0.02) return;
+  const perches = [[853, -289, 1], [875, -271, -1], [2300, -41, 1]];
+  R.cast((c) => {
+    c.globalAlpha = a;
+    perches.forEach(([x, y, d], i) => {
+      if (near(x - 20, x + 20)) pigeon(c, x, y, d, t, i);
+    });
+    c.globalAlpha = 1;
+  });
+  // a few crossing, high, wings beating
+  const span = 3400;
+  const u = ((t * 90) % (span * 2.2)) - 600;
+  if (u > span) return;
+  const bx0 = cx - 1500 + u * 0.9;
+  R.paint((c) => {
+    c.globalAlpha = a * 0.8;
+    c.strokeStyle = k > 0.5 ? '#4a4044' : '#2c2e3a';
+    c.lineWidth = 1.7;
+    c.lineCap = 'round';
+    for (let i = 0; i < 5; i++) {
+      const bx = bx0 - i * 36 + (i % 2) * 14;
+      const by = -380 - i * 10 - (i % 3) * 14 + Math.sin(t * 0.8 + i) * 8;
+      const fl = Math.sin(t * 11 + i * 1.7) * 6;
+      c.beginPath();
+      c.moveTo(bx - 10, by - fl * 0.7);
+      c.quadraticCurveTo(bx - 4, by - fl - 4, bx, by);
+      c.quadraticCurveTo(bx + 4, by - fl - 4, bx + 10, by - fl * 0.7);
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
 }
 
 // Thin smoke from a stovepipe: someone has found something to cook.
@@ -1240,6 +1308,7 @@ export function drawDawnStreet(R, g, { k = 0, t = g.time } = {}) {
   streetThings(R, near);
   washing(R, t, k, near);
   cookSmoke(R, t, k, near);
+  pigeons(R, t, k, near, cx);
   T.cables(R, cx, { seed: 175, from: -800, to: 4400 });
   shafts(R, k, cx);
 
@@ -1418,7 +1487,9 @@ function arbours(R, k, t, o) {
       c.fillStyle = toward('#3b2f24', h, 0.2);
       for (let px = x0; px <= x0 + w; px += 64) c.fillRect(px - 1.6, base - hh, 3.2, hh);
       // the roof of leaves: a bumpy band, dark under, bright where the sun gets it
-      const top = (u) => base - hh - 6 - Math.sin(u * 17 + i) * 6 - Math.sin(u * 5.3 + i * 2) * 5;
+      const gu = 1 + 0.7 * Math.max(0, Math.sin(t * 0.37 + i) * Math.sin(t * 0.23 + 1.3));
+      // (the roof of leaves stirs: a slow swell along it, a flutter on that)
+      const top = (u) => base - hh - 6 - Math.sin(u * 17 + i) * 6 - Math.sin(u * 5.3 + i * 2) * 5 + (Math.sin(t * 1.25 - u * 6 + i) * 1.7 + Math.sin(t * 3.1 + u * 23) * 0.5) * gu;
       c.fillStyle = toward('#40562a', h, 0.2);
       c.beginPath();
       c.moveTo(x0 - 6, base - hh + 24);
@@ -1432,7 +1503,7 @@ function arbours(R, k, t, o) {
         const u = r();
         c.fillStyle = toward(r() < 0.5 ? '#5f7a38' : '#74883f', h, 0.15);
         c.beginPath();
-        c.ellipse(x0 + u * w, top(u) + 7 + r() * 12, 10 + r() * 9, 6 + r() * 4, 0, 0, Math.PI * 2);
+        c.ellipse(x0 + u * w + Math.sin(t * 1.5 + n * 1.3 + i) * 1.6 * gu, top(u) + 7 + r() * 12, 10 + r() * 9, 6 + r() * 4, 0, 0, Math.PI * 2);
         c.fill();
       }
       // bunches hanging underneath, small and green
@@ -1440,7 +1511,7 @@ function arbours(R, k, t, o) {
         const bx = x0 + 6 + r() * (w - 12);
         c.fillStyle = toward(r() < 0.8 ? '#8ea24a' : '#6b5a7a', h, 0.15);
         c.beginPath();
-        c.ellipse(bx, base - hh + 34 + r() * 8, 2.6, 5, 0, 0, Math.PI * 2);
+        c.ellipse(bx + Math.sin(t * 1.7 + n * 2 + i) * 1.1 * gu, base - hh + 34 + r() * 8, 2.6, 5, 0, 0, Math.PI * 2);
         c.fill();
       }
       // the shade under the canopy
@@ -1689,14 +1760,18 @@ export function drawEdgeRoad(R, g, { k = 1, t = g.time } = {}) {
     T.vine(R, 59020, t, { wallH: 90, lush: 1 });
     R.cast((c) => {
       c.fillStyle = '#4a3a2c';
-      c.fillRect(58930, -130, 8, 130);
+      c.fillRect(58930, -190, 10, 190);
       c.save();
-      c.translate(58934, -126);
-      c.rotate(0.35);
+      c.translate(58935, -182);
+      // the leaf hangs off one hinge, 100 wide and 150 tall, and shifts a little in the air
+      c.rotate(0.3 + Math.sin(t * 0.9) * 0.012 * (1 + 0.8 * Math.max(0, Math.sin(t * 0.37))));
       c.fillStyle = '#51463a';
-      c.fillRect(0, 0, 70, 6);
-      c.fillRect(0, 40, 70, 6);
-      c.fillRect(0, 0, 6, 100);
+      c.fillRect(0, 0, 100, 6);
+      c.fillRect(0, 70, 100, 6);
+      c.fillRect(0, 144, 100, 6);
+      c.fillRect(0, 0, 6, 150);
+      c.fillRect(94, 0, 6, 150);
+      c.fillRect(0, 70, 100, 3);
       c.restore();
     });
   }
@@ -1705,9 +1780,9 @@ export function drawEdgeRoad(R, g, { k = 1, t = g.time } = {}) {
   if (near(59300, 59500)) {
     R.cast((c) => {
       c.fillStyle = '#3a342d';
-      c.fillRect(59380, -150, 5, 150);
+      c.fillRect(59380, -250, 5, 250);
       c.save();
-      c.translate(59382, -146);
+      c.translate(59382, -246);
       c.rotate(0.18);
       c.fillStyle = '#2a5f8a';
       c.fillRect(-36, -6, 74, 24);
@@ -1807,21 +1882,21 @@ function farmPlain(R, k, t, cx, vis, near) {
     // a lean-to of corrugated tin on poles, bales under it
     R.cast((c) => {
       c.fillStyle = '#4a3a2c';
-      c.fillRect(x - 130, -90, 6, 90);
-      c.fillRect(x - 6, -112, 6, 112);
+      c.fillRect(x - 130, -196, 6, 196);
+      c.fillRect(x - 6, -222, 6, 222);
       c.fillStyle = '#7d7f7a';
       c.beginPath();
-      c.moveTo(x - 140, -92);
-      c.lineTo(x + 4, -118);
-      c.lineTo(x + 4, -110);
-      c.lineTo(x - 140, -84);
+      c.moveTo(x - 140, -198);
+      c.lineTo(x + 4, -228);
+      c.lineTo(x + 4, -220);
+      c.lineTo(x - 140, -190);
       c.fill();
       c.strokeStyle = 'rgba(0,0,0,0.3)';
       c.lineWidth = 1;
       for (let i = 0; i < 12; i++) {
         c.beginPath();
-        c.moveTo(x - 138 + i * 12, -92 + i * 2);
-        c.lineTo(x - 138 + i * 12, -84 + i * 2);
+        c.moveTo(x - 138 + i * 12, -198 + i * 2.5);
+        c.lineTo(x - 138 + i * 12, -190 + i * 2.5);
         c.stroke();
       }
       // straw bales stacked
@@ -1833,42 +1908,48 @@ function farmPlain(R, k, t, cx, vis, near) {
         c.fillStyle = '#c4a85c';
       }
     });
-    stoneBox(R, x, 460, 190, { seed: 4, color: '#a69b82' });
+    stoneBox(R, x, 460, 260, { seed: 4, color: '#a69b82' });
     R.paint((c) => {
       // a doorway hung with a blanket, two barred slits
+      // (a door a man walks through: 92 x 205, hung with a blanket that stirs)
       c.fillStyle = '#17120e';
-      c.fillRect(x + 90, -118, 62, 118);
+      c.fillRect(x + 80, -205, 92, 205);
+      const bsw = Math.sin(t * 1.3) * 3 * (1 + 0.8 * Math.max(0, Math.sin(t * 0.37)));
       c.fillStyle = '#7a5a46';
       c.beginPath();
-      c.moveTo(x + 88, -122);
-      c.lineTo(x + 156, -122);
-      c.lineTo(x + 150, -34);
-      c.lineTo(x + 94, -28);
+      c.moveTo(x + 78, -210);
+      c.lineTo(x + 174, -210);
+      c.lineTo(x + 166 + bsw, -60);
+      c.quadraticCurveTo(x + 126 + bsw * 1.4, -50, x + 86 + bsw * 0.6, -56);
       c.fill();
       c.fillStyle = 'rgba(0,0,0,0.2)';
-      for (let i = 0; i < 6; i++) c.fillRect(x + 92, -118 + i * 14, 60, 2);
-      for (const wx of [x + 250, x + 360]) {
+      for (let i = 0; i < 9; i++) c.fillRect(x + 82 + bsw * i * 0.05, -202 + i * 15, 88, 2);
+      for (const wx of [x + 240, x + 330]) {
+        // a barred window: 74 x 107 on an 86 sill
         c.fillStyle = '#16120e';
-        c.fillRect(wx, -128, 38, 44);
+        c.fillRect(wx, -193, 74, 107);
         c.strokeStyle = '#3a3a3a';
-        c.lineWidth = 2;
+        c.lineWidth = 2.4;
         c.beginPath();
-        for (let i = 1; i < 4; i++) {
-          c.moveTo(wx + i * 9.5, -128);
-          c.lineTo(wx + i * 9.5, -84);
+        for (let i = 1; i < 5; i++) {
+          c.moveTo(wx + i * 14.8, -193);
+          c.lineTo(wx + i * 14.8, -86);
         }
+        c.moveTo(wx, -140);
+        c.lineTo(wx + 74, -140);
         c.stroke();
       }
       // strings of dried red peppers beside the door
       for (let i = 0; i < 3; i++) {
+        const psw = Math.sin(t * 1.6 + i * 1.3) * 1.2;
         c.strokeStyle = '#4a3a2c';
         c.lineWidth = 1;
         c.beginPath();
-        c.moveTo(x + 176 + i * 9, -150);
-        c.lineTo(x + 176 + i * 9, -150 + 56 + i * 6);
+        c.moveTo(x + 188 + i * 9, -200);
+        c.lineTo(x + 188 + i * 9 + psw, -200 + 70 + i * 6);
         c.stroke();
         c.fillStyle = '#a32f1e';
-        for (let n = 0; n < 6; n++) c.fillRect(x + 173 + i * 9, -146 + n * 9, 6, 8);
+        for (let n = 0; n < 7; n++) c.fillRect(x + 185 + i * 9 + psw * (n / 7), -196 + n * 10, 6, 9);
       }
     });
     // the ladder to the roof, and the water tank up there
@@ -1877,25 +1958,25 @@ function farmPlain(R, k, t, cx, vis, near) {
       c.lineWidth = 3;
       c.beginPath();
       c.moveTo(x + 410, 0);
-      c.lineTo(x + 440, -196);
+      c.lineTo(x + 440, -270);
       c.moveTo(x + 428, 0);
-      c.lineTo(x + 458, -196);
+      c.lineTo(x + 458, -270);
       c.stroke();
       c.lineWidth = 2;
-      for (let i = 1; i < 9; i++) {
+      for (let i = 1; i < 12; i++) {
         c.beginPath();
-        c.moveTo(x + 410 + 2.2 * i * 1.7 - 0, -i * 22);
-        c.lineTo(x + 428 + 2.2 * i * 1.7, -i * 22);
+        c.moveTo(x + 410 + 30 * ((i * 24) / 270), -i * 24);
+        c.lineTo(x + 428 + 30 * ((i * 24) / 270), -i * 24);
         c.stroke();
       }
       c.fillStyle = '#2f4a6a';
       c.beginPath();
-      c.ellipse(x + 120, -222, 28, 20, 0, 0, Math.PI * 2);
+      c.ellipse(x + 120, -292, 28, 20, 0, 0, Math.PI * 2);
       c.fill();
-      c.fillRect(x + 92, -222, 56, 14);
+      c.fillRect(x + 92, -292, 56, 14);
       c.fillStyle = '#3a3a3a';
-      c.fillRect(x + 100, -204, 4, 14);
-      c.fillRect(x + 136, -204, 4, 14);
+      c.fillRect(x + 100, -274, 4, 14);
+      c.fillRect(x + 136, -274, 4, 14);
     });
   }
 
@@ -1961,8 +2042,8 @@ function farmPlain(R, k, t, cx, vis, near) {
       void pts;
       // gate posts
       c.fillStyle = '#8f8572';
-      c.fillRect(x0 + 150, -112, 16, 112);
-      c.fillRect(x0 + 234, -112, 16, 112);
+      c.fillRect(x0 + 150, -190, 16, 190);
+      c.fillRect(x0 + 234, -190, 16, 190);
       // a well: ring of stone, a beam and pulley, a bucket
       const wx = E + 500;
       extrudeRect(c, wx - 30, -52, 60, 52, 22, { color: '#a69b82' });
@@ -1974,17 +2055,17 @@ function farmPlain(R, k, t, cx, vis, near) {
       c.lineWidth = 4;
       c.beginPath();
       c.moveTo(wx - 28, -52);
-      c.lineTo(wx - 28, -116);
-      c.lineTo(wx + 28, -116);
+      c.lineTo(wx - 28, -150);
+      c.lineTo(wx + 28, -150);
       c.lineTo(wx + 28, -52);
       c.stroke();
       c.lineWidth = 1.4;
       c.beginPath();
-      c.moveTo(wx, -116);
-      c.lineTo(wx, -74);
+      c.moveTo(wx, -150);
+      c.lineTo(wx + Math.sin(t * 1.1) * 1.2, -92);
       c.stroke();
       c.fillStyle = '#6a6a66';
-      c.fillRect(wx - 6, -74, 12, 12);
+      c.fillRect(wx - 6 + Math.sin(t * 1.1) * 1.2, -92, 12, 12);
       // olive crates in a stack, and a tyre
       c.fillStyle = '#8a6a3e';
       for (const [bx, by] of [[E + 190, 0], [E + 226, 0], [E + 208, -24]]) {
@@ -2031,7 +2112,7 @@ function farmPlain(R, k, t, cx, vis, near) {
     });
     // the building: raw concrete block, an unfinished upper storey's rebar
     R.cast((c) => {
-      const h = 188;
+      const h = 262;
       const pts = [[bx, 0], [bx, -h], [bx + bw, -h], [bx + bw, 0]];
       extrudePoly(c, pts, 44, { color: '#9a9a96' });
       c.fillStyle = '#9a9a96';
@@ -2059,34 +2140,39 @@ function farmPlain(R, k, t, cx, vis, near) {
       c.lineTo(bx - 20, 4 - h);
       c.fill();
     });
-    R.surface((c) => c.rect(bx, -188, bw, 188), 'concrete', { scale: 1.1, seed: 6, alpha: 0.5 });
-    // the door that leads down: a cut in the ground, steps, the door below
+    R.surface((c) => c.rect(bx, -262, bw, 262), 'concrete', { scale: 1.1, seed: 6, alpha: 0.5 });
+    // the door that leads down: a cut in the ground, steps (16 a tread), the
+    // door below it, 92 wide and 205 tall, set in the foot of the wall
     R.paint((c) => {
+      const cl = doorX - 130;
+      const cr = doorX + 62;
       c.fillStyle = '#05060a';
-      c.fillRect(doorX - 60, -4, 120, 76);
-      holeReveal(c, [[doorX - 60, -4], [doorX + 60, -4], [doorX + 60, 72], [doorX - 60, 72]], 24, '#2a2c36');
+      c.fillRect(cl, -4, cr - cl, 84);
+      holeReveal(c, [[cl, -4], [cr, -4], [cr, 80], [cl, 80]], 24, '#2a2c36');
       for (let i = 0; i < 5; i++) {
         c.fillStyle = `rgb(${120 - i * 12},${110 - i * 11},${96 - i * 10})`;
-        c.fillRect(doorX - 56 + i * 12, 2 + i * 10, 12, 4);
+        c.fillRect(cl + 4 + i * 20, 2 + i * 16, 20, 4);
+        c.fillStyle = 'rgba(0,0,0,0.4)';
+        c.fillRect(cl + 4 + i * 20, 6 + i * 16, 20, 12);
       }
-      // the door itself, planks, set low in the wall, ajar
+      // the door itself, planks, ajar, down at the foot of the stairs
       c.fillStyle = '#3a2b1f';
-      c.fillRect(doorX + 8, 28, 46, 44);
+      c.fillRect(doorX - 28, -125, 90, 205);
       c.fillStyle = '#0a0806';
-      c.fillRect(doorX + 34, 28, 20, 44);
+      c.fillRect(doorX + 24, -125, 38, 205);
       c.fillStyle = 'rgba(0,0,0,0.3)';
-      for (let i = 1; i < 4; i++) c.fillRect(doorX + 8 + i * 8, 28, 1.4, 44);
-      extrudeRect(c, doorX - 66, -8, 12, 12, 18, { color: '#9a9a96' });
-      extrudeRect(c, doorX + 54, -8, 12, 12, 18, { color: '#9a9a96' });
+      for (let i = 1; i < 5; i++) c.fillRect(doorX - 28 + i * 15, -125, 1.4, 205);
+      extrudeRect(c, cl - 12, -8, 12, 12, 18, { color: '#9a9a96' });
+      extrudeRect(c, cr, -8, 12, 12, 18, { color: '#9a9a96' });
     });
     // a plank awning over the stairwell, sandbags either side
     R.cast((c) => {
       c.fillStyle = '#5a4630';
-      c.fillRect(doorX - 56, -86, 4, 82);
-      c.fillRect(doorX + 52, -86, 4, 82);
-      c.fillRect(doorX - 66, -92, 132, 8);
+      c.fillRect(doorX - 126, -212, 4, 208);
+      c.fillRect(doorX + 56, -212, 4, 208);
+      c.fillRect(doorX - 136, -222, 206, 9);
       c.fillStyle = '#b8a888';
-      for (const sx of [doorX - 98, doorX + 66]) {
+      for (const sx of [doorX - 214, doorX + 70]) {
         for (let r2 = 0; r2 < 2; r2++) {
           for (let i = 0; i < 2 - r2; i++) {
             c.beginPath();
@@ -2099,11 +2185,11 @@ function farmPlain(R, k, t, cx, vis, near) {
     // a very thin warm line under the door: someone is down there
     R.glow((c) => {
       const fl = 0.8 + 0.2 * Math.sin(t * 4.1);
-      const g2 = c.createRadialGradient(doorX + 44, 62, 0, doorX + 44, 62, 40);
+      const g2 = c.createRadialGradient(doorX + 44, 62, 0, doorX + 44, 62, 50);
       g2.addColorStop(0, `rgba(255,190,110,${0.28 * fl})`);
       g2.addColorStop(1, 'rgba(255,170,90,0)');
       c.fillStyle = g2;
-      c.fillRect(doorX - 10, 20, 100, 60);
+      c.fillRect(doorX - 10, 10, 110, 70);
     });
   }
   void cx;
@@ -2168,14 +2254,19 @@ export function drawFarmEdge(R, g, { k = 0.25, t = g.time } = {}) {
           c.fillStyle = toward('#68735a', h, 0.22);
           for (let n = 0; n < 4; n++) {
             c.beginPath();
-            c.ellipse(x + (n - 1.5) * 9, base - 30 - (n % 2) * 6, 13, 9, 0, 0, Math.PI * 2);
+            c.ellipse(x + (n - 1.5) * 9 + Math.sin(t * 1.3 + i + n * 1.1) * 1.3, base - 30 - (n % 2) * 6 + Math.sin(t * 1.7 + i * 2 + n) * 0.6, 13, 9, 0, 0, Math.PI * 2);
             c.fill();
           }
         } else {
           c.fillStyle = toward('#2f4030', h, 0.22);
+          // a cypress leans a little about its foot, and comes back
+          c.save();
+          c.translate(x, base);
+          c.rotate(Math.sin(t * 1.15 + i * 1.7) * 0.022 * (1 + 0.7 * Math.max(0, Math.sin(t * 0.37 + i * 0.1) * Math.sin(t * 0.23 + 1.3))));
           c.beginPath();
-          c.ellipse(x, base - 46, 7, 48, 0, 0, Math.PI * 2);
+          c.ellipse(0, -46, 7, 48, 0, 0, Math.PI * 2);
           c.fill();
+          c.restore();
         }
       });
     });

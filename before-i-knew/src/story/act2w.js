@@ -37,10 +37,10 @@ const SPOTS = [
 ];
 
 // The woman hanging laundry on what's left of her balcony, on its slab.
-const BALC_Y = -148;
+const BALC_Y = -224;
 function hanger(g) {
-  // the balcony is set back from the street, so she is drawn to its scale
-  const w = actor(g, 'woman', XW.balcony - 40, { f: 1, scale: 0.56, pose: { ...POSES.stand, torso: 0.15, head: 0.2, armN: 0.95, foreN: 1.2, armF: 0.85, foreF: 1.1 } });
+  // standing on the first-floor slab, at full size
+  const w = actor(g, 'woman', XW.balcony - 40, { f: 1, pose: { ...POSES.stand, torso: 0.15, head: 0.2, armN: 0.95, foreN: 1.2, armF: 0.85, foreF: 1.1 } });
   w.scripted = true;
   w.place(XW.balcony - 40, BALC_Y);
   return w;

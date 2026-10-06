@@ -22,6 +22,101 @@ import { END, NOMANS, TUNNEL } from '../story/act4-map.js';
 
 // ----------------------------------------------------------------- helpers --
 
+// A breeze that comes and goes (0..1), and a sway angle riding on it: small,
+// slow, a different phase for every tree, cloth and fringe.
+const gust = (t, ph = 0) => {
+  const a = Math.sin(t * 0.37 + ph) * Math.sin(t * 0.23 + 1.3 + ph * 0.5);
+  return a > 0 ? Math.min(1, a * 1.6) : 0;
+};
+const swayAng = (t, ph, amp, period = 4) => Math.sin((t * Math.PI * 2) / period + ph) * amp * (1 + 0.7 * gust(t, ph));
+
+// A thread of smoke at (x, y): a dozen soft puffs on one curve. `col` is r,g,b.
+function wisp(R, x, y, t, { h = 240, w = 14, seed = 1, lean = 10, a = 0.3, col = [190, 196, 210] } = {}) {
+  R.paint((c) => {
+    for (let i = 0; i < 12; i++) {
+      const age = (t * 0.08 + i / 12 + seed * 0.37) % 1;
+      const al = a * Math.sin(Math.min(1, age * 5) * 1.5708) * (1 - age);
+      c.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${al})`;
+      c.beginPath();
+      c.arc(x + Math.sin(age * 6 + seed + t * 0.3) * w * age + lean * age * age, y - age * h, 3 + age * 14, 0, Math.PI * 2);
+      c.fill();
+    }
+  });
+}
+
+// One pigeon, sitting, bobbing, hopping now and then.
+function pigeon(c, x, y, dir, t, i, tone = '#5c5c66') {
+  const cyc = 6 + i * 1.9;
+  const ph = ((t + i * 2.3) % cyc) / cyc;
+  const hop = ph > 0.9 ? Math.sin(((ph - 0.9) / 0.1) * Math.PI) : 0;
+  const px = x + (ph > 0.95 ? 8 * dir : 0);
+  const py = y - hop * 11;
+  const bob = Math.max(0, Math.sin(t * 2.2 + i * 1.7)) * 1.2;
+  c.fillStyle = tone;
+  c.beginPath();
+  c.ellipse(px, py - 8, 9, 6.5, -0.15 * dir, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.arc(px + dir * 8, py - 14 - bob, 3.6, 0, Math.PI * 2);
+  c.fill();
+  c.beginPath();
+  c.moveTo(px + dir * 11, py - 14 - bob);
+  c.lineTo(px + dir * 15, py - 13 - bob);
+  c.lineTo(px + dir * 11, py - 12 - bob);
+  c.fill();
+  c.beginPath();
+  c.moveTo(px - dir * 8, py - 9);
+  c.lineTo(px - dir * 17, py - 6 - hop * 6);
+  c.lineTo(px - dir * 8, py - 5);
+  c.fill();
+}
+
+// A few birds crossing high, wings beating, now and then.
+function flock(R, t, cx, { y = -380, n = 5, seed = 0, col = '#3a3c46', alpha = 0.8 } = {}) {
+  const span = 3000;
+  const u = ((t * 90 + seed * 700) % (span * 2.3)) - 500;
+  if (u > span) return;
+  R.paint((c) => {
+    c.globalAlpha = alpha;
+    c.strokeStyle = col;
+    c.lineWidth = 1.7;
+    c.lineCap = 'round';
+    for (let i = 0; i < n; i++) {
+      const bx = cx - 1400 + u * 0.93 - i * 36 + (i % 2) * 14;
+      const by = y - i * 10 - (i % 3) * 14 + Math.sin(t * 0.8 + i) * 8;
+      const fl = Math.sin(t * 11 + i * 1.7) * 6;
+      c.beginPath();
+      c.moveTo(bx - 10, by - fl * 0.7);
+      c.quadraticCurveTo(bx - 4, by - fl - 4, bx, by);
+      c.quadraticCurveTo(bx + 4, by - fl - 4, bx + 10, by - fl * 0.7);
+      c.stroke();
+    }
+    c.globalAlpha = 1;
+  });
+}
+
+// A plastic bag the air pushes along the ground, tumbling.
+function bag(R, t, x0, x1, seed = 0) {
+  const span = x1 - x0;
+  const u = ((t * 32 + seed * 311) % (span * 1.25)) - span * 0.12;
+  const x = x0 + u;
+  if (x < x0 || x > x1) return;
+  const hop = Math.abs(Math.sin(t * 2.6 + seed)) * 16 * (0.4 + gust(t, seed) * 0.9);
+  R.cast((c) => {
+    c.save();
+    c.translate(x, -6 - hop);
+    c.rotate(t * 2.2 + seed);
+    c.fillStyle = 'rgba(214,218,226,0.85)';
+    c.beginPath();
+    c.moveTo(-8, 0);
+    c.quadraticCurveTo(-4, -8 - Math.sin(t * 7) * 2, 3, -6);
+    c.quadraticCurveTo(10, -2, 7, 5 + Math.sin(t * 6 + 1) * 1.5);
+    c.quadraticCurveTo(0, 8, -8, 0);
+    c.fill();
+    c.restore();
+  });
+}
+
 const rgba = (c, a = 1) => `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
 const hexRgb = (h) => [1, 3, 5].map((j) => parseInt(h.slice(j, j + 2), 16));
 const rgbHex = (c) => '#' + c.map((v) => Math.round(clamp(v, 0, 255)).toString(16).padStart(2, '0')).join('');
@@ -517,7 +612,10 @@ function checkpoint(R, t, maher) {
         c.fill();
       }
       c.fillStyle = 'rgba(60,64,46,0.8)';
-      for (let x = C + 204; x < C + 528; x += 9) c.fillRect(x, -248, 3, 6 + ((x * 7) % 9));
+      for (let x = C + 204; x < C + 528; x += 9) {
+        const sw = Math.sin(t * 1.6 + x * 0.05) * 1.6 * (1 + 0.8 * gust(t, x * 0.01));
+        c.fillRect(x + sw * 0.5, -248, 3, 6 + ((x * 7) % 9) + sw);
+      }
     });
   }
   // a flagpole, the flag hanging in the still air
@@ -722,6 +820,35 @@ export function drawNomans(R, g, { k = 0, t = g?.time ?? 0, maher = 'dignity', l
     });
   }
   checkpoint(R, t, maher);
+  // small things stirring in the grey: steam off the tea, a bag on the road, a stove's smoke,
+  // and, as the light comes, pigeons on the dead lamp-post and over the street
+  if (seen(R, C + 300, C + 420)) {
+    wisp(R, C + 340 - 11, -94, t, { h: 44, w: 4, seed: 7, lean: 3, a: 0.22, col: [236, 232, 222] });
+    wisp(R, C + 340 + 3, -94, t, { h: 38, w: 4, seed: 9, lean: 3, a: 0.2, col: [236, 232, 222] });
+  }
+  if (seen(R, C + 520, C + 1340)) {
+    const [wx, wy, ww] = T.windowRect(blocks[3], 0, 3);
+    R.cast((c) => {
+      c.fillStyle = '#4a4c50';
+      c.fillRect(wx + ww * 0.5, wy - 50, 6, 96);
+      c.fillRect(wx + ww * 0.5 - 3, wy - 54, 12, 5);
+    });
+    wisp(R, wx + ww * 0.5 + 3, wy - 54, t, { h: 260, w: 14, seed: 4, lean: 10, a: 0.3, col: [170, 176, 192] });
+  }
+  if (seen(R, E - 200, E + 1000)) bag(R, t, E - 80, E + 900, 1);
+  if (k > 0.1) {
+    const a = smoothstep(0.1, 0.45, k);
+    if (seen(R, E + 1080, E + 1170)) {
+      R.cast((c) => {
+        c.globalAlpha = a;
+        // on the arm of the leaning lamp-post
+        pigeon(c, E + 1100 + 50 + 8, -300 + 0.07 * 50 - 6, 1, t, 0, '#6a666c');
+        pigeon(c, E + 1100 + 30, -300 + 0.07 * 30 - 6, -1, t, 1, '#55555e');
+        c.globalAlpha = 1;
+      });
+    }
+    flock(R, t, R.cam.x, { y: -370, n: 5, seed: 1, col: k > 0.5 ? '#5a4a48' : '#3a3c46', alpha: 0.8 * a });
+  }
   T.motes(R, R.cam.x, t, 0.12);
 }
 
@@ -1261,66 +1388,67 @@ function cemeteryWall(R) {
   });
   R.surface((c) => c.rect(Math.max(x0, GATE_X + 70), -128, x1 - Math.max(x0, GATE_X + 70), 104), 'limestone', { scale: 0.7, seed: 4, alpha: 0.5 });
   // the gate: two pillars with caps, an iron arch with a finial, both leaves open
+  // (a man walks through it: the arch springs at 219, the leaves are 200 tall)
   if (seen(R, GATE_X - 90, GATE_X + 90)) {
     R.cast((c) => {
       for (const px of [GATE_X - 56, GATE_X + 56]) {
-        extrudeRect(c, px - 18, -168, 36, 168, 20, { color: '#c0b296' });
+        extrudeRect(c, px - 18, -215, 36, 215, 20, { color: '#c0b296' });
         c.fillStyle = '#c0b296';
-        c.fillRect(px - 18, -168, 36, 168);
+        c.fillRect(px - 18, -215, 36, 215);
         c.fillStyle = 'rgba(0,0,0,0.12)';
-        for (let y = -168 + 24; y < 0; y += 24) c.fillRect(px - 18, y, 36, 1.6);
+        for (let y = -215 + 24; y < 0; y += 24) c.fillRect(px - 18, y, 36, 1.6);
         c.fillStyle = 'rgba(60,46,30,0.25)';
-        c.fillRect(px + 8, -168, 10, 168);
+        c.fillRect(px + 8, -215, 10, 215);
         // the cap
-        extrudeRect(c, px - 23, -182, 46, 14, 24, { color: '#d2c5a8', topK: 1.2 });
+        extrudeRect(c, px - 23, -229, 46, 14, 24, { color: '#d2c5a8', topK: 1.2 });
         c.fillStyle = '#d2c5a8';
-        c.fillRect(px - 23, -182, 46, 14);
+        c.fillRect(px - 23, -229, 46, 14);
         c.fillStyle = 'rgba(255,250,230,0.4)';
-        c.fillRect(px - 23, -182, 46, 2.5);
+        c.fillRect(px - 23, -229, 46, 2.5);
         c.fillStyle = '#c0b296';
         c.beginPath();
-        c.moveTo(px - 12, -182);
-        c.lineTo(px, -202);
-        c.lineTo(px + 12, -182);
+        c.moveTo(px - 12, -229);
+        c.lineTo(px, -249);
+        c.lineTo(px + 12, -229);
         c.fill();
       }
       // the iron arch
       c.strokeStyle = '#2c2a28';
       c.lineWidth = 4;
       c.beginPath();
-      c.moveTo(GATE_X - 56, -172);
-      c.quadraticCurveTo(GATE_X, -236, GATE_X + 56, -172);
+      c.moveTo(GATE_X - 56, -219);
+      c.quadraticCurveTo(GATE_X, -283, GATE_X + 56, -219);
       c.stroke();
       c.lineWidth = 2;
       c.beginPath();
-      c.moveTo(GATE_X - 56, -160);
-      c.quadraticCurveTo(GATE_X, -214, GATE_X + 56, -160);
+      c.moveTo(GATE_X - 56, -207);
+      c.quadraticCurveTo(GATE_X, -261, GATE_X + 56, -207);
       c.stroke();
       for (let i = -4; i <= 4; i++) {
         const u = i / 4.6;
         c.beginPath();
-        c.moveTo(GATE_X + u * 52, -160 - (1 - u * u) * 52 + 2);
-        c.lineTo(GATE_X + u * 52, -170 - (1 - u * u) * 62);
+        c.moveTo(GATE_X + u * 52, -207 - (1 - u * u) * 52 + 2);
+        c.lineTo(GATE_X + u * 52, -217 - (1 - u * u) * 62);
         c.stroke();
       }
       c.fillStyle = '#2c2a28';
       c.beginPath();
-      c.moveTo(GATE_X - 5, -229);
-      c.lineTo(GATE_X, -248);
-      c.lineTo(GATE_X + 5, -229);
+      c.moveTo(GATE_X - 5, -276);
+      c.lineTo(GATE_X, -295);
+      c.lineTo(GATE_X + 5, -276);
       c.fill();
       // the open leaves, folded back edge-on against the pillars
       c.lineWidth = 2.2;
       for (const [px, d] of [[GATE_X - 40, 1], [GATE_X + 40, -1]]) {
         c.beginPath();
         c.moveTo(px, 0);
-        c.lineTo(px, -150);
+        c.lineTo(px, -200);
         c.moveTo(px + d * 7, 0);
-        c.lineTo(px + d * 7, -145);
-        c.moveTo(px, -150);
-        c.lineTo(px + d * 7, -145);
+        c.lineTo(px + d * 7, -195);
+        c.moveTo(px, -200);
+        c.lineTo(px + d * 7, -195);
         c.stroke();
-        for (let y = -10; y > -145; y -= 12) {
+        for (let y = -10; y > -195; y -= 12) {
           c.beginPath();
           c.moveTo(px, y);
           c.lineTo(px + d * 7, y + 2);
@@ -1570,6 +1698,11 @@ export function drawCemetery(R, g, { k = 0, t = g?.time ?? 0, filled, stones, lo
       const tx = x + r() * 120;
       c.fillStyle = '#4b3a2a';
       c.fillRect(tx - 5, -h * 0.55, 10, h * 0.55 + 10);
+      // the crown leans about the trunk's top and comes back
+      c.save();
+      c.translate(tx, -h * 0.55);
+      c.rotate(swayAng(t, i * 2.3 + 0.5, 0.02, 4.8 + (i % 3) * 0.5));
+      c.translate(-tx, h * 0.55);
       for (let b = 0; b < 9; b++) {
         const a = (b / 9) * 6.283 + r();
         const rr = 36 + r() * 24;
@@ -1586,6 +1719,7 @@ export function drawCemetery(R, g, { k = 0, t = g?.time ?? 0, filled, stones, lo
           c.fill();
         }
       }
+      c.restore();
     });
   });
   cemeteryWall(R);
@@ -1609,6 +1743,18 @@ export function drawCemetery(R, g, { k = 0, t = g?.time ?? 0, filled, stones, lo
   backlit(R, t);
   hangers(R, t);
   vineRoof(R, t, true);
+  // sparrows on the arbour's beam, one hopping; a few birds over it all
+  R.cast((c) => {
+    [[GATE_X + 240, 1], [GATE_X + 262, -1], [GRAVE_X + 410, 1], [GRAVE_X - 380, -1]].forEach(([bx, d], i) => {
+      if (!seen(R, bx - 20, bx + 20)) return;
+      c.save();
+      c.translate(bx, BEAM_Y);
+      c.scale(0.62, 0.62);
+      pigeon(c, 0, 0, d, t, i + 2, '#5a4a40');
+      c.restore();
+    });
+  });
+  flock(R, t, cx, { y: -430, n: 4, seed: 2, col: '#4a3c38', alpha: 0.7 });
   T.motes(R, cx, t, 0.9);
 }
 
@@ -1617,7 +1763,7 @@ export function drawCemetery(R, g, { k = 0, t = g?.time ?? 0, filled, stones, lo
 // The room's floor stands this far above the tunnel floor (y = 0): five steps
 // down between them. floorAt(x) is the walking surface along the whole set.
 export const TUNNEL_DROP = 115;
-export const STEPS = { x0: TUNNEL.steps, x1: TUNNEL.steps + 300, n: 6 };
+export const STEPS = { x0: TUNNEL.steps, x1: TUNNEL.steps + 300, n: 7 }; // (seven treads of 16.4)
 export const TUNNEL_END = END.tunnel[0] + END.tunnel[1];
 export function floorAt(x) {
   if (x <= STEPS.x0) return -TUNNEL_DROP;
@@ -1923,8 +2069,8 @@ export function drawTunnel(R, g, { k = 0, t = g?.time ?? 0, light = 1 } = {}) {
       c.save();
       c.translate(S0 - 22, -TUNNEL_DROP);
       c.rotate(-0.11);
-      const dw = 64;
-      const dh = 176;
+      const dw = 92;
+      const dh = 205;
       const pts = [[0, 0], [0, -dh], [dw, -dh], [dw, 0]];
       // seen along its edge, the door shows its face as a long parallelogram
       extrudePoly(c, pts, 6, { color: '#7a5b3a', topK: 1.1, sideK: 0.5 });
@@ -1932,11 +2078,11 @@ export function drawTunnel(R, g, { k = 0, t = g?.time ?? 0, light = 1 } = {}) {
       poly(c, pts);
       c.fill();
       c.fillStyle = 'rgba(0,0,0,0.2)';
-      for (const [a, b] of [[8, 28], [36, 56]]) c.fillRect(a, -dh + 14, b - a, dh - 28);
+      for (const [a, b] of [[10, 40], [52, 82]]) c.fillRect(a, -dh + 14, b - a, dh - 28);
       c.fillStyle = 'rgba(210,184,140,0.14)';
-      for (const [a, b] of [[8, 28], [36, 56]]) c.fillRect(a, -dh + 14, 1.6, dh - 28);
+      for (const [a, b] of [[10, 40], [52, 82]]) c.fillRect(a, -dh + 14, 1.6, dh - 28);
       c.fillStyle = '#2a2420';
-      c.fillRect(dw - 14, -88, 6, 10);
+      c.fillRect(dw - 18, -100, 6, 10);
       c.fillRect(-1, -dh + 18, 12, 4);
       c.fillRect(-1, -40, 12, 4);
       c.restore();

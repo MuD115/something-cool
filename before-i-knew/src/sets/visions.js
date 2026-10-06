@@ -65,6 +65,26 @@ function dreamy(g, look) {
   return look;
 }
 
+// A breeze that comes and goes (0..1), and a sway angle riding on it: small,
+// slow, a different phase for every tree, cloth and fringe.
+const gust = (t, ph = 0) => {
+  const a = Math.sin(t * 0.37 + ph) * Math.sin(t * 0.23 + 1.3 + ph * 0.5);
+  return a > 0 ? Math.min(1, a * 1.6) : 0;
+};
+const swayAng = (t, ph, amp, period = 4) => Math.sin((t * TAU) / period + ph) * amp * (1 + 0.7 * gust(t, ph));
+
+// A baked picture drawn in horizontal bands, the upper ones shifted a little
+// more, so a hedge or a vine row seems to stir in the air without a redraw.
+function drawSway(c, img, x, y, W, H, t, ph, amp, n = 5) {
+  const iw = img.width;
+  const ih = img.height;
+  for (let b = 0; b < n; b++) {
+    const wgt = 1 - b / (n - 1);
+    const off = Math.sin(t * 1.15 + ph + b * 0.5) * amp * wgt * (1 + 0.7 * gust(t, ph)) + Math.sin(t * 2.9 + ph * 2 + b) * amp * 0.18 * wgt;
+    c.drawImage(img, 0, (b * ih) / n, iw, ih / n + 1, x + off, y + (b * H) / n, W, H / n + 0.8);
+  }
+}
+
 // A flame: teardrop plus halo, additive.
 function flame(c, x, y, s, a) {
   if (a <= 0.01) return;
@@ -414,36 +434,36 @@ export function drawVisionClassroom(R, g, { empty = 0, t = g.time } = {}) {
 
   // the doorway in the back wall, left: dark stairs rising to the street
   const dx0 = CL - 452;
-  const dw = 82;
+  const dw = 92;
   R.paint((c) => {
     c.fillStyle = '#0b0a0d';
-    c.fillRect(dx0, -200, dw, 200);
+    c.fillRect(dx0, -205, dw, 205);
     c.save();
     c.beginPath();
-    c.rect(dx0, -200, dw, 200);
+    c.rect(dx0, -205, dw, 205);
     c.clip();
     // steps going up and away to the left, lit from a street that has a moon
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < 12; i++) {
       const sx = dx0 + dw - i * 13;
-      const sy = -i * 22;
+      const sy = -i * 18;
       c.fillStyle = `rgb(${52 - i * 3},${60 - i * 3},${84 - i * 4})`;
       c.fillRect(sx - 40, sy - 4, 60, 4);
       c.fillStyle = `rgb(${24 - i},${28 - i},${42 - i * 2})`;
-      c.fillRect(sx - 40, sy, 60, 22);
+      c.fillRect(sx - 40, sy, 60, 18);
     }
     c.restore();
     // frame: lit jamb, shadowed lintel
     c.fillStyle = mh('#6a4c30', '#3a3530', empty);
-    c.fillRect(dx0 - 6, -206, dw + 12, 6);
-    c.fillRect(dx0 - 6, -206, 6, 206);
-    c.fillRect(dx0 + dw, -206, 6, 206);
+    c.fillRect(dx0 - 6, -211, dw + 12, 6);
+    c.fillRect(dx0 - 6, -211, 6, 211);
+    c.fillRect(dx0 + dw, -211, 6, 211);
   });
   R.glow((c) => {
-    const lg = c.createLinearGradient(dx0, -200, dx0 + dw, 0);
+    const lg = c.createLinearGradient(dx0, -205, dx0 + dw, 0);
     lg.addColorStop(0, 'rgba(110,140,210,0.30)');
     lg.addColorStop(1, 'rgba(110,140,210,0)');
     c.fillStyle = lg;
-    c.fillRect(dx0, -200, dw, 200);
+    c.fillRect(dx0, -205, dw, 205);
     // a spill of cold light on the floor inside the door
     const fg = c.createLinearGradient(dx0, 0, dx0 + 140, 40);
     fg.addColorStop(0, `rgba(120,150,220,${0.08 + 0.1 * empty})`);
@@ -611,7 +631,43 @@ export function drawVisionClassroom(R, g, { empty = 0, t = g.time } = {}) {
     c.beginPath();
     c.ellipse(wx + 110, 20, 72, 12, 0.02, 0, TAU);
     c.fill();
+    // dust turning slowly in it
+    for (let i = 0; i < 16; i++) {
+      const u = (i * 0.173) % 1;
+      const px = wx + 24 + u * 190 + Math.sin(t * 0.33 + i * 1.9) * 10;
+      const py = wy + 46 + ((u * 5.1 + i * 0.37) % 1) * (4 - (wy + 46)) + Math.sin(t * 0.27 + i * 2.3) * 8;
+      c.fillStyle = `rgba(210,222,255,${(0.1 + 0.2 * empty) * (0.6 + 0.4 * Math.sin(t * 1.1 + i * 2.1))})`;
+      c.fillRect(px, py, 1.7, 1.7);
+    }
   });
+  // water from the window's sill once the room is cold and empty
+  if (empty > 0.3) {
+    const every = 3.2;
+    const p = ((t + 1.3) % every) / every;
+    R.paint((c) => {
+      c.globalAlpha = smooth(0.3, 0.6, empty);
+      if (p < 0.72) {
+        const kk = p / 0.72;
+        c.fillStyle = `rgba(120,140,185,${0.35 + 0.3 * kk})`;
+        c.beginPath();
+        c.ellipse(wx + 20, wy + 56 + kk * 2, 1 + kk * 1.2, 1.5 + kk * 2.2, 0, 0, TAU);
+        c.fill();
+      } else {
+        const kk = (p - 0.72) / 0.28;
+        c.fillStyle = 'rgba(140,160,205,0.7)';
+        c.fillRect(wx + 19.2, wy + 56 + (-wy - 56 + 4) * kk * kk - 4, 1.6, 7);
+      }
+      const q = (p + 0.0) % 1;
+      if (q < 0.12) {
+        c.strokeStyle = `rgba(150,170,215,${0.4 * (1 - q / 0.12)})`;
+        c.lineWidth = 1;
+        c.beginPath();
+        c.ellipse(wx + 20, 4, 3 + q * 60, 0.8 + q * 8, 0, 0, TAU);
+        c.stroke();
+      }
+      c.globalAlpha = 1;
+    });
+  }
 
   // the blackboard
   R.cast((c) => {
@@ -1408,10 +1464,16 @@ export function drawOrchard(R, g, { wither = 0, t = g.time } = {}) {
       const pr = rng(Math.floor(x / 150) + 600);
       if (pr() < 0.55) {
         const ph2 = 70 + pr() * 60;
+        const px = x + pr() * 60;
         c.fillStyle = pop;
+        // each poplar leans a little about its foot, and comes back
+        c.save();
+        c.translate(px, -30);
+        c.rotate(swayAng(t, x * 0.05, 0.028, 3.6 + (x % 7) * 0.2));
         c.beginPath();
-        c.ellipse(x + pr() * 60, -34 - ph2 / 2, 7 + pr() * 4, ph2 / 2, 0, 0, TAU);
+        c.ellipse(0, -4 - ph2 / 2, 7 + pr() * 4, ph2 / 2, 0, 0, TAU);
         c.fill();
+        c.restore();
       }
     }
     void q;
@@ -1444,11 +1506,11 @@ export function drawOrchard(R, g, { wither = 0, t = g.time } = {}) {
       c.fillRect(cxd - 1100, 0, 2200, 300);
       if (lushA > 0.01) {
         c.globalAlpha = lushA;
-        for (let x = start; x < cxd + 1000; x += P) c.drawImage(vineRow(row, false), x, -row.h - 46, P, H);
+        for (let x = start; x < cxd + 1000; x += P) drawSway(c, vineRow(row, false), x, -row.h - 46, P, H, t, ri * 1.7, row.h * 0.018 * (1 - rv));
       }
       if (deadA > 0.01) {
         c.globalAlpha = deadA;
-        for (let x = start; x < cxd + 1000; x += P) c.drawImage(vineRow(row, true), x, -row.h - 46, P, H);
+        for (let x = start; x < cxd + 1000; x += P) drawSway(c, vineRow(row, true), x, -row.h - 46, P, H, t, ri * 1.7, row.h * 0.012 * (1 - rv));
       }
       c.globalAlpha = 1;
     };
@@ -1824,8 +1886,10 @@ export const CAFE_WINDOW = { x: CAFE_X - 120, y: -218, w: 340, h: 150 };
 export const FALAFEL = { x: DC - 560, counter: [DC - 530, DC - 410] };
 
 const SHEAR = -1.5; // long shadows thrown to the right by the low sun
-const FACADE_Y0 = 190; // height of a shop's ground floor, sign band included
-const FLOOR_H = 118;
+const FACADE_Y0 = 274; // height of a shop's ground floor, sign band included: a 232 opening under a 36 sign
+const FLOOR_H = 224; // a flat above is a person's scale: 74 x 107 windows on an 86 sill
+const GOODS_S = 1.42; // the shop interiors are drawn once at 1x, then scaled up to it
+const CAP_FLOORS = 2; // (higher storeys are out of the camera's reach)
 
 const SHOPS = [
   { w: 250, floors: 4, kind: 'sweets', sign: 'حلويات الشام', sc: '#7a1e2c', tc: '#ffe9a8', wall: '#ecd0a0', awn: ['#c0392b', '#f3e6c8'] },
@@ -1849,7 +1913,16 @@ const shopX = (i) => {
   if (i >= 9) return CAFE_X0 + CAFE_W + SHOPS.slice(9, i).reduce((s, q) => s + q.w, 0);
   return SHOP_X0 + SHOPS.slice(0, i).reduce((s, q) => s + q.w, 0);
 };
-const shopH = (s) => FACADE_Y0 + s.floors * FLOOR_H + 20;
+const shopH = (s) => FACADE_Y0 + Math.min(s.floors, CAP_FLOORS) * FLOOR_H + 20;
+
+// Where a shop's one balcony is, and whether washing hangs from it: seeded
+// on its own, so the baked wall and the moving washing agree.
+function balconyPlan(spec, idx) {
+  const r = rng(idx * 131 + 7);
+  if (r() > 0.85) return null;
+  const bw = Math.max(150, spec.w * 0.58);
+  return { bx: r() * (spec.w - bw), bw, f: 0, laundry: r() < 0.75 };
+}
 
 // ---- shop interiors: what's for sale, per kind --------------------------
 function goods(c, gl, kind, w, rg) {
@@ -2151,7 +2224,8 @@ function goods(c, gl, kind, w, rg) {
 
 // A shop with its flats above: the facade and its glow, baked together.
 function shopFacade(spec, idx) {
-  const { w, floors } = spec;
+  const { w } = spec;
+  const floors = Math.min(spec.floors, CAP_FLOORS);
   const H = shopH(spec);
   const PAD = 34;
   const TOP = 70; // roof clutter above the parapet
@@ -2195,28 +2269,34 @@ function shopFacade(spec, idx) {
       for (let y = -FACADE_Y0; y < 0; y += 22) c.fillRect(px, y, 16, 1.2);
     }
     c.restore();
-    // shop opening and what's in it
-    goods(c, gl, spec.kind, w, rg);
+    // shop opening and what's in it (drawn small, scaled up to a person's shop)
+    c.save();
+    gl.save();
+    c.scale(GOODS_S, GOODS_S);
+    gl.scale(GOODS_S, GOODS_S);
+    goods(c, gl, spec.kind, w / GOODS_S, rg);
+    c.restore();
+    gl.restore();
     // the fascia sign
     c.fillStyle = spec.sc;
-    c.fillRect(8, -FACADE_Y0 + 4, w - 16, 28);
+    c.fillRect(8, -FACADE_Y0 + 4, w - 16, 32);
     c.strokeStyle = 'rgba(255,255,255,0.35)';
     c.lineWidth = 1.2;
-    c.strokeRect(11, -FACADE_Y0 + 7, w - 22, 22);
+    c.strokeRect(11, -FACADE_Y0 + 7, w - 22, 26);
     c.fillStyle = spec.tc;
     c.textAlign = 'center';
     c.direction = 'rtl';
-    let fs = 22;
+    let fs = 26;
     c.font = `${fs}px ${AR}`;
     while (c.measureText(spec.sign).width > w - 40 && fs > 12) {
       fs -= 1;
       c.font = `${fs}px ${AR}`;
     }
-    c.fillText(spec.sign, w / 2, -FACADE_Y0 + 25);
+    c.fillText(spec.sign, w / 2, -FACADE_Y0 + 28);
     // the same sign, lit
     gl.fillStyle = spec.sc;
     gl.globalAlpha = 0.6;
-    gl.fillRect(8, -FACADE_Y0 + 4, w - 16, 28);
+    gl.fillRect(8, -FACADE_Y0 + 4, w - 16, 32);
     gl.globalAlpha = 1;
     gl.fillStyle = spec.tc;
     gl.textAlign = 'center';
@@ -2224,7 +2304,7 @@ function shopFacade(spec, idx) {
     gl.font = `${fs}px ${AR}`;
     gl.shadowColor = spec.tc;
     gl.shadowBlur = 8;
-    gl.fillText(spec.sign, w / 2, -FACADE_Y0 + 25);
+    gl.fillText(spec.sign, w / 2, -FACADE_Y0 + 28);
     gl.shadowBlur = 0;
     if (spec.kind === 'pharmacy') {
       // the green cross, lit
@@ -2245,102 +2325,89 @@ function shopFacade(spec, idx) {
       c.fillStyle = 'rgba(0,0,0,0.18)';
       c.fillRect(-4, fy + 4, w + 8, 3);
       if (f === floors) break;
-      const cols = Math.max(2, Math.round(w / 82));
+      const cols = Math.max(2, Math.round(w / 110));
+      const WW = 74;
+      const WH = 107;
+      const plan = balconyPlan(spec, idx);
       for (let k = 0; k < cols; k++) {
-        const wx = ((k + 0.5) * w) / cols - 17;
-        const wy = fy - 96;
+        const wx = ((k + 0.5) * w) / cols - WW / 2;
+        const wy = fy - 86 - WH;
         const kind = rg();
         // the opening, its deep reveal, a stone sill
         c.fillStyle = '#26201a';
-        c.fillRect(wx, wy, 34, 66);
+        c.fillRect(wx, wy, WW, WH);
         if (kind < 0.35) {
           // glass: the sky in it, a curtain half drawn
-          const sg = c.createLinearGradient(wx, wy, wx + 34, wy + 66);
+          const sg = c.createLinearGradient(wx, wy, wx + WW, wy + WH);
           sg.addColorStop(0, '#bcd8ec');
           sg.addColorStop(1, '#f2d8a8');
           c.fillStyle = sg;
-          c.fillRect(wx + 2, wy + 2, 30, 62);
+          c.fillRect(wx + 3, wy + 3, WW - 6, WH - 6);
           c.fillStyle = ['#d8c8a8', '#c07a6a', '#7a9ab0'][Math.floor(rg() * 3)];
-          c.fillRect(wx + 2, wy + 2, 8 + rg() * 10, 62);
+          c.fillRect(wx + 3, wy + 3, 16 + rg() * 22, WH - 6);
         } else if (kind < 0.7) {
           // wooden shutters, slats open, a lamp inside
           c.fillStyle = ['#4a7a4a', '#7a5a38', '#3a5a7a'][Math.floor(rg() * 3)];
-          c.fillRect(wx, wy, 17, 66);
-          c.fillRect(wx + 17, wy, 17, 66);
+          c.fillRect(wx, wy, WW / 2, WH);
+          c.fillRect(wx + WW / 2, wy, WW / 2, WH);
           c.fillStyle = 'rgba(0,0,0,0.25)';
-          for (let y = wy + 3; y < wy + 64; y += 5) {
-            c.fillRect(wx, y, 17, 1.4);
-            c.fillRect(wx + 17, y, 17, 1.4);
+          for (let y = wy + 4; y < wy + WH - 2; y += 6) {
+            c.fillRect(wx, y, WW / 2, 1.5);
+            c.fillRect(wx + WW / 2, y, WW / 2, 1.5);
           }
         } else {
           // an open window, a lit room, a plant on the sill
           c.fillStyle = '#6a4a30';
-          c.fillRect(wx + 2, wy + 2, 30, 62);
+          c.fillRect(wx + 3, wy + 3, WW - 6, WH - 6);
           c.fillStyle = '#e8b868';
-          c.fillRect(wx + 4, wy + 4, 26, 58);
+          c.fillRect(wx + 6, wy + 6, WW - 12, WH - 12);
           gl.fillStyle = 'rgba(255,190,110,0.28)';
-          gl.fillRect(wx + 4, wy + 4, 26, 58);
+          gl.fillRect(wx + 6, wy + 6, WW - 12, WH - 12);
           c.fillStyle = '#5a8a3a';
           c.beginPath();
-          c.arc(wx + 24, wy + 58, 6, 0, TAU);
+          c.arc(wx + 52, wy + WH - 8, 9, 0, TAU);
           c.fill();
         }
         c.fillStyle = shadeHex(wall, 1.06);
-        c.fillRect(wx - 4, wy + 66, 42, 4);
+        c.fillRect(wx - 6, wy + WH, WW + 12, 6);
         c.fillStyle = 'rgba(0,0,0,0.25)';
-        c.fillRect(wx - 4, wy + 70, 42, 3);
+        c.fillRect(wx - 6, wy + WH + 6, WW + 12, 4);
         // lintel arch shade
         c.fillStyle = 'rgba(0,0,0,0.18)';
-        c.fillRect(wx, wy, 34, 5);
+        c.fillRect(wx, wy, WW, 7);
         // an air-conditioner on a bracket on some
         if (rg() < 0.18) {
           c.fillStyle = '#d8d4c8';
-          c.fillRect(wx + 36, wy + 36, 26, 20);
+          c.fillRect(wx + WW + 2, wy + 54, 40, 30);
           c.fillStyle = 'rgba(0,0,0,0.3)';
-          for (let i = 0; i < 4; i++) c.fillRect(wx + 39, wy + 40 + i * 4, 20, 1.2);
+          for (let i = 0; i < 4; i++) c.fillRect(wx + WW + 6, wy + 60 + i * 6, 32, 1.5);
         }
       }
-      // a balcony with wrought iron, plants, a line of washing
-      if (!balconyDone && f >= 1 && rg() < 0.7) {
-        balconyDone = true;
-        const bx = w * (0.15 + rg() * 0.4);
-        const bw = w * 0.34;
-        extrudeRect(c, bx, fy - 8, bw, 8, 12, { color: wall });
+      // a balcony with wrought iron and plants (the washing is hung live)
+      if (plan && plan.f === f) {
+        const { bx, bw } = plan;
+        extrudeRect(c, bx, fy - 8, bw, 10, 14, { color: wall });
         c.fillStyle = shadeHex(wall, 0.9);
-        c.fillRect(bx, fy - 8, bw, 8);
+        c.fillRect(bx, fy - 8, bw, 10);
         c.strokeStyle = '#2a2622';
-        c.lineWidth = 1.6;
-        c.strokeRect(bx + 2, fy - 44, bw - 4, 36);
-        for (let i = bx + 10; i < bx + bw - 4; i += 9) {
+        c.lineWidth = 2;
+        c.strokeRect(bx + 3, fy - 100, bw - 6, 92);
+        for (let i = bx + 12; i < bx + bw - 6; i += 12) {
           c.beginPath();
-          c.moveTo(i, fy - 44);
+          c.moveTo(i, fy - 100);
           c.lineTo(i, fy - 8);
           c.stroke();
         }
         for (let i = 0; i < 3; i++) {
-          const px = bx + 12 + i * ((bw - 24) / 2);
+          const px = bx + 22 + i * ((bw - 44) / 2);
           c.fillStyle = '#9a5a3a';
-          c.fillRect(px - 5, fy - 20, 10, 12);
+          c.fillRect(px - 8, fy - 28, 16, 20);
           c.fillStyle = ['#5a8a3a', '#6aa04a', '#7aa84a'][i];
           c.beginPath();
-          c.arc(px, fy - 24, 8, 0, TAU);
-          c.arc(px - 5, fy - 30, 5, 0, TAU);
-          c.arc(px + 5, fy - 31, 5, 0, TAU);
+          c.arc(px, fy - 36, 13, 0, TAU);
+          c.arc(px - 8, fy - 46, 8, 0, TAU);
+          c.arc(px + 8, fy - 47, 8, 0, TAU);
           c.fill();
-        }
-        if (rg() < 0.6) {
-          c.strokeStyle = '#2a2420';
-          c.lineWidth = 1;
-          c.beginPath();
-          c.moveTo(bx, fy - 62);
-          c.lineTo(bx + bw, fy - 66);
-          c.stroke();
-          const cols = ['#e8e0d0', '#6a8aa8', '#c8584a', '#e8c850'];
-          for (let i = 0; i < 4; i++) {
-            c.fillStyle = cols[i];
-            const lx = bx + 8 + i * (bw / 4.2);
-            c.fillRect(lx, fy - 64 + i * 0.5, 14, 22);
-          }
         }
       }
     }
@@ -2392,7 +2459,7 @@ function shopFacade(spec, idx) {
 // ---- the café -------------------------------------------------------------
 function cafeFacade() {
   const W = CAFE_W;
-  const H = 380;
+  const H = 500;
   const PAD = 40;
   const TOP = 60;
   const ox = CAFE_X - 300; // world x of the facade's left edge
@@ -2525,45 +2592,46 @@ function cafeFacade() {
     c.moveTo(wx + 2, wy + 12);
     c.lineTo(wx + ww - 2, wy + 12);
     c.stroke();
-    // the glass door to the left, a brass handle
-    const dx = -210 + 300;
+    // the glass door to the left: 92 wide, 205 tall, a brass handle
+    const dx = 80;
     c.fillStyle = '#22262a';
-    c.fillRect(dx - 4, -196, 68, 196);
+    c.fillRect(dx - 4, -209, 100, 209);
     c.fillStyle = '#c8885a';
-    c.fillRect(dx, -192, 60, 192);
-    const dg = c.createLinearGradient(dx, -192, dx + 60, 0);
+    c.fillRect(dx, -205, 92, 205);
+    const dg = c.createLinearGradient(dx, -200, dx + 92, 0);
     dg.addColorStop(0, '#d8c090');
     dg.addColorStop(1, '#a87a50');
     c.fillStyle = dg;
-    c.fillRect(dx + 4, -188, 52, 150);
+    c.fillRect(dx + 6, -199, 80, 160);
     c.fillStyle = '#3a2a1a';
-    c.fillRect(dx + 4, -34, 52, 34);
+    c.fillRect(dx + 6, -36, 80, 36);
     c.fillStyle = '#d9b44a';
-    c.fillRect(dx + 48, -100, 3, 24);
-    // upper floor: three windows with louvred shutters, flowers on the sills
-    const f2 = -260;
+    c.fillRect(dx + 76, -108, 3, 26);
+    // upper floor: four windows, 74 x 107 on an 86 sill, louvred shutters, flowers on the sills
+    const f2 = -270;
     c.fillStyle = shadeHex(wall, 0.8);
     c.fillRect(-4, f2 - 4, W + 8, 8);
     c.fillStyle = 'rgba(255,248,225,0.4)';
     c.fillRect(-4, f2 - 4, W + 8, 1.5);
     for (let k = 0; k < 4; k++) {
-      const fx = 60 + k * 150;
+      const fx = 46 + k * 150;
+      const fy0 = f2 - 86 - 107;
       c.fillStyle = '#2a2018';
-      c.fillRect(fx, f2 - 112, 46, 78);
+      c.fillRect(fx, fy0, 74, 107);
       c.fillStyle = k % 2 ? '#4a7a4a' : '#7a5a38';
-      c.fillRect(fx, f2 - 112, 23, 78);
-      c.fillRect(fx + 23, f2 - 112, 23, 78);
+      c.fillRect(fx, fy0, 37, 107);
+      c.fillRect(fx + 37, fy0, 37, 107);
       c.fillStyle = 'rgba(0,0,0,0.25)';
-      for (let y = f2 - 108; y < f2 - 38; y += 6) {
-        c.fillRect(fx, y, 23, 1.4);
-        c.fillRect(fx + 23, y, 23, 1.4);
+      for (let y = fy0 + 5; y < fy0 + 103; y += 6) {
+        c.fillRect(fx, y, 37, 1.4);
+        c.fillRect(fx + 37, y, 37, 1.4);
       }
       c.fillStyle = shadeHex(wall, 1.06);
-      c.fillRect(fx - 5, f2 - 34, 56, 5);
-      for (let q = 0; q < 4; q++) {
-        c.fillStyle = ['#d8486a', '#e8c040', '#d86a2a', '#f0f0e8'][q];
+      c.fillRect(fx - 6, f2 - 86, 86, 6);
+      for (let q = 0; q < 5; q++) {
+        c.fillStyle = ['#d8486a', '#e8c040', '#d86a2a', '#f0f0e8', '#d8486a'][q];
         c.beginPath();
-        c.arc(fx + 6 + q * 11, f2 - 40, 4, 0, TAU);
+        c.arc(fx + 8 + q * 15, f2 - 92, 5, 0, TAU);
         c.fill();
       }
     }
@@ -2624,7 +2692,7 @@ function cafeFacade() {
     }
     // the door's glass and a bracket lamp by it
     gl.fillStyle = 'rgba(255,200,130,0.25)';
-    gl.fillRect(dx + 4, -188, 52, 150);
+    gl.fillRect(dx + 6, -199, 80, 160);
     gl.restore();
     c.restore();
   };
@@ -3013,6 +3081,137 @@ function fold(c, k, accordion = 0, px = 0) {
   }
 }
 
+// What moves on a shop's front: its washing on the balcony line, and the
+// awning's valance, each a little in the air. Drawn in the facade's own frame.
+function shopLive(c, s, i, x, t) {
+  const plan = balconyPlan(s, i);
+  if (plan && plan.laundry) {
+    const ly = -FACADE_Y0 - 168;
+    const ax = x + plan.bx + 4;
+    const bw = plan.bw - 8;
+    c.strokeStyle = '#2a2420';
+    c.lineWidth = 1.2;
+    c.beginPath();
+    c.moveTo(ax, ly);
+    c.quadraticCurveTo(ax + bw / 2, ly + 9 + Math.sin(t * 0.8 + i) * 1.2, ax + bw, ly - 2);
+    c.stroke();
+    const cols = ['#e8e0d0', '#6a8aa8', '#c8584a', '#e8c850', '#8aa86a'];
+    const n = Math.max(3, Math.floor(bw / 40));
+    for (let q = 0; q < n; q++) {
+      const gx = ax + 6 + (q * (bw - 30)) / n;
+      const gy = ly + 3 + 9 * Math.sin((Math.PI * (gx - ax)) / bw);
+      const gw = 24 + ((q * 7) % 9);
+      const gh = 40 + ((q * 13) % 22);
+      const sw = (Math.sin(t * 1.5 + q * 1.3 + i) * 3.4 + Math.sin(t * 3.7 + q * 2 + i) * 1) * (1 + 0.8 * gust(t, i + q));
+      c.fillStyle = cols[(q + i) % cols.length];
+      c.beginPath();
+      c.moveTo(gx, gy);
+      c.lineTo(gx + gw, gy);
+      c.quadraticCurveTo(gx + gw + sw * 0.6, gy + gh * 0.6, gx + gw + sw, gy + gh);
+      c.lineTo(gx + sw, gy + gh + 2);
+      c.quadraticCurveTo(gx + sw * 0.5, gy + gh * 0.5, gx, gy);
+      c.fill();
+      c.fillStyle = 'rgba(0,0,0,0.12)';
+      c.fillRect(gx + gw * 0.55 + sw * 0.5, gy + 2, 3, gh - 4);
+      c.fillStyle = '#d8d0c0';
+      c.fillRect(gx + 3, gy - 3, 3, 6);
+      c.fillRect(gx + gw - 6, gy - 3, 3, 6);
+    }
+  }
+  if (s.awn) {
+    // a striped awning over the opening, its scalloped valance stirring
+    const y0 = -GOODS_S * 166 - 2;
+    const x0 = x + 12;
+    const aw = s.w - 24;
+    const step = 22;
+    const nStr = Math.ceil(aw / step);
+    const drop = 54;
+    for (let q = 0; q < nStr; q++) {
+      const ax = x0 + q * step;
+      const bw = Math.min(step, x0 + aw - ax);
+      const w1 = Math.sin(t * 1.9 + q * 0.7 + i) * 2.4 * (1 + 0.8 * gust(t, i));
+      const w2 = Math.sin(t * 1.9 + (q + 1) * 0.7 + i) * 2.4 * (1 + 0.8 * gust(t, i));
+      c.fillStyle = q % 2 ? s.awn[1] : s.awn[0];
+      c.beginPath();
+      c.moveTo(ax, y0);
+      c.lineTo(ax + bw, y0);
+      c.lineTo(ax + bw, y0 + drop + w2);
+      // the scallop
+      c.quadraticCurveTo(ax + bw / 2, y0 + drop + 10 + (w1 + w2) / 2, ax, y0 + drop + w1);
+      c.closePath();
+      c.fill();
+    }
+    c.fillStyle = 'rgba(0,0,0,0.18)';
+    c.fillRect(x0, y0 + drop - 8, aw, 2);
+    c.fillStyle = 'rgba(255,255,255,0.22)';
+    c.fillRect(x0, y0, aw, 3);
+  }
+}
+
+// A pigeon on a wire: sits, bobs its head, now and then hops and flutters.
+function pigeonOn(c, x, y, dir, t, i) {
+  const cyc = 6 + i * 1.9;
+  const ph = ((t + i * 2.3) % cyc) / cyc;
+  const hop = ph > 0.9 ? Math.sin(((ph - 0.9) / 0.1) * Math.PI) : 0;
+  const px = x + (ph > 0.95 ? 7 * dir : 0);
+  const py = y - hop * 10;
+  const bob = Math.max(0, Math.sin(t * 2.2 + i * 1.7)) * 1.1;
+  c.fillStyle = i % 2 ? '#7a767c' : '#8a868c';
+  c.beginPath();
+  c.ellipse(px, py - 7, 8, 5.8, -0.15 * dir, 0, TAU);
+  c.fill();
+  c.beginPath();
+  c.arc(px + dir * 7, py - 12.5 - bob, 3.2, 0, TAU);
+  c.fill();
+  c.beginPath();
+  c.moveTo(px + dir * 9.5, py - 12.5 - bob);
+  c.lineTo(px + dir * 13, py - 11.5 - bob);
+  c.lineTo(px + dir * 9.5, py - 10.5 - bob);
+  c.fill();
+  c.beginPath();
+  c.moveTo(px - dir * 7, py - 8);
+  c.lineTo(px - dir * 15, py - 5 - hop * 5);
+  c.lineTo(px - dir * 7, py - 4);
+  c.fill();
+  c.fillStyle = 'rgba(160,190,150,0.5)';
+  c.fillRect(px + dir * 2, py - 11, 4, 2.5);
+  if (hop > 0.2) {
+    const fl = Math.sin(t * 30) * 5;
+    c.fillStyle = '#7a767c';
+    c.beginPath();
+    c.moveTo(px - 2, py - 10);
+    c.quadraticCurveTo(px - 8, py - 17 - fl, px - 13, py - 11 + fl * 0.4);
+    c.quadraticCurveTo(px - 8, py - 11, px - 2, py - 8);
+    c.fill();
+  }
+}
+
+// Strings of paper pennants along a span of cable, swaying on it.
+function bunting(c, ax, ay, bx, by, cy, t, seed) {
+  const n = Math.max(4, Math.floor(Math.abs(bx - ax) / 30));
+  const cols = ['#c0392b', '#f3e6c8', '#2e7d32', '#e8c040', '#2a5a8a'];
+  for (let i = 1; i < n; i++) {
+    const u = i / n;
+    // the cable is a quadratic from (ax, ay) with its control point at (mid, cy)
+    const mx = (ax + bx) / 2;
+    const my = cy;
+    const px = (1 - u) * (1 - u) * ax + 2 * (1 - u) * u * mx + u * u * bx;
+    const py = (1 - u) * (1 - u) * ay + 2 * (1 - u) * u * my + u * u * by;
+    const a = swayAng(t, seed + i * 1.3, 0.16, 2.6) + Math.sin(t * 4.3 + i * 2.1) * 0.03;
+    c.save();
+    c.translate(px, py);
+    c.rotate(a);
+    c.fillStyle = cols[(i + seed) % cols.length];
+    c.beginPath();
+    c.moveTo(-6, 0);
+    c.lineTo(6, 0);
+    c.lineTo(0, 20);
+    c.closePath();
+    c.fill();
+    c.restore();
+  }
+}
+
 export function drawDamascus(R, g, { fold: fk = 0, t = g.time, traffic: withTraffic = true } = {}) {
   const k = clamp(fk);
   const cam = R.cam.x;
@@ -3189,6 +3388,7 @@ export function drawDamascus(R, g, { fold: fk = 0, t = g.time, traffic: withTraf
         // accordion fold: buildings tip in alternate directions about their near edge
         fold(c, k, i % 2 ? -1 : 1, x + (x < CAFE_X ? s.w : 0));
         c.drawImage(F.alb, x - F.PAD, -F.H - F.TOP, F.w + F.PAD * 2, F.H + F.TOP + 20);
+        shopLive(c, s, i, x, t);
         c.restore();
       });
     });
@@ -3232,7 +3432,14 @@ export function drawDamascus(R, g, { fold: fk = 0, t = g.time, traffic: withTraf
         c.save();
         c.globalAlpha = sceneA;
         fold(c, k);
-        c.drawImage(cv, tx - 170, -390, 340, 400);
+        // the trunk stands; the crown leans a little about the fork and comes back
+        const iw = cv.width;
+        const ih = cv.height;
+        const cut = 0.5375;
+        c.drawImage(cv, 0, ih * cut, iw, ih * (1 - cut), tx - 170, -390 + 400 * cut, 340, 400 * (1 - cut));
+        c.translate(tx, -390 + 400 * cut);
+        c.rotate(swayAng(t, i * 1.9 + 0.4, 0.026, 4.2 + (i % 3) * 0.7));
+        c.drawImage(cv, 0, 0, iw, ih * cut + 1, -170, -400 * cut, 340, 400 * cut + 1);
         c.restore();
       });
       R.shadow(
@@ -3261,10 +3468,21 @@ export function drawDamascus(R, g, { fold: fk = 0, t = g.time, traffic: withTraf
       for (let i = 0; i < lamps.length - 1; i++) {
         const a = lamps[i] + 52;
         const b = lamps[i + 1] - 2;
+        // the cable bobs a hair as the air moves along it
+        const cy = -300 + Math.sin(t * 0.9 + i * 1.7) * 1.6 + Math.sin(t * 2.3 + i) * 0.5;
         c.beginPath();
         c.moveTo(a, -328);
-        c.quadraticCurveTo((a + b) / 2, -300, b, -330);
+        c.quadraticCurveTo((a + b) / 2, cy, b, -330);
         c.stroke();
+        if (near(a, b)) {
+          bunting(c, a, -328, b, -330, cy, t, i);
+          // a pigeon or two on the wire, between the pennants
+          for (const [u, d] of [[0.31, 1], [0.69, -1]]) {
+            const px = (1 - u) * (1 - u) * a + 2 * (1 - u) * u * ((a + b) / 2) + u * u * b;
+            const py = (1 - u) * (1 - u) * -328 + 2 * (1 - u) * u * cy + u * u * -330;
+            if ((i + (u > 0.5 ? 1 : 0)) % 2 === 0) pigeonOn(c, px + 7, py, d, t, i * 2 + (u > 0.5 ? 1 : 0));
+          }
+        }
       }
       c.restore();
     });

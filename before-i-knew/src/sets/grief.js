@@ -1899,7 +1899,7 @@ function cafeFace() {
     c.fillStyle = '#b02a22';
     c.fillRect(w - 176, -268, 150, 44);
     c.fillStyle = '#fff';
-    c.font = `18px ${NASKH}`;
+    c.font = `15px ${NASKH}`;
     c.fillText('نسكافيه · شاي · عصير', w - 101, -239);
     // the awning, green and cream, scalloped, over the whole front
     const n = 26;

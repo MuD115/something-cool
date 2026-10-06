@@ -86,6 +86,73 @@ function hull(pts) {
   return lo.concat(up);
 }
 
+// A breeze that comes and goes (0..1), and a sway angle riding on it.
+const gust = (t, ph = 0) => {
+  const a = Math.sin(t * 0.37 + ph) * Math.sin(t * 0.23 + 1.3 + ph * 0.5);
+  return a > 0 ? Math.min(1, a * 1.6) : 0;
+};
+
+// One pigeon, sitting, bobbing, hopping now and then.
+function pigeon(c, x, y, dir, t, i, tone = '#5c5c66') {
+  const cyc = 6 + i * 1.9;
+  const ph = ((t + i * 2.3) % cyc) / cyc;
+  const hop = ph > 0.9 ? Math.sin(((ph - 0.9) / 0.1) * Math.PI) : 0;
+  const px = x + (ph > 0.95 ? 8 * dir : 0);
+  const py = y - hop * 11;
+  const bob = Math.max(0, Math.sin(t * 2.2 + i * 1.7)) * 1.2;
+  c.fillStyle = tone;
+  c.beginPath();
+  c.ellipse(px, py - 8, 9, 6.5, -0.15 * dir, 0, TAU);
+  c.fill();
+  c.beginPath();
+  c.arc(px + dir * 8, py - 14 - bob, 3.6, 0, TAU);
+  c.fill();
+  c.beginPath();
+  c.moveTo(px + dir * 11, py - 14 - bob);
+  c.lineTo(px + dir * 15, py - 13 - bob);
+  c.lineTo(px + dir * 11, py - 12 - bob);
+  c.fill();
+  c.beginPath();
+  c.moveTo(px - dir * 8, py - 9);
+  c.lineTo(px - dir * 17, py - 6 - hop * 6);
+  c.lineTo(px - dir * 8, py - 5);
+  c.fill();
+}
+
+// A few birds crossing high, wings beating, from a start x to an end x.
+function flockAt(c, t, x0, x1, y, { n = 5, seed = 0, col = '#3a3c46', alpha = 0.8, speed = 80 } = {}) {
+  const span = x1 - x0;
+  const u = ((t * speed + seed * 600) % (span * 2.1)) - 200;
+  if (u > span + 100) return;
+  c.globalAlpha = alpha;
+  c.strokeStyle = col;
+  c.lineWidth = 1.7;
+  c.lineCap = 'round';
+  for (let i = 0; i < n; i++) {
+    const bx = x0 + u - i * 36 + (i % 2) * 14;
+    const by = y - i * 10 - (i % 3) * 14 + Math.sin(t * 0.8 + i) * 8;
+    const fl = Math.sin(t * 11 + i * 1.7) * 6;
+    c.beginPath();
+    c.moveTo(bx - 10, by - fl * 0.7);
+    c.quadraticCurveTo(bx - 4, by - fl - 4, bx, by);
+    c.quadraticCurveTo(bx + 4, by - fl - 4, bx + 10, by - fl * 0.7);
+    c.stroke();
+  }
+  c.globalAlpha = 1;
+}
+
+// A thread of smoke at (x, y): a dozen soft puffs on one curve.
+function wispAt(c, t, x, y, { h = 240, w = 14, seed = 1, lean = 10, a = 0.3, col = [190, 196, 210] } = {}) {
+  for (let i = 0; i < 12; i++) {
+    const age = (t * 0.08 + i / 12 + seed * 0.37) % 1;
+    const al = a * Math.sin(Math.min(1, age * 5) * 1.5708) * (1 - age);
+    c.fillStyle = `rgba(${col[0]},${col[1]},${col[2]},${al})`;
+    c.beginPath();
+    c.arc(x + Math.sin(age * 6 + seed + t * 0.3) * w * age + lean * age * age, y - age * h, 3 + age * 14, 0, TAU);
+    c.fill();
+  }
+}
+
 // Chalk-ish text: a hair of doubling so it never looks printed.
 function chalkText(c, str, x, y, { font, size, color = 'rgba(246,244,232,0.94)', rot = 0, align = 'right', wob = 0.4 } = {}) {
   c.save();
@@ -212,16 +279,16 @@ function classShell() {
     // storeys: shuttered windows, one with a shell hole through to the sky beyond
     for (let fl = 0; fl < 2; fl++) {
       for (let wx = fx0 + 70; wx < 1100; wx += 150) {
-        const wy = -430 - fl * 150;
+        const wy = RM.slab - fl * 224 - 86 - 107; // the raised ground floor stands on the slab
         c.fillStyle = '#4e4840';
-        c.fillRect(wx - 3, wy - 3, 58, 78);
+        c.fillRect(wx - 3, wy - 3, 80, 113);
         c.fillStyle = fl === 1 && wx > 380 && wx < 470 ? '#c9a888' : '#2c2823';
-        c.fillRect(wx, wy, 52, 72);
+        c.fillRect(wx, wy, 74, 107);
         c.fillStyle = 'rgba(200,185,160,0.5)';
-        c.fillRect(wx - 5, wy + 72, 62, 5);
+        c.fillRect(wx - 5, wy + 107, 84, 5);
         if (r() < 0.5) {
           c.fillStyle = '#5d5a50';
-          c.fillRect(wx + 4, wy + 2, 22, 68);
+          c.fillRect(wx + 4, wy + 2, 32, 103);
         }
       }
     }
@@ -777,29 +844,28 @@ export function drawDawnClassroom(R, g, { k = 0, t = g.time || 0, date = 0, less
     c.fillStyle = lit;
     poly(c, pts);
     c.fill();
-    for (let row = 0; row < 3; row++) {
-      for (let col = 0; col < 3; col++) {
-        const wx = -1076 + col * 62;
-        const wy = -626 + row * 126;
-        if (row === 0 && col === 2) continue;
+    for (let row = 0; row < 2; row++) {
+      for (let col = 0; col < 2; col++) {
+        const wx = -1086 + col * 104;
+        const wy = RM.street - row * 224 - 86 - 107; // 74 x 107 on an 86 sill
         c.fillStyle = '#3a342d';
-        c.fillRect(wx, wy, 34, 66);
+        c.fillRect(wx, wy, 74, 107);
         c.fillStyle = 'rgba(255,220,170,0.4)';
-        c.fillRect(wx, wy + 66, 34, 3);
+        c.fillRect(wx, wy + 107, 74, 4);
         if ((row + col) % 2 === 0) {
           c.fillStyle = '#7a6f60';
-          c.fillRect(wx + 3, wy + 3, 14, 60);
+          c.fillRect(wx + 4, wy + 4, 32, 99);
         }
       }
     }
     // a shell hole, with the pale of fresh plaster around it
     c.fillStyle = '#e8c4a0';
     c.beginPath();
-    c.ellipse(-960, -420, 26, 20, 0.3, 0, TAU);
+    c.ellipse(-940, -470, 30, 24, 0.3, 0, TAU);
     c.fill();
     c.fillStyle = '#6c5848';
     c.beginPath();
-    c.ellipse(-960, -420, 19, 14, 0.3, 0, TAU);
+    c.ellipse(-940, -470, 22, 17, 0.3, 0, TAU);
     c.fill();
     // a satellite dish and a water tank
     c.fillStyle = '#8c8a86';
@@ -808,6 +874,34 @@ export function drawDawnClassroom(R, g, { k = 0, t = g.time || 0, date = 0, less
     c.fill();
     c.fillStyle = '#2a4a6a';
     c.fillRect(-982, -722, 20, 18);
+  });
+
+  // life in the first light: smoke from a stove across the street, pigeons on its
+  // torn parapet, a few birds over the roofs, a bag the air pushes along the pavement
+  const warmK = smooth(0.2, 0.8, k);
+  local(R, SX, 'paint', (c) => {
+    wispAt(c, t, -1052, -712, { h: 230, w: 12, seed: 3, lean: 16 - 10 * warmK, a: 0.26, col: warmK > 0.5 ? [200, 182, 170] : [160, 170, 204] });
+    const span = RM.street ? STAIR_TOP + 1100 - 120 : 600;
+    const u = ((t * 30) % (span * 1.3)) - span * 0.1;
+    if (u > 0 && u < span) {
+      const hop = Math.abs(Math.sin(t * 2.6)) * 16 * (0.4 + gust(t, 1) * 0.9);
+      c.save();
+      c.translate(-1100 + 60 + u, RM.street - 6 - hop);
+      c.rotate(t * 2.2);
+      c.fillStyle = 'rgba(220,214,206,0.85)';
+      c.beginPath();
+      c.moveTo(-8, 0);
+      c.quadraticCurveTo(-4, -8 - Math.sin(t * 7) * 2, 3, -6);
+      c.quadraticCurveTo(10, -2, 7, 5 + Math.sin(t * 6 + 1) * 1.5);
+      c.quadraticCurveTo(0, 8, -8, 0);
+      c.fill();
+      c.restore();
+    }
+    flockAt(c, t, -1500, -200, -560, { n: 5, seed: 1, col: warmK > 0.5 ? '#5a4a48' : '#34384a', alpha: 0.75 });
+  });
+  local(R, SX, 'cast', (c) => {
+    pigeon(c, -1072, -692, 1, t, 0, '#6a666c');
+    pigeon(c, -1046, -694, -1, t, 1, '#55555e');
   });
 
   // the room and building, baked
@@ -932,9 +1026,9 @@ export function drawDawnClassroom(R, g, { k = 0, t = g.time || 0, date = 0, less
     // the frame
     c.fillStyle = '#6a4a30';
     c.fillRect(dx - 3, -206, 10, 206);
-    c.fillRect(dx - 3, -208, 70, 8);
+    c.fillRect(dx - 3, -208, 100, 8);
     c.fillStyle = 'rgba(255,230,180,0.3)';
-    c.fillRect(dx - 3, -208, 70, 1.5);
+    c.fillRect(dx - 3, -208, 100, 1.5);
     // the leaf, swung back, seen almost edge-on: a hint of panel and a brass handle
     c.fillStyle = '#7a8a86';
     c.beginPath();
@@ -1861,6 +1955,35 @@ export function drawRubbleRoom(R, g, { k = 0, t = g.time || 0 } = {}) {
       c.lineTo(a - 14, ceilY(a) + 12);
       c.stroke();
     }
+  });
+
+  // water from the hanging chunk of the ceiling onto the slab below, and a few birds
+  // crossing the opening as the light comes
+  L('paint', (c) => {
+    const every = 3.4;
+    const p = ((t + 0.7) % every) / every;
+    const x = 2;
+    const y0 = ceilY(-20) + 40;
+    const y1 = SLAB.top;
+    if (p < 0.74) {
+      const kk = p / 0.74;
+      c.fillStyle = `rgba(120,140,170,${0.4 + 0.3 * kk})`;
+      c.beginPath();
+      c.ellipse(x, y0 + kk * 2, 1 + kk * 1.2, 1.5 + kk * 2.2, 0, 0, TAU);
+      c.fill();
+    } else {
+      const kk = (p - 0.74) / 0.26;
+      c.fillStyle = 'rgba(150,170,200,0.75)';
+      c.fillRect(x - 0.8, y0 + (y1 - y0) * kk * kk - 5, 1.6, 7);
+    }
+    if (p < 0.12) {
+      c.strokeStyle = `rgba(160,180,210,${0.45 * (1 - p / 0.12)})`;
+      c.lineWidth = 1;
+      c.beginPath();
+      c.ellipse(x, y1, 3 + p * 70, 0.8 + p * 9, 0, 0, TAU);
+      c.stroke();
+    }
+    if (k > 0.25) flockAt(c, t, 260, 1100, -170, { n: 4, seed: 2, col: '#3a3c46', alpha: 0.7 * smooth(0.25, 0.5, k) });
   });
 
   // a torn curtain at the edge, stirring in the first air of the day

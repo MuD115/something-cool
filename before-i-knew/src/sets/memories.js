@@ -94,6 +94,14 @@ function steam(R, x, y, t, k = 1, seed = 1) {
 // A hanging flag-cloth fold wave: used for the flag and the cloth over the TV.
 const wave = (t, x, k) => Math.sin(t * 1.6 + x * 0.09) * k;
 
+// A breeze that comes and goes (0..1), and a sway angle riding on it: small,
+// slow, a different phase for every tree, cloth and fringe.
+const gust = (t, ph = 0) => {
+  const a = Math.sin(t * 0.37 + ph) * Math.sin(t * 0.23 + 1.3 + ph * 0.5);
+  return a > 0 ? Math.min(1, a * 1.6) : 0;
+};
+const swayAng = (t, ph, amp, period = 4) => Math.sin((t * TAU) / period + ph) * amp * (1 + 0.7 * gust(t, ph));
+
 // =============================================================== EID ==
 
 const E0 = MEM.eid[0];
@@ -228,11 +236,11 @@ export function drawEid(R, g, { t = 0, door } = {}) {
       c.fillStyle = '#a89a7c';
       c.fillRect(dx - 50, -208, 100, 6);
       c.fillStyle = '#8c8478'; // landing floor
-      c.fillRect(dx - 50, -14, 100, 14);
+      c.fillRect(dx - 50, -16, 100, 16);
       // a flight of steps climbing to the right, and its rail
       for (let k = 0; k < 6; k++) {
         c.fillStyle = k % 2 ? '#b4a98e' : '#a99e83';
-        c.fillRect(dx - 6 + k * 9, -14 - k * 14, 9 * (6 - k) + 6, 14);
+        c.fillRect(dx - 6 + k * 9, -16 - k * 16, 9 * (6 - k) + 6, 16);
       }
       c.strokeStyle = '#2f2b27';
       c.lineWidth = 2;
@@ -450,11 +458,23 @@ export function drawEid(R, g, { t = 0, door } = {}) {
     c.fillStyle = '#7a5a3a';
     c.fillRect(wx - 90, -280, 14, 138);
     c.fillRect(wx + 76, -280, 14, 138);
+  });
+  // the sheer curtain, lifting in the draught from the window
+  R.paint((c) => {
+    const sw = swayAng(t, 0.6, 5, 4.6) + Math.sin(t * 2.7) * 1.2;
     c.fillStyle = 'rgba(245,235,215,0.55)';
     c.beginPath();
     c.moveTo(wx - 72, -300);
-    c.quadraticCurveTo(wx - 50, -240, wx - 66, -140);
+    c.lineTo(wx - 30, -300);
+    c.quadraticCurveTo(wx - 24 + sw * 1.6, -230, wx - 46 + sw, -140);
     c.lineTo(wx - 72, -140);
+    c.fill();
+    c.fillStyle = 'rgba(245,235,215,0.4)';
+    c.beginPath();
+    c.moveTo(wx + 72, -300);
+    c.lineTo(wx + 36, -300);
+    c.quadraticCurveTo(wx + 30 - sw * 1.2, -230, wx + 50 - sw * 0.8, -140);
+    c.lineTo(wx + 72, -140);
     c.fill();
   });
   // the shaft of light from the window, across the wall and floor, and dust in it
@@ -817,6 +837,11 @@ function blossomTree(R, x, t) {
     c.stroke();
   });
   R.paint((c) => {
+    // the crown leans a little each way about the trunk's top, with the occasional gust
+    c.save();
+    c.translate(x, -86);
+    c.rotate(swayAng(t, x * 0.01, 0.03, 5.5));
+    c.translate(-x, 86);
     const r = rng(77);
     for (let i = 0; i < 46; i++) {
       const a = r() * TAU;
@@ -825,11 +850,12 @@ function blossomTree(R, x, t) {
       const by = -140 + Math.sin(a) * 44 * d;
       c.fillStyle = ['#f3d9dc', '#f6e6e4', '#e9bfc6', '#ffffff'][(r() * 4) | 0];
       c.beginPath();
-      c.arc(bx + Math.sin(t * 0.7 + i) * 1.4, by, 8 + r() * 6, 0, TAU);
+      c.arc(bx + Math.sin(t * 0.7 + i) * 1.4, by + Math.sin(t * 0.9 + i * 1.7) * 0.9, 8 + r() * 6, 0, TAU);
       c.fill();
     }
     c.fillStyle = '#6f8f44';
     for (let i = 0; i < 10; i++) c.fillRect(x - 50 + r() * 100, -170 + r() * 70, 5, 3);
+    c.restore();
   });
 }
 
@@ -1033,12 +1059,17 @@ function leaner(c, x, y, k, seed) {
   }
 }
 
+// Storeys at a person's scale: the shops' storey (opening, shutter and sign
+// band) is 270 tall, each flat above it 224; windows are 74 x 107 on an 86 sill,
+// a balcony door 92 x 205, a balcony rail 92 high.
+const G0 = 270;
+const FH = 224;
+
 function buildingFront(R, i, t, scatter) {
   const [ox, w, floors, col, doorKind] = BUILDINGS[i];
   const x = P0 + ox;
   if (!nearView(R, x + w / 2, 1750)) return;
-  const FH = 120;
-  const top = -(150 + FH * (floors - 1));
+  const top = -(G0 + FH * (floors - 1));
   const r = rng(300 + i);
   R.cast((c) => {
     extrudeRect(c, x, top - 10, w, -top + 10, 44, { color: col });
@@ -1069,30 +1100,37 @@ function buildingFront(R, i, t, scatter) {
 
   // upper storeys: windows with shutters, balconies, a little laundry
   for (let f = 1; f < floors; f++) {
-    const fy = -150 - FH * (f - 1); // the floor level of this storey
-    const cols = Math.floor(w / 96);
+    const fy = -G0 - FH * (f - 1); // the floor level of this storey
+    const cols = Math.max(1, Math.floor(w / 130));
     const pitch = w / cols;
     for (let k = 0; k < cols; k++) {
       const wx = x + pitch * (k + 0.5);
       const balcony = (k + f + i) % 2 === 0;
       if (balcony) {
-        // door opening to the balcony, shutters
+        // door opening to the balcony, and its curtain stirring in the draught
         R.paint((c) => {
           c.fillStyle = '#e8dcc0';
-          c.fillRect(wx - 25, fy - 100, 50, 100);
+          c.fillRect(wx - 52, fy - 212, 104, 212);
           c.fillStyle = '#2a211a';
-          c.fillRect(wx - 20, fy - 94, 40, 94);
+          c.fillRect(wx - 46, fy - 205, 92, 205);
+          const sw = swayAng(t, i * 1.3 + k + f * 2, 4, 3.6);
           c.fillStyle = 'rgba(210,190,150,0.5)'; // a curtain
-          c.fillRect(wx - 20, fy - 94, 14, 94);
+          c.beginPath();
+          c.moveTo(wx - 46, fy - 205);
+          c.lineTo(wx - 16, fy - 205);
+          c.quadraticCurveTo(wx - 12 + sw * 2, fy - 100, wx - 18 + sw * 1.4, fy);
+          c.lineTo(wx - 46, fy);
+          c.closePath();
+          c.fill();
         });
         R.cast((c) => {
-          extrudeRect(c, wx - 40, fy - 6, 80, 8, 24, { color: '#b8a584' });
+          extrudeRect(c, wx - 75, fy - 8, 150, 10, 26, { color: '#b8a584' });
           c.fillStyle = '#b8a584';
-          c.fillRect(wx - 40, fy - 6, 80, 8);
-          // the rail: iron, with vertical bars
+          c.fillRect(wx - 75, fy - 8, 150, 10);
+          // the rail: iron, 92 high, with vertical bars
           c.fillStyle = '#2f2b27';
-          c.fillRect(wx - 40, fy - 44, 80, 3);
-          for (let b = wx - 38; b < wx + 40; b += 6) c.fillRect(b, fy - 44, 1.6, 38);
+          c.fillRect(wx - 75, fy - 100, 150, 3.5);
+          for (let b = wx - 72; b < wx + 75; b += 9) c.fillRect(b, fy - 100, 1.8, 92);
         });
         // people leaning out; they go in when the shots start
         const stay = r() < 0.4;
@@ -1104,42 +1142,64 @@ function buildingFront(R, i, t, scatter) {
             const n = 1 + ((k + f) % 2);
             for (let p = 0; p < n; p++) {
               const sway = Math.sin(t * 1.3 + k * 2 + p * 3 + i) * 1.4;
-              leaner(c, wx - 12 + p * 24 + sway, fy - 44, 1, (i + k + p) | 0);
+              c.save();
+              c.translate(wx - 24 + p * 48 + sway, fy - 100);
+              c.scale(1.6, 1.6);
+              leaner(c, 0, 0, 1, (i + k + p) | 0);
+              c.restore();
             }
             c.restore();
           });
         }
         if (r() < 0.5) {
           R.paint((c) => {
-            // laundry on a line off the balcony
+            // laundry on a line off the balcony, stirring
+            const ly = fy - 190;
             c.strokeStyle = '#3a3128';
             c.lineWidth = 1;
             c.beginPath();
-            c.moveTo(wx - 40, fy - 70);
-            c.lineTo(wx - 40 + pitch * 0.6, fy - 74);
+            c.moveTo(wx - 75, ly);
+            c.lineTo(wx - 75 + pitch * 0.62, ly - 5 + Math.sin(t * 0.8 + k) * 0.8);
             c.stroke();
             const cl = ['#f0ece0', '#c64a3a', '#4a78a8', '#e8d28a'];
-            for (let q = 0; q < 3; q++) {
+            for (let q = 0; q < 4; q++) {
+              const gx = wx - 68 + q * 22;
+              const sw = swayAng(t, q * 1.7 + k + i, 3.2, 2.8) + Math.sin(t * 3.1 + q * 2 + i) * 0.8;
               c.fillStyle = cl[(q + k) % 4];
-              c.fillRect(wx - 34 + q * 14, fy - 70 + q * 0.4, 9, 18 + (q % 2) * 6);
+              c.beginPath();
+              c.moveTo(gx, ly + q * 0.4);
+              c.lineTo(gx + 14, ly + q * 0.4);
+              c.lineTo(gx + 14 + sw, ly + 34 + (q % 2) * 10);
+              c.lineTo(gx + sw, ly + 34 + (q % 2) * 10);
+              c.closePath();
+              c.fill();
             }
           });
         }
       } else {
-        // an arched window with a shutter open
+        // an arched window, 74 x 107 on an 86 sill, a shutter open
         R.paint((c) => {
+          const sw = swayAng(t, i + k * 2 + f, 1.5, 4.4);
           c.fillStyle = '#e8dcc0';
           c.beginPath();
-          archPath(c, wx - 22, wx + 22, fy - 100, fy - 20, 22);
+          archPath(c, wx - 43, wx + 43, fy - 200, fy - 80, 36);
           c.fill();
           c.fillStyle = '#2a211a';
           c.beginPath();
-          archPath(c, wx - 17, wx + 17, fy - 95, fy - 25, 18);
+          archPath(c, wx - 37, wx + 37, fy - 193, fy - 86, 32);
           c.fill();
           c.fillStyle = '#6a8a7a';
-          c.fillRect(wx + 18, fy - 96, 12, 70);
+          c.fillRect(wx + 39, fy - 190, 22, 100);
+          c.fillStyle = 'rgba(0,0,0,0.18)';
+          for (let y = fy - 186; y < fy - 94; y += 7) c.fillRect(wx + 39, y, 22, 1.4);
           c.fillStyle = 'rgba(210,190,150,0.45)';
-          c.fillRect(wx - 17, fy - 80, 12, 55);
+          c.beginPath();
+          c.moveTo(wx - 37, fy - 168);
+          c.lineTo(wx - 10, fy - 168);
+          c.quadraticCurveTo(wx - 8 + sw * 2, fy - 130, wx - 14 + sw * 1.5, fy - 86);
+          c.lineTo(wx - 37, fy - 86);
+          c.closePath();
+          c.fill();
         });
       }
     }
@@ -1151,13 +1211,13 @@ function buildingFront(R, i, t, scatter) {
   }
 
   // the ground floor: shops and a front door
-  const gcols = Math.max(2, Math.floor(w / 120));
+  const gcols = Math.max(2, Math.floor(w / 130));
   const doorSlot = gcols - 1;
   const gw = w / gcols;
   for (let k = 0; k < gcols; k++) {
     const sx = x + gw * k;
     if (k === doorSlot) {
-      R.paint((c) => T.syrianDoor(c, sx + gw / 2, 62, 118, doorKind, 600 + i));
+      R.paint((c) => T.syrianDoor(c, sx + gw / 2, 92, 205, doorKind, 600 + i));
       continue;
     }
     shopFront(R, sx + 6, gw - 12, 500 + i * 7 + k, SHOPS[(i * 2 + k * 3) % SHOPS.length], scatter, t);
@@ -1165,6 +1225,7 @@ function buildingFront(R, i, t, scatter) {
 }
 
 // A shop with its shutter up on goods, lowering as the street empties.
+// The opening is 230 tall, the sign band over it 34.
 function shopFront(R, x, w, seed, sign, scatter, t) {
   const r = rng(seed);
   const baseOpen = 0.55 + r() * 0.4; // fraction of the opening still clear
@@ -1172,40 +1233,42 @@ function shopFront(R, x, w, seed, sign, scatter, t) {
   const open = baseOpen * (1 - smooth(stag * 0.7, stag * 0.7 + 0.45, scatter)) + 0.04;
   const awning = r() < 0.5;
   const goods = r();
+  const H1 = 230;
   R.paint((c) => {
     c.fillStyle = '#e0cfae';
-    c.fillRect(x - 5, -158, w + 10, 158);
+    c.fillRect(x - 5, -(H1 + 8), w + 10, H1 + 8);
     c.fillStyle = '#26190f';
-    c.fillRect(x, -146, w, 146);
+    c.fillRect(x, -H1, w, H1);
     // shelves with goods in jars and boxes
     c.fillStyle = '#6a4d33';
-    for (let s = 0; s < 3; s++) c.fillRect(x + 4, -118 + s * 36, w - 8, 3);
+    for (let s = 0; s < 4; s++) c.fillRect(x + 4, -198 + s * 52, w - 8, 3);
     const rr = rng(seed + 3);
-    for (let s = 0; s < 3; s++) {
-      for (let q = x + 8; q < x + w - 14; q += 11) {
+    for (let s = 0; s < 4; s++) {
+      for (let q = x + 8; q < x + w - 14; q += 14) {
         c.fillStyle = ['#c0453a', '#d7b24a', '#3f6a4a', '#e8e0cc', '#35566e'][(rr() * 5) | 0];
-        c.fillRect(q, -118 + s * 36 - 12 - rr() * 6, 8, 12 + rr() * 4);
+        const hh = 18 + rr() * 8;
+        c.fillRect(q, -198 + s * 52 - hh, 10, hh);
       }
     }
     // a bulb inside
     c.fillStyle = '#ffe9b0';
-    c.fillRect(x + w / 2 - 2, -146, 4, 8);
+    c.fillRect(x + w / 2 - 2, -H1, 4, 10);
     // sign board
     c.fillStyle = ['#2f4a5a', '#5a3a2a', '#3f5a3a', '#6a2e2a'][seed % 4];
-    c.fillRect(x - 5, -192, w + 10, 34);
+    c.fillRect(x - 5, -(H1 + 42), w + 10, 34);
     c.fillStyle = '#e8dcc0';
     c.textAlign = 'center';
     c.direction = 'rtl';
-    c.font = `20px ${ARABIC}`;
+    c.font = `24px ${ARABIC}`;
     const sw = c.measureText(sign).width;
-    const fit = Math.min(20, (20 * (w - 6)) / Math.max(sw, 1));
+    const fit = Math.min(24, (24 * (w - 6)) / Math.max(sw, 1));
     c.font = `${fit.toFixed(1)}px ${ARABIC}`;
-    c.fillText(sign, x + w / 2, -168);
+    c.fillText(sign, x + w / 2, -(H1 + 17));
   });
   R.glow((c) => {
     const k = 1 - open;
     c.fillStyle = `rgba(255,214,140,${0.16 * (1 - k)})`;
-    c.fillRect(x, -146, w, 146 * (1 - k * 0.9));
+    c.fillRect(x, -H1, w, H1 * (1 - k * 0.9));
   });
   // goods out on the pavement: crates of fruit, a bench of sweets
   R.cast((c) => {
@@ -1222,24 +1285,26 @@ function shopFront(R, x, w, seed, sign, scatter, t) {
     }
   });
   // the rolling shutter, lowered by `1 - open`
-  const sh = 146 * (1 - open);
+  const sh = H1 * (1 - open);
   R.cast((c) => {
     if (sh < 2) return;
     c.fillStyle = '#8f8d86';
-    c.fillRect(x - 2, -150, w + 4, sh + 4);
+    c.fillRect(x - 2, -(H1 + 4), w + 4, sh + 4);
     c.fillStyle = 'rgba(0,0,0,0.2)';
-    for (let y = -146; y < -150 + sh; y += 5) c.fillRect(x - 2, y, w + 4, 1.2);
+    for (let y = -H1; y < -(H1 + 4) + sh; y += 5) c.fillRect(x - 2, y, w + 4, 1.2);
     c.fillStyle = '#4a4540';
-    c.fillRect(x + w / 2 - 3, -150 + sh - 2, 6, 6);
+    c.fillRect(x + w / 2 - 3, -(H1 + 4) + sh - 2, 6, 6);
   });
   R.cast((c) => {
-    // a striped awning, rolled in by the same hand
+    // a striped awning, rolled in by the same hand; its fringe stirs
     if (awning) {
-      const ah = 22 * open;
+      const ah = 30 * open;
       const aw = w + 10;
-      for (let s = 0, n = 0; s < aw; s += 14, n++) {
+      for (let s = 0, n = 0; s < aw; s += 18, n++) {
+        const f1 = Math.sin(t * 1.9 + s * 0.12 + seed) * 2.2 * (1 + 0.8 * gust(t, seed)) * open;
+        const f2 = Math.sin(t * 1.9 + (s + 18) * 0.12 + seed) * 2.2 * (1 + 0.8 * gust(t, seed)) * open;
         c.fillStyle = n % 2 ? '#f0e8d6' : '#b8473a';
-        poly(c, [[x - 5 + s, -158], [x - 5 + s + 14, -158], [x - 9 + s + 14, -158 + 14 + ah], [x - 9 + s, -158 + 14 + ah]]);
+        poly(c, [[x - 5 + s, -(H1 + 8)], [x - 5 + s + 18, -(H1 + 8)], [x - 9 + s + 18, -(H1 + 8) + 22 + ah + f2], [x - 9 + s, -(H1 + 8) + 22 + ah + f1]]);
         c.fill();
       }
     }
@@ -1552,25 +1617,36 @@ export function drawProtest(R, g, { t = 0, scatter = 0, dumpster = true, farPeop
   // the last block, beyond the alley
   R.cast((c) => {
     const x = ALLEY_X0 + ALLEY_W;
-    extrudeRect(c, x, -380, 500, 380, 44, { color: '#d3b794' });
+    extrudeRect(c, x, -450, 500, 450, 44, { color: '#d3b794' });
     c.fillStyle = '#d3b794';
-    c.fillRect(x, -380, 500, 380);
+    c.fillRect(x, -450, 500, 450);
     c.fillStyle = '#c3a780';
-    c.fillRect(x - 4, -392, 508, 14);
+    c.fillRect(x - 4, -462, 508, 14);
   });
-  R.surface((c) => c.rect(ALLEY_X0 + ALLEY_W, -380, 500, 380), 'plaster', { seed: 99, alpha: 0.45 });
+  R.surface((c) => c.rect(ALLEY_X0 + ALLEY_W, -450, 500, 450), 'plaster', { seed: 99, alpha: 0.45 });
   R.paint((c) => {
     const x = ALLEY_X0 + ALLEY_W;
+    // windows 74 x 107 on an 86 sill, a row to each storey; the door takes the third bay below
     for (let k = 0; k < 4; k++) {
+      c.fillStyle = '#e8dcc0';
+      c.beginPath();
+      archPath(c, x + 20 + k * 120, x + 106 + k * 120, -(224 + 86 + 107) - 6, -(224 + 80), 36);
+      c.fill();
       c.fillStyle = '#2a211a';
       c.beginPath();
-      archPath(c, x + 40 + k * 100, x + 80 + k * 100, -300, -220, 20);
+      archPath(c, x + 26 + k * 120, x + 100 + k * 120, -(224 + 86 + 107), -(224 + 86), 32);
       c.fill();
+      if (k === 2) continue;
+      c.fillStyle = '#e8dcc0';
       c.beginPath();
-      archPath(c, x + 40 + k * 100, x + 80 + k * 100, -180, -100, 20);
+      archPath(c, x + 20 + k * 120, x + 106 + k * 120, -(86 + 107) - 6, -80, 36);
+      c.fill();
+      c.fillStyle = '#2a211a';
+      c.beginPath();
+      archPath(c, x + 26 + k * 120, x + 100 + k * 120, -(86 + 107), -86, 32);
       c.fill();
     }
-    T.syrianDoor(c, x + 250, 64, 116, 'steel', 777);
+    T.syrianDoor(c, x + 303, 92, 205, 'steel', 777);
   });
   if (farPeople) farCrowd(R, t, sc); // (off: the story fills the street with people of its own)
   leftBehind(R, sc);
@@ -2040,7 +2116,7 @@ export function drawKitchen(R, g, { t = 0, door } = {}) {
   // ---- the door, left, hinged on its left: open to a dim hall, or shut
   const dx = KITCHEN_DOOR_X;
   const dw = 92;
-  const dh = 196;
+  const dh = 205;
   R.paint((c) => {
     c.fillStyle = '#efe0b8';
     c.fillRect(dx - dw / 2 - 8, -dh - 8, dw + 16, dh + 8); // architrave
@@ -2067,7 +2143,7 @@ export function drawKitchen(R, g, { t = 0, door } = {}) {
     c.fillRect(lx, -dh, lw, dh);
     c.fillStyle = '#765634';
     c.fillRect(lx + lw * 0.1, -dh + 12, lw * 0.8, 74);
-    c.fillRect(lx + lw * 0.1, -dh + 98, lw * 0.8, 84);
+    c.fillRect(lx + lw * 0.1, -dh + 98, lw * 0.8, 92);
     c.fillStyle = '#c7a24f'; // handle
     c.fillRect(lx + lw - 12, -100, 8, 4);
     // hinges
@@ -2120,10 +2196,15 @@ export function drawKitchen(R, g, { t = 0, door } = {}) {
     c.fillRect(wx - 2, -262, 4, 104);
     c.fillRect(wx - 62, -214, 124, 4);
     // a gingham half-curtain and a pot of mint on the sill
+    const hem = (x) => 18 + Math.sin(t * 1.7 + x * 0.12) * 1.8 * (1 + 0.8 * gust(t, 2));
     c.fillStyle = 'rgba(190,60,50,0.72)';
-    c.fillRect(wx - 62, -262, 124, 18);
+    c.beginPath();
+    c.moveTo(wx - 62, -262);
+    c.lineTo(wx + 62, -262);
+    for (let x = wx + 62; x >= wx - 62; x -= 8) c.lineTo(x, -262 + hem(x));
+    c.fill();
     c.fillStyle = 'rgba(255,255,255,0.35)';
-    for (let x = wx - 62; x < wx + 62; x += 8) c.fillRect(x, -262, 4, 18);
+    for (let x = wx - 62; x < wx + 62; x += 8) c.fillRect(x, -262, 4, hem(x) - 1);
     c.fillStyle = '#d9cba4';
     c.fillRect(wx - 76, -154, 152, 7);
     c.fillStyle = '#9a5a3a';
