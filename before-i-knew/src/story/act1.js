@@ -1387,6 +1387,7 @@ export const ACT1 = {
   // =================================================== per-frame extras ==
 
   update(g, dt) {
+    g.sound.zone?.('act1', g.player.x); // the sound of each stretch of street
     const a = g.a;
     // the people of the memory and the stairwell live outside the street's
     // list, so they're moved (and their poses settle) here

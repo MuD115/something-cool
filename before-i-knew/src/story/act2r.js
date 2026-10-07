@@ -530,6 +530,7 @@ export const ACT2R = {
   // =================================================== per-frame extras ==
 
   update(g, dt) {
+    g.sound.zone?.('act2r', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     // a shot cracks: everyone out on the street drops for a while

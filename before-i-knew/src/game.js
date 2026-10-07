@@ -49,6 +49,12 @@ export class Game {
       // running kicks up a little dust
       if (this.scene === 'street' && Math.abs(p.vx) > 240) this.effects.puff(p.x - p.f * 8, p.y - 2, 0.12, false);
     };
+    // stopping: the last foot drags and settles
+    this.player.onStop = () => {
+      const p = this.player;
+      const surface = this.scene === 'stairwell' ? 'hollow' : this.surface?.(p.x) || 'grit';
+      this.sound.scuff?.(surface, 0.08);
+    };
     this.player.onLand = (k) => {
       this.sound.land(0.15 + k * 0.3);
       if (k > 0.25 && this.scene === 'street') this.effects.puff(this.player.x, this.player.y - 2, 0.15 + k * 0.2, false);

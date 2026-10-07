@@ -447,6 +447,7 @@ export const ACT4 = {
 
   // The grave in the vines.
   *burial(g) {
+    g.sound.score?.motif?.('ahmad', { vol: 0.8 });
     const a = g.a;
     const s = g.state;
     const p = g.player;
@@ -765,6 +766,8 @@ export const ACT4 = {
     };
     g.fade = 1;
     g.sound.life(0);
+    // each ending's own turn of Ahmad's theme, under the last words
+    g.sound.score?.motif?.(`ending${e}`);
     yield 1.5;
     g.text.titleCard(CARDS.final[e], 7);
     yield 7.5;
@@ -780,6 +783,7 @@ export const ACT4 = {
   // ============================================== per-frame extras ==
 
   update(g, dt) {
+    g.sound.zone?.('act4', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     const input = g.input;

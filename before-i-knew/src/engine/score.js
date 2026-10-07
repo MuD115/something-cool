@@ -93,7 +93,7 @@ function plan(name) {
       themeOud(at, 1.1, 1.2);
       for (let b = 0; b < len; b += 1) if (b % 2 === 1) oud.push([at + b, D2 * 2, 0.35, 1.2]); // a gentle second line
       for (const [i, f] of [N.D3, N.A3, N.D4].entries()) oud.push([at + len + 0.15 * i, f, 0.6, 1.4]);
-      return { tempo: 0.88, ney, oud, gain: 0.65 };
+      return { tempo: 0.88, ney, oud, gain: 0.5 };
     }
     case 'ending3': { // the Tunnel: fragments, low, fading into the dark
       const lo = (f) => f * 0.5;
@@ -126,7 +126,7 @@ function plan(name) {
       const fin = at - len - 1.5 + len - 3;
       for (const f of [N.D4, FS4, N.A3 * 2]) ney.push([fin + 3, f, 6, 0.55, 1.6]);
       for (const [i, f] of [N.D3, N.A3, N.D4, FS4].entries()) oud.push([fin + 3 + i * 0.12, f, 0.55, 1.6]);
-      return { tempo: 0.85, ney, oud, gain: 0.65 };
+      return { tempo: 0.85, ney, oud, gain: 0.5 };
     }
     case 'ending5': { // the Wolf's Hour: very quiet, over the pitch the azan ends on
       theme(0, { v: 0.45, bright: 0.5 });

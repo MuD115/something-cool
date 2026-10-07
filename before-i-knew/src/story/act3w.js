@@ -321,6 +321,7 @@ export const ACT3W = {
   // ============================================== per-frame extras ==
 
   update(g, dt) {
+    g.sound.zone?.('act3w', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;

@@ -124,6 +124,7 @@ export class Walker {
     this.overrideBlend = 0;
     this.visible = true;
     this.onStep = null;
+    this.onStop = null;
     this.lastStep = 0;
     this.time = 0;
     this.blocked = null; // why we couldn't move this frame: 'ceiling' | 'wall' | null
@@ -550,6 +551,14 @@ export class Walker {
       if (n !== this.lastStep) {
         this.lastStep = n;
         this.onStep?.(this.stance);
+      }
+    }
+    // coming to a stop from a walk: one scuff
+    if (this.onGround && this.stance !== 'prone') {
+      if (speed > 60) this.wasWalking = true;
+      else if (speed < 4 && this.wasWalking) {
+        this.wasWalking = false;
+        this.onStop?.();
       }
     }
 

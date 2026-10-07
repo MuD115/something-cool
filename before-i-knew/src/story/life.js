@@ -874,7 +874,7 @@ const TASKS = {
       [0.55, { torso: 0.04, head: 0.08, armN: 0.1, foreN: 0.3 }],
       [0.8, { torso: 0.0, head: 0.15, armN: -0.1, foreN: 0.15, armF: 0.05, foreF: 0.2 }],
     ]),
-    beats: [],
+    beats: [[0.18, 'murmur'], [0.6, 'murmur']],
   },
 
   // carrying cinder blocks from a pile to a wall going up, and back
@@ -908,6 +908,11 @@ function workSound(g, kind, x) {
   if (dx > 900 || !g.sound) return;
   const v = 1 - dx / 900;
   const pan = g.sound.panFor?.(x);
+  if (kind === 'murmur') {
+    // a few syllables, never words, as two people talk over their work
+    if (Math.random() < 0.7) g.sound.murmur?.(x, { vol: 0.6 * v });
+    return;
+  }
   const S = {
     dig: { dur: 0.18, freq: 420, q: 0.9, vol: 0.09, type: 'lowpass' },
     tap: { dur: 0.04, freq: 2200, q: 3, vol: 0.12 },

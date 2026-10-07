@@ -378,6 +378,7 @@ export const ACT2W = {
   },
 
   update(g, dt) {
+    g.sound.zone?.('act2w', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;
