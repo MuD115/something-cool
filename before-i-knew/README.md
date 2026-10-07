@@ -337,6 +337,19 @@ people walk, run, crouch and bend is motion-captured (below).
   drop where they are. The scenery moves too ([`src/sets/ambient.js`](src/sets/ambient.js)):
   trees and vines in the wind, washing, curtains, awnings and flags, wires, smoke, pigeons, a
   bag on the draught, drips and motes. On low quality the purely decorative extras step out.
+- **Lending a hand**: in a calm stretch Sami can stop and help: hold the ladder, pass the boy his
+  ball, carry a block, pull the generator cord, take the spade or the saw for a turn. Each
+  gets a word of thanks in the dialect ([`src/story/life-lines.js`](src/story/life-lines.js)).
+  Small things in the streets can be looked at too, a stopped calendar, a mended sandal, the
+  aid list, an empty birdcage ([`src/story/notes.js`](src/story/notes.js)).
+- **Weather and the hour** ([`src/sets/ambient.js`](src/sets/ambient.js)): one sun, `sunAt`,
+  sets each act's key light, so shadows lengthen and warm through the afternoon into dusk.
+  The wind is one field along the street: a gust arrives as a front, moving through the trees,
+  the washing and the dust in turn, and lifts dust off the road, now and then a small dust
+  devil. Clouds drift. At night the moon climbs over the walk and cloud passes over it,
+  dimming the street; at dawn a mist lies low and lifts as the light turns gold.
+- **The camera** follows on a critically damped spring, leaning ahead of where Sami walks,
+  and eases into and out of staged shots; scripted poses blend in and out rather than snap.
 - **Depth** ([`src/sets/depth.js`](src/sets/depth.js)): the world is side-on, so walls,
   slabs, kerbs, sandbags and rubble get their thickness drawn behind them along one oblique
   direction for the whole game (back, up and to the right): tops lit, sides darker. Torn
@@ -370,11 +383,17 @@ people walk, run, crouch and bend is motion-captured (below).
     airstrike's sub-bass, car alarms;
   - walkie-talkie static, and a low jet pass;
   - ringing ears at the news.
-  Sounds sit left or right of the screen where they happen.
+  Each street has its own mix, crossfading as you walk
+  ([`src/story/zones.js`](src/story/zones.js)): a radio through a window, children far off,
+  a chorus of generators, pigeons, wind in broken glass, a dripping courtyard. Neighbours
+  murmur at their work, never in words. Sounds sit left or right of the screen where they
+  happen.
 - **Score** ([`src/engine/score.js`](src/engine/score.js)): a light generative score in maqam
   Bayati on D. A deep sub-bass swells slowly under a soft pad in open fifths, with an oud or
   qanun phrase and a breath of ney now and then. The story sets its mood (the walk, the hour,
   danger, memory, silence at the news, and after), and it steps back under speech and blasts.
+  Ahmad has a theme, a short ney and oud phrase, that returns in memory and at the burial; each
+  ending closes on its own variation of it, and as grief deepens the maqam bends towards Saba.
 
 ## Acts and dialogue
 
