@@ -11,6 +11,7 @@
 // Lines come from act2w-lines.js by key; prompts and objectives here are in
 // Modern Standard Arabic.
 
+import { addNotes, drawNotes } from './notes.js';
 import { POSES } from '../rigs/person.js';
 import { writeSave } from '../engine/save.js';
 import { lines, tween, fadeTo, actor, clearPeople, moveTo } from './kit.js';
@@ -55,6 +56,7 @@ export const ACT2W = {
     const p = g.player;
     g.a = { part: 'witness', mem: null, k: 0, photos: [] };
     g.surface = (x) => (g.a.mem ? 'tile' : surfaceAt(x));
+    addNotes(g, 'act2w');
     // the quarter in the evening: people at what's left of the day's work
     populate(g, [
       ['knead', 830, { f: 1 }],
@@ -415,6 +417,10 @@ export const ACT2W = {
       if (g.state.e_choice === 'camera') shutter(g);
       else line(g, 'scroll');
     } else if (id === 'lighter') g.sound.click();
+  },
+
+  drawProps(R, g) {
+    drawNotes(R, g, 'act2w');
   },
 
   draw(R, g) {

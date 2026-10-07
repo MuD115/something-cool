@@ -10,6 +10,7 @@
 
 import { clamp, lerp, smooth } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
+import { HELP_LINES, HELP_LABELS } from './life-lines.js';
 
 const TAU = Math.PI * 2;
 const ST = POSES.stand;
@@ -919,6 +920,66 @@ function workSound(g, kind, x) {
 }
 
 // ---------------------------------------------------------------- public --
+// Lending a hand: what Sami does (a pose held for a while, where he stands
+// relative to the worker) and what the worker does in thanks.
+const HELP = {
+  ladder: { at: -40, dur: 3, pose: { torso: 0.1, head: -0.35, armN: 1.5, foreN: 2.2, armF: 1.4, foreF: 2.1 } },
+  ball: { at: 120, dur: 1.2, pose: { torso: -0.05, thighN: 0.9, shinN: 0.5, armN: -0.4, foreN: -0.1, armF: 0.6, foreF: 0.8 } },
+  carry: { at: 60, dur: 2.4, pose: { ...POSES.squat, armN: 1.1, foreN: 1.3 } },
+  generator: { at: 30, dur: 1.4, pose: { torso: 0.15, armN: -0.6, foreN: 0.2, armF: 0.8, foreF: 1.0 } },
+  tap: { at: -70, dur: 2, pose: { torso: 0.08, armN: 0.15, foreN: 0.25, armF: 0.1, foreF: 0.2 } },
+  laundry: { at: 50, dur: 2.6, pose: { torso: 0.05, armN: 0.95, foreN: 1.4, armF: 0.85, foreF: 1.3 } },
+  dig: { at: 70, dur: 2.6, pose: { torso: 0.42, head: 0.2, armN: 0.5, foreN: 0.45, armF: 0.35, foreF: 0.3 } },
+  saw: { at: 110, dur: 2.4, pose: { torso: 0.4, armN: 1.2, foreN: 1.5, armF: 1.1, foreF: 1.4 } },
+  smoke: { at: 46, dur: 4, pose: { ...POSES.sitChair, seat: 34, torso: 0.12, head: 0.1, armN: 0.5, foreN: 1.4 } },
+  hammer: { at: -50, dur: 1.8, pose: { torso: 0.1, armN: 1.2, foreN: 1.6, armF: 0.2, foreF: 0.4 } },
+};
+
+// Jobs where he takes over the tool: the worker steps back and watches.
+const TAKE_OVER = new Set(['dig', 'saw', 'hammer']);
+
+function* lendHand(g, w) {
+  const kind = w.work.kind;
+  const T = TASKS[kind];
+  const H = HELP[kind];
+  const p = g.player;
+  w.helped = true;
+  g.lock();
+  const who = kind === 'ball' ? ['ولد', 'A boy'] : ['جار', 'A neighbour'];
+  if (TAKE_OVER.has(kind)) {
+    // he steps back a pace and hands over the tool; Sami works it a while
+    const home = w.x;
+    yield* g.walkPlayer(home - w.f * 90);
+    w.paused = true;
+    w.place(home - w.f * 70);
+    yield* g.walkPlayer(home);
+    p.f = w.f;
+    const t0 = p.time;
+    p.override = (t) => T.pose(((t - t0) / w.work.period) % 1);
+    const prop = p.rig.prop;
+    p.rig.prop = (c, hN) => T.tool(c, hN, p.rig.pose, ((p.time - t0) / w.work.period) % 1, p.time, p);
+    yield H.dur;
+    yield* g.say(who, HELP_LINES[kind], 3.2);
+    p.override = null;
+    p.rig.prop = prop;
+    yield* g.walkPlayer(home + w.f * 120);
+    w.place(home);
+    w.paused = false;
+  } else {
+    // beside him, a hand on the work
+    yield* g.walkPlayer(w.x + w.f * H.at);
+    p.f = w.x + w.f * 40 >= p.x ? 1 : -1;
+    p.override = { ...POSES.stand, ...H.pose };
+    g.sound.cloth?.();
+    yield H.dur * 0.6;
+    yield* g.say(who, HELP_LINES[kind], 3.2);
+    yield H.dur * 0.4;
+    p.override = null;
+  }
+  g.state.neighbourly = (g.state.neighbourly || 0) + 1;
+  g.lock(false);
+}
+
 export function populate(g, list) {
   const out = [];
   for (const [kind, x, o = {}] of list) {
@@ -931,6 +992,19 @@ export function populate(g, list) {
       w.place(x, -T.lift);
     }
     if (o.look) w.rig.o = { ...w.rig.o, ...o.look };
+    // a hand can be lent, once, when it's calm
+    if (HELP[kind] && o.help !== false) {
+      g.level.add({
+        id: `help_${kind}_${Math.round(x)}`,
+        x: x + (o.f ?? 1) * (HELP[kind].at * 0.5),
+        y: -90,
+        range: 110,
+        label: HELP_LABELS[kind],
+        box: [90, 120],
+        enabled: () => !w.helped && !w.cower && !g.locked && w.visible,
+        use: () => g.runner.run(lendHand(g, w)),
+      });
+    }
     const ph = o.phase ?? Math.random();
     const period = (o.period ?? T.period) * (0.9 + Math.random() * 0.2);
     w.work = { kind, ph, period, prevU: 0, x0: x };
@@ -949,6 +1023,7 @@ export function populate(g, list) {
     } else {
       w.override = (t) => {
         if (w.cower) return { ...POSES.crouch, head: 0.1, armN: 2.4, foreN: 3.6, armF: 2.3, foreF: 3.5 };
+        if (w.paused) return { ...ST, head: 0.15, armN: 0.1, foreN: 0.25 };
         const u = (t / w.work.period + w.work.ph) % 1;
         // the sound of the work at its moments
         for (const [bu, snd] of T.beats || []) {
@@ -961,7 +1036,7 @@ export function populate(g, list) {
     }
     if (T.tool) {
       w.rig.prop = (c, hN) => {
-        if (w.cower) return;
+        if (w.cower || w.paused) return;
         const u = (w.time / w.work.period + w.work.ph) % 1;
         T.tool(c, hN, w.rig.pose || ST, u, w.time, w);
       };
@@ -970,7 +1045,9 @@ export function populate(g, list) {
       const draw = w.draw.bind(w);
       w.draw = (c) => {
         const u = (w.time / w.work.period + w.work.ph) % 1;
-        T.scene(c, w, w.cower ? 0 : u, w.time);
+        // the work stays where it is, even when its worker steps aside
+        const at = T.walk ? w : { x: w.work.x0, f: w.f, span: w.span, loaded: w.loaded };
+        T.scene(c, at, w.cower || w.paused ? 0 : u, w.time);
         draw(c);
       };
     }

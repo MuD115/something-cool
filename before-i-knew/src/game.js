@@ -301,14 +301,16 @@ export class Game {
   }
 
   snapCamera() {
+    this.lead = this.player.f * 110;
     const t = this.cameraTarget();
     Object.assign(this.cam, t);
+    this.camV = { x: 0, y: 0, view: 0 };
   }
 
   cameraTarget() {
     if (this.camOverride) return typeof this.camOverride === 'function' ? this.camOverride(this) : this.camOverride;
     const p = this.player;
-    const cam = this.act.camera?.(this) || { x: p.x + p.f * 110, y: -205, view: 1300 };
+    const cam = this.act.camera?.(this) || { x: p.x + (this.lead ?? p.f * 110), y: -205, view: 1300 };
     // near something to interact with, the camera leans towards it and closes in
     const f = this.focus;
     const k = f && this.settings.get('focusCam') !== false ? smooth(0, 1, this.focusK) : 0;
@@ -514,12 +516,25 @@ export class Game {
     this.act.update?.(this, dt);
 
     // camera (and where sounds are placed from)
+    // the camera leads where he's going, a little further when he runs, and
+    // swings round gently when he turns
+    const wantLead = p.f * 110 + clamp((p.vx || 0) * 0.16, -70, 70);
+    this.lead = lerp(this.lead ?? wantLead, wantLead, 1 - Math.exp(-dt * 1.6));
     const target = this.cameraTarget();
     this.sound.listenerX = this.cam.x;
-    const k = 1 - Math.exp(-dt * (this.camOverride ? 2.2 : 3.2));
-    this.cam.x = lerp(this.cam.x, target.x, k);
-    this.cam.y = lerp(this.cam.y, target.y ?? -205, k);
-    this.cam.view = lerp(this.cam.view, target.view ?? 1300, k);
+    // a critically damped spring on each axis: it eases out of rest and into
+    // place, with no jolt when the target jumps (a turn, an override)
+    const w = this.camOverride ? 2.4 : 3.3;
+    this.camV ||= { x: 0, y: 0, view: 0 };
+    const goal = { x: target.x, y: target.y ?? -205, view: target.view ?? 1300 };
+    for (let left = Math.min(dt, 0.25); left > 1e-6; left -= 0.033) {
+      const h = Math.min(0.033, left);
+      for (const key of ['x', 'y', 'view']) {
+        const a = w * w * (goal[key] - this.cam[key]) - 2 * w * this.camV[key];
+        this.camV[key] += a * h;
+        this.cam[key] += this.camV[key] * h;
+      }
+    }
     this.shake = Math.max(0, this.shake - dt * 1.4);
     // the floating caption follows its thing
     if (!this.text.floatEl.hidden) {

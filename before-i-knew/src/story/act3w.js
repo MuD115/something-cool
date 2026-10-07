@@ -12,6 +12,7 @@
 // Lines come from act3w-lines.js by key; prompts and labels here are in
 // Modern Standard Arabic.
 
+import { addNotes, drawNotes } from './notes.js';
 import { clamp, lerp, smooth } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
@@ -72,6 +73,7 @@ export const ACT3W = {
     const p = g.player;
     g.a = { part: 3, beds: [false, false, false, false], nextChirp: 0, nextShot: 18, nextDog: 9, nextCreak: 5, nextNey: 12, doorOpen: 0, doorGlow: 0, wet: 0, canTaken: false };
     g.surface = surfaceAt;
+    addNotes(g, 'act3w');
     // up late: a man smoking on his step, another at a generator that won't start
     populate(g, [
       ['smoke', 1330, { f: -1 }],
@@ -397,6 +399,7 @@ export const ACT3W = {
 
   // The door, the wedding through it, the garden and its can, the water.
   drawProps(R, g) {
+    drawNotes(R, g, 'act3w');
     const a = g.a;
     const t = g.time;
     const cx = R.cam.x;

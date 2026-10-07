@@ -21,6 +21,7 @@
 // act4-lines.js by key; prompts and objectives here are in Modern Standard
 // Arabic.
 
+import { addNotes, drawNotes } from './notes.js';
 import { clamp, lerp } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
@@ -214,6 +215,10 @@ export const ACT4 = {
     // and the street starting its day: a bed dug, washing pegged out, a
     // window boarded, cans filled at the standpipe
     g.workers = [];
+    if (!a.notesAdded) {
+      a.notesAdded = true;
+      addNotes(g, 'act4');
+    }
     populate(g, [
       ['dig', 830, { f: 1 }],
       ['laundry', 1440, { f: -1, outfit: 'woman' }],
@@ -888,6 +893,10 @@ export const ACT4 = {
 
   useTool(g, id) {
     if (id === 'lighter') g.sound.click();
+  },
+
+  drawProps(R, g) {
+    drawNotes(R, g, 'act4');
   },
 
   draw(R, g) {

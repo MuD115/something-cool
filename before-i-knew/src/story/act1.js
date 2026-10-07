@@ -2,6 +2,7 @@
 // Scripted from script/act1.md. All dialogue and examine text is the
 // script's own, in Damascene Arabic with its English.
 
+import { addNotes } from './notes.js';
 import { lerp, clamp, smooth } from '../engine/util.js';
 import { POSES, Person } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
@@ -93,6 +94,7 @@ export const ACT1 = {
     if (['walk', 'hour'].includes(s.checkpoint)) this.buildHour(g);
     if (['walk', 'hour', 'school'].includes(s.checkpoint)) this.buildSchool(g);
     this.buildNews(g);
+    addNotes(g, 'act1');
     // the street at its afternoon's work, between the places the story uses
     populate(g, [
       ['water', 380, { f: 1 }],

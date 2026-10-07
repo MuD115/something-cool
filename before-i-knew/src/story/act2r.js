@@ -7,6 +7,7 @@
 // Every line comes from act2r-lines.js by key. Prompts, objectives and
 // choice labels here are in Modern Standard Arabic.
 
+import { addNotes } from './notes.js';
 import { lerp, clamp } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
 import { writeSave } from '../engine/save.js';
@@ -71,6 +72,7 @@ export const ACT2R = {
     const cp = s.checkpoint;
     g.a = { duskK: { lanes: 0.12, front: 0.62 }[cp] || 0, watch2: 1, watch3: 1, smoke: 0, tyreGlow: 1, expose: 0, laneState: null, t2: 0, t3: 0 };
     g.surface = surfaceAt;
+    addNotes(g, 'act2r');
     // the quarter's people keep to the sheltered stretches between the lanes
     populate(g, [
       ['cook', 560, { f: 1 }],

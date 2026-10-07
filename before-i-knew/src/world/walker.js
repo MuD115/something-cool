@@ -572,9 +572,34 @@ export class Walker {
     let final = this.cur;
     if (this.override) {
       this.overrideBlend = Math.min(this.overrideBlend + dt * 4, 1);
-      const op = typeof this.override === 'function' ? this.override(this.time) : this.override;
+      let op = typeof this.override === 'function' ? this.override(this.time) : this.override;
+      // one held pose giving way to another eases across (a few tenths of a
+      // second); poses a script recomputes every frame are followed as they are
+      if (this.override !== this.ovLast) {
+        const settled = this.time - (this.ovSince ?? -9) > 0.12;
+        this.ovFrom = settled && this.lastFinal && this.overrideBlend >= 1 ? this.lastFinal : null;
+        this.ovT = 0;
+        this.ovLast = this.override;
+        this.ovSince = this.time;
+      }
+      if (this.ovFrom) {
+        this.ovT += dt * 4.5;
+        if (this.ovT >= 1) this.ovFrom = null;
+        else op = blendPose(this.ovFrom, op, smoothstep01(this.ovT));
+      }
       final = blendPose(this.cur, op, this.overrideBlend);
-    } else this.overrideBlend = 0;
+      this.ovRelease = op;
+    } else if (this.ovRelease && this.overrideBlend > 0) {
+      // let go of a scripted pose the way it was taken: eased, not snapped
+      this.overrideBlend = Math.max(0, this.overrideBlend - dt * 5);
+      final = blendPose(this.cur, this.ovRelease, this.overrideBlend);
+      if (this.overrideBlend <= 0) this.ovRelease = null;
+      this.ovLast = null;
+    } else {
+      this.overrideBlend = 0;
+      this.ovLast = null;
+    }
+    this.lastFinal = final;
 
     const r = this.rig;
     // feet that are down stay where they landed, and stand on what's there
@@ -671,4 +696,9 @@ export class Walker {
   draw(ctx) {
     if (this.visible) this.rig.draw(ctx);
   }
+}
+
+function smoothstep01(t) {
+  t = Math.min(1, Math.max(0, t));
+  return t * t * (3 - 2 * t);
 }
