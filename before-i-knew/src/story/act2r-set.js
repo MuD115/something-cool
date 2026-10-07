@@ -1025,6 +1025,8 @@ export function drawStreet(R, g) {
     });
   }
 
+  if (!a.inside) g.act?.drawProps?.(R, g);
+
   // --- the people ---
   const shear = shearFor(g);
   const squash = squashFor(g);

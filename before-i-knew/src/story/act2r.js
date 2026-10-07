@@ -7,7 +7,7 @@
 // Every line comes from act2r-lines.js by key. Prompts, objectives and
 // choice labels here are in Modern Standard Arabic.
 
-import { addNotes } from './notes.js';
+import { addNotes, drawNotes } from './notes.js';
 import { lerp, clamp } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
 import { writeSave } from '../engine/save.js';
@@ -593,6 +593,9 @@ export const ACT2R = {
     }
   },
 
+  drawProps(R, g) {
+    drawNotes(R, g, 'act2r');
+  },
   draw(R, g) {
     drawStreet(R, g);
   },

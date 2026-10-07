@@ -139,7 +139,7 @@ function invitation(c, x, y) {
 
 // a mattress propped against a window, against the sniper
 function mattress(c, x, y) {
-  c.fillStyle = '#b8a08a';
+  c.fillStyle = '#8c7a68';
   c.beginPath();
   c.moveTo(x - 50, y);
   c.lineTo(x - 38, y - 190);
@@ -147,7 +147,7 @@ function mattress(c, x, y) {
   c.lineTo(x + 52, y);
   c.closePath();
   c.fill();
-  c.strokeStyle = 'rgba(90,70,60,0.5)';
+  c.strokeStyle = 'rgba(60,48,42,0.45)';
   c.lineWidth = 1;
   for (let i = 1; i < 7; i++) {
     c.beginPath();
@@ -155,7 +155,7 @@ function mattress(c, x, y) {
     c.lineTo(x + 52 - i * 1.7, y - i * 27);
     c.stroke();
   }
-  c.fillStyle = 'rgba(110,70,50,0.25)';
+  c.fillStyle = 'rgba(70,46,34,0.3)';
   c.beginPath();
   c.ellipse(x + 8, y - 120, 18, 26, 0.3, 0, TAU);
   c.fill();

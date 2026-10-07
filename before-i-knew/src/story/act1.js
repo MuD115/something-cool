@@ -2,7 +2,7 @@
 // Scripted from script/act1.md. All dialogue and examine text is the
 // script's own, in Damascene Arabic with its English.
 
-import { addNotes } from './notes.js';
+import { addNotes, drawNotes } from './notes.js';
 import { lerp, clamp, smooth } from '../engine/util.js';
 import { POSES, Person } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
@@ -1435,6 +1435,9 @@ export const ACT1 = {
     }
   },
 
+  drawProps(R, g) {
+    drawNotes(R, g, 'act1');
+  },
   draw(R, g) {
     if (g.scene === 'stairwell') drawStairwell(R, g);
     else if (g.scene === 'flashback') drawFlashback(R, g);

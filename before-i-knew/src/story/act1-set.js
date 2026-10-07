@@ -632,6 +632,8 @@ export function drawStreet(R, g) {
     deadOlive(R, X.olive, t);
   }
 
+  g.act?.drawProps?.(R, g);
+
   // --- the people ---
   const shear = shearFor(g);
   const squash = squashFor(g);
