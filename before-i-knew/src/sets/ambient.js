@@ -451,11 +451,11 @@ export function mistBand(R, camX, t, { y = 0, density = 1, lift = 0, color = [16
       const b = hash(i * 2.7 + 4 + seed);
       const bx = a * span + t * (4 + b * 7);
       const x = left + ((((bx - left) % span) + span) % span);
-      const w = 300 + 380 * b;
-      const h = 44 + 70 * a + lift * 90;
+      const w = 360 + 460 * b;
+      const h = 70 + 90 * a + lift * 110;
       const py = y - h * 0.3 - lift * (40 + 70 * b) - 4;
       const breathe = 0.8 + 0.2 * Math.sin(t * 0.25 + i * 1.7);
-      c.globalAlpha = Math.min(0.6, density * (0.2 + 0.2 * b) * breathe * (1 - lift * 0.5));
+      c.globalAlpha = Math.min(0.7, density * (0.3 + 0.25 * b) * breathe * (1 - lift * 0.5));
       c.drawImage(spr, x - w / 2, py - h / 2, w, h);
     }
     c.restore();
