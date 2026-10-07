@@ -1938,22 +1938,35 @@ function setAmbientLite(v) {
   lite = !!v;
 }
 
+// ---- the wind as a field -------------------------------------------------
+// Gusts are fronts: they travel along x at GUST_SPEED, so a gust passes through
+// the trees, the washing and the dust one after another. gustAt is the front's
+// envelope, 0 … 1 (zero most of the time); windAt adds the carried flutter.
+const GUST_SPEED = 360; // world units per second, towards +x
+function gustAt(t, x = 0) {
+  const u = t - x / GUST_SPEED;
+  return Math.max(0, Math.sin(u * 0.21 + 1.3)) * Math.max(0, Math.sin(u * 0.53 + 0.4));
+}
+function windAt(t, x = 0, ph = 0) {
+  const u = t - x / GUST_SPEED;
+  const g = gustAt(t, x);
+  return (0.55 * Math.sin(t * 0.9 + ph + x * 0.002) + 0.3 * Math.sin(t * 1.7 + ph * 2.1) + 1.0 * g * Math.sin(u * 2.6 + ph)) * 0.8;
+}
 function wind(t, ph = 0) {
-  const g = Math.max(0, Math.sin(t * 0.21 + 1.3)) * Math.max(0, Math.sin(t * 0.53 + 0.4)); // a gust, rarely
-  return (0.55 * Math.sin(t * 0.9 + ph) + 0.3 * Math.sin(t * 1.7 + ph * 2.1) + 0.9 * g * Math.sin(t * 2.6 + ph)) * 0.8;
+  return windAt(t, 0, ph);
 }
 
 // Rotate the canvas about (px, py) by a sway of `amp` radians: trees, vines.
 function lean(c, px, py, t, ph = 0, amp = 0.02) {
   c.translate(px, py);
-  c.rotate(wind(t, ph) * amp);
+  c.rotate(windAt(t, px, ph) * amp);
   c.translate(-px, -py);
 }
 
 // A hanging cloth (a sheet, a shirt, a curtain, a flag): fixed along its top
 // edge, its foot rippling; the ripple travels down it. (x, y) is the top left.
 function cloth(c, x, y, w, h, col, t, ph = 0, { amp = 3, sag = 3, folds = 0.1, period = 2.4 } = {}) {
-  const wv = wind(t, ph);
+  const wv = windAt(t, x + w / 2, ph);
   const off = (v) => Math.sin(t * (TAU / period) - v * 2.2 + ph) * amp * v * v + wv * amp * 1.4 * v;
   c.fillStyle = col;
   c.beginPath();
@@ -1973,7 +1986,7 @@ function cloth(c, x, y, w, h, col, t, ph = 0, { amp = 3, sag = 3, folds = 0.1, p
 
 // A flag or a pennant on its pole end: base at (x, y), streaming to the right.
 function flag(c, x, y, w, h, col, t, ph = 0) {
-  const wv = 0.5 + 0.5 * wind(t, ph);
+  const wv = 0.5 + 0.5 * windAt(t, x, ph);
   c.fillStyle = col;
   c.beginPath();
   c.moveTo(x, y);
@@ -1994,7 +2007,7 @@ function flag(c, x, y, w, h, col, t, ph = 0) {
 // A rope, wire or cable that bobs very slightly: quadratic from a to b with
 // its sag breathing. Returns nothing; the caller sets the stroke style.
 function wire(c, ax, ay, bx, by, sag, t, ph = 0, amp = 1.6) {
-  const s = sag + Math.sin(t * 1.3 + ph) * amp + wind(t, ph) * amp;
+  const s = sag + Math.sin(t * 1.3 + ph) * amp + windAt(t, (ax + bx) / 2, ph) * amp;
   c.beginPath();
   c.moveTo(ax, ay);
   c.quadraticCurveTo((ax + bx) / 2, Math.max(ay, by) + s, bx, by);
@@ -2006,7 +2019,7 @@ function wire(c, ax, ay, bx, by, sag, t, ph = 0, amp = 1.6) {
 function smoke(R, x, y, t, { warm = 0, h = 150, w = 16, alpha = 0.3, seed = 0 } = {}) {
   if (lite) return;
   R.paint((c) => {
-    const lean = wind(t, seed) * 22 + 10;
+    const lean = windAt(t, x, seed) * 22 + 10;
     for (let i = 0; i < 14; i++) {
       const u = fract(t / 8 + i / 14 + seed * 0.37); // age 0…1
       const px = x + lean * u * u * 2 + Math.sin(t * 0.8 + i * 1.9 + seed) * 5 * u;
@@ -2198,7 +2211,327 @@ function leaves(c, cx, cy, list, cols, t, ph = 0, amp = 0.05) {
   c.restore();
 }
 
-return { ambientLite, setAmbientLite, wind, lean, cloth, flag, wire, smoke, flock, perch, drip, bag, sunMotes, tail, leaves };
+// ---- the sun's day ---------------------------------------------------------
+// One arc for every daytime act. p: 0 = mid-afternoon, white-gold … 0.52 =
+// amber … 1 = rose, the sun nearly gone. Each act maps its own k onto it with
+// DAY, so shadows, key light colour and the sky agree from one act to the next.
+const DAY = {
+  one: (k) => 0.52 * clampK(k), // Act One: afternoon -> late afternoon
+  two: (k) => 0.55 + 0.45 * clampK(k), // Act Two, Retrieval: 4:30 -> 7 pm
+  witness: (k) => 0.55 + 0.4 * clampK(k), // 4:35 -> 5:35 pm
+  grief: (k) => 0.08 + 0.72 * (clampK(k) * clampK(k) * 0.5 + clampK(k) * 0.5),
+};
+function clampK(k) {
+  return k < 0 ? 0 : k > 1 ? 1 : k || 0;
+}
+const KEY = [[0, [1.0, 0.96, 0.9]], [0.3, [1.0, 0.82, 0.58]], [0.52, [1.0, 0.7, 0.42]], [0.78, [1.0, 0.52, 0.28]], [1, [0.85, 0.42, 0.42]]];
+let sunP = -1;
+let sunO = null;
+// sunAt(p) -> { p, shear, squash, color (key light rgb 0..1), warmth 0..1,
+// elev 1..0.1 (how high the sun stands), glare [x, y] for the sky disc }.
+// The object is shared and memoised on p: read it, do not keep or change it.
+function sunAt(p) {
+  p = clampK(p);
+  if (p === sunP) return sunO;
+  let i = 1;
+  while (i < KEY.length - 1 && p > KEY[i][0]) i++;
+  const [p0, a] = KEY[i - 1];
+  const [p1, b] = KEY[i];
+  const f = (p - p0) / (p1 - p0);
+  const e = p * p * (3 - 2 * p);
+  sunP = p;
+  sunO = {
+    p,
+    shear: 0.3 + 3.3 * p, // shadows lengthen
+    squash: 0.12 - 0.03 * p,
+    color: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f],
+    warmth: p,
+    elev: 1 - 0.9 * e,
+    glare: [0.78 + 0.12 * p, 0.16 + 0.46 * e],
+  };
+  return sunO;
+}
+
+// ---- dust in the street ----------------------------------------------------
+let puffSprite = null;
+function puff() {
+  if (puffSprite) return puffSprite;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 32;
+  const c = cv.getContext('2d');
+  const g = c.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, 'rgba(255,255,255,0.95)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.42)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, 32, 32);
+  puffSprite = cv;
+  return cv;
+}
+const tinted = new Map();
+function puffTint(rgb) {
+  const key = rgb.map((v) => v >> 3).join(',');
+  let s = tinted.get(key);
+  if (s) return s;
+  const src = puff();
+  s = document.createElement('canvas');
+  s.width = s.height = 32;
+  const c = s.getContext('2d');
+  c.drawImage(src, 0, 0);
+  c.globalCompositeOperation = 'source-in';
+  c.fillStyle = `rgb(${rgb.join(',')})`;
+  c.fillRect(0, 0, 32, 32);
+  if (tinted.size > 24) tinted.clear();
+  tinted.set(key, s);
+  return s;
+}
+const hash = (n) => fract(Math.sin(n * 127.1 + 311.7) * 43758.5453);
+
+// Soft dust lifted from the street while a gust passes, and now and then a
+// small dust devil that crosses a stretch of the road and dies away. World-
+// anchored (it stays put when the camera moves); `lite` skips it entirely.
+// color: dust rgb 0..255 (warmer late in the day).
+function streetDust(R, camX, t, { y = 0, color = [196, 176, 146], amount = 1, seed = 0, devils = true } = {}) {
+  if (lite) return;
+  const N = 14;
+  const SPAN = 1900;
+  const left = camX - SPAN / 2;
+  // is there any gust in view? (cheap early out)
+  let any = 0;
+  for (let i = 0; i < 5; i++) any = Math.max(any, gustAt(t, left + (i / 4) * SPAN));
+  const cyc = Math.floor((t + seed * 13) / 43);
+  const du = (((t + seed * 13) % 43) / 9);
+  const dev = devils && du < 1;
+  if (any < 0.04 && !dev) return;
+  const spr = puffTint(color);
+  R.glow((c) => {
+    c.save();
+    if (any >= 0.04) {
+      for (let i = 0; i < N; i++) {
+        const a = hash(i + seed * 7);
+        const b = hash(i * 3.1 + 9 + seed);
+        const bx = a * SPAN + t * (8 + b * 10);
+        const x0 = left + ((((bx + 0) - left) % SPAN) + SPAN) % SPAN;
+        const gu = gustAt(t, x0);
+        if (gu < 0.03) continue;
+        const gw = Math.sin((t - x0 / GUST_SPEED) * 2.6) * 0.5 + 0.5;
+        const x = x0 + gu * (90 + 120 * b);
+        const py = y + 20 - b * 46 - gu * (14 + 30 * a) * (0.6 + 0.4 * gw);
+        const r = 20 + 30 * b + 26 * gu;
+        c.globalAlpha = Math.min(0.4, gu * amount * (0.2 + 0.25 * a));
+        c.drawImage(spr, x - r, py - r * 0.55, r * 2, r * 1.1);
+      }
+    }
+    if (dev) {
+      // the dust devil: a leaning column of puffs, wide at the top, crossing ~420 units
+      const x0 = camX + (hash(cyc * 1.7 + seed) - 0.5) * 900;
+      const dir = hash(cyc * 2.9 + 3 + seed) > 0.5 ? 1 : -1;
+      const fade = Math.sin(Math.min(1, du) * Math.PI);
+      const cx = x0 + dir * du * 420;
+      for (let i = 0; i < 10; i++) {
+        const h = i / 9;
+        const ang = t * 7 + i * 1.1;
+        const rad = 10 + h * 34;
+        const px = cx + Math.cos(ang) * rad + dir * h * 26;
+        const py = y - 6 - h * h * 150 - h * 20;
+        const r = 12 + h * 26;
+        c.globalAlpha = Math.min(0.4, fade * amount * (0.45 - h * 0.25) * (0.7 + 0.3 * Math.sin(ang)));
+        c.drawImage(spr, px - r, py - r * 0.8, r * 2, r * 1.6);
+      }
+      // dust at its foot
+      c.globalAlpha = fade * 0.35 * amount;
+      c.drawImage(spr, cx - 70, y - 6, 140, 34);
+    }
+    c.restore();
+  });
+}
+
+// A thin cloud crossing the moon: 0 … 1 (1 = fully veiled), every ~70 s, ~9 s long.
+function moonVeil(t, seed = 0) {
+  const u = ((t + seed * 11 + 38) % 71) / 9;
+  return u > 1 ? 0 : Math.sin(u * Math.PI) ** 1.5;
+}
+// where that cloud is on its way across: 0 … 1 while it is there, otherwise > 1
+const moonVeilU = (t, seed = 0) => ((t + seed * 11 + 38) % 71) / 9;
+// a soft tinted sprite (a puff of cloud or mist) for sky drawing: draw it stretched
+const softPuff = (rgb) => puffTint(rgb);
+
+// Low mist lying along the street: a few wide soft banks drifting slowly, world
+// anchored. density 0 … 1; lift 0 … 1 raises the banks and thins them (as the
+// morning lifts it). color: rgb 0..255. Cheap: <= 16 sprite draws, 8 when lite.
+function mistBand(R, camX, t, { y = 0, density = 1, lift = 0, color = [160, 172, 204], seed = 0, span = 2400 } = {}) {
+  if (density < 0.02) return;
+  const spr = puffTint(color);
+  const n = lite ? 8 : 16;
+  const left = camX - span / 2;
+  R.glow((c) => {
+    c.save();
+    for (let i = 0; i < n; i++) {
+      const a = hash(i * 1.3 + seed * 5);
+      const b = hash(i * 2.7 + 4 + seed);
+      const bx = a * span + t * (4 + b * 7);
+      const x = left + ((((bx - left) % span) + span) % span);
+      const w = 360 + 460 * b;
+      const h = 70 + 90 * a + lift * 110;
+      const py = y - h * 0.3 - lift * (40 + 70 * b) - 4;
+      const breathe = 0.8 + 0.2 * Math.sin(t * 0.25 + i * 1.7);
+      c.globalAlpha = Math.min(0.5, density * (0.2 + 0.15 * b) * breathe * (1 - lift * 0.5));
+      c.drawImage(spr, x - w / 2, py - h / 2, w, h);
+    }
+    c.restore();
+  });
+}
+
+return { ambientLite, setAmbientLite, gustAt, windAt, wind, lean, cloth, flag, wire, smoke, flock, perch, drip, bag, sunMotes, tail, leaves, DAY, sunAt, streetDust, moonVeil, moonVeilU, softPuff, mistBand };
+})();
+
+// ---- src/story/zones.js
+const __src_story_zones = (() => {
+// Ambience by place: for each act, a table of stretches of the street and
+// what can be heard there. The act calls, once a frame,
+//     g.sound.zone('act1', playerX)       // or zone(ZONES.act1, x)
+// and the sound crossfades (about 2 s) between neighbouring stretches.
+//
+// A zone is { x0, x1, mix } with mix keys 0…1:
+//   radio      a song on a far radio behind a window (never intelligible)
+//   children   far-off children playing (DAYTIME ONLY)
+//   generator  a chorus of neighbours' generators, a little out of tune
+//   pigeons    cooing on a ledge
+//   windGlass  wind through broken windows, a soft whistle
+//   drip       water dripping somewhere in a courtyard or a cellar
+// and optional multipliers on the act's own ambience() levels (default 1):
+//   xWind, xAir, xTraffic, xCrowd
+// Outside every zone the new beds fall silent and the multipliers return to 1.
+// Zones blend over about 200 px either side of their edges.
+
+const ZONES = {
+  // Act One: the morning street, 150…10250.
+  act1: [
+    { x0: 0, x1: 600, mix: { radio: 0.25, children: 0.18, pigeons: 0.2, generator: 0.1 } },
+    { x0: 600, x1: 1300, mix: { pigeons: 0.55, children: 0.1, windGlass: 0.08 } }, // the vine, the pigeons at 980
+    { x0: 1300, x1: 2000, mix: { radio: 0.4, windGlass: 0.15, pigeons: 0.15 } }, // the curtains, the sag
+    { x0: 2000, x1: 2900, mix: { radio: 0.3, children: 0.25, generator: 0.3, xCrowd: 1.3 } }, // the shop
+    { x0: 2900, x1: 3500, mix: { generator: 0.4, xTraffic: 1.2, children: 0.1 } }, // the junction
+    { x0: 3500, x1: 4300, mix: { pigeons: 0.4, radio: 0.2, windGlass: 0.1 } }, // the old man, the door
+    { x0: 4300, x1: 5100, mix: { windGlass: 0.4, generator: 0.15 } }, // the shard, the corner
+    { x0: 5100, x1: 6500, mix: { windGlass: 0.25, xWind: 1.15, xCrowd: 0.4, xTraffic: 0.6 } }, // the spotter, the helicopter: the street holds its breath
+    { x0: 6500, x1: 7500, mix: { windGlass: 0.5, drip: 0.08, xCrowd: 0.3 } }, // the collapsed block
+    { x0: 7500, x1: 8400, mix: { windGlass: 0.3, drip: 0.18, pigeons: 0.08, xCrowd: 0.2 } }, // the school, the empty classroom
+    { x0: 8400, x1: 9100, mix: { generator: 0.55, radio: 0.1 } }, // the battery shop
+    { x0: 9100, x1: 9700, mix: { xCrowd: 0.4, xTraffic: 0.4, windGlass: 0.12 } }, // the news
+    { x0: 9700, x1: 10400, mix: { pigeons: 0.15, windGlass: 0.2, xWind: 1.1, generator: 0.1 } }, // the olive tree, the way south
+  ],
+
+  // Act Two, road: the sniper lanes, 150…6700, daytime.
+  act2r: [
+    { x0: 0, x1: 900, mix: { radio: 0.2, children: 0.1, pigeons: 0.2, generator: 0.15 } },
+    { x0: 900, x1: 1700, mix: { windGlass: 0.3, xWind: 1.1, xCrowd: 0.4 } }, // lane 1
+    { x0: 1700, x1: 2300, mix: { pigeons: 0.12, windGlass: 0.1, xCrowd: 0.6 } },
+    { x0: 2300, x1: 2900, mix: { windGlass: 0.35, xWind: 1.15, xCrowd: 0.3, xTraffic: 0.5 } }, // lane 2, the burnt car
+    { x0: 2900, x1: 3400, mix: { drip: 0.2, windGlass: 0.2 } }, // the crawl gap
+    { x0: 3400, x1: 4000, mix: { windGlass: 0.3, xWind: 1.1, xCrowd: 0.3 } }, // lane 3
+    { x0: 4250, x1: 5200, mix: { generator: 0.6, radio: 0.2, xCrowd: 1.6 } }, // the field hospital
+    { x0: 5200, x1: 5700, mix: { generator: 0.25, windGlass: 0.2, xCrowd: 0.6 } },
+    { x0: 5700, x1: 6300, mix: { windGlass: 0.5, drip: 0.18, xCrowd: 0.2, xTraffic: 0.5 } }, // the ruin
+    { x0: 6300, x1: 6900, mix: { windGlass: 0.3, xWind: 1.2, xCrowd: 0.2 } }, // the mouth of School Street
+  ],
+
+  // Act Two, west: Um Said's quarter, 0…4900, afternoon.
+  act2w: [
+    { x0: -300, x1: 450, mix: { radio: 0.3, children: 0.22, pigeons: 0.3, generator: 0.1 } },
+    { x0: 450, x1: 900, mix: { radio: 0.2, children: 0.15, pigeons: 0.2 } }, // the woman in the doorway
+    { x0: 900, x1: 1500, mix: { radio: 0.4, pigeons: 0.12, generator: 0.1 } }, // Um Said's door
+    { x0: 1500, x1: 2300, mix: { children: 0.35, generator: 0.25, pigeons: 0.3, xCrowd: 1.4 } }, // the bakery
+    { x0: 2300, x1: 2800, mix: { children: 0.45, pigeons: 0.15 } }, // the children's wall
+    { x0: 2800, x1: 3300, mix: { pigeons: 0.4, radio: 0.25, children: 0.1 } }, // the balcony
+    { x0: 3300, x1: 3750, mix: { windGlass: 0.5, pigeons: 0.1, xCrowd: 0.5 } }, // the torn face
+    { x0: 3750, x1: 4300, mix: { windGlass: 0.3, xWind: 1.2, xCrowd: 0.4 } }, // the view of School Street
+    { x0: 4300, x1: 5100, mix: { drip: 0.3, generator: 0.3, radio: 0.1 } }, // the alley
+  ],
+
+  // Act Two, grief: the corner of Zeitoun Street at dusk, -500…1800.
+  // (The flashbacks and flats sit far away on the x axis: silent here.)
+  act2g: [
+    { x0: -900, x1: -100, mix: { windGlass: 0.15, xWind: 1.2, xCrowd: 0.3, xTraffic: 0.6 } }, // east, alone, into the light
+    { x0: -100, x1: 1200, mix: { generator: 0.25, pigeons: 0.12, radio: 0.1, children: 0.06, xCrowd: 0.7 } }, // the kerb, the olive tree
+    { x0: 1200, x1: 2000, mix: { radio: 0.2, generator: 0.3, windGlass: 0.1, xCrowd: 0.8 } }, // north
+  ],
+
+  // Act Three, walk: the night, 0…3800. No children, no radios; one generator.
+  act3w: [
+    { x0: -200, x1: 380, mix: { windGlass: 0.25, xWind: 1.0 } },
+    { x0: 380, x1: 900, mix: { windGlass: 0.6, drip: 0.08, xWind: 0.9 } }, // the open bombed rooms
+    { x0: 900, x1: 1500, mix: { windGlass: 0.15, xWind: 1.1 } }, // the vine
+    { x0: 1500, x1: 2100, mix: { drip: 0.4, windGlass: 0.2, xWind: 0.6 } }, // the alley
+    { x0: 2100, x1: 2900, mix: { generator: 0.5, drip: 0.1, windGlass: 0.1, xWind: 0.8 } }, // the basement: one lone generator behind a door
+    { x0: 2900, x1: 3400, mix: { drip: 0.35, pigeons: 0.08, xWind: 0.7 } }, // the courtyard
+    { x0: 3400, x1: 4000, mix: { windGlass: 0.1, xWind: 1.0 } },
+  ],
+
+  // Act Four: the morning after, 0…3400, then the five endings.
+  act4: [
+    { x0: -200, x1: 400, mix: { radio: 0.1, pigeons: 0.2, generator: 0.15, children: 0.05 } },
+    { x0: 400, x1: 1000, mix: { generator: 0.3, pigeons: 0.15, radio: 0.12 } }, // the jerrycan man
+    { x0: 1000, x1: 1500, mix: { children: 0.18, radio: 0.2, pigeons: 0.25 } }, // the sweeper
+    { x0: 1500, x1: 2300, mix: { children: 0.45, radio: 0.1, pigeons: 0.2 } }, // the boys with their exercise books
+    { x0: 2300, x1: 3000, mix: { windGlass: 0.12, xTraffic: 1.2, children: 0.1 } }, // the junction
+    { x0: 3000, x1: 3700, mix: { windGlass: 0.2, xWind: 1.15 } }, // the road on, east
+    // Ending 1, the Witness: the edge road at sunrise
+    { x0: 58200, x1: 61800, mix: { windGlass: 0.05, xWind: 1.3, pigeons: 0.1 } },
+    // Ending 2, the Last Farewell: no-man's-land at grey dawn, then the cemetery
+    { x0: 62700, x1: 65300, mix: { windGlass: 0.3, xWind: 1.1, xCrowd: 0.2 } },
+    { x0: 67300, x1: 68700, mix: { pigeons: 0.25, xWind: 0.8 } },
+    // Ending 3, the Tunnel: the fields, then the dark
+    { x0: 71100, x1: 72900, mix: { xWind: 1.0, pigeons: 0.08, generator: 0.1 } },
+    { x0: 74400, x1: 77600, mix: { drip: 0.6, windGlass: 0.2, xWind: 0.2, xAir: 1.5 } },
+    // Ending 4, the One Who Remains: Ahmad's basement classroom at dawn
+    { x0: 79480, x1: 80520, mix: { drip: 0.1, pigeons: 0.1, windGlass: 0.05, xWind: 0.5 } },
+    // Ending 5, the Wolf's Hour: the open room under the sky
+    { x0: 83480, x1: 84520, mix: { windGlass: 0.5, pigeons: 0.04, xWind: 0.9 } },
+  ],
+};
+// act4's table also holds the endings, so any of these will do
+ZONES.endings = ZONES.act4;
+
+// the keys that are levels (default 0) and the ones that scale the act's own
+// ambience (default 1)
+const ZONE_LEVELS = ['radio', 'children', 'generator', 'pigeons', 'windGlass', 'drip'];
+const ZONE_MULS = ['xWind', 'xAir', 'xTraffic', 'xCrowd'];
+
+// Blend a table at x into one mix object. Each zone's weight ramps across
+// its edges; neighbours meet at 0.5 each, and outside everything the mix
+// fades to the defaults.
+function blendZones(table, x, feather = 200, out = {}) {
+  for (const k of ZONE_LEVELS) out[k] = 0;
+  for (const k of ZONE_MULS) out[k] = 1;
+  if (!table) return out;
+  let total = 0;
+  for (let i = 0; i < table.length; i++) {
+    const z = table[i];
+    const d = Math.min(x - z.x0, z.x1 - x);
+    let w = (d + feather) / (2 * feather);
+    if (w <= 0) continue;
+    if (w > 1) w = 1;
+    w = w * w * (3 - 2 * w);
+    total += w;
+    z._w = w;
+  }
+  const norm = total > 1 ? 1 / total : 1;
+  const deficit = total > 1 ? 0 : 1 - total;
+  for (const k of ZONE_LEVELS) out[k] = 0;
+  for (const k of ZONE_MULS) out[k] = deficit;
+  for (let i = 0; i < table.length; i++) {
+    const z = table[i];
+    const d = Math.min(x - z.x0, z.x1 - x);
+    if (d + feather <= 0) continue;
+    const w = z._w * norm;
+    for (const k of ZONE_LEVELS) out[k] += w * (z.mix[k] || 0);
+    for (const k of ZONE_MULS) out[k] += w * (z.mix[k] ?? 1);
+  }
+  return out;
+}
+
+return { ZONES, ZONE_LEVELS, ZONE_MULS, blendZones };
 })();
 
 // ---- src/engine/audio.js
@@ -2208,6 +2541,9 @@ const __src_engine_audio = (() => {
 // Buses: ambience + effects → world (lowpass "muffle" for shock and grief)
 //        music (ney and oud) → master, beside the world bus
 // Settings drive master / music / effects volumes.
+
+const { ZONES, ZONE_LEVELS, ZONE_MULS, blendZones } = __src_story_zones;
+const SURFACE_ALIAS = { pavers: 'tile', stairs: 'hollow', stairwell: 'hollow', tunnel: 'tile', rust: 'metal', puddle: 'water', floor: 'wood', crouch: 'grit' };
 
 const LIFE = ['dogFar', 'dogFar', 'childrenFar', 'tinCreak', 'rubbleSettle', 'doorFar', 'motorbikeFar'];
 
@@ -2445,6 +2781,335 @@ class Sound {
       sag.start();
     }
     this.beds.generator = { g: gen };
+    this.buildZoneBeds();
+  }
+
+  // ------------------------------------------------------- place ambience --
+
+  // Beds that belong to a place rather than the act: a radio through a
+  // window, far children, a chorus of generators, pigeons, wind whistling in
+  // broken glass, a drip. All built once; nothing is created per frame.
+  buildZoneBeds() {
+    const ctx = this.ctx;
+    // the act's own beds get a multiplier stage after their level
+    this.zmul = {};
+    for (const [k, b] of Object.entries(this.beds)) {
+      const zm = ctx.createGain();
+      zm.gain.value = 1;
+      b.g.disconnect();
+      b.g.connect(zm).connect(this.amb);
+      this.zmul[k] = zm;
+    }
+    const pan = (v, dest) => {
+      const p = ctx.createStereoPanner();
+      p.pan.value = v;
+      p.connect(dest);
+      return p;
+    };
+    const level = () => {
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      g.connect(this.amb);
+      return g;
+    };
+    const Z = (this.zb = {});
+
+    // radio: a saw "voice" wandering through a Bayati-ish scale, band-limited
+    // and muffled by a wall, over a hush of station noise
+    {
+      const g = level();
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 2300;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 380;
+      lp.connect(hp).connect(pan(-0.45, g));
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = 330;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1250;
+      bp.Q.value = 0.9;
+      const gate = ctx.createGain();
+      gate.gain.value = 0;
+      osc.connect(bp).connect(gate).connect(lp);
+      osc.start();
+      const hiss = ctx.createBiquadFilter();
+      hiss.type = 'bandpass';
+      hiss.frequency.value = 2100;
+      hiss.Q.value = 0.7;
+      const hg = ctx.createGain();
+      hg.gain.value = 0.22;
+      this.noiseSrc().connect(hiss).connect(hg).connect(lp);
+      Z.radio = { g, osc, gate, next: 0, i: 3 };
+    }
+
+    // children: three small voices (formant-filtered saws) that shout and
+    // laugh in short bursts, far off
+    {
+      const g = level();
+      Z.children = { g, voices: [] };
+      for (const [p, f1] of [[-0.6, 1050], [0.5, 1250], [0.05, 900]]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = 700;
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = f1;
+        f.Q.value = 4;
+        const f2 = ctx.createBiquadFilter();
+        f2.type = 'lowpass';
+        f2.frequency.value = 3200;
+        const gate = ctx.createGain();
+        gate.gain.value = 0;
+        o.connect(f).connect(f2).connect(gate).connect(pan(p, g));
+        o.start();
+        Z.children.voices.push({ o, gate, busy: 0 });
+      }
+    }
+
+    // generators: a chorus a few hertz apart, beating slowly
+    {
+      const g = level();
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 260;
+      lp.connect(g);
+      for (const [f, p, v] of [[47.6, -0.7, 0.1], [50.3, 0.15, 0.12], [52.9, 0.8, 0.08], [99.2, -0.3, 0.03], [101.4, 0.5, 0.03]]) {
+        const o = ctx.createOscillator();
+        o.type = f < 80 ? 'triangle' : 'sawtooth';
+        o.frequency.value = f;
+        const og = ctx.createGain();
+        og.gain.value = v;
+        o.connect(og).connect(pan(p, lp));
+        // each one sags a little, on its own slow cycle
+        const sag = ctx.createOscillator();
+        sag.frequency.value = 0.05 + Math.random() * 0.12;
+        const sg = ctx.createGain();
+        sg.gain.value = f * 0.012;
+        sag.connect(sg).connect(o.frequency);
+        o.start();
+        sag.start();
+      }
+      Z.generator = { g };
+    }
+
+    // pigeons: soft sine coos with a falling bend
+    {
+      const g = level();
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 900;
+      lp.connect(g);
+      Z.pigeons = { g, voices: [], next: 0 };
+      for (const p of [-0.5, 0.45]) {
+        const o = ctx.createOscillator();
+        o.frequency.value = 380;
+        const h = ctx.createOscillator();
+        h.type = 'triangle';
+        h.frequency.value = 760;
+        const hg = ctx.createGain();
+        hg.gain.value = 0.25;
+        const gate = ctx.createGain();
+        gate.gain.value = 0;
+        o.connect(gate);
+        h.connect(hg).connect(gate);
+        gate.connect(pan(p, lp));
+        o.start();
+        h.start();
+        Z.pigeons.voices.push({ o, h, gate });
+      }
+    }
+
+    // wind in broken glass: three very narrow resonances, each leaning and
+    // fading on its own slow cycle
+    {
+      const g = level();
+      Z.windGlass = { g };
+      for (const [f, q, rate, p] of [[1180, 28, 0.09, -0.4], [1820, 34, 0.063, 0.35], [820, 22, 0.121, 0.0]]) {
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = f;
+        bp.Q.value = q;
+        const mod = ctx.createGain();
+        mod.gain.value = 0.55;
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = rate;
+        const lg = ctx.createGain();
+        lg.gain.value = 0.45;
+        lfo.connect(lg).connect(mod.gain);
+        const lf = ctx.createGain();
+        lf.gain.value = f * 0.05;
+        lfo.connect(lf).connect(bp.frequency);
+        const amp = ctx.createGain();
+        amp.gain.value = 9;
+        this.noiseSrc().connect(bp).connect(amp).connect(mod).connect(pan(p, g));
+        lfo.start();
+      }
+    }
+
+    Z.drip = { g: level() };
+    this.zlvl = {};
+    this.zmix = {};
+    this.zapplied = 0;
+    this.zoneTimer = setInterval(() => this.zoneTick(), 250);
+  }
+
+  // Called by an act every frame: `table` is ZONES.act1 etc. (or its name),
+  // `x` the player's x. Cheap: it blends a dozen numbers and only touches
+  // the audio params at ~8 Hz, and only when something moved.
+  zone(table, x) {
+    if (!this.ctx || !this.zb) return;
+    if (typeof table === 'string') table = ZONES[table];
+    const now = this.t;
+    if (now - this.zapplied < 0.12) return;
+    this.zapplied = now;
+    const m = blendZones(table, x, 200, this.zmix);
+    const tc = 0.7; // ≈2 s to settle
+    const scale = { radio: 0.11, children: 0.25, generator: 0.3, pigeons: 0.25, windGlass: 0.06, drip: 1 };
+    for (const k of ZONE_LEVELS) {
+      const v = m[k];
+      if (Math.abs(v - (this.zlvl[k] ?? -1)) < 0.004) continue;
+      this.zlvl[k] = v;
+      this.zb[k].g.gain.setTargetAtTime(v * scale[k], now, tc);
+    }
+    for (const k of ZONE_MULS) {
+      const v = m[k];
+      if (Math.abs(v - (this.zlvl[k] ?? -1)) < 0.004) continue;
+      this.zlvl[k] = v;
+      this.zmul[k.slice(1).toLowerCase()]?.gain.setTargetAtTime(v, now, tc);
+    }
+  }
+
+  // Schedules the small events inside the zone beds (notes, shouts, coos,
+  // drips). Only runs for beds that are audible.
+  zoneTick() {
+    if (!this.ctx || this.ctx.state !== 'running' || !this.zb) return;
+    const L = this.zlvl;
+    const now = this.t;
+    const ahead = now + 0.35;
+    const r = (a, b) => a + Math.random() * (b - a);
+    const B = BAYATI;
+    const Z = this.zb;
+    // radio: notes of a tune that never resolves
+    if (L.radio > 0.01) {
+      const R = Z.radio;
+      const scale = [B.D4, B.Ed4, B.F4, B.G4, B.A3 * 2, B.Bb3 * 2, B.C4 * 2, B.D4 * 2];
+      if (R.next < now) R.next = now + 0.05;
+      while (R.next < ahead) {
+        const t0 = R.next;
+        R.i = Math.max(0, Math.min(scale.length - 1, R.i + (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.25 ? 2 : 1)));
+        const dur = r(0.22, 0.8);
+        if (Math.random() < 0.15) {
+          R.gate.gain.setTargetAtTime(0.0, t0, 0.04); // a breath between phrases
+          R.next += r(0.2, 0.7);
+          continue;
+        }
+        R.osc.frequency.setTargetAtTime(scale[R.i], t0, 0.03);
+        R.gate.gain.setTargetAtTime(0.5, t0, 0.02);
+        R.gate.gain.setTargetAtTime(0.18, t0 + dur * 0.7, 0.05);
+        R.next += dur;
+      }
+    }
+    // children: shouts that start apart
+    if (L.children > 0.01) {
+      for (const v of Z.children.voices) {
+        if (v.busy > now || Math.random() > 0.2 + L.children * 0.4) continue;
+        const dur = r(0.15, 0.5);
+        const f = r(520, 900);
+        v.o.frequency.cancelScheduledValues(now);
+        v.o.frequency.setValueAtTime(f, now);
+        v.o.frequency.linearRampToValueAtTime(f * r(0.8, 1.35), now + dur);
+        v.gate.gain.cancelScheduledValues(now);
+        v.gate.gain.setValueAtTime(0.0001, now);
+        v.gate.gain.linearRampToValueAtTime(r(0.3, 0.6), now + 0.03);
+        v.gate.gain.linearRampToValueAtTime(0.0001, now + dur);
+        v.busy = now + dur + r(0.5, 2.5);
+      }
+    }
+    // pigeons: "ru-kuu-kooo"
+    if (L.pigeons > 0.01 && Z.pigeons.next < now && Math.random() < 0.3 + L.pigeons * 0.3) {
+      const v = Z.pigeons.voices[Math.random() < 0.5 ? 0 : 1];
+      const base = r(330, 440);
+      let t0 = now + 0.02;
+      for (const [d, k, a] of [[0.1, 1, 0.5], [0.1, 1.08, 0.6], [0.4, 0.92, 0.8]]) {
+        v.o.frequency.setValueAtTime(base * k, t0);
+        v.o.frequency.linearRampToValueAtTime(base * k * 0.88, t0 + d);
+        v.h.frequency.setValueAtTime(base * k * 2, t0);
+        v.h.frequency.linearRampToValueAtTime(base * k * 1.76, t0 + d);
+        v.gate.gain.setValueAtTime(0.0001, t0);
+        v.gate.gain.linearRampToValueAtTime(a, t0 + d * 0.3);
+        v.gate.gain.linearRampToValueAtTime(0.0001, t0 + d);
+        t0 += d + 0.04;
+      }
+      Z.pigeons.next = t0 + r(1.5, 5);
+    }
+    // drips
+    if (L.drip > 0.01 && Math.random() < 0.08 + L.drip * 0.45) this.drip(L.drip);
+  }
+
+  // One drop of water falling into a puddle somewhere in the dark.
+  drip(level = 0.4, pan = (Math.random() * 2 - 1) * 0.7) {
+    if (!this.ctx) return;
+    const f = 900 + Math.random() * 900;
+    const v = 0.04 + level * 0.07;
+    const w = this.t + 0.01;
+    this.tone(f, 0.07, { when: w, vol: v, to: f * 1.5, dest: this.fx, pan });
+    this.tone(f * 0.5, 0.05, { when: w, vol: v * 0.3, dest: this.fx, pan });
+    this.tone(f * 1.02, 0.07, { when: w + 0.19, vol: v * 0.3, to: f * 1.5, dest: this.fx, pan });
+  }
+
+  // Murmured, never intelligible: a few syllables of a low voice, as workers
+  // chat at a distance. x is the speaker's world x (panned by it). Returns
+  // the duration.
+  murmur(x, { vol = 0.18, pitch = 115 + Math.random() * 40, syllables = 3 + Math.floor(Math.random() * 4) } = {}) {
+    if (!this.ctx) return 0;
+    const ctx = this.ctx;
+    const pan = x == null ? 0 : this.panFor(x);
+    const out = ctx.createGain();
+    out.gain.value = vol;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 2600;
+    out.connect(lp).connect(this.out(this.fx, pan));
+    // vowels as [F1, F2]
+    const V = [[700, 1100], [500, 1500], [330, 2200], [450, 800], [600, 1700]];
+    const src = ctx.createOscillator();
+    src.type = 'sawtooth';
+    const f1 = ctx.createBiquadFilter();
+    const f2 = ctx.createBiquadFilter();
+    f1.type = f2.type = 'bandpass';
+    f1.Q.value = 6;
+    f2.Q.value = 8;
+    const g1 = ctx.createGain();
+    const g2 = ctx.createGain();
+    g2.gain.value = 0.5;
+    const gate = ctx.createGain();
+    gate.gain.value = 0;
+    src.connect(f1).connect(g1).connect(gate);
+    src.connect(f2).connect(g2).connect(gate);
+    gate.connect(out);
+    let t = this.t + 0.05;
+    const start = t;
+    let p = pitch;
+    for (let i = 0; i < syllables; i++) {
+      const [a, b] = V[Math.floor(Math.random() * V.length)];
+      const d = 0.09 + Math.random() * 0.1;
+      f1.frequency.setValueAtTime(a, t);
+      f2.frequency.setValueAtTime(b, t);
+      p *= 0.93 + Math.random() * 0.16;
+      src.frequency.setValueAtTime(p, t);
+      src.frequency.linearRampToValueAtTime(p * 0.95, t + d);
+      gate.gain.setValueAtTime(0.0001, t);
+      gate.gain.linearRampToValueAtTime(0.8 - i * 0.04, t + 0.025);
+      gate.gain.linearRampToValueAtTime(0.0001, t + d);
+      t += d + 0.03 + (Math.random() < 0.25 ? 0.15 : 0);
+    }
+    src.start(start);
+    src.stop(t + 0.05);
+    return t - start;
   }
 
   // Distant life: now and then, something far off in the town. level 0…1
@@ -2592,31 +3257,88 @@ class Sound {
     o.stop(when + dur + 0.05);
   }
 
-  // A footstep in two parts: the heel's thud and the toe's scuff a moment
-  // later, coloured by what's underfoot. Crouched steps are soft, rolled
-  // and close, with a whisper of cloth.
+  // Footsteps. Each is a heel, then the toe a few milliseconds later, both
+  // coloured by what's underfoot, with a little random variation so no two
+  // are alike. Crouching is softer, slower and rolled. Known surfaces: grit,
+  // tile, rubble, glass, wood, water, metal, hollow; anything else is grit.
   step(surface = 'grit', vol = 0.18, { pan, crouch = false } = {}) {
     if (!this.ctx) return;
-    const v = vol * (0.75 + Math.random() * 0.45);
+    surface = SURFACE_ALIAS[surface] || surface;
+    const r = (a, b) => a + Math.random() * (b - a);
+    const v = vol * r(0.75, 1.2);
     const w = this.t;
     const o = { pan };
-    if (surface === 'wood' || surface === 'hollow') {
-      this.tone(150 + Math.random() * 20, 0.08, { when: w, vol: v * 0.9, to: 80, ...o });
-      this.noise({ when: w + 0.05, dur: 0.05, freq: 1800, q: 1, vol: v * 0.35, ...o });
-      return;
-    }
     const soft = crouch ? 0.55 : 1;
-    // heel: low thump through the sole
-    this.tone(95 + Math.random() * 25, 0.07, { when: w, vol: v * 0.55 * soft, to: 55, ...o });
-    this.noise({ when: w, dur: 0.05, freq: 900, q: 0.8, vol: v * 0.5 * soft, ...o });
-    // toe: the grit crunch
-    const crunch = surface === 'rubble' ? 1500 : 2800;
-    this.noise({ when: w + (crouch ? 0.09 : 0.055), dur: crouch ? 0.11 : 0.07, freq: crunch + Math.random() * 500, q: 0.9, vol: v * 0.8 * soft, ...o });
-    if (surface === 'rubble' && Math.random() < 0.5) {
-      // a loose stone knocked
-      this.noise({ when: w + 0.08 + Math.random() * 0.06, dur: 0.04, freq: 2600 + Math.random() * 1500, q: 4, vol: v * 0.45, ...o });
+    const gap = crouch ? r(0.075, 0.1) : r(0.04, 0.07); // heel to toe
+    const h = (f, dur, k, to) => this.tone(f * r(0.93, 1.08), dur, { when: w, vol: v * k * soft, to, ...o });
+    const n = (when, dur, freq, q, k, extra = {}) =>
+      this.noise({ when, dur, freq: freq * r(0.88, 1.15), q, vol: v * k * soft, ...extra, ...o });
+    switch (surface) {
+      case 'tile': // hard and bright: a tap and a click, a hint of room
+        h(210, 0.05, 0.4, 120);
+        n(w, 0.03, 2400, 1.4, 0.45);
+        n(w + gap, 0.025, 4200, 1.2, 0.5);
+        n(w + gap + 0.012, 0.05, 1500, 3, 0.12);
+        break;
+      case 'rubble': // loose, heavy, stones knocking
+        h(90, 0.08, 0.6, 50);
+        n(w, 0.06, 800, 0.7, 0.5);
+        n(w + gap, 0.1, 1400, 0.6, 0.8);
+        for (let i = 0, m = 1 + Math.floor(Math.random() * 3); i < m; i++)
+          n(w + gap + r(0.01, 0.14), 0.03, r(2000, 4200), 4, 0.4);
+        if (Math.random() < 0.3) h(55, 0.12, 0.3, 40); // a slab shifts
+        break;
+      case 'glass': // fine crunch: a scatter of tiny high ticks
+        h(100, 0.06, 0.3, 60);
+        n(w, 0.04, 1000, 0.8, 0.3);
+        for (let i = 0, m = 4 + Math.floor(Math.random() * 4); i < m; i++)
+          n(w + gap * r(0.2, 1.8) + i * 0.012, r(0.01, 0.03), r(4500, 8500), 6, r(0.2, 0.45));
+        break;
+      case 'wood': // a knock and the boards' body; sometimes a creak
+        h(145, 0.09, 0.8, 78);
+        n(w, 0.1, 380, 4, 0.35);
+        n(w + gap, 0.05, 1800, 1, 0.3);
+        if (Math.random() < 0.1) n(w + gap, 0.25, r(500, 700), 14, 0.2, { sweep: r(800, 1100), attack: 0.08 });
+        break;
+      case 'water': // a splash, a slosh and a drip
+        n(w, 0.18, 700, 0.8, 0.55, { sweep: 1800, attack: 0.03 });
+        n(w + gap, 0.12, 2400, 0.6, 0.3);
+        n(w, 0.25, 260, 1.5, 0.35, { attack: 0.02 });
+        this.tone(r(900, 1400), 0.07, { when: w + gap + r(0.05, 0.18), vol: v * 0.2 * soft, to: r(1600, 2200), ...o });
+        break;
+      case 'metal': // a clank with a short ring
+        h(230, 0.06, 0.5, 140);
+        n(w, 0.03, 3000, 1.5, 0.4);
+        n(w + gap, 0.03, 4800, 2, 0.3);
+        this.tone(r(520, 640), 0.22, { when: w, vol: v * 0.2 * soft, ...o });
+        this.tone(r(1250, 1500), 0.14, { when: w, vol: v * 0.1 * soft, ...o });
+        break;
+      case 'hollow': // a boom under the floor
+        h(120, 0.12, 0.9, 60);
+        n(w, 0.14, 260, 6, 0.4);
+        n(w + gap, 0.05, 900, 1, 0.3);
+        break;
+      default: // grit: thump, then the crunch
+        h(95, 0.07, 0.55, 55);
+        n(w, 0.05, 900, 0.8, 0.5);
+        n(w + gap, crouch ? 0.11 : 0.07, 2800, 0.9, 0.8);
+        if (Math.random() < 0.35) n(w + gap + r(0.02, 0.07), 0.015, r(4000, 6000), 3, 0.3);
     }
     if (crouch) this.noise({ when: w + 0.02, dur: 0.22, freq: 2200, q: 0.5, vol: v * 0.12, attack: 0.06, ...o });
+  }
+
+  // The drag of a foot coming to a stop: a short scuff, then a settle.
+  scuff(surface = 'grit', vol = 0.1, { pan } = {}) {
+    if (!this.ctx) return;
+    surface = SURFACE_ALIAS[surface] || surface;
+    const w = this.t;
+    const o = { pan };
+    const [f, q, dur] = {
+      grit: [3000, 0.8, 0.14], rubble: [1700, 0.6, 0.17], tile: [4000, 1.2, 0.09], glass: [6500, 3, 0.12],
+      wood: [1500, 1, 0.1], water: [900, 0.7, 0.2], metal: [3400, 1.5, 0.1], hollow: [800, 1, 0.1],
+    }[surface] || [3000, 0.8, 0.14];
+    this.noise({ when: w, dur, freq: f, q, vol: vol * 0.7, attack: 0.04, sweep: f * 0.6, ...o });
+    this.tone(surface === 'wood' || surface === 'hollow' ? 130 : 90, 0.05, { when: w + dur * 0.8, vol: vol * 0.35, to: 60, ...o });
   }
 
   // A cat's purr: a low rumble pulsing about 25 times a second, swelling on
@@ -2894,6 +3616,48 @@ class Sound {
       n.stop(w + dur);
     }
     b.stop(w + dur);
+  }
+
+  // A phrase note on the ney: a quick breathy attack, a late vibrato and a
+  // soft release, so a tune can be played in time (unlike ney(), which swells).
+  neyNote(freq, dur, vol = 0.1, { when = this.t, dest = this.music, bright = 1 } = {}) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const w = when;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    g.gain.linearRampToValueAtTime(vol, w + 0.09);
+    g.gain.setValueAtTime(vol * 0.85, w + Math.max(0.1, dur - 0.25));
+    g.gain.exponentialRampToValueAtTime(0.0001, w + dur + 0.25);
+    g.connect(dest);
+    const o = ctx.createOscillator();
+    o.frequency.value = freq;
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 4.8;
+    const vg = ctx.createGain();
+    vg.gain.setValueAtTime(0, w);
+    vg.gain.linearRampToValueAtTime(freq * 0.006, w + dur * 0.8);
+    vib.connect(vg).connect(o.frequency);
+    const h = ctx.createOscillator();
+    h.frequency.value = freq * 2;
+    const hg = ctx.createGain();
+    hg.gain.value = 0.16 * bright;
+    h.connect(hg).connect(g);
+    o.connect(g);
+    const b = this.noiseSrc();
+    const bf = ctx.createBiquadFilter();
+    bf.type = 'bandpass';
+    bf.frequency.value = freq * 2.2;
+    bf.Q.value = 3;
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0.5, w);
+    bg.gain.linearRampToValueAtTime(0.28, w + 0.25);
+    b.connect(bf).connect(bg).connect(g);
+    for (const n of [o, vib, h]) {
+      n.start(w);
+      n.stop(w + dur + 0.3);
+    }
+    b.stop(w + dur + 0.3); // (already running; the envelope keeps it quiet until w)
   }
 
   // Karplus–Strong oud pluck, cached per pitch.
@@ -3383,6 +4147,117 @@ const MOODS = {
   after: { bass: 0.62, pad: 0.12, pluck: 0, ney: 0, pulse: 0, cutoff: 600, reg: 0 },
 };
 
+// --- Leitmotifs -----------------------------------------------------------
+// Ahmad's theme: a short phrase in Bayati on D, as [freq, beats]. It climbs
+// from A to D, leans on the half-flat E, rises to F, and falls home.
+const THEME = [
+  [N.A3, 1], [N.D4, 1.5], [N.Ed4, 0.5], [N.F4, 2],
+  [N.Ed4, 0.5], [N.D4, 0.5], [N.C4, 0.5], [N.Bb3, 0.5], [N.A3, 1], [N.D4, 3],
+];
+const D2 = N.D3 / 2;
+const A2 = N.A3 / 2;
+const G2 = N.G3 / 2;
+// the oud beneath it: [beat, freq, vol]
+const THEME_OUD = [[0, D2, 1], [2, A2, 0.7], [3.5, D2, 0.6], [5, G2, 0.7], [7, A2, 0.7], [9, D2, 1], [11, D2 * 2, 0.5]];
+const E_NAT = 329.63;
+const FS4 = 369.99;
+const CS4 = 277.18;
+const B3 = 246.94;
+
+const beatsOf = (list) => list.reduce((a, [, b]) => a + b, 0);
+
+// The motif plans: each returns { tempo, ney: [[beat, freq, beats, vol, bright]],
+// oud: [[beat, freq, vol, bright]] } (vol relative to the base levels below).
+function plan(name) {
+  const ney = [];
+  const oud = [];
+  const theme = (at, { f = (x) => x, v = 1, bright = 1, from = 0, to = THEME.length, harm = 0 } = {}) => {
+    let b = at;
+    THEME.forEach(([freq, d], i) => {
+      if (i >= from && i < to) {
+        ney.push([b, f(freq, i), d, v, bright]);
+        if (harm) ney.push([b, f(freq, i) * 0.75, d, v * harm, bright * 0.6]);
+      }
+      b += d;
+    });
+    return b;
+  };
+  const themeOud = (at, v = 1, bright = 1) => THEME_OUD.forEach(([b, f, k]) => oud.push([at + b, f, k * v, bright]));
+  const len = beatsOf(THEME);
+  switch (name) {
+    case 'ahmad':
+      theme(0);
+      themeOud(0);
+      return { tempo: 0.85, ney, oud };
+    case 'ahmad-soft': // as it surfaces in a memory: the oud leads, the ney only half-there
+      theme(0, { v: 0.5, bright: 0.7 });
+      themeOud(0, 0.8);
+      return { tempo: 0.9, ney, oud };
+    case 'ending1': // the Witness: sparse, open, ending on the fifth
+      for (const [b, f, d, v] of [[0, N.A3, 4, 1], [6, N.D4, 4, 0.9], [12, N.Ed4, 2, 0.7], [14.5, N.F4, 4, 0.9], [21, N.A3, 7, 0.8]]) ney.push([b, f, d, v, 0.8]);
+      oud.push([0, D2, 1, 0.7], [14, A2, 0.8, 0.7], [21, D2, 0.7, 0.6]);
+      return { tempo: 1.0, ney, oud };
+    case 'ending2': { // the Last Farewell: the whole theme, warm, twice, with a fourth below the second time
+      theme(0, { v: 0.9 });
+      themeOud(0);
+      const at = len + 2;
+      theme(at, { v: 1, harm: 0.55, bright: 1.2 });
+      themeOud(at, 1.1, 1.2);
+      for (let b = 0; b < len; b += 1) if (b % 2 === 1) oud.push([at + b, D2 * 2, 0.35, 1.2]); // a gentle second line
+      for (const [i, f] of [N.D3, N.A3, N.D4].entries()) oud.push([at + len + 0.15 * i, f, 0.6, 1.4]);
+      return { tempo: 0.88, ney, oud, gain: 0.5 };
+    }
+    case 'ending3': { // the Tunnel: fragments, low, fading into the dark
+      const lo = (f) => f * 0.5;
+      const frag = (at, from, to, v) => theme(at, { f: lo, v, bright: 0.45, from, to });
+      frag(0, 0, 2, 0.9);
+      frag(9, 3, 5, 0.65);
+      frag(20, 1, 2, 0.45);
+      frag(33, 8, 10, 0.3);
+      ney.push([48, N.A3 * 0.5, 6, 0.18, 0.4]);
+      for (const [b, v] of [[0, 0.8], [9, 0.55], [20, 0.4], [33, 0.25], [48, 0.12]]) oud.push([b, D2, v, 0.5]);
+      return { tempo: 0.95, ney, oud };
+    }
+    case 'ending4': { // the One Who Remains: the theme, brightening into something nearly major
+      const major = (p) => (f, i) => {
+        if (p >= 1 && Math.abs(f - N.Ed4) < 1) return E_NAT;
+        if (p >= 2) {
+          if (Math.abs(f - N.F4) < 1) return FS4;
+          if (Math.abs(f - N.C4) < 1) return CS4;
+          if (Math.abs(f - N.Bb3) < 1) return B3;
+        }
+        return f;
+      };
+      let at = 0;
+      for (let p = 0; p < 3; p++) {
+        theme(at, { f: major(p), v: 0.8 + p * 0.2, bright: 0.8 + p * 0.5 });
+        themeOud(at, 0.8 + p * 0.2, 0.8 + p * 0.4);
+        at += len + 1.5;
+      }
+      // the last D rises to a held chord
+      const fin = at - len - 1.5 + len - 3;
+      for (const f of [N.D4, FS4, N.A3 * 2]) ney.push([fin + 3, f, 6, 0.55, 1.6]);
+      for (const [i, f] of [N.D3, N.A3, N.D4, FS4].entries()) oud.push([fin + 3 + i * 0.12, f, 0.55, 1.6]);
+      return { tempo: 0.85, ney, oud, gain: 0.5 };
+    }
+    case 'ending5': { // the Wolf's Hour: very quiet, over the pitch the azan ends on
+      theme(0, { v: 0.45, bright: 0.5 });
+      ney.push([0, N.D3, len + 5, 0.4, 0.3]); // the azan's D, held underneath
+      oud.push([0, D2, 0.5, 0.5], [len, D2, 0.3, 0.5]);
+      return { tempo: 1.1, ney, oud };
+    }
+  }
+  return null;
+}
+// how loud the ney and the oud are at vol 1 (before the music setting)
+const NEY_LEVEL = 0.1;
+const OUD_LEVEL = 0.2;
+// G flattened to G♭ for Saba (the colour of the evening)
+const flat = (f) => {
+  for (const k of [0.5, 1, 2]) if (Math.abs(f / (N.G3 * k) - 1) < 0.002) return f * 0.9439;
+  return f;
+};
+
 const BEAT = 0.75; // seconds
 
 class Score {
@@ -3392,6 +4267,11 @@ class Score {
     this.m = { ...MOODS.off };
     this.started = false;
     this.log = []; // for testing: [time, mood]
+    this.saba = 0; // 1 once the evening moods have bent Bayati's G towards Saba's G♭
+    this.chordI = 0;
+    this.hushUntil = 0; // while a motif plays, no stray plucks or ney
+    this.memoryDue = 0;
+    this.motifLog = [];
   }
 
   start() {
@@ -3479,7 +4359,51 @@ class Score {
     this.name = name;
     this.m = { ...MOODS[name] };
     this.log.push([+(this.sound.t || 0).toFixed(2), name]);
+    const saba = name === 'after' || name === 'silence' ? 1 : 0;
+    if (name === 'memory') this.memoryDue = (this.sound.t || 0) + 12 + Math.random() * 8;
     this.apply(fade);
+    if (saba !== this.saba) {
+      this.saba = saba;
+      this.retune(this.sound.t, 5);
+    }
+  }
+
+  // Re-pitch the bass and pad for the current root, bending G to G♭ (Saba)
+  // when the evening moods are on.
+  retune(w, tc = 1.4) {
+    if (!this.started) return;
+    const bend = (f) => (this.saba ? flat(f) : f);
+    const root = bend(ROOTS[this.rootI]);
+    for (const [o, mult] of this.bassOsc) o.frequency.setTargetAtTime(root * mult, w, tc * 0.5);
+    const chord = CHORDS[this.chordI];
+    this.voices.forEach((pair, i) => pair.forEach((o) => o.frequency.setTargetAtTime(bend(chord[i]), w, tc)));
+  }
+
+  // Play one of Ahmad's motifs: 'ahmad' (the theme), 'ahmad-soft', or
+  // 'ending1'…'ending5'. opts.vol scales it. Returns its length in seconds
+  // (0 if it cannot play). It rides the score's own bus, so speech ducks it.
+  motif(name, { vol = 1 } = {}) {
+    const s = this.sound;
+    if (!this.started || !s.ctx || s.ctx.state !== 'running') return 0;
+    if (/^[1-5]$/.test(String(name))) name = 'ending' + name;
+    const p = plan(name);
+    if (!p) return 0;
+    vol *= p.gain ?? 1;
+    const t0 = s.t + 0.25;
+    let end = 0;
+    for (const [b, f, d, v, bright] of p.ney) {
+      const dur = d * p.tempo * 0.97;
+      s.neyNote(f, dur, NEY_LEVEL * v * vol, { when: t0 + b * p.tempo, dest: this.out, bright });
+      end = Math.max(end, b * p.tempo + dur + 0.3);
+    }
+    for (const [b, f, v, bright] of p.oud) {
+      s.pluck(f, t0 + b * p.tempo, OUD_LEVEL * v * vol, this.out, 700 + 1100 * bright);
+      end = Math.max(end, b * p.tempo + 2);
+    }
+    this.phrase = null;
+    this.hushUntil = t0 + end;
+    this.motifLog.push([+t0.toFixed(2), name, +end.toFixed(1)]);
+    return end;
   }
 
   apply(fade) {
@@ -3547,10 +4471,8 @@ class Score {
     // harmony moves every 4 bars (12 s), sometimes staying put
     if (inBar === 0 && bar % 4 === 0 && beat > 0 && Math.random() < 0.75) {
       this.rootI = [0, 0, 1, 2, 3, 4, 0, 2][Math.floor(Math.random() * 8)];
-      const root = ROOTS[this.rootI];
-      for (const [o, mult] of this.bassOsc) o.frequency.setTargetAtTime(root * mult, w, 0.6);
-      const chord = CHORDS[CHORD_FOR_ROOT[this.rootI]];
-      this.voices.forEach((pair, i) => pair.forEach((o) => o.frequency.setTargetAtTime(chord[i], w, 1.4)));
+      this.chordI = CHORD_FOR_ROOT[this.rootI];
+      this.retune(w);
     }
     // the bass breathes over 8 beats
     if (inBar === 0 && bar % 2 === 0) {
@@ -3573,12 +4495,12 @@ class Score {
       o.stop(w + 0.55);
     }
     // plucks: short phrases that start on the chord and step through the maqam
-    if (m.pluck > 0 && !this.phrase && Math.random() < m.pluck * 0.18) {
+    if (m.pluck > 0 && !this.phrase && w > this.hushUntil && Math.random() < m.pluck * 0.18) {
       const len = 3 + Math.floor(Math.random() * 4);
       let i = 2 + m.reg * 2 + Math.floor(Math.random() * 3);
       const notes = [];
       for (let n = 0; n < len; n++) {
-        notes.push(SCALE[Math.max(0, Math.min(SCALE.length - 1, i))]);
+        notes.push(this.saba ? flat(SCALE[Math.max(0, Math.min(SCALE.length - 1, i))]) : SCALE[Math.max(0, Math.min(SCALE.length - 1, i))]);
         i += Math.random() < 0.6 ? -1 : 1;
       }
       notes.push(SCALE[m.reg >= 1 ? 7 : 0]); // resolve to D
@@ -3588,14 +4510,23 @@ class Score {
       const { notes } = this.phrase;
       const f = notes[this.phrase.i++];
       const qanun = m.reg === 0 && Math.random() < 0.3;
-      s.pluck(qanun ? f * 2 : f, w, qanun ? 0.1 : 0.2, this.out, qanun ? 3200 : 1700);
+      s.pluck(qanun ? f * 2 : f, w, this.phrase.vol ?? (qanun ? 0.1 : 0.2), this.out, qanun ? 3200 : 1700);
       if (Math.random() < 0.35) s.pluck(qanun ? f * 2 : f, w + BEAT / 2, 0.07, this.out, 1500);
       if (this.phrase.i >= notes.length) this.phrase = null;
     }
     // a breath of ney, rarely
-    if (m.ney > 0 && inBar === 0 && Math.random() < m.ney) {
+    if (m.ney > 0 && inBar === 0 && w > this.hushUntil && Math.random() < m.ney) {
       const f = [N.A3, N.D4, N.F4, N.G3][Math.floor(Math.random() * 4)];
       s.ney(f, 6 + Math.random() * 4, 0.09, { when: w, dest: this.out });
+    }
+    // in a memory, Ahmad's theme surfaces now and then, softly
+    if (this.name === 'memory' && inBar === 0 && s.t > this.memoryDue && w > this.hushUntil) {
+      this.motif('ahmad-soft');
+      this.memoryDue = s.t + 55 + Math.random() * 35;
+    }
+    // in the evening moods, a lone Saba turn: F, then the G♭ that gives it away
+    if (this.saba && this.name === 'after' && inBar === 0 && !this.phrase && w > this.hushUntil && Math.random() < 0.05) {
+      this.phrase = { notes: [N.F4, flat(N.G4), N.F4, N.Ed4, N.D4], i: 0, vol: 0.07 };
     }
   }
 }
@@ -7292,6 +8223,7 @@ class Walker {
     this.overrideBlend = 0;
     this.visible = true;
     this.onStep = null;
+    this.onStop = null;
     this.lastStep = 0;
     this.time = 0;
     this.blocked = null; // why we couldn't move this frame: 'ceiling' | 'wall' | null
@@ -7720,6 +8652,14 @@ class Walker {
         this.onStep?.(this.stance);
       }
     }
+    // coming to a stop from a walk: one scuff
+    if (this.onGround && this.stance !== 'prone') {
+      if (speed > 60) this.wasWalking = true;
+      else if (speed < 4 && this.wasWalking) {
+        this.wasWalking = false;
+        this.onStop?.();
+      }
+    }
 
     // arms held a certain way whatever the legs are doing (a raised cloth)
     if (this.arms) target = { ...target, ...this.arms };
@@ -7740,9 +8680,34 @@ class Walker {
     let final = this.cur;
     if (this.override) {
       this.overrideBlend = Math.min(this.overrideBlend + dt * 4, 1);
-      const op = typeof this.override === 'function' ? this.override(this.time) : this.override;
+      let op = typeof this.override === 'function' ? this.override(this.time) : this.override;
+      // one held pose giving way to another eases across (a few tenths of a
+      // second); poses a script recomputes every frame are followed as they are
+      if (this.override !== this.ovLast) {
+        const settled = this.time - (this.ovSince ?? -9) > 0.12;
+        this.ovFrom = settled && this.lastFinal && this.overrideBlend >= 1 ? this.lastFinal : null;
+        this.ovT = 0;
+        this.ovLast = this.override;
+        this.ovSince = this.time;
+      }
+      if (this.ovFrom) {
+        this.ovT += dt * 4.5;
+        if (this.ovT >= 1) this.ovFrom = null;
+        else op = blendPose(this.ovFrom, op, smoothstep01(this.ovT));
+      }
       final = blendPose(this.cur, op, this.overrideBlend);
-    } else this.overrideBlend = 0;
+      this.ovRelease = op;
+    } else if (this.ovRelease && this.overrideBlend > 0) {
+      // let go of a scripted pose the way it was taken: eased, not snapped
+      this.overrideBlend = Math.max(0, this.overrideBlend - dt * 5);
+      final = blendPose(this.cur, this.ovRelease, this.overrideBlend);
+      if (this.overrideBlend <= 0) this.ovRelease = null;
+      this.ovLast = null;
+    } else {
+      this.overrideBlend = 0;
+      this.ovLast = null;
+    }
+    this.lastFinal = final;
 
     const r = this.rig;
     // feet that are down stay where they landed, and stand on what's there
@@ -7839,6 +8804,11 @@ class Walker {
   draw(ctx) {
     if (this.visible) this.rig.draw(ctx);
   }
+}
+
+function smoothstep01(t) {
+  t = Math.min(1, Math.max(0, t));
+  return t * t * (3 - 2 * t);
 }
 
 return { HEIGHT, Walker };
@@ -8046,6 +9016,12 @@ class Game {
       this.sound.step(surface, stance === 'crouch' ? 0.13 : 0.18, { crouch: stance === 'crouch' });
       // running kicks up a little dust
       if (this.scene === 'street' && Math.abs(p.vx) > 240) this.effects.puff(p.x - p.f * 8, p.y - 2, 0.12, false);
+    };
+    // stopping: the last foot drags and settles
+    this.player.onStop = () => {
+      const p = this.player;
+      const surface = this.scene === 'stairwell' ? 'hollow' : this.surface?.(p.x) || 'grit';
+      this.sound.scuff?.(surface, 0.08);
     };
     this.player.onLand = (k) => {
       this.sound.land(0.15 + k * 0.3);
@@ -8299,14 +9275,16 @@ class Game {
   }
 
   snapCamera() {
+    this.lead = this.player.f * 110;
     const t = this.cameraTarget();
     Object.assign(this.cam, t);
+    this.camV = { x: 0, y: 0, view: 0 };
   }
 
   cameraTarget() {
     if (this.camOverride) return typeof this.camOverride === 'function' ? this.camOverride(this) : this.camOverride;
     const p = this.player;
-    const cam = this.act.camera?.(this) || { x: p.x + p.f * 110, y: -205, view: 1300 };
+    const cam = this.act.camera?.(this) || { x: p.x + (this.lead ?? p.f * 110), y: -205, view: 1300 };
     // near something to interact with, the camera leans towards it and closes in
     const f = this.focus;
     const k = f && this.settings.get('focusCam') !== false ? smooth(0, 1, this.focusK) : 0;
@@ -8512,12 +9490,25 @@ class Game {
     this.act.update?.(this, dt);
 
     // camera (and where sounds are placed from)
+    // the camera leads where he's going, a little further when he runs, and
+    // swings round gently when he turns
+    const wantLead = p.f * 110 + clamp((p.vx || 0) * 0.16, -70, 70);
+    this.lead = lerp(this.lead ?? wantLead, wantLead, 1 - Math.exp(-dt * 1.6));
     const target = this.cameraTarget();
     this.sound.listenerX = this.cam.x;
-    const k = 1 - Math.exp(-dt * (this.camOverride ? 2.2 : 3.2));
-    this.cam.x = lerp(this.cam.x, target.x, k);
-    this.cam.y = lerp(this.cam.y, target.y ?? -205, k);
-    this.cam.view = lerp(this.cam.view, target.view ?? 1300, k);
+    // a critically damped spring on each axis: it eases out of rest and into
+    // place, with no jolt when the target jumps (a turn, an override)
+    const w = this.camOverride ? 2.4 : 3.3;
+    this.camV ||= { x: 0, y: 0, view: 0 };
+    const goal = { x: target.x, y: target.y ?? -205, view: target.view ?? 1300 };
+    for (let left = Math.min(dt, 0.25); left > 1e-6; left -= 0.033) {
+      const h = Math.min(0.033, left);
+      for (const key of ['x', 'y', 'view']) {
+        const a = w * w * (goal[key] - this.cam[key]) - 2 * w * this.camV[key];
+        this.camV[key] += a * h;
+        this.cam[key] += this.camV[key] * h;
+      }
+    }
     this.shake = Math.max(0, this.shake - dt * 1.4);
     // the floating caption follows its thing
     if (!this.text.floatEl.hidden) {
@@ -8659,6 +9650,214 @@ class Game {
 }
 
 return { TOOLS, Game };
+})();
+
+// ---- src/story/notes.js
+const __src_story_notes = (() => {
+// Small things in the streets that can be looked at: each is drawn where it
+// is and has what Sami makes of it (first person, Damascus dialect, English
+// beneath). addNotes() puts them in an act's level; drawNotes() draws them,
+// from the act's drawProps hook.
+
+const TAU = Math.PI * 2;
+
+// a wall calendar on a door, its page stopped
+function calendar(c, x, y) {
+  c.fillStyle = '#e8e2d2';
+  c.fillRect(x - 16, y - 22, 32, 40);
+  c.fillStyle = '#a8322a';
+  c.fillRect(x - 16, y - 22, 32, 9);
+  c.fillStyle = 'rgba(40,30,24,0.55)';
+  for (let r = 0; r < 4; r++) for (let k = 0; k < 6; k++) c.fillRect(x - 13 + k * 4.6, y - 9 + r * 6, 2.4, 2.4);
+  c.fillStyle = '#3a2e26';
+  c.fillRect(x - 1, y - 25, 2, 4);
+}
+
+// a child's sandal, the strap mended with wire
+function sandal(c, x, y) {
+  c.fillStyle = '#6a4a32';
+  c.beginPath();
+  c.ellipse(x, y - 2, 13, 3.5, -0.05, 0, TAU);
+  c.fill();
+  c.strokeStyle = '#2e6a8a';
+  c.lineWidth = 2.4;
+  c.beginPath();
+  c.arc(x - 2, y - 4, 6, Math.PI, TAU);
+  c.stroke();
+  c.strokeStyle = '#8a8e92';
+  c.lineWidth = 1;
+  c.beginPath();
+  c.moveTo(x - 5, y - 9);
+  c.lineTo(x + 2, y - 6);
+  c.stroke();
+}
+
+// the aid list pinned to a board, names crossed out
+function aidList(c, x, y) {
+  c.fillStyle = '#6a5038';
+  c.fillRect(x - 30, y - 40, 60, 74);
+  c.fillStyle = '#ece6d4';
+  c.fillRect(x - 25, y - 35, 50, 64);
+  c.fillStyle = 'rgba(40,34,30,0.7)';
+  for (let i = 0; i < 9; i++) {
+    c.fillRect(x - 21, y - 29 + i * 6.5, 30 + ((i * 7) % 12), 1.6);
+    if (i % 2 === 0) {
+      c.fillStyle = 'rgba(160,40,30,0.8)';
+      c.fillRect(x - 23, y - 29.4 + i * 6.5, 44, 1.2);
+      c.fillStyle = 'rgba(40,34,30,0.7)';
+    }
+  }
+}
+
+// a street sign, shot through
+function sign(c, x, y) {
+  c.fillStyle = '#2a5a8a';
+  c.fillRect(x - 44, y - 12, 88, 26);
+  c.strokeStyle = '#e8e8e8';
+  c.lineWidth = 1.5;
+  c.strokeRect(x - 41, y - 9, 82, 20);
+  c.fillStyle = '#f0f0f0';
+  c.font = '12px "IBM Plex Sans Arabic", sans-serif';
+  c.textAlign = 'center';
+  c.direction = 'rtl';
+  c.fillText('حارة الياسمين', x, y + 6);
+  c.fillStyle = '#16120f';
+  for (const [dx, dy] of [[-20, -4], [14, 3], [30, -6]]) {
+    c.beginPath();
+    c.arc(x + dx, y + dy, 2.2, 0, TAU);
+    c.fill();
+  }
+}
+
+// an empty birdcage on a sill, its door open
+function cage(c, x, y, t) {
+  const sw = Math.sin(t * 1.4) * 0.04;
+  // the chain up to a hook in the wall
+  c.strokeStyle = '#4a3e30';
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(x, y - 40);
+  c.lineTo(x, y - 74);
+  c.stroke();
+  c.fillStyle = '#3a3028';
+  c.fillRect(x - 6, y - 78, 12, 4);
+  c.save();
+  c.translate(x, y - 40);
+  c.rotate(sw);
+  c.strokeStyle = '#c9b06a';
+  c.lineWidth = 1.2;
+  c.beginPath();
+  c.moveTo(0, 0);
+  c.lineTo(0, 6);
+  for (let i = -3; i <= 3; i++) {
+    c.moveTo(i * 5, 34);
+    c.quadraticCurveTo(i * 4.2, 8, 0, 6);
+  }
+  c.moveTo(-15, 34);
+  c.lineTo(15, 34);
+  c.stroke();
+  // the door, hanging open on its wire
+  c.beginPath();
+  c.moveTo(15, 34);
+  c.lineTo(24, 26);
+  c.lineTo(24, 16);
+  c.stroke();
+  c.restore();
+}
+
+// a hopscotch grid chalked on the ground
+function hopscotch(c, x, y) {
+  c.strokeStyle = 'rgba(236,232,220,0.7)';
+  c.lineWidth = 1.6;
+  const sq = 18;
+  const cells = [[0, 0], [1, 0], [2, -0.5], [2, 0.5], [3, 0], [4, -0.5], [4, 0.5], [5, 0]];
+  for (const [i, o] of cells) c.strokeRect(x - 54 + i * sq, y - 3 + o * 5, sq, 5);
+  c.fillStyle = 'rgba(236,232,220,0.8)';
+  c.fillRect(x - 36, y - 1.5, 4, 2);
+}
+
+// a wedding invitation tucked into a doorframe
+function invitation(c, x, y) {
+  c.save();
+  c.translate(x, y);
+  c.rotate(-0.12);
+  c.fillStyle = '#efe6d2';
+  c.fillRect(-11, -16, 22, 30);
+  c.strokeStyle = 'rgba(190,150,70,0.8)';
+  c.lineWidth = 1;
+  c.strokeRect(-9, -14, 18, 26);
+  c.fillStyle = 'rgba(190,150,70,0.8)';
+  c.beginPath();
+  c.arc(0, -6, 3.5, 0, TAU);
+  c.fill();
+  c.restore();
+}
+
+// a mattress propped against a window, against the sniper
+function mattress(c, x, y) {
+  c.fillStyle = '#8c7a68';
+  c.beginPath();
+  c.moveTo(x - 50, y);
+  c.lineTo(x - 38, y - 190);
+  c.lineTo(x + 40, y - 190);
+  c.lineTo(x + 52, y);
+  c.closePath();
+  c.fill();
+  c.strokeStyle = 'rgba(60,48,42,0.45)';
+  c.lineWidth = 1;
+  for (let i = 1; i < 7; i++) {
+    c.beginPath();
+    c.moveTo(x - 50 + i * 1.7, y - i * 27);
+    c.lineTo(x + 52 - i * 1.7, y - i * 27);
+    c.stroke();
+  }
+  c.fillStyle = 'rgba(70,46,34,0.3)';
+  c.beginPath();
+  c.ellipse(x + 8, y - 120, 18, 26, 0.3, 0, TAU);
+  c.fill();
+}
+
+const NOTES = {
+  act1: [
+    { id: 'n_calendar', x: 2905, y: -150, box: [40, 48], draw: calendar, line: ['رزنامة عالباب، واقفة على آذار ٢٠١٣. ما حدا قلب الورقة من وقتها.', 'A calendar on a door, stopped at March 2013. Nobody’s turned the page since.'] },
+    { id: 'n_sandal', x: 4320, y: 0, box: [34, 16], draw: sandal, line: ['صندل ولد. السير مربوط بشريط.', 'A child’s sandal. The strap mended with wire.'] },
+    { id: 'n_list', x: 6620, y: -150, box: [64, 80], draw: aidList, line: ['لايحة الإعاشة عالحيط. نص الأسامي مشطوبة.', 'The aid list on the wall. Half the names are crossed out.'] },
+  ],
+  act2r: [{ id: 'n_mattress', x: 880, y: 0, box: [100, 190], draw: mattress, line: ['فرشة مسنودة عالشبّاك، كرمال القنّاص.', 'A mattress propped against a window, against the sniper.'] }],
+  act2w: [
+    { id: 'n_sign', x: 700, y: -250, box: [92, 30], draw: sign, line: ['لوحة الشارع، مخزوقة. بس بعدها بتقول: حارة الياسمين.', 'The street sign, shot through. It still says Jasmine Lane.'] },
+    { id: 'n_cage', x: 3300, y: -96, box: [40, 44], draw: cage, line: ['قفص عصفور عالشبّاك. فاضي، وبابو مفتوح.', 'A birdcage on the windowsill. Empty, its door open.'] },
+  ],
+  act3w: [{ id: 'n_invite', x: 1010, y: -130, box: [28, 36], draw: invitation, line: ['كرت عرس محشور بالباب. التاريخ: الليلة.', 'A wedding invitation tucked in a doorframe. The date: tonight.'] }],
+  act4: [{ id: 'n_hop', x: 330, y: 0, box: [120, 16], draw: hopscotch, line: ['حجلة مرسومة بالطبشور. حدا لعب فيها مبارح.', 'A hopscotch grid chalked on the ground. Someone played it yesterday.'] }],
+};
+
+function addNotes(g, act) {
+  for (const n of NOTES[act] || []) {
+    g.level.add({
+      id: n.id,
+      x: n.x,
+      y: n.y - n.box[1] / 2,
+      range: 110,
+      look: true,
+      label: ['تفحّص', 'Examine'],
+      box: n.box,
+      enabled: () => !g.locked && !g.a?.mem,
+      use: () => g.line(null, n.line, 4.5, 'examine'),
+    });
+  }
+}
+
+function drawNotes(R, g, act) {
+  const cx = R.cam.x;
+  const list = (NOTES[act] || []).filter((n) => Math.abs(n.x - cx) < 1600);
+  if (!list.length || g.a?.mem) return;
+  R.cast((c) => {
+    for (const n of list) n.draw(c, n.x, n.y, g.time);
+  });
+}
+
+return { NOTES, addNotes, drawNotes };
 })();
 
 // ---- src/rigs/cat.js
@@ -9362,15 +10561,17 @@ function sky(R, stops, { sun = [0.78, 0.16], warmth = 0, clouds = 0.5, cloudLit 
       const t = R.cam.time || 0;
       const lit = cloudLit || [255, 246 - warmth * 40, 226 - warmth * 80];
       const shd = cloudShade || [150, 140, 150];
-      for (const [yk, sx, sy, spd, al] of [[0.06, 5.2, 0.55, 3, 0.55], [0.2, 3.4, 0.4, 6, 0.4]]) {
+      for (const [yk, sx, sy, spd, al] of [[0.06, 5.2, 0.55, 5, 0.55], [0.2, 3.4, 0.4, 9, 0.4], [0.12, 4.3, 0.3, 7, 0.28]]) {
         const w = cv.width * sx;
         const h = cv.height * sy;
         const off = -((R.cam.x * 0.02 + t * spd) % w) - w;
+        // coverage breathes over a minute or two, so the sky is never the same twice
+        const cover = 0.72 + 0.28 * Math.sin(t * 0.045 + yk * 9 + sx);
         const y0 = R.H * yk;
         for (const [dy, col, a] of [[5, shd, 0.55], [0, lit, 1]]) {
           const tinted = tintedClouds(cv, col);
           c.save();
-          c.globalAlpha = clouds * al * a;
+          c.globalAlpha = clouds * al * a * cover;
           for (let x = off; x < R.W; x += w) c.drawImage(tinted, x, y0 + dy, w, h);
           c.restore();
         }
@@ -11648,7 +12849,8 @@ function sunLook(g) {
   const k = g.a.sunK;
   const drain = g.a.drain || 0;
   const fog = g.effects.fog;
-  const col = mixc([1.0, 0.96, 0.9], [1.0, 0.7, 0.42], k);
+  const sun = A.sunAt(A.DAY.one(k));
+  const col = sun.color;
   const sunUv = [-0.28 - 0.1 * k, -0.95 + 0.85 * k];
   const lights = [
     { uv: sunUv, color: col, intensity: (1.25 - 0.2 * k) * (1 - fog * 0.45), radius: 0, rim: 0.55 + 0.6 * k },
@@ -11675,7 +12877,8 @@ function sunLook(g) {
   };
 }
 
-const shearFor = (g) => 0.3 + 1.7 * g.a.sunK;
+const shearFor = (g) => A.sunAt(A.DAY.one(g.a.sunK)).shear;
+const squashFor = (g) => A.sunAt(A.DAY.one(g.a.sunK)).squash;
 
 // ---------------------------------------------------------------- sky ----
 
@@ -11793,7 +12996,7 @@ function shopFront(R, x, t, { w = 220, sign = 'دكّان أبو ريّان', op
     const n = 11;
     for (let i = 0; i < n; i++) {
       const fx = x - 4 + (i * (w + 8)) / n;
-      const sw = A.wind(t, i * 0.7) * 3 + Math.sin(t * 2.4 + i * 1.9) * 1.5;
+      const sw = A.windAt(t, fx, i * 0.7) * 3 + Math.sin(t * 2.4 + i * 1.9) * 1.5;
       c.fillStyle = i % 2 ? '#c9bfa6' : '#8a3a30';
       c.beginPath();
       c.moveTo(fx, -H - 12);
@@ -11812,7 +13015,7 @@ function deadOlive(R, x, t) {
   R.cast((c) => {
     c.strokeStyle = '#6a625a';
     c.lineCap = 'round';
-    const w0 = A.wind(t, x * 0.01);
+    const w0 = A.windAt(t, x, x * 0.01);
     const branch = (bx, by, ang, len, w, d) => {
       const a2 = ang + (d > 1 ? w0 * 0.035 * (d - 1) + Math.sin(t * 1.9 + d * 1.3 + bx * 0.05) * 0.008 * d : 0);
       const ex = bx + Math.cos(a2) * len;
@@ -11861,7 +13064,7 @@ function streetLife(R, g, t, near) {
       const items = [[0.18, 40, 70, '#d9d2c2'], [0.36, 28, 46, '#6f7e86'], [0.52, 30, 64, '#a25a46'], [0.7, 44, 74, '#b9ab8e']];
       for (const [u, w, h, col] of items) {
         const lx = 2896 + 420 * u;
-        const ly = -318 - 14 * u + 34 * 4 * u * (1 - u) * 0.5 + A.wind(t, 1.1) * 0.8;
+        const ly = -318 - 14 * u + 34 * 4 * u * (1 - u) * 0.5 + A.windAt(t, lx, 1.1) * 0.8;
         A.cloth(c, lx - w / 2, ly, w, h, col, t, u * 9, { amp: 4, sag: 3 });
       }
     });
@@ -11921,7 +13124,10 @@ function drawStreet(R, g) {
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
   const dof = g.settings.get('dof') || 'bokeh';
 
-  T.sky(R, skyStops(a.sunK), { warmth: clamp(a.sunK || 0) });
+  {
+    const sk = clamp(a.sunK || 0);
+    T.sky(R, skyStops(a.sunK), { sun: [lerp(0.78, 0.86, sk), lerp(0.16, 0.42, sk * sk * (3 - 2 * sk))], warmth: sk });
+  }
   const stops = skyStops(a.sunK);
   horizon(R, {
     haze: rgbOf(stops[stops.length - 1][1]),
@@ -12194,8 +13400,11 @@ function drawStreet(R, g) {
     deadOlive(R, X.olive, t);
   }
 
+  g.act?.drawProps?.(R, g);
+
   // --- the people ---
   const shear = shearFor(g);
+  const squash = squashFor(g);
   // contact shadows: everyone stands on the ground, not above it
   R.paint((c) => {
     for (const w of [...g.npcs, ...(g.passers || []), g.player]) {
@@ -12225,12 +13434,12 @@ function drawStreet(R, g) {
     if (!w.visible || !near(w.x - 100, w.x + 100)) continue;
     if (w.depthK) continue; // walking away down a side street: drawn below
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
   for (const w of g.passers || []) {
     if (w.depth > 0 || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
   if (g.cat && !g.cat.hidden && near(g.cat.x - 50, g.cat.x + 50)) {
     R.cast((c) => g.cat.draw(c));
@@ -12250,7 +13459,7 @@ function drawStreet(R, g) {
   if (p.visible && a.samiDepth) depthCast(R, (c) => p.draw(c), figureBox(p), a.samiDepth, { mode: dof, alpha: 1 - smooth(0.85, 1, a.samiDepth) });
   else if (p.visible) {
     R.cast((c) => p.draw(c));
-    R.shadow((c) => p.draw(c), p.x, p.y, shear, 0.12);
+    R.shadow((c) => p.draw(c), p.x, p.y, shear, squash);
   }
   // the wall around the spotter's window, over him: only his upper body shows
   if (near(X.spotter - 300, X.spotter + 300)) {
@@ -12319,6 +13528,8 @@ function drawStreet(R, g) {
   });
   R.layer(1);
 
+  // gusts lift dust from the street; now and then a small dust devil
+  A.streetDust(R, cx, t, { color: mixc([196, 172, 136], [200, 140, 96], clamp(a.sunK || 0)).map(Math.round), amount: 1 - g.effects.fog * 0.5 });
   g.effects.draw(R);
   // the jet's shadow: a swept-wing shape, smeared by its speed, across the
   // street and up the walls in half a second
@@ -12542,6 +13753,40 @@ function surfaceAt(x) {
 return { X, sunLook, shearFor, drawStreet, drawStairwell, stairLook, drawFlashback, flashLook, surfaceAt };
 })();
 
+// ---- src/story/life-lines.js
+const __src_story_life_lines = (() => {
+// What the street's people say when Sami lends a hand: Damascus dialect,
+// English subtitles. Short, the way people speak over work.
+
+const HELP_LINES = {
+  ladder: ['الله يرضى عليك. ثبّتها شوي.', 'God bless you. Hold it steady a moment.'],
+  ball: ['شكراً عمو!', 'Thanks, uncle!'],
+  carry: ['يسلمو إيديك.', 'Bless your hands.'],
+  generator: ['ولك اشتغلت! كيف عملتها؟', 'It’s going! How did you do that?'],
+  tap: ['يسلمو عمو. هي التقيلة.', 'Thanks, uncle. That’s the heavy one.'],
+  laundry: ['الله يخليك يا ابني.', 'God keep you, son.'],
+  dig: ['إي هيك. بدها بندورة هالأرض.', 'That’s it. This ground wants tomatoes.'],
+  saw: ['ثبّت هون… إي، هيك.', 'Hold it there… yes, like that.'],
+  smoke: ['اقعد خيّو. الليل طويل.', 'Sit, brother. The night’s long.'],
+  hammer: ['ناولني المسمار… الله يعطيك العافية.', 'Pass me a nail… God give you strength.'],
+};
+
+const HELP_LABELS = {
+  ladder: ['أمسك السلّم', 'Hold the ladder'],
+  ball: ['ارجع الطابة', 'Kick the ball back'],
+  carry: ['احمل حجرة', 'Carry a block'],
+  generator: ['جرّب الحبل', 'Try the cord'],
+  tap: ['احمل البيدون', 'Carry a can'],
+  laundry: ['امسك السلّة', 'Hold the basket'],
+  dig: ['احفر شوي', 'Dig a little'],
+  saw: ['ثبّت اللوح', 'Steady the plank'],
+  smoke: ['اقعد معه', 'Sit with him'],
+  hammer: ['ناوله مسمار', 'Pass a nail'],
+};
+
+return { HELP_LINES, HELP_LABELS };
+})();
+
 // ---- src/story/life.js
 const __src_story_life = (() => {
 // Ambient life: people at the work of a siege day, each at one task on a
@@ -12556,6 +13801,7 @@ const __src_story_life = (() => {
 
 const { clamp, lerp, smooth } = __src_engine_util;
 const { POSES } = __src_rigs_person;
+const { HELP_LINES, HELP_LABELS } = __src_story_life_lines;
 const TAU = Math.PI * 2;
 const ST = POSES.stand;
 
@@ -13418,7 +14664,7 @@ const TASKS = {
       [0.55, { torso: 0.04, head: 0.08, armN: 0.1, foreN: 0.3 }],
       [0.8, { torso: 0.0, head: 0.15, armN: -0.1, foreN: 0.15, armF: 0.05, foreF: 0.2 }],
     ]),
-    beats: [],
+    beats: [[0.18, 'murmur'], [0.6, 'murmur']],
   },
 
   // carrying cinder blocks from a pile to a wall going up, and back
@@ -13452,6 +14698,11 @@ function workSound(g, kind, x) {
   if (dx > 900 || !g.sound) return;
   const v = 1 - dx / 900;
   const pan = g.sound.panFor?.(x);
+  if (kind === 'murmur') {
+    // a few syllables, never words, as two people talk over their work
+    if (Math.random() < 0.7) g.sound.murmur?.(x, { vol: 0.6 * v });
+    return;
+  }
   const S = {
     dig: { dur: 0.18, freq: 420, q: 0.9, vol: 0.09, type: 'lowpass' },
     tap: { dur: 0.04, freq: 2200, q: 3, vol: 0.12 },
@@ -13464,6 +14715,66 @@ function workSound(g, kind, x) {
 }
 
 // ---------------------------------------------------------------- public --
+// Lending a hand: what Sami does (a pose held for a while, where he stands
+// relative to the worker) and what the worker does in thanks.
+const HELP = {
+  ladder: { at: -40, dur: 3, pose: { torso: 0.1, head: -0.35, armN: 1.5, foreN: 2.2, armF: 1.4, foreF: 2.1 } },
+  ball: { at: 120, dur: 1.2, pose: { torso: -0.05, thighN: 0.9, shinN: 0.5, armN: -0.4, foreN: -0.1, armF: 0.6, foreF: 0.8 } },
+  carry: { at: 60, dur: 2.4, pose: { ...POSES.squat, armN: 1.1, foreN: 1.3 } },
+  generator: { at: 30, dur: 1.4, pose: { torso: 0.15, armN: -0.6, foreN: 0.2, armF: 0.8, foreF: 1.0 } },
+  tap: { at: -70, dur: 2, pose: { torso: 0.08, armN: 0.15, foreN: 0.25, armF: 0.1, foreF: 0.2 } },
+  laundry: { at: 50, dur: 2.6, pose: { torso: 0.05, armN: 0.95, foreN: 1.4, armF: 0.85, foreF: 1.3 } },
+  dig: { at: 70, dur: 2.6, pose: { torso: 0.42, head: 0.2, armN: 0.5, foreN: 0.45, armF: 0.35, foreF: 0.3 } },
+  saw: { at: 110, dur: 2.4, pose: { torso: 0.4, armN: 1.2, foreN: 1.5, armF: 1.1, foreF: 1.4 } },
+  smoke: { at: 46, dur: 4, pose: { ...POSES.sitChair, seat: 34, torso: 0.12, head: 0.1, armN: 0.5, foreN: 1.4 } },
+  hammer: { at: -50, dur: 1.8, pose: { torso: 0.1, armN: 1.2, foreN: 1.6, armF: 0.2, foreF: 0.4 } },
+};
+
+// Jobs where he takes over the tool: the worker steps back and watches.
+const TAKE_OVER = new Set(['dig', 'saw', 'hammer']);
+
+function* lendHand(g, w) {
+  const kind = w.work.kind;
+  const T = TASKS[kind];
+  const H = HELP[kind];
+  const p = g.player;
+  w.helped = true;
+  g.lock();
+  const who = kind === 'ball' ? ['ولد', 'A boy'] : ['جار', 'A neighbour'];
+  if (TAKE_OVER.has(kind)) {
+    // he steps back a pace and hands over the tool; Sami works it a while
+    const home = w.x;
+    yield* g.walkPlayer(home - w.f * 90);
+    w.paused = true;
+    w.place(home - w.f * 70);
+    yield* g.walkPlayer(home);
+    p.f = w.f;
+    const t0 = p.time;
+    p.override = (t) => T.pose(((t - t0) / w.work.period) % 1);
+    const prop = p.rig.prop;
+    p.rig.prop = (c, hN) => T.tool(c, hN, p.rig.pose, ((p.time - t0) / w.work.period) % 1, p.time, p);
+    yield H.dur;
+    yield* g.say(who, HELP_LINES[kind], 3.2);
+    p.override = null;
+    p.rig.prop = prop;
+    yield* g.walkPlayer(home + w.f * 120);
+    w.place(home);
+    w.paused = false;
+  } else {
+    // beside him, a hand on the work
+    yield* g.walkPlayer(w.x + w.f * H.at);
+    p.f = w.x + w.f * 40 >= p.x ? 1 : -1;
+    p.override = { ...POSES.stand, ...H.pose };
+    g.sound.cloth?.();
+    yield H.dur * 0.6;
+    yield* g.say(who, HELP_LINES[kind], 3.2);
+    yield H.dur * 0.4;
+    p.override = null;
+  }
+  g.state.neighbourly = (g.state.neighbourly || 0) + 1;
+  g.lock(false);
+}
+
 function populate(g, list) {
   const out = [];
   for (const [kind, x, o = {}] of list) {
@@ -13476,6 +14787,19 @@ function populate(g, list) {
       w.place(x, -T.lift);
     }
     if (o.look) w.rig.o = { ...w.rig.o, ...o.look };
+    // a hand can be lent, once, when it's calm
+    if (HELP[kind] && o.help !== false) {
+      g.level.add({
+        id: `help_${kind}_${Math.round(x)}`,
+        x: x + (o.f ?? 1) * (HELP[kind].at * 0.5),
+        y: -90,
+        range: 110,
+        label: HELP_LABELS[kind],
+        box: [90, 120],
+        enabled: () => !w.helped && !w.cower && !g.locked && w.visible,
+        use: () => g.runner.run(lendHand(g, w)),
+      });
+    }
     const ph = o.phase ?? Math.random();
     const period = (o.period ?? T.period) * (0.9 + Math.random() * 0.2);
     w.work = { kind, ph, period, prevU: 0, x0: x };
@@ -13494,6 +14818,7 @@ function populate(g, list) {
     } else {
       w.override = (t) => {
         if (w.cower) return { ...POSES.crouch, head: 0.1, armN: 2.4, foreN: 3.6, armF: 2.3, foreF: 3.5 };
+        if (w.paused) return { ...ST, head: 0.15, armN: 0.1, foreN: 0.25 };
         const u = (t / w.work.period + w.work.ph) % 1;
         // the sound of the work at its moments
         for (const [bu, snd] of T.beats || []) {
@@ -13506,7 +14831,7 @@ function populate(g, list) {
     }
     if (T.tool) {
       w.rig.prop = (c, hN) => {
-        if (w.cower) return;
+        if (w.cower || w.paused) return;
         const u = (w.time / w.work.period + w.work.ph) % 1;
         T.tool(c, hN, w.rig.pose || ST, u, w.time, w);
       };
@@ -13515,7 +14840,9 @@ function populate(g, list) {
       const draw = w.draw.bind(w);
       w.draw = (c) => {
         const u = (w.time / w.work.period + w.work.ph) % 1;
-        T.scene(c, w, w.cower ? 0 : u, w.time);
+        // the work stays where it is, even when its worker steps aside
+        const at = T.walk ? w : { x: w.work.x0, f: w.f, span: w.span, loaded: w.loaded };
+        T.scene(c, at, w.cower || w.paused ? 0 : u, w.time);
         draw(c);
       };
     }
@@ -13550,6 +14877,7 @@ const __src_story_act1 = (() => {
 // Scripted from script/act1.md. All dialogue and examine text is the
 // script's own, in Damascene Arabic with its English.
 
+const { addNotes, drawNotes } = __src_story_notes;
 const { lerp, clamp, smooth } = __src_engine_util;
 const { POSES, Person } = __src_rigs_person;
 const { Cat } = __src_rigs_cat;
@@ -13640,6 +14968,7 @@ const ACT1 = {
     if (['walk', 'hour'].includes(s.checkpoint)) this.buildHour(g);
     if (['walk', 'hour', 'school'].includes(s.checkpoint)) this.buildSchool(g);
     this.buildNews(g);
+    addNotes(g, 'act1');
     // the street at its afternoon's work, between the places the story uses
     populate(g, [
       ['water', 380, { f: 1 }],
@@ -14932,6 +16261,7 @@ const ACT1 = {
   // =================================================== per-frame extras ==
 
   update(g, dt) {
+    g.sound.zone?.('act1', g.player.x); // the sound of each stretch of street
     const a = g.a;
     // the people of the memory and the stairwell live outside the street's
     // list, so they're moved (and their poses settle) here
@@ -14979,6 +16309,9 @@ const ACT1 = {
     }
   },
 
+  drawProps(R, g) {
+    drawNotes(R, g, 'act1');
+  },
   draw(R, g) {
     if (g.scene === 'stairwell') drawStairwell(R, g);
     else if (g.scene === 'flashback') drawFlashback(R, g);
@@ -15267,7 +16600,7 @@ function eveLook(g) {
   const k = g.a.duskK || 0;
   const fog = g.effects.fog;
   const sunUv = [-0.42, lerp(-0.08, 0.32, k)];
-  const col = k < 0.5 ? mixc([1.0, 0.7, 0.42], [1.0, 0.52, 0.28], k * 2) : mixc([1.0, 0.52, 0.28], [0.85, 0.42, 0.42], (k - 0.5) * 2);
+  const col = A.sunAt(A.DAY.two(k)).color;
   const lights = [
     { uv: sunUv, color: col, intensity: lerp(1.15, 0.35, k) * (1 - fog * 0.4), radius: 0, rim: lerp(1.1, 0.7, k) },
     { uv: [0.6, -1.2], color: mixc([0.55, 0.6, 0.8], [0.45, 0.42, 0.75], k), intensity: lerp(0.25, 0.42, k), radius: 0, rim: 0.2 },
@@ -15295,7 +16628,8 @@ function eveLook(g) {
   };
 }
 
-const shearFor = (g) => -(2.2 + 1.4 * (g.a.duskK || 0)); // long shadows, thrown east
+const shearFor = (g) => -A.sunAt(A.DAY.two(g.a.duskK || 0)).shear;
+const squashFor = (g) => A.sunAt(A.DAY.two(g.a.duskK || 0)).squash; // long shadows, thrown east
 
 function skyStops(k) {
   const a = [[0, '#56688e'], [0.45, '#b99b86'], [0.75, '#e8b27a']];
@@ -15418,7 +16752,7 @@ function tornCurtain(R, x0, x1, t) {
     A.wire(c, x0, -300, x1, -305, 30, t, x0 * 0.01);
     const rags = [[x0 + 10, 50, 120, '#cfc6b4'], [x0 + 70, 26, 60, '#8e6f5a'], [x1 - 60, 44, 90, '#6d7a82']];
     for (const [rx, w, h, col] of rags) {
-      const sway = Math.sin(t * 1.4 + rx) * 4 + A.wind(t, rx) * 4 + Math.sin(t * 4.3 + rx * 2) * 1.2;
+      const sway = Math.sin(t * 1.4 + rx) * 4 + A.windAt(t, rx, rx) * 4 + Math.sin(t * 4.3 + rx * 2) * 1.2;
       c.fillStyle = col;
       c.beginPath();
       c.moveTo(rx, -298);
@@ -15778,7 +17112,7 @@ function balcony(R, x, t, sheet) {
       c.fillRect(px, SY - 20, 18, 20);
       c.save();
       c.translate(px + 9, SY - 20);
-      c.rotate(A.wind(t, i + 2) * 0.07);
+      c.rotate(A.windAt(t, px, i + 2) * 0.07);
       c.fillStyle = i ? '#4e6a32' : '#6e8a44';
       c.beginPath();
       c.arc(0, -10, 12, 0, Math.PI * 2);
@@ -15795,7 +17129,7 @@ function balcony(R, x, t, sheet) {
       const x0 = x - 52;
       const w = 104;
       const h = 218; // a bedsheet is two metres long: its foot hangs to -100, level with the pickup outline
-      const wv = A.wind(t, 0.6);
+      const wv = A.windAt(t, x, 0.6);
       const off = (v) => Math.sin(t * 2.6 - v * 2.4 + 0.5) * 4.5 * v * v + wv * 7 * v;
       c.fillStyle = '#e6e1d4';
       c.beginPath();
@@ -16193,7 +17527,7 @@ function drawStreet(R, g) {
       const cols = ['#6b3f36', '#4a5260', '#8a7a5a', '#6b3f36'];
       for (let i = 0; i < 4; i++) {
         const bx = X.mouth[0] + i * 125;
-        const sway = Math.sin(t * 1.1 + i) * 4 + A.wind(t, i * 1.3) * 6 + Math.sin(t * 3.1 + i * 2) * 1.4;
+        const sway = Math.sin(t * 1.1 + i) * 4 + A.windAt(t, bx, i * 1.3) * 6 + Math.sin(t * 3.1 + i * 2) * 1.4;
         c.fillStyle = cols[i];
         c.beginPath();
         c.moveTo(bx, -326 + i * 2);
@@ -16218,8 +17552,11 @@ function drawStreet(R, g) {
     });
   }
 
+  if (!a.inside) g.act?.drawProps?.(R, g);
+
   // --- the people ---
   const shear = shearFor(g);
+  const squash = squashFor(g);
   R.paint((c) => {
     for (const w of [...g.npcs, g.player]) {
       if (!w.visible || w.depthK || !near(w.x - 60, w.x + 60)) continue;
@@ -16236,7 +17573,7 @@ function drawStreet(R, g) {
   for (const w of g.npcs) {
     if (!w.visible || !near(w.x - 100, w.x + 100) || w.depthK) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.1);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
   const p = g.player;
   if (p.visible) {
@@ -16244,7 +17581,7 @@ function drawStreet(R, g) {
       R.cast((c) => p.draw(c));
     } else {
       R.cast((c) => p.draw(c));
-      R.shadow((c) => p.draw(c), p.x, p.y, shear, 0.1);
+      R.shadow((c) => p.draw(c), p.x, p.y, shear, squash);
     }
   }
   for (const w of [p, ...g.npcs]) if (w.visible && w.depthK) depthCast(R, (c) => w.draw(c), figureBox(w), w.depthK, { mode: g.settings.get('dof') || 'bokeh', alpha: 1 - smooth(0.85, 1, w.depthK) });
@@ -16265,6 +17602,7 @@ function drawStreet(R, g) {
     });
   }
 
+  if (!a.inside) A.streetDust(R, cx, t, { color: mixc([196, 146, 104], [150, 104, 100], k).map(Math.round), amount: 0.9 - 0.3 * k, seed: 2 });
   g.effects.draw(R);
   g.effects.drawFog(R, [190, 150, 130]);
   T.motes(R, cx, t, 0.8 * (1 - k));
@@ -16396,6 +17734,7 @@ const __src_story_act2r = (() => {
 // Every line comes from act2r-lines.js by key. Prompts, objectives and
 // choice labels here are in Modern Standard Arabic.
 
+const { addNotes, drawNotes } = __src_story_notes;
 const { lerp, clamp } = __src_engine_util;
 const { POSES } = __src_rigs_person;
 const { writeSave } = __src_engine_save;
@@ -16459,6 +17798,7 @@ const ACT2R = {
     const cp = s.checkpoint;
     g.a = { duskK: { lanes: 0.12, front: 0.62 }[cp] || 0, watch2: 1, watch3: 1, smoke: 0, tyreGlow: 1, expose: 0, laneState: null, t2: 0, t3: 0 };
     g.surface = surfaceAt;
+    addNotes(g, 'act2r');
     // the quarter's people keep to the sheltered stretches between the lanes
     populate(g, [
       ['cook', 560, { f: 1 }],
@@ -16916,6 +18256,7 @@ const ACT2R = {
   // =================================================== per-frame extras ==
 
   update(g, dt) {
+    g.sound.zone?.('act2r', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     // a shot cracks: everyone out on the street drops for a while
@@ -16978,6 +18319,9 @@ const ACT2R = {
     }
   },
 
+  drawProps(R, g) {
+    drawNotes(R, g, 'act2r');
+  },
   draw(R, g) {
     drawStreet(R, g);
   },
@@ -19040,6 +20384,7 @@ const __src_story_act3w_set = (() => {
 // black, and lie to the right. World units: ground at y = 0, up is negative.
 
 const { lerp, rng, smooth } = __src_engine_util;
+const A = __src_sets_ambient;
 const T = __src_sets_town;
 const { nightSky, wisp, tumbleBag, drip, gust, swayAng } = __src_story_act3r_set;
 const { extrudePoly, extrudeRect, holeReveal } = __src_sets_depth;
@@ -19084,14 +20429,37 @@ const MOON_LIGHT_UV = [-0.3, -0.45];
 const SHEAR = -0.72;
 const SQUASH = 0.17;
 
+// The moon rises across the walk (about ten minutes), from low over the roofs
+// to its place high and to the upper left; the shadows shorten as it climbs.
+// Progress is kept on the act (g.a), started from the checkpoint it begins at.
+function moonRise(g) {
+  const a = g.a || {};
+  if (a.moonT0 === undefined) {
+    a.moonT0 = g.time;
+    a.moonP0 = { wedding: 0.35, garden: 0.7 }[g.state?.checkpoint] || 0;
+  }
+  const p = Math.min(1, (a.moonP0 || 0) + (g.time - a.moonT0) / 600);
+  const e = smooth(0, 1, p);
+  return {
+    p,
+    uv: [lerp(0.2, MOON_UV[0], e), lerp(0.6, MOON_UV[1], Math.sqrt(e))],
+    lightUv: [lerp(-0.58, MOON_LIGHT_UV[0], e), lerp(-0.14, MOON_LIGHT_UV[1], e)],
+    shear: lerp(-1.2, SHEAR, e),
+    squash: lerp(0.24, SQUASH, e),
+    glow: lerp(0.8, 1, e), // low in the haze it is dimmer and warmer
+  };
+}
+
 // ------------------------------------------------------------ the look --
 
 function walkLook(g) {
   const a = g.a || {};
+  const m = moonRise(g);
+  const veil = A.moonVeil(g.time);
   const lights = [
     // the moon: cold silver-blue, high; the first light also carries the
     // ground shadows
-    { uv: MOON_LIGHT_UV, color: [0.64, 0.74, 1.0], intensity: 0.85, radius: 0, project: 1.07, soft: 0.0025, rim: 1.0 },
+    { uv: m.lightUv, color: [0.64, 0.74, 1.0], intensity: 0.85 * m.glow * (1 - 0.3 * veil), radius: 0, project: 1.07, soft: 0.0025, rim: 1.0 },
   ];
   const torch = g.torchLight?.();
   if (torch) lights.push(torch);
@@ -19102,7 +20470,7 @@ function walkLook(g) {
   // Damascus on the horizon, far right: a faint warm edge on what faces it
   lights.push({ uv: [1.35, 0.55], color: [1, 0.62, 0.34], intensity: 0.09, radius: 0, rim: 0.35 });
   return {
-    ambient: [0.135, 0.15, 0.22],
+    ambient: [0.135, 0.15, 0.22].map((v) => v * (1 - 0.22 * veil) * lerp(0.9, 1, m.glow)),
     lights: lights.slice(0, 4),
     groundShadow: 0.95,
     bloom: 0.8,
@@ -19871,7 +21239,33 @@ function drawWalk(R, g) {
   const near = (x0, x1) => x1 > cx - 1500 && x0 < cx + 1500;
 
   // the sky: the moon high, and Damascus's glow on the far horizon
-  nightSky(R, g, { moonUv: MOON_UV });
+  const m = moonRise(g);
+  nightSky(R, g, { moonUv: m.uv });
+  // now and then a thin cloud crosses the moon and dims it
+  const veil = A.moonVeil(t);
+  if (veil > 0.01) {
+    const spr = A.softPuff([34, 42, 72]);
+    const lit = A.softPuff([120, 136, 176]);
+    const u = A.moonVeilU(t);
+    R.sky((c) => {
+      c.save();
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      const mx = m.uv[0] * R.W;
+      const my = m.uv[1] * R.H;
+      const x = mx + (u - 0.5) * R.W * 0.34;
+      for (let i = 0; i < 4; i++) {
+        const w = R.W * (0.2 + 0.05 * i);
+        const h = R.H * (0.045 + 0.01 * (i % 2));
+        const cx = x - R.W * 0.04 * (i - 1.5);
+        const cy = my + (i - 1.5) * R.H * 0.012;
+        c.globalAlpha = 0.5 * veil;
+        c.drawImage(spr, cx - w / 2, cy - h / 2, w, h);
+        c.globalAlpha = 0.18 * veil;
+        c.drawImage(lit, cx - w / 2, cy - h * 0.8, w, h * 0.7);
+      }
+      c.restore();
+    });
+  }
   R.sky((c) => {
     c.save();
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -19960,11 +21354,11 @@ function drawWalk(R, g) {
   for (const w of [...(g.npcs || []), g.player]) {
     if (!w || !w.visible || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, SHEAR, SQUASH);
+    R.shadow((c) => w.draw(c), w.x, w.y, moonRise(g).shear, moonRise(g).squash);
   }
   if (g.cat && !g.cat.hidden && near(g.cat.x - 50, g.cat.x + 50)) {
     R.cast((c) => g.cat.draw(c));
-    R.shadow((c) => g.cat.draw(c), g.cat.x, g.cat.y, SHEAR, SQUASH);
+    R.shadow((c) => g.cat.draw(c), g.cat.x, g.cat.y, moonRise(g).shear, moonRise(g).squash);
     // its eyes catch the moon
     if (!g.cat.eyesClosed && g.cat.blink < 0.5) {
       const [ex, ey] = g.cat.eye();
@@ -21391,6 +22785,7 @@ const __src_story_act3w = (() => {
 // Lines come from act3w-lines.js by key; prompts and labels here are in
 // Modern Standard Arabic.
 
+const { addNotes, drawNotes } = __src_story_notes;
 const { clamp, lerp, smooth } = __src_engine_util;
 const { POSES } = __src_rigs_person;
 const { Cat } = __src_rigs_cat;
@@ -21450,6 +22845,7 @@ const ACT3W = {
     const p = g.player;
     g.a = { part: 3, beds: [false, false, false, false], nextChirp: 0, nextShot: 18, nextDog: 9, nextCreak: 5, nextNey: 12, doorOpen: 0, doorGlow: 0, wet: 0, canTaken: false };
     g.surface = surfaceAt;
+    addNotes(g, 'act3w');
     // up late: a man smoking on his step, another at a generator that won't start
     populate(g, [
       ['smoke', 1330, { f: -1 }],
@@ -21697,6 +23093,7 @@ const ACT3W = {
   // ============================================== per-frame extras ==
 
   update(g, dt) {
+    g.sound.zone?.('act3w', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;
@@ -21775,6 +23172,7 @@ const ACT3W = {
 
   // The door, the wedding through it, the garden and its can, the water.
   drawProps(R, g) {
+    drawNotes(R, g, 'act3w');
     const a = g.a;
     const t = g.time;
     const cx = R.cam.x;
@@ -33354,6 +34752,7 @@ const { horizon } = __src_sets_horizon;
 const { deepScenery } = __src_engine_dof;
 const { extrudePoly, extrudeRect, holeReveal } = __src_sets_depth;
 const { X5, END } = __src_story_act4_map;
+const A = __src_sets_ambient;
 // ------------------------------------------------------------ small things --
 
 const hexRgb = (h) => [1, 3, 5].map((j) => parseInt(h.slice(j, j + 2), 16));
@@ -34648,6 +36047,12 @@ function drawDawnStreet(R, g, { k = 0, t = g.time } = {}) {
   g.act?.drawProps?.(R, g);
 
   people(R, g, k, near);
+
+  // the night's mist lying along the street: thick before the light, then lifting and thinning
+  {
+    const lift = smooth(0.05, 0.95, k);
+    A.mistBand(R, cx, t, { y: 0, density: 1.15 * (1 - lift) + 0.08, lift, color: mixc([150, 164, 204], [255, 214, 166], smooth(0.2, 0.9, k)).map(Math.round), seed: 3 });
+  }
 
   g.effects?.draw?.(R);
   warmth(R, g, k, cx);
@@ -42237,6 +43642,7 @@ const __src_story_act4 = (() => {
 // act4-lines.js by key; prompts and objectives here are in Modern Standard
 // Arabic.
 
+const { addNotes, drawNotes } = __src_story_notes;
 const { clamp, lerp } = __src_engine_util;
 const { POSES } = __src_rigs_person;
 const { Cat } = __src_rigs_cat;
@@ -42429,6 +43835,10 @@ const ACT4 = {
     // and the street starting its day: a bed dug, washing pegged out, a
     // window boarded, cans filled at the standpipe
     g.workers = [];
+    if (!a.notesAdded) {
+      a.notesAdded = true;
+      addNotes(g, 'act4');
+    }
     populate(g, [
       ['dig', 830, { f: 1 }],
       ['laundry', 1440, { f: -1, outfit: 'woman' }],
@@ -42657,6 +44067,7 @@ const ACT4 = {
 
   // The grave in the vines.
   *burial(g) {
+    g.sound.score?.motif?.('ahmad', { vol: 0.8 });
     const a = g.a;
     const s = g.state;
     const p = g.player;
@@ -42975,6 +44386,8 @@ const ACT4 = {
     };
     g.fade = 1;
     g.sound.life(0);
+    // each ending's own turn of Ahmad's theme, under the last words
+    g.sound.score?.motif?.(`ending${e}`);
     yield 1.5;
     g.text.titleCard(CARDS.final[e], 7);
     yield 7.5;
@@ -42990,6 +44403,7 @@ const ACT4 = {
   // ============================================== per-frame extras ==
 
   update(g, dt) {
+    g.sound.zone?.('act4', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     const input = g.input;
@@ -43103,6 +44517,10 @@ const ACT4 = {
 
   useTool(g, id) {
     if (id === 'lighter') g.sound.click();
+  },
+
+  drawProps(R, g) {
+    drawNotes(R, g, 'act4');
   },
 
   draw(R, g) {
@@ -43518,14 +44936,14 @@ function surfaceAt(x) {
 // perhaps forty-five minutes from setting and everything has gone deep amber.
 const sunUv = (k) => [1.04, lerp(0.02, 0.3, k)];
 // Shadows are thrown to the LEFT (a positive shear), longer as it sinks.
-const shearFor = (k) => 2.1 + 1.5 * clamp(k);
+const shearFor = (k) => A.sunAt(A.DAY.witness(k)).shear;
 const SQUASH = 0.1;
 
 function quarterLook(g, k = 0) {
   k = clamp(k);
   const fog = g.effects?.fog || 0;
   const uv = sunUv(k);
-  const col = mixc([1.0, 0.76, 0.46], [1.0, 0.52, 0.27], k);
+  const col = A.sunAt(A.DAY.witness(k)).color;
   const lights = [
     { uv, color: col, intensity: lerp(1.1, 0.9, k) * (1 - fog * 0.4), radius: 0, rim: lerp(1.0, 1.25, k) },
     { uv: [-0.6, -1.2], color: mixc([0.58, 0.64, 0.86], [0.62, 0.52, 0.66], k), intensity: lerp(0.28, 0.4, k), radius: 0, rim: 0.2 },
@@ -43758,7 +45176,7 @@ function womanDoorway(R, x, t = 0) {
     // a curtain hung in the doorway, drawn to one side
     c.fillStyle = '#5e382e';
     c.beginPath();
-    const cw = A.wind(t, 5) * 3;
+    const cw = A.windAt(t, x0, 5) * 3;
     c.moveTo(x0 + w - 4, -h + 2);
     c.lineTo(x0 + w - 36, -h + 2);
     c.quadraticCurveTo(x0 + w - 28 + cw, -h * 0.5, x0 + w - 40 + cw * 1.6, -9);
@@ -43884,7 +45302,7 @@ function umSaidFlat(R, x, t) {
     cg.addColorStop(0.5, '#693c32');
     cg.addColorStop(1, '#4a2824');
     c.fillStyle = cg;
-    const bw = A.wind(t, 3.3);
+    const bw = A.windAt(t, wx, 3.3);
     c.beginPath();
     c.moveTo(wx + 1, wy + 3);
     c.lineTo(wx + WW - 1, wy + 3);
@@ -43925,7 +45343,7 @@ function umSaidFlat(R, x, t) {
 // half hanging by its rebar; laundry on a line that still holds. Built for a
 // person: the rail 92 high, the door 205, a woman 170 tall stands on the slab.
 function balcony(R, x, y, t) {
-  const sway = (s) => Math.sin(t * 1.25 + s) * 2 + A.wind(t, s) * 1.5;
+  const sway = (s) => Math.sin(t * 1.25 + s) * 2 + A.windAt(t, x, s) * 1.5;
   const RH = 92;
   const SL = x - 112; // the slab's left end
   const SR = x + 52; // and where the good half stops
@@ -43961,7 +45379,7 @@ function balcony(R, x, y, t) {
     c.lineTo(dx + 7, y - 90);
     c.fill();
     // a curtain blown out through the gap, a rust-coloured cloth
-    const w1 = A.wind(t, 1.7);
+    const w1 = A.windAt(t, dx, 1.7);
     c.fillStyle = '#9a6a4c';
     c.beginPath();
     c.moveTo(dx + 62, y - 200);
@@ -44032,7 +45450,7 @@ function balcony(R, x, y, t) {
     c.beginPath();
     for (const dx of [-3, 3, 9]) {
       c.moveTo(SL + 20 + dx, y - 22);
-      c.lineTo(SL + 20 + dx + dx * 0.7 + A.wind(t, dx) * 1.5, y - 48);
+      c.lineTo(SL + 20 + dx + dx * 0.7 + A.windAt(t, SL + 20 + dx, dx) * 1.5, y - 48);
     }
     c.stroke();
   });
@@ -44556,7 +45974,7 @@ function alley(R, g, t, k) {
     for (const [u, w, h, col] of items) {
       const lx = lerp(x0 + 6, x1 - 6, u);
       const ly = lerp(-300, -312, u) + 32 * 4 * u * (1 - u) * 0.7;
-      cloth(c, lx - w / 2, ly, w, h, col, Math.sin(t * 1.3 + u * 9) * 2 + A.wind(t, u * 9) * 3, { sag: 3 });
+      cloth(c, lx - w / 2, ly, w, h, col, Math.sin(t * 1.3 + u * 9) * 2 + A.windAt(t, lx, u * 9) * 3, { sag: 3 });
     }
   });
   // the low sun slants into the alley, a bar of amber down the lit wall
@@ -45530,10 +46948,11 @@ function drawQuarter(R, g, { k = 0, t = 0 } = {}) {
   for (const w of [...(g.npcs || []), g.player]) {
     if (!w || !w.visible || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, SQUASH);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, A.sunAt(A.DAY.witness(k)).squash);
   }
 
   // ---- in front of everyone: smoke and dust in the air, the foreground
+  A.streetDust(R, cx, t, { color: mixc([196, 146, 104], [160, 108, 98], k).map(Math.round), amount: 0.9, seed: 5 });
   g.effects?.draw?.(R);
   g.effects?.drawFog?.(R, [190, 150, 130]);
   T.motes(R, cx, t, 0.9 * (1 - k * 0.4));
@@ -46132,6 +47551,7 @@ const __src_story_act2w = (() => {
 // Lines come from act2w-lines.js by key; prompts and objectives here are in
 // Modern Standard Arabic.
 
+const { addNotes, drawNotes } = __src_story_notes;
 const { POSES } = __src_rigs_person;
 const { writeSave } = __src_engine_save;
 const { lines, tween, fadeTo, actor, clearPeople, moveTo } = __src_story_kit;
@@ -46175,6 +47595,7 @@ const ACT2W = {
     const p = g.player;
     g.a = { part: 'witness', mem: null, k: 0, photos: [] };
     g.surface = (x) => (g.a.mem ? 'tile' : surfaceAt(x));
+    addNotes(g, 'act2w');
     // the quarter in the evening: people at what's left of the day's work
     populate(g, [
       ['knead', 830, { f: 1 }],
@@ -46496,6 +47917,7 @@ const ACT2W = {
   },
 
   update(g, dt) {
+    g.sound.zone?.('act2w', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;
@@ -46535,6 +47957,10 @@ const ACT2W = {
       if (g.state.e_choice === 'camera') shutter(g);
       else line(g, 'scroll');
     } else if (id === 'lighter') g.sound.click();
+  },
+
+  drawProps(R, g) {
+    drawNotes(R, g, 'act2w');
   },
 
   draw(R, g) {
@@ -46713,13 +48139,14 @@ const BLOCKS = [
 const cornerSun = (k) => ({
   // the sun's disc: further down and further right as the hour goes
   sky: [lerp(0.8, 0.9, k), lerp(0.42, 0.7, k)],
-  shear: lerp(0.55, 2.7, k * k * 0.5 + k * 0.5),
+  shear: A.sunAt(A.DAY.grief(k)).shear,
+  squash: A.sunAt(A.DAY.grief(k)).squash,
 });
 
 function cornerLook(g, k = 0) {
   k = clamp(k);
   const sunUv = [lerp(1.3, 1.16, k), lerp(-0.75, 0.02, k)];
-  const sunCol = mixc([1.0, 0.86, 0.62], [1.0, 0.56, 0.3], k);
+  const sunCol = A.sunAt(A.DAY.grief(k)).color;
   const lights = [
     { uv: sunUv, color: sunCol, intensity: lerp(1.35, 1.1, k), radius: 0, project: 1.0, soft: 0.003, rim: 0.55 + 0.35 * k },
     // the cold sky on the shaded side
@@ -47138,8 +48565,7 @@ function deadOliveCut(R, x, k) {
 
 // ground shadows: the low sun throws them to the left, longer as it sinks
 function groundShadows(R, k) {
-  const { shear } = cornerSun(k);
-  const sq = 0.12;
+  const { shear, squash: sq } = cornerSun(k);
   R.shadow((c) => {
     c.fillStyle = 'rgba(0,0,0,0.6)';
     c.fillRect(KERB_X0 + 10, -22, 24, 22);
@@ -47197,7 +48623,7 @@ function cornerLife(R, g, k, t, near) {
       A.wire(c, GAP[0] + 6, -312, GAP[1] - 6, -326, 30, t, 0.6);
       for (const [u, w, h, col] of [[0.2, 38, 66, '#d9d2c2'], [0.42, 26, 44, '#6f7e86'], [0.62, 32, 62, '#a25a46'], [0.8, 40, 70, '#b9ab8e']]) {
         const lx = lerp(GAP[0] + 6, GAP[1] - 6, u);
-        const ly = lerp(-312, -326, u) + 30 * 4 * u * (1 - u) * 0.5 + A.wind(t, 0.6) * 0.8;
+        const ly = lerp(-312, -326, u) + 30 * 4 * u * (1 - u) * 0.5 + A.windAt(t, lx, 0.6) * 0.8;
         A.cloth(c, lx - w / 2, ly, w, h, col, t, u * 9, { amp: 4, sag: 3 });
       }
     });
@@ -47205,7 +48631,7 @@ function cornerLife(R, g, k, t, near) {
   // the scrap of paper on the low wall, a corner lifting under its stone
   const sx = XG.kerb - 112;
   R.paint((c) => {
-    const lift = Math.max(0, Math.sin(t * 1.1 + 1)) * (0.4 + 0.6 * Math.max(0, A.wind(t, 1)));
+    const lift = Math.max(0, Math.sin(t * 1.1 + 1)) * (0.4 + 0.6 * Math.max(0, A.windAt(t, sx, 1)));
     c.save();
     c.translate(sx + 14, -68);
     c.rotate(-lift * 0.7);
@@ -47290,12 +48716,13 @@ function drawCorner(R, g, { k = 0, t = g.time } = {}) {
   g.act?.drawProps?.(R, g);
 
   // --- the people (rigs), their shadows long on the ground ---
-  const { shear } = cornerSun(k);
+  const { shear, squash } = cornerSun(k);
   for (const w of [...(g.npcs || []), g.player]) {
     if (!w || !w.visible || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
+  A.streetDust(R, cx, t, { color: mixc([200, 170, 130], [200, 130, 92], k).map(Math.round), amount: 0.9, seed: 8 });
   g.effects?.draw?.(R);
 
   // the sun in the dust: motes drifting in the beam
@@ -49148,7 +50575,7 @@ function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
           const aw = s.w - 8;
           for (let k = 0; k < 12; k++) {
             const sx0 = x + 4 + (k * aw) / 12;
-            const sw = A.wind(t, k * 0.6 + i) * 2.6 + Math.sin(t * 2.6 + k * 1.7 + i) * 1.2;
+            const sw = A.windAt(t, sx0, k * 0.6 + i) * 2.6 + Math.sin(t * 2.6 + k * 1.7 + i) * 1.2;
             c.fillStyle = k % 2 ? s.awn[1] : s.awn[0];
             c.beginPath();
             c.moveTo(sx0, -160);
@@ -49170,7 +50597,7 @@ function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
         const n = 26;
         for (let k = 0; k < n; k++) {
           const sx0 = CAFE.x - 6 + (k * (CAFE.w + 12)) / n;
-          const sw = A.wind(t, k * 0.5) * 2.4 + Math.sin(t * 2.5 + k * 1.3) * 1.1;
+          const sw = A.windAt(t, sx0, k * 0.5) * 2.4 + Math.sin(t * 2.5 + k * 1.3) * 1.1;
           c.fillStyle = k % 2 ? '#f3e6c8' : '#2e7d4a';
           c.beginPath();
           c.moveTo(sx0, -178);
@@ -50630,6 +52057,7 @@ const ACT2G = {
   },
 
   update(g, dt) {
+    g.sound.zone?.('act2g', g.player.x); // the sound of each stretch of street
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;
