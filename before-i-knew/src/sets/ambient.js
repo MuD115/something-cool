@@ -18,22 +18,35 @@ export function setAmbientLite(v) {
   lite = !!v;
 }
 
+// ---- the wind as a field -------------------------------------------------
+// Gusts are fronts: they travel along x at GUST_SPEED, so a gust passes through
+// the trees, the washing and the dust one after another. gustAt is the front's
+// envelope, 0 … 1 (zero most of the time); windAt adds the carried flutter.
+const GUST_SPEED = 360; // world units per second, towards +x
+export function gustAt(t, x = 0) {
+  const u = t - x / GUST_SPEED;
+  return Math.max(0, Math.sin(u * 0.21 + 1.3)) * Math.max(0, Math.sin(u * 0.53 + 0.4));
+}
+export function windAt(t, x = 0, ph = 0) {
+  const u = t - x / GUST_SPEED;
+  const g = gustAt(t, x);
+  return (0.55 * Math.sin(t * 0.9 + ph + x * 0.002) + 0.3 * Math.sin(t * 1.7 + ph * 2.1) + 1.0 * g * Math.sin(u * 2.6 + ph)) * 0.8;
+}
 export function wind(t, ph = 0) {
-  const g = Math.max(0, Math.sin(t * 0.21 + 1.3)) * Math.max(0, Math.sin(t * 0.53 + 0.4)); // a gust, rarely
-  return (0.55 * Math.sin(t * 0.9 + ph) + 0.3 * Math.sin(t * 1.7 + ph * 2.1) + 0.9 * g * Math.sin(t * 2.6 + ph)) * 0.8;
+  return windAt(t, 0, ph);
 }
 
 // Rotate the canvas about (px, py) by a sway of `amp` radians: trees, vines.
 export function lean(c, px, py, t, ph = 0, amp = 0.02) {
   c.translate(px, py);
-  c.rotate(wind(t, ph) * amp);
+  c.rotate(windAt(t, px, ph) * amp);
   c.translate(-px, -py);
 }
 
 // A hanging cloth (a sheet, a shirt, a curtain, a flag): fixed along its top
 // edge, its foot rippling; the ripple travels down it. (x, y) is the top left.
 export function cloth(c, x, y, w, h, col, t, ph = 0, { amp = 3, sag = 3, folds = 0.1, period = 2.4 } = {}) {
-  const wv = wind(t, ph);
+  const wv = windAt(t, x + w / 2, ph);
   const off = (v) => Math.sin(t * (TAU / period) - v * 2.2 + ph) * amp * v * v + wv * amp * 1.4 * v;
   c.fillStyle = col;
   c.beginPath();
@@ -53,7 +66,7 @@ export function cloth(c, x, y, w, h, col, t, ph = 0, { amp = 3, sag = 3, folds =
 
 // A flag or a pennant on its pole end: base at (x, y), streaming to the right.
 export function flag(c, x, y, w, h, col, t, ph = 0) {
-  const wv = 0.5 + 0.5 * wind(t, ph);
+  const wv = 0.5 + 0.5 * windAt(t, x, ph);
   c.fillStyle = col;
   c.beginPath();
   c.moveTo(x, y);
@@ -74,7 +87,7 @@ export function flag(c, x, y, w, h, col, t, ph = 0) {
 // A rope, wire or cable that bobs very slightly: quadratic from a to b with
 // its sag breathing. Returns nothing; the caller sets the stroke style.
 export function wire(c, ax, ay, bx, by, sag, t, ph = 0, amp = 1.6) {
-  const s = sag + Math.sin(t * 1.3 + ph) * amp + wind(t, ph) * amp;
+  const s = sag + Math.sin(t * 1.3 + ph) * amp + windAt(t, (ax + bx) / 2, ph) * amp;
   c.beginPath();
   c.moveTo(ax, ay);
   c.quadraticCurveTo((ax + bx) / 2, Math.max(ay, by) + s, bx, by);
@@ -86,7 +99,7 @@ export function wire(c, ax, ay, bx, by, sag, t, ph = 0, amp = 1.6) {
 export function smoke(R, x, y, t, { warm = 0, h = 150, w = 16, alpha = 0.3, seed = 0 } = {}) {
   if (lite) return;
   R.paint((c) => {
-    const lean = wind(t, seed) * 22 + 10;
+    const lean = windAt(t, x, seed) * 22 + 10;
     for (let i = 0; i < 14; i++) {
       const u = fract(t / 8 + i / 14 + seed * 0.37); // age 0…1
       const px = x + lean * u * u * 2 + Math.sin(t * 0.8 + i * 1.9 + seed) * 5 * u;
@@ -276,4 +289,175 @@ export function leaves(c, cx, cy, list, cols, t, ph = 0, amp = 0.05) {
     c.fill();
   });
   c.restore();
+}
+
+// ---- the sun's day ---------------------------------------------------------
+// One arc for every daytime act. p: 0 = mid-afternoon, white-gold … 0.52 =
+// amber … 1 = rose, the sun nearly gone. Each act maps its own k onto it with
+// DAY, so shadows, key light colour and the sky agree from one act to the next.
+export const DAY = {
+  one: (k) => 0.52 * clampK(k), // Act One: afternoon -> late afternoon
+  two: (k) => 0.55 + 0.45 * clampK(k), // Act Two, Retrieval: 4:30 -> 7 pm
+  witness: (k) => 0.55 + 0.4 * clampK(k), // 4:35 -> 5:35 pm
+  grief: (k) => 0.08 + 0.72 * (clampK(k) * clampK(k) * 0.5 + clampK(k) * 0.5),
+};
+function clampK(k) {
+  return k < 0 ? 0 : k > 1 ? 1 : k || 0;
+}
+const KEY = [[0, [1.0, 0.96, 0.9]], [0.3, [1.0, 0.82, 0.58]], [0.52, [1.0, 0.7, 0.42]], [0.78, [1.0, 0.52, 0.28]], [1, [0.85, 0.42, 0.42]]];
+let sunP = -1;
+let sunO = null;
+// sunAt(p) -> { p, shear, squash, color (key light rgb 0..1), warmth 0..1,
+// elev 1..0.1 (how high the sun stands), glare [x, y] for the sky disc }.
+// The object is shared and memoised on p: read it, do not keep or change it.
+export function sunAt(p) {
+  p = clampK(p);
+  if (p === sunP) return sunO;
+  let i = 1;
+  while (i < KEY.length - 1 && p > KEY[i][0]) i++;
+  const [p0, a] = KEY[i - 1];
+  const [p1, b] = KEY[i];
+  const f = (p - p0) / (p1 - p0);
+  const e = p * p * (3 - 2 * p);
+  sunP = p;
+  sunO = {
+    p,
+    shear: 0.3 + 3.3 * p, // shadows lengthen
+    squash: 0.12 - 0.03 * p,
+    color: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f],
+    warmth: p,
+    elev: 1 - 0.9 * e,
+    glare: [0.78 + 0.12 * p, 0.16 + 0.46 * e],
+  };
+  return sunO;
+}
+
+// ---- dust in the street ----------------------------------------------------
+let puffSprite = null;
+function puff() {
+  if (puffSprite) return puffSprite;
+  const cv = document.createElement('canvas');
+  cv.width = cv.height = 32;
+  const c = cv.getContext('2d');
+  const g = c.createRadialGradient(16, 16, 0, 16, 16, 16);
+  g.addColorStop(0, 'rgba(255,255,255,0.55)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+  g.addColorStop(1, 'rgba(255,255,255,0)');
+  c.fillStyle = g;
+  c.fillRect(0, 0, 32, 32);
+  puffSprite = cv;
+  return cv;
+}
+const tinted = new Map();
+function puffTint(rgb) {
+  const key = rgb.map((v) => v >> 3).join(',');
+  let s = tinted.get(key);
+  if (s) return s;
+  const src = puff();
+  s = document.createElement('canvas');
+  s.width = s.height = 32;
+  const c = s.getContext('2d');
+  c.drawImage(src, 0, 0);
+  c.globalCompositeOperation = 'source-in';
+  c.fillStyle = `rgb(${rgb.join(',')})`;
+  c.fillRect(0, 0, 32, 32);
+  if (tinted.size > 24) tinted.clear();
+  tinted.set(key, s);
+  return s;
+}
+const hash = (n) => fract(Math.sin(n * 127.1 + 311.7) * 43758.5453);
+
+// Soft dust lifted from the street while a gust passes, and now and then a
+// small dust devil that crosses a stretch of the road and dies away. World-
+// anchored (it stays put when the camera moves); `lite` skips it entirely.
+// color: dust rgb 0..255 (warmer late in the day).
+export function streetDust(R, camX, t, { y = 0, color = [196, 176, 146], amount = 1, seed = 0, devils = true } = {}) {
+  if (lite) return;
+  const N = 14;
+  const SPAN = 1900;
+  const left = camX - SPAN / 2;
+  // is there any gust in view? (cheap early out)
+  let any = 0;
+  for (let i = 0; i < 5; i++) any = Math.max(any, gustAt(t, left + (i / 4) * SPAN));
+  const cyc = Math.floor((t + seed * 13) / 43);
+  const du = (((t + seed * 13) % 43) / 9);
+  const dev = devils && du < 1;
+  if (any < 0.04 && !dev) return;
+  const spr = puffTint(color);
+  R.paint((c) => {
+    c.save();
+    if (any >= 0.04) {
+      for (let i = 0; i < N; i++) {
+        const a = hash(i + seed * 7);
+        const b = hash(i * 3.1 + 9 + seed);
+        const bx = a * SPAN + t * (8 + b * 10);
+        const x0 = left + ((((bx + 0) - left) % SPAN) + SPAN) % SPAN;
+        const gu = gustAt(t, x0);
+        if (gu < 0.03) continue;
+        const gw = Math.sin((t - x0 / GUST_SPEED) * 2.6) * 0.5 + 0.5;
+        const x = x0 + gu * (90 + 120 * b);
+        const py = y - 3 - b * 22 - gu * (14 + 26 * a) * (0.6 + 0.4 * gw);
+        const r = 16 + 26 * b + 22 * gu;
+        c.globalAlpha = Math.min(0.5, gu * amount * (0.28 + 0.3 * a));
+        c.drawImage(spr, x - r, py - r * 0.55, r * 2, r * 1.1);
+      }
+    }
+    if (dev) {
+      // the dust devil: a leaning column of puffs, wide at the top, crossing ~420 units
+      const x0 = camX + (hash(cyc * 1.7 + seed) - 0.5) * 900;
+      const dir = hash(cyc * 2.9 + 3 + seed) > 0.5 ? 1 : -1;
+      const fade = Math.sin(Math.min(1, du) * Math.PI);
+      const cx = x0 + dir * du * 420;
+      for (let i = 0; i < 10; i++) {
+        const h = i / 9;
+        const ang = t * 7 + i * 1.1;
+        const rad = 10 + h * 34;
+        const px = cx + Math.cos(ang) * rad + dir * h * 26;
+        const py = y - 6 - h * h * 150 - h * 20;
+        const r = 12 + h * 26;
+        c.globalAlpha = Math.min(0.5, fade * amount * (0.5 - h * 0.28) * (0.7 + 0.3 * Math.sin(ang)));
+        c.drawImage(spr, px - r, py - r * 0.8, r * 2, r * 1.6);
+      }
+      // dust at its foot
+      c.globalAlpha = fade * 0.4 * amount;
+      c.drawImage(spr, cx - 50, y - 18, 100, 22);
+    }
+    c.restore();
+  });
+}
+
+// A thin cloud crossing the moon: 0 … 1 (1 = fully veiled), every ~70 s, ~9 s long.
+export function moonVeil(t, seed = 0) {
+  const u = ((t + seed * 11 + 38) % 71) / 9;
+  return u > 1 ? 0 : Math.sin(u * Math.PI) ** 1.5;
+}
+// where that cloud is on its way across: 0 … 1 while it is there, otherwise > 1
+export const moonVeilU = (t, seed = 0) => ((t + seed * 11 + 38) % 71) / 9;
+// a soft tinted sprite (a puff of cloud or mist) for sky drawing: draw it stretched
+export const softPuff = (rgb) => puffTint(rgb);
+
+// Low mist lying along the street: a few wide soft banks drifting slowly, world
+// anchored. density 0 … 1; lift 0 … 1 raises the banks and thins them (as the
+// morning lifts it). color: rgb 0..255. Cheap: <= 16 sprite draws, 8 when lite.
+export function mistBand(R, camX, t, { y = 0, density = 1, lift = 0, color = [160, 172, 204], seed = 0, span = 2400 } = {}) {
+  if (density < 0.02) return;
+  const spr = puffTint(color);
+  const n = lite ? 8 : 16;
+  const left = camX - span / 2;
+  R.paint((c) => {
+    c.save();
+    for (let i = 0; i < n; i++) {
+      const a = hash(i * 1.3 + seed * 5);
+      const b = hash(i * 2.7 + 4 + seed);
+      const bx = a * span + t * (4 + b * 7);
+      const x = left + ((((bx - left) % span) + span) % span);
+      const w = 300 + 380 * b;
+      const h = 44 + 70 * a + lift * 90;
+      const py = y - h * 0.3 - lift * (40 + 70 * b) - 4;
+      const breathe = 0.8 + 0.2 * Math.sin(t * 0.25 + i * 1.7);
+      c.globalAlpha = Math.min(0.6, density * (0.2 + 0.2 * b) * breathe * (1 - lift * 0.5));
+      c.drawImage(spr, x - w / 2, py - h / 2, w, h);
+    }
+    c.restore();
+  });
 }

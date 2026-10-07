@@ -86,13 +86,14 @@ const BLOCKS = [
 const cornerSun = (k) => ({
   // the sun's disc: further down and further right as the hour goes
   sky: [lerp(0.8, 0.9, k), lerp(0.42, 0.7, k)],
-  shear: lerp(0.55, 2.7, k * k * 0.5 + k * 0.5),
+  shear: A.sunAt(A.DAY.grief(k)).shear,
+  squash: A.sunAt(A.DAY.grief(k)).squash,
 });
 
 export function cornerLook(g, k = 0) {
   k = clamp(k);
   const sunUv = [lerp(1.3, 1.16, k), lerp(-0.75, 0.02, k)];
-  const sunCol = mixc([1.0, 0.86, 0.62], [1.0, 0.56, 0.3], k);
+  const sunCol = A.sunAt(A.DAY.grief(k)).color;
   const lights = [
     { uv: sunUv, color: sunCol, intensity: lerp(1.35, 1.1, k), radius: 0, project: 1.0, soft: 0.003, rim: 0.55 + 0.35 * k },
     // the cold sky on the shaded side
@@ -511,8 +512,7 @@ function deadOliveCut(R, x, k) {
 
 // ground shadows: the low sun throws them to the left, longer as it sinks
 function groundShadows(R, k) {
-  const { shear } = cornerSun(k);
-  const sq = 0.12;
+  const { shear, squash: sq } = cornerSun(k);
   R.shadow((c) => {
     c.fillStyle = 'rgba(0,0,0,0.6)';
     c.fillRect(KERB_X0 + 10, -22, 24, 22);
@@ -570,7 +570,7 @@ function cornerLife(R, g, k, t, near) {
       A.wire(c, GAP[0] + 6, -312, GAP[1] - 6, -326, 30, t, 0.6);
       for (const [u, w, h, col] of [[0.2, 38, 66, '#d9d2c2'], [0.42, 26, 44, '#6f7e86'], [0.62, 32, 62, '#a25a46'], [0.8, 40, 70, '#b9ab8e']]) {
         const lx = lerp(GAP[0] + 6, GAP[1] - 6, u);
-        const ly = lerp(-312, -326, u) + 30 * 4 * u * (1 - u) * 0.5 + A.wind(t, 0.6) * 0.8;
+        const ly = lerp(-312, -326, u) + 30 * 4 * u * (1 - u) * 0.5 + A.windAt(t, lx, 0.6) * 0.8;
         A.cloth(c, lx - w / 2, ly, w, h, col, t, u * 9, { amp: 4, sag: 3 });
       }
     });
@@ -578,7 +578,7 @@ function cornerLife(R, g, k, t, near) {
   // the scrap of paper on the low wall, a corner lifting under its stone
   const sx = XG.kerb - 112;
   R.paint((c) => {
-    const lift = Math.max(0, Math.sin(t * 1.1 + 1)) * (0.4 + 0.6 * Math.max(0, A.wind(t, 1)));
+    const lift = Math.max(0, Math.sin(t * 1.1 + 1)) * (0.4 + 0.6 * Math.max(0, A.windAt(t, sx, 1)));
     c.save();
     c.translate(sx + 14, -68);
     c.rotate(-lift * 0.7);
@@ -663,12 +663,13 @@ export function drawCorner(R, g, { k = 0, t = g.time } = {}) {
   g.act?.drawProps?.(R, g);
 
   // --- the people (rigs), their shadows long on the ground ---
-  const { shear } = cornerSun(k);
+  const { shear, squash } = cornerSun(k);
   for (const w of [...(g.npcs || []), g.player]) {
     if (!w || !w.visible || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
+  A.streetDust(R, cx, t, { color: mixc([214, 190, 150], [214, 150, 104], k).map(Math.round), amount: 0.9, seed: 8 });
   g.effects?.draw?.(R);
 
   // the sun in the dust: motes drifting in the beam
@@ -2521,7 +2522,7 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
           const aw = s.w - 8;
           for (let k = 0; k < 12; k++) {
             const sx0 = x + 4 + (k * aw) / 12;
-            const sw = A.wind(t, k * 0.6 + i) * 2.6 + Math.sin(t * 2.6 + k * 1.7 + i) * 1.2;
+            const sw = A.windAt(t, sx0, k * 0.6 + i) * 2.6 + Math.sin(t * 2.6 + k * 1.7 + i) * 1.2;
             c.fillStyle = k % 2 ? s.awn[1] : s.awn[0];
             c.beginPath();
             c.moveTo(sx0, -160);
@@ -2543,7 +2544,7 @@ export function drawCampus(R, g, { t = g.time, dissolve = 0 } = {}) {
         const n = 26;
         for (let k = 0; k < n; k++) {
           const sx0 = CAFE.x - 6 + (k * (CAFE.w + 12)) / n;
-          const sw = A.wind(t, k * 0.5) * 2.4 + Math.sin(t * 2.5 + k * 1.3) * 1.1;
+          const sw = A.windAt(t, sx0, k * 0.5) * 2.4 + Math.sin(t * 2.5 + k * 1.3) * 1.1;
           c.fillStyle = k % 2 ? '#f3e6c8' : '#2e7d4a';
           c.beginPath();
           c.moveTo(sx0, -178);

@@ -4,6 +4,10 @@
 //        music (ney and oud) → master, beside the world bus
 // Settings drive master / music / effects volumes.
 
+import { ZONES, ZONE_LEVELS, ZONE_MULS, blendZones } from '../story/zones.js';
+
+const SURFACE_ALIAS = { pavers: 'tile', stairs: 'hollow', stairwell: 'hollow', tunnel: 'tile', rust: 'metal', puddle: 'water', floor: 'wood', crouch: 'grit' };
+
 const LIFE = ['dogFar', 'dogFar', 'childrenFar', 'tinCreak', 'rubbleSettle', 'doorFar', 'motorbikeFar'];
 
 export const BAYATI = {
@@ -240,6 +244,335 @@ export class Sound {
       sag.start();
     }
     this.beds.generator = { g: gen };
+    this.buildZoneBeds();
+  }
+
+  // ------------------------------------------------------- place ambience --
+
+  // Beds that belong to a place rather than the act: a radio through a
+  // window, far children, a chorus of generators, pigeons, wind whistling in
+  // broken glass, a drip. All built once; nothing is created per frame.
+  buildZoneBeds() {
+    const ctx = this.ctx;
+    // the act's own beds get a multiplier stage after their level
+    this.zmul = {};
+    for (const [k, b] of Object.entries(this.beds)) {
+      const zm = ctx.createGain();
+      zm.gain.value = 1;
+      b.g.disconnect();
+      b.g.connect(zm).connect(this.amb);
+      this.zmul[k] = zm;
+    }
+    const pan = (v, dest) => {
+      const p = ctx.createStereoPanner();
+      p.pan.value = v;
+      p.connect(dest);
+      return p;
+    };
+    const level = () => {
+      const g = ctx.createGain();
+      g.gain.value = 0;
+      g.connect(this.amb);
+      return g;
+    };
+    const Z = (this.zb = {});
+
+    // radio: a saw "voice" wandering through a Bayati-ish scale, band-limited
+    // and muffled by a wall, over a hush of station noise
+    {
+      const g = level();
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 2300;
+      const hp = ctx.createBiquadFilter();
+      hp.type = 'highpass';
+      hp.frequency.value = 380;
+      lp.connect(hp).connect(pan(-0.45, g));
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.frequency.value = 330;
+      const bp = ctx.createBiquadFilter();
+      bp.type = 'bandpass';
+      bp.frequency.value = 1250;
+      bp.Q.value = 0.9;
+      const gate = ctx.createGain();
+      gate.gain.value = 0;
+      osc.connect(bp).connect(gate).connect(lp);
+      osc.start();
+      const hiss = ctx.createBiquadFilter();
+      hiss.type = 'bandpass';
+      hiss.frequency.value = 2100;
+      hiss.Q.value = 0.7;
+      const hg = ctx.createGain();
+      hg.gain.value = 0.22;
+      this.noiseSrc().connect(hiss).connect(hg).connect(lp);
+      Z.radio = { g, osc, gate, next: 0, i: 3 };
+    }
+
+    // children: three small voices (formant-filtered saws) that shout and
+    // laugh in short bursts, far off
+    {
+      const g = level();
+      Z.children = { g, voices: [] };
+      for (const [p, f1] of [[-0.6, 1050], [0.5, 1250], [0.05, 900]]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.frequency.value = 700;
+        const f = ctx.createBiquadFilter();
+        f.type = 'bandpass';
+        f.frequency.value = f1;
+        f.Q.value = 4;
+        const f2 = ctx.createBiquadFilter();
+        f2.type = 'lowpass';
+        f2.frequency.value = 3200;
+        const gate = ctx.createGain();
+        gate.gain.value = 0;
+        o.connect(f).connect(f2).connect(gate).connect(pan(p, g));
+        o.start();
+        Z.children.voices.push({ o, gate, busy: 0 });
+      }
+    }
+
+    // generators: a chorus a few hertz apart, beating slowly
+    {
+      const g = level();
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 260;
+      lp.connect(g);
+      for (const [f, p, v] of [[47.6, -0.7, 0.1], [50.3, 0.15, 0.12], [52.9, 0.8, 0.08], [99.2, -0.3, 0.03], [101.4, 0.5, 0.03]]) {
+        const o = ctx.createOscillator();
+        o.type = f < 80 ? 'triangle' : 'sawtooth';
+        o.frequency.value = f;
+        const og = ctx.createGain();
+        og.gain.value = v;
+        o.connect(og).connect(pan(p, lp));
+        // each one sags a little, on its own slow cycle
+        const sag = ctx.createOscillator();
+        sag.frequency.value = 0.05 + Math.random() * 0.12;
+        const sg = ctx.createGain();
+        sg.gain.value = f * 0.012;
+        sag.connect(sg).connect(o.frequency);
+        o.start();
+        sag.start();
+      }
+      Z.generator = { g };
+    }
+
+    // pigeons: soft sine coos with a falling bend
+    {
+      const g = level();
+      const lp = ctx.createBiquadFilter();
+      lp.type = 'lowpass';
+      lp.frequency.value = 900;
+      lp.connect(g);
+      Z.pigeons = { g, voices: [], next: 0 };
+      for (const p of [-0.5, 0.45]) {
+        const o = ctx.createOscillator();
+        o.frequency.value = 380;
+        const h = ctx.createOscillator();
+        h.type = 'triangle';
+        h.frequency.value = 760;
+        const hg = ctx.createGain();
+        hg.gain.value = 0.25;
+        const gate = ctx.createGain();
+        gate.gain.value = 0;
+        o.connect(gate);
+        h.connect(hg).connect(gate);
+        gate.connect(pan(p, lp));
+        o.start();
+        h.start();
+        Z.pigeons.voices.push({ o, h, gate });
+      }
+    }
+
+    // wind in broken glass: three very narrow resonances, each leaning and
+    // fading on its own slow cycle
+    {
+      const g = level();
+      Z.windGlass = { g };
+      for (const [f, q, rate, p] of [[1180, 28, 0.09, -0.4], [1820, 34, 0.063, 0.35], [820, 22, 0.121, 0.0]]) {
+        const bp = ctx.createBiquadFilter();
+        bp.type = 'bandpass';
+        bp.frequency.value = f;
+        bp.Q.value = q;
+        const mod = ctx.createGain();
+        mod.gain.value = 0.55;
+        const lfo = ctx.createOscillator();
+        lfo.frequency.value = rate;
+        const lg = ctx.createGain();
+        lg.gain.value = 0.45;
+        lfo.connect(lg).connect(mod.gain);
+        const lf = ctx.createGain();
+        lf.gain.value = f * 0.05;
+        lfo.connect(lf).connect(bp.frequency);
+        const amp = ctx.createGain();
+        amp.gain.value = 9;
+        this.noiseSrc().connect(bp).connect(amp).connect(mod).connect(pan(p, g));
+        lfo.start();
+      }
+    }
+
+    Z.drip = { g: level() };
+    this.zlvl = {};
+    this.zmix = {};
+    this.zapplied = 0;
+    this.zoneTimer = setInterval(() => this.zoneTick(), 250);
+  }
+
+  // Called by an act every frame: `table` is ZONES.act1 etc. (or its name),
+  // `x` the player's x. Cheap: it blends a dozen numbers and only touches
+  // the audio params at ~8 Hz, and only when something moved.
+  zone(table, x) {
+    if (!this.ctx || !this.zb) return;
+    if (typeof table === 'string') table = ZONES[table];
+    const now = this.t;
+    if (now - this.zapplied < 0.12) return;
+    this.zapplied = now;
+    const m = blendZones(table, x, 200, this.zmix);
+    const tc = 0.7; // ≈2 s to settle
+    const scale = { radio: 0.11, children: 0.25, generator: 0.3, pigeons: 0.25, windGlass: 0.06, drip: 1 };
+    for (const k of ZONE_LEVELS) {
+      const v = m[k];
+      if (Math.abs(v - (this.zlvl[k] ?? -1)) < 0.004) continue;
+      this.zlvl[k] = v;
+      this.zb[k].g.gain.setTargetAtTime(v * scale[k], now, tc);
+    }
+    for (const k of ZONE_MULS) {
+      const v = m[k];
+      if (Math.abs(v - (this.zlvl[k] ?? -1)) < 0.004) continue;
+      this.zlvl[k] = v;
+      this.zmul[k.slice(1).toLowerCase()]?.gain.setTargetAtTime(v, now, tc);
+    }
+  }
+
+  // Schedules the small events inside the zone beds (notes, shouts, coos,
+  // drips). Only runs for beds that are audible.
+  zoneTick() {
+    if (!this.ctx || this.ctx.state !== 'running' || !this.zb) return;
+    const L = this.zlvl;
+    const now = this.t;
+    const ahead = now + 0.35;
+    const r = (a, b) => a + Math.random() * (b - a);
+    const B = BAYATI;
+    const Z = this.zb;
+    // radio: notes of a tune that never resolves
+    if (L.radio > 0.01) {
+      const R = Z.radio;
+      const scale = [B.D4, B.Ed4, B.F4, B.G4, B.A3 * 2, B.Bb3 * 2, B.C4 * 2, B.D4 * 2];
+      if (R.next < now) R.next = now + 0.05;
+      while (R.next < ahead) {
+        const t0 = R.next;
+        R.i = Math.max(0, Math.min(scale.length - 1, R.i + (Math.random() < 0.5 ? -1 : 1) * (Math.random() < 0.25 ? 2 : 1)));
+        const dur = r(0.22, 0.8);
+        if (Math.random() < 0.15) {
+          R.gate.gain.setTargetAtTime(0.0, t0, 0.04); // a breath between phrases
+          R.next += r(0.2, 0.7);
+          continue;
+        }
+        R.osc.frequency.setTargetAtTime(scale[R.i], t0, 0.03);
+        R.gate.gain.setTargetAtTime(0.5, t0, 0.02);
+        R.gate.gain.setTargetAtTime(0.18, t0 + dur * 0.7, 0.05);
+        R.next += dur;
+      }
+    }
+    // children: shouts that start apart
+    if (L.children > 0.01) {
+      for (const v of Z.children.voices) {
+        if (v.busy > now || Math.random() > 0.2 + L.children * 0.4) continue;
+        const dur = r(0.15, 0.5);
+        const f = r(520, 900);
+        v.o.frequency.cancelScheduledValues(now);
+        v.o.frequency.setValueAtTime(f, now);
+        v.o.frequency.linearRampToValueAtTime(f * r(0.8, 1.35), now + dur);
+        v.gate.gain.cancelScheduledValues(now);
+        v.gate.gain.setValueAtTime(0.0001, now);
+        v.gate.gain.linearRampToValueAtTime(r(0.3, 0.6), now + 0.03);
+        v.gate.gain.linearRampToValueAtTime(0.0001, now + dur);
+        v.busy = now + dur + r(0.5, 2.5);
+      }
+    }
+    // pigeons: "ru-kuu-kooo"
+    if (L.pigeons > 0.01 && Z.pigeons.next < now && Math.random() < 0.3 + L.pigeons * 0.3) {
+      const v = Z.pigeons.voices[Math.random() < 0.5 ? 0 : 1];
+      const base = r(330, 440);
+      let t0 = now + 0.02;
+      for (const [d, k, a] of [[0.1, 1, 0.5], [0.1, 1.08, 0.6], [0.4, 0.92, 0.8]]) {
+        v.o.frequency.setValueAtTime(base * k, t0);
+        v.o.frequency.linearRampToValueAtTime(base * k * 0.88, t0 + d);
+        v.h.frequency.setValueAtTime(base * k * 2, t0);
+        v.h.frequency.linearRampToValueAtTime(base * k * 1.76, t0 + d);
+        v.gate.gain.setValueAtTime(0.0001, t0);
+        v.gate.gain.linearRampToValueAtTime(a, t0 + d * 0.3);
+        v.gate.gain.linearRampToValueAtTime(0.0001, t0 + d);
+        t0 += d + 0.04;
+      }
+      Z.pigeons.next = t0 + r(1.5, 5);
+    }
+    // drips
+    if (L.drip > 0.01 && Math.random() < 0.08 + L.drip * 0.45) this.drip(L.drip);
+  }
+
+  // One drop of water falling into a puddle somewhere in the dark.
+  drip(level = 0.4, pan = (Math.random() * 2 - 1) * 0.7) {
+    if (!this.ctx) return;
+    const f = 900 + Math.random() * 900;
+    const v = 0.04 + level * 0.07;
+    const w = this.t + 0.01;
+    this.tone(f, 0.07, { when: w, vol: v, to: f * 1.5, dest: this.fx, pan });
+    this.tone(f * 0.5, 0.05, { when: w, vol: v * 0.3, dest: this.fx, pan });
+    this.tone(f * 1.02, 0.07, { when: w + 0.19, vol: v * 0.3, to: f * 1.5, dest: this.fx, pan });
+  }
+
+  // Murmured, never intelligible: a few syllables of a low voice, as workers
+  // chat at a distance. x is the speaker's world x (panned by it). Returns
+  // the duration.
+  murmur(x, { vol = 0.18, pitch = 115 + Math.random() * 40, syllables = 3 + Math.floor(Math.random() * 4) } = {}) {
+    if (!this.ctx) return 0;
+    const ctx = this.ctx;
+    const pan = x == null ? 0 : this.panFor(x);
+    const out = ctx.createGain();
+    out.gain.value = vol;
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = 2600;
+    out.connect(lp).connect(this.out(this.fx, pan));
+    // vowels as [F1, F2]
+    const V = [[700, 1100], [500, 1500], [330, 2200], [450, 800], [600, 1700]];
+    const src = ctx.createOscillator();
+    src.type = 'sawtooth';
+    const f1 = ctx.createBiquadFilter();
+    const f2 = ctx.createBiquadFilter();
+    f1.type = f2.type = 'bandpass';
+    f1.Q.value = 6;
+    f2.Q.value = 8;
+    const g1 = ctx.createGain();
+    const g2 = ctx.createGain();
+    g2.gain.value = 0.5;
+    const gate = ctx.createGain();
+    gate.gain.value = 0;
+    src.connect(f1).connect(g1).connect(gate);
+    src.connect(f2).connect(g2).connect(gate);
+    gate.connect(out);
+    let t = this.t + 0.05;
+    const start = t;
+    let p = pitch;
+    for (let i = 0; i < syllables; i++) {
+      const [a, b] = V[Math.floor(Math.random() * V.length)];
+      const d = 0.09 + Math.random() * 0.1;
+      f1.frequency.setValueAtTime(a, t);
+      f2.frequency.setValueAtTime(b, t);
+      p *= 0.93 + Math.random() * 0.16;
+      src.frequency.setValueAtTime(p, t);
+      src.frequency.linearRampToValueAtTime(p * 0.95, t + d);
+      gate.gain.setValueAtTime(0.0001, t);
+      gate.gain.linearRampToValueAtTime(0.8 - i * 0.04, t + 0.025);
+      gate.gain.linearRampToValueAtTime(0.0001, t + d);
+      t += d + 0.03 + (Math.random() < 0.25 ? 0.15 : 0);
+    }
+    src.start(start);
+    src.stop(t + 0.05);
+    return t - start;
   }
 
   // Distant life: now and then, something far off in the town. level 0…1
@@ -387,31 +720,88 @@ export class Sound {
     o.stop(when + dur + 0.05);
   }
 
-  // A footstep in two parts: the heel's thud and the toe's scuff a moment
-  // later, coloured by what's underfoot. Crouched steps are soft, rolled
-  // and close, with a whisper of cloth.
+  // Footsteps. Each is a heel, then the toe a few milliseconds later, both
+  // coloured by what's underfoot, with a little random variation so no two
+  // are alike. Crouching is softer, slower and rolled. Known surfaces: grit,
+  // tile, rubble, glass, wood, water, metal, hollow; anything else is grit.
   step(surface = 'grit', vol = 0.18, { pan, crouch = false } = {}) {
     if (!this.ctx) return;
-    const v = vol * (0.75 + Math.random() * 0.45);
+    surface = SURFACE_ALIAS[surface] || surface;
+    const r = (a, b) => a + Math.random() * (b - a);
+    const v = vol * r(0.75, 1.2);
     const w = this.t;
     const o = { pan };
-    if (surface === 'wood' || surface === 'hollow') {
-      this.tone(150 + Math.random() * 20, 0.08, { when: w, vol: v * 0.9, to: 80, ...o });
-      this.noise({ when: w + 0.05, dur: 0.05, freq: 1800, q: 1, vol: v * 0.35, ...o });
-      return;
-    }
     const soft = crouch ? 0.55 : 1;
-    // heel: low thump through the sole
-    this.tone(95 + Math.random() * 25, 0.07, { when: w, vol: v * 0.55 * soft, to: 55, ...o });
-    this.noise({ when: w, dur: 0.05, freq: 900, q: 0.8, vol: v * 0.5 * soft, ...o });
-    // toe: the grit crunch
-    const crunch = surface === 'rubble' ? 1500 : 2800;
-    this.noise({ when: w + (crouch ? 0.09 : 0.055), dur: crouch ? 0.11 : 0.07, freq: crunch + Math.random() * 500, q: 0.9, vol: v * 0.8 * soft, ...o });
-    if (surface === 'rubble' && Math.random() < 0.5) {
-      // a loose stone knocked
-      this.noise({ when: w + 0.08 + Math.random() * 0.06, dur: 0.04, freq: 2600 + Math.random() * 1500, q: 4, vol: v * 0.45, ...o });
+    const gap = crouch ? r(0.075, 0.1) : r(0.04, 0.07); // heel to toe
+    const h = (f, dur, k, to) => this.tone(f * r(0.93, 1.08), dur, { when: w, vol: v * k * soft, to, ...o });
+    const n = (when, dur, freq, q, k, extra = {}) =>
+      this.noise({ when, dur, freq: freq * r(0.88, 1.15), q, vol: v * k * soft, ...extra, ...o });
+    switch (surface) {
+      case 'tile': // hard and bright: a tap and a click, a hint of room
+        h(210, 0.05, 0.4, 120);
+        n(w, 0.03, 2400, 1.4, 0.45);
+        n(w + gap, 0.025, 4200, 1.2, 0.5);
+        n(w + gap + 0.012, 0.05, 1500, 3, 0.12);
+        break;
+      case 'rubble': // loose, heavy, stones knocking
+        h(90, 0.08, 0.6, 50);
+        n(w, 0.06, 800, 0.7, 0.5);
+        n(w + gap, 0.1, 1400, 0.6, 0.8);
+        for (let i = 0, m = 1 + Math.floor(Math.random() * 3); i < m; i++)
+          n(w + gap + r(0.01, 0.14), 0.03, r(2000, 4200), 4, 0.4);
+        if (Math.random() < 0.3) h(55, 0.12, 0.3, 40); // a slab shifts
+        break;
+      case 'glass': // fine crunch: a scatter of tiny high ticks
+        h(100, 0.06, 0.3, 60);
+        n(w, 0.04, 1000, 0.8, 0.3);
+        for (let i = 0, m = 4 + Math.floor(Math.random() * 4); i < m; i++)
+          n(w + gap * r(0.2, 1.8) + i * 0.012, r(0.01, 0.03), r(4500, 8500), 6, r(0.2, 0.45));
+        break;
+      case 'wood': // a knock and the boards' body; sometimes a creak
+        h(145, 0.09, 0.8, 78);
+        n(w, 0.1, 380, 4, 0.35);
+        n(w + gap, 0.05, 1800, 1, 0.3);
+        if (Math.random() < 0.1) n(w + gap, 0.25, r(500, 700), 14, 0.2, { sweep: r(800, 1100), attack: 0.08 });
+        break;
+      case 'water': // a splash, a slosh and a drip
+        n(w, 0.18, 700, 0.8, 0.55, { sweep: 1800, attack: 0.03 });
+        n(w + gap, 0.12, 2400, 0.6, 0.3);
+        n(w, 0.25, 260, 1.5, 0.35, { attack: 0.02 });
+        this.tone(r(900, 1400), 0.07, { when: w + gap + r(0.05, 0.18), vol: v * 0.2 * soft, to: r(1600, 2200), ...o });
+        break;
+      case 'metal': // a clank with a short ring
+        h(230, 0.06, 0.5, 140);
+        n(w, 0.03, 3000, 1.5, 0.4);
+        n(w + gap, 0.03, 4800, 2, 0.3);
+        this.tone(r(520, 640), 0.22, { when: w, vol: v * 0.2 * soft, ...o });
+        this.tone(r(1250, 1500), 0.14, { when: w, vol: v * 0.1 * soft, ...o });
+        break;
+      case 'hollow': // a boom under the floor
+        h(120, 0.12, 0.9, 60);
+        n(w, 0.14, 260, 6, 0.4);
+        n(w + gap, 0.05, 900, 1, 0.3);
+        break;
+      default: // grit: thump, then the crunch
+        h(95, 0.07, 0.55, 55);
+        n(w, 0.05, 900, 0.8, 0.5);
+        n(w + gap, crouch ? 0.11 : 0.07, 2800, 0.9, 0.8);
+        if (Math.random() < 0.35) n(w + gap + r(0.02, 0.07), 0.015, r(4000, 6000), 3, 0.3);
     }
     if (crouch) this.noise({ when: w + 0.02, dur: 0.22, freq: 2200, q: 0.5, vol: v * 0.12, attack: 0.06, ...o });
+  }
+
+  // The drag of a foot coming to a stop: a short scuff, then a settle.
+  scuff(surface = 'grit', vol = 0.1, { pan } = {}) {
+    if (!this.ctx) return;
+    surface = SURFACE_ALIAS[surface] || surface;
+    const w = this.t;
+    const o = { pan };
+    const [f, q, dur] = {
+      grit: [3000, 0.8, 0.14], rubble: [1700, 0.6, 0.17], tile: [4000, 1.2, 0.09], glass: [6500, 3, 0.12],
+      wood: [1500, 1, 0.1], water: [900, 0.7, 0.2], metal: [3400, 1.5, 0.1], hollow: [800, 1, 0.1],
+    }[surface] || [3000, 0.8, 0.14];
+    this.noise({ when: w, dur, freq: f, q, vol: vol * 0.7, attack: 0.04, sweep: f * 0.6, ...o });
+    this.tone(surface === 'wood' || surface === 'hollow' ? 130 : 90, 0.05, { when: w + dur * 0.8, vol: vol * 0.35, to: 60, ...o });
   }
 
   // A cat's purr: a low rumble pulsing about 25 times a second, swelling on
@@ -689,6 +1079,48 @@ export class Sound {
       n.stop(w + dur);
     }
     b.stop(w + dur);
+  }
+
+  // A phrase note on the ney: a quick breathy attack, a late vibrato and a
+  // soft release, so a tune can be played in time (unlike ney(), which swells).
+  neyNote(freq, dur, vol = 0.1, { when = this.t, dest = this.music, bright = 1 } = {}) {
+    if (!this.ctx) return;
+    const ctx = this.ctx;
+    const w = when;
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, w);
+    g.gain.linearRampToValueAtTime(vol, w + 0.09);
+    g.gain.setValueAtTime(vol * 0.85, w + Math.max(0.1, dur - 0.25));
+    g.gain.exponentialRampToValueAtTime(0.0001, w + dur + 0.25);
+    g.connect(dest);
+    const o = ctx.createOscillator();
+    o.frequency.value = freq;
+    const vib = ctx.createOscillator();
+    vib.frequency.value = 4.8;
+    const vg = ctx.createGain();
+    vg.gain.setValueAtTime(0, w);
+    vg.gain.linearRampToValueAtTime(freq * 0.006, w + dur * 0.8);
+    vib.connect(vg).connect(o.frequency);
+    const h = ctx.createOscillator();
+    h.frequency.value = freq * 2;
+    const hg = ctx.createGain();
+    hg.gain.value = 0.16 * bright;
+    h.connect(hg).connect(g);
+    o.connect(g);
+    const b = this.noiseSrc();
+    const bf = ctx.createBiquadFilter();
+    bf.type = 'bandpass';
+    bf.frequency.value = freq * 2.2;
+    bf.Q.value = 3;
+    const bg = ctx.createGain();
+    bg.gain.setValueAtTime(0.5, w);
+    bg.gain.linearRampToValueAtTime(0.28, w + 0.25);
+    b.connect(bf).connect(bg).connect(g);
+    for (const n of [o, vib, h]) {
+      n.start(w);
+      n.stop(w + dur + 0.3);
+    }
+    b.stop(w + dur + 0.3); // (already running; the envelope keeps it quiet until w)
   }
 
   // Karplus–Strong oud pluck, cached per pitch.

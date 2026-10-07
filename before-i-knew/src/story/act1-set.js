@@ -81,7 +81,8 @@ export function sunLook(g) {
   const k = g.a.sunK;
   const drain = g.a.drain || 0;
   const fog = g.effects.fog;
-  const col = mixc([1.0, 0.96, 0.9], [1.0, 0.7, 0.42], k);
+  const sun = A.sunAt(A.DAY.one(k));
+  const col = sun.color;
   const sunUv = [-0.28 - 0.1 * k, -0.95 + 0.85 * k];
   const lights = [
     { uv: sunUv, color: col, intensity: (1.25 - 0.2 * k) * (1 - fog * 0.45), radius: 0, rim: 0.55 + 0.6 * k },
@@ -108,7 +109,8 @@ export function sunLook(g) {
   };
 }
 
-export const shearFor = (g) => 0.3 + 1.7 * g.a.sunK;
+export const shearFor = (g) => A.sunAt(A.DAY.one(g.a.sunK)).shear;
+const squashFor = (g) => A.sunAt(A.DAY.one(g.a.sunK)).squash;
 
 // ---------------------------------------------------------------- sky ----
 
@@ -226,7 +228,7 @@ function shopFront(R, x, t, { w = 220, sign = 'دكّان أبو ريّان', op
     const n = 11;
     for (let i = 0; i < n; i++) {
       const fx = x - 4 + (i * (w + 8)) / n;
-      const sw = A.wind(t, i * 0.7) * 3 + Math.sin(t * 2.4 + i * 1.9) * 1.5;
+      const sw = A.windAt(t, fx, i * 0.7) * 3 + Math.sin(t * 2.4 + i * 1.9) * 1.5;
       c.fillStyle = i % 2 ? '#c9bfa6' : '#8a3a30';
       c.beginPath();
       c.moveTo(fx, -H - 12);
@@ -245,7 +247,7 @@ function deadOlive(R, x, t) {
   R.cast((c) => {
     c.strokeStyle = '#6a625a';
     c.lineCap = 'round';
-    const w0 = A.wind(t, x * 0.01);
+    const w0 = A.windAt(t, x, x * 0.01);
     const branch = (bx, by, ang, len, w, d) => {
       const a2 = ang + (d > 1 ? w0 * 0.035 * (d - 1) + Math.sin(t * 1.9 + d * 1.3 + bx * 0.05) * 0.008 * d : 0);
       const ex = bx + Math.cos(a2) * len;
@@ -294,7 +296,7 @@ function streetLife(R, g, t, near) {
       const items = [[0.18, 40, 70, '#d9d2c2'], [0.36, 28, 46, '#6f7e86'], [0.52, 30, 64, '#a25a46'], [0.7, 44, 74, '#b9ab8e']];
       for (const [u, w, h, col] of items) {
         const lx = 2896 + 420 * u;
-        const ly = -318 - 14 * u + 34 * 4 * u * (1 - u) * 0.5 + A.wind(t, 1.1) * 0.8;
+        const ly = -318 - 14 * u + 34 * 4 * u * (1 - u) * 0.5 + A.windAt(t, lx, 1.1) * 0.8;
         A.cloth(c, lx - w / 2, ly, w, h, col, t, u * 9, { amp: 4, sag: 3 });
       }
     });
@@ -354,7 +356,10 @@ export function drawStreet(R, g) {
   const near = (x0, x1) => x1 > cx - 1400 && x0 < cx + 1400;
   const dof = g.settings.get('dof') || 'bokeh';
 
-  T.sky(R, skyStops(a.sunK), { warmth: clamp(a.sunK || 0) });
+  {
+    const sk = clamp(a.sunK || 0);
+    T.sky(R, skyStops(a.sunK), { sun: [lerp(0.78, 0.86, sk), lerp(0.16, 0.42, sk * sk * (3 - 2 * sk))], warmth: sk });
+  }
   const stops = skyStops(a.sunK);
   horizon(R, {
     haze: rgbOf(stops[stops.length - 1][1]),
@@ -629,6 +634,7 @@ export function drawStreet(R, g) {
 
   // --- the people ---
   const shear = shearFor(g);
+  const squash = squashFor(g);
   // contact shadows: everyone stands on the ground, not above it
   R.paint((c) => {
     for (const w of [...g.npcs, ...(g.passers || []), g.player]) {
@@ -658,12 +664,12 @@ export function drawStreet(R, g) {
     if (!w.visible || !near(w.x - 100, w.x + 100)) continue;
     if (w.depthK) continue; // walking away down a side street: drawn below
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
   for (const w of g.passers || []) {
     if (w.depth > 0 || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.12);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
   if (g.cat && !g.cat.hidden && near(g.cat.x - 50, g.cat.x + 50)) {
     R.cast((c) => g.cat.draw(c));
@@ -683,7 +689,7 @@ export function drawStreet(R, g) {
   if (p.visible && a.samiDepth) depthCast(R, (c) => p.draw(c), figureBox(p), a.samiDepth, { mode: dof, alpha: 1 - smooth(0.85, 1, a.samiDepth) });
   else if (p.visible) {
     R.cast((c) => p.draw(c));
-    R.shadow((c) => p.draw(c), p.x, p.y, shear, 0.12);
+    R.shadow((c) => p.draw(c), p.x, p.y, shear, squash);
   }
   // the wall around the spotter's window, over him: only his upper body shows
   if (near(X.spotter - 300, X.spotter + 300)) {
@@ -752,6 +758,8 @@ export function drawStreet(R, g) {
   });
   R.layer(1);
 
+  // gusts lift dust from the street; now and then a small dust devil
+  A.streetDust(R, cx, t, { color: mixc([214, 196, 164], [214, 160, 112], clamp(a.sunK || 0)).map(Math.round), amount: 1 - g.effects.fog * 0.5 });
   g.effects.draw(R);
   // the jet's shadow: a swept-wing shape, smeared by its speed, across the
   // street and up the walls in half a second

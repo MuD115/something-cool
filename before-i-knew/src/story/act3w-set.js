@@ -12,6 +12,7 @@
 // black, and lie to the right. World units: ground at y = 0, up is negative.
 
 import { lerp, rng, smooth } from '../engine/util.js';
+import * as A from '../sets/ambient.js';
 import * as T from '../sets/town.js';
 import { nightSky, wisp, tumbleBag, drip, gust, swayAng } from './act3r-set.js';
 import { extrudePoly, extrudeRect, holeReveal } from '../sets/depth.js';
@@ -57,14 +58,37 @@ const MOON_LIGHT_UV = [-0.3, -0.45];
 const SHEAR = -0.72;
 const SQUASH = 0.17;
 
+// The moon rises across the walk (about ten minutes), from low over the roofs
+// to its place high and to the upper left; the shadows shorten as it climbs.
+// Progress is kept on the act (g.a), started from the checkpoint it begins at.
+function moonRise(g) {
+  const a = g.a || {};
+  if (a.moonT0 === undefined) {
+    a.moonT0 = g.time;
+    a.moonP0 = { wedding: 0.35, garden: 0.7 }[g.state?.checkpoint] || 0;
+  }
+  const p = Math.min(1, (a.moonP0 || 0) + (g.time - a.moonT0) / 600);
+  const e = smooth(0, 1, p);
+  return {
+    p,
+    uv: [lerp(0.2, MOON_UV[0], e), lerp(0.6, MOON_UV[1], Math.sqrt(e))],
+    lightUv: [lerp(-0.58, MOON_LIGHT_UV[0], e), lerp(-0.14, MOON_LIGHT_UV[1], e)],
+    shear: lerp(-1.2, SHEAR, e),
+    squash: lerp(0.24, SQUASH, e),
+    glow: lerp(0.8, 1, e), // low in the haze it is dimmer and warmer
+  };
+}
+
 // ------------------------------------------------------------ the look --
 
 export function walkLook(g) {
   const a = g.a || {};
+  const m = moonRise(g);
+  const veil = A.moonVeil(g.time);
   const lights = [
     // the moon: cold silver-blue, high; the first light also carries the
     // ground shadows
-    { uv: MOON_LIGHT_UV, color: [0.64, 0.74, 1.0], intensity: 0.85, radius: 0, project: 1.07, soft: 0.0025, rim: 1.0 },
+    { uv: m.lightUv, color: [0.64, 0.74, 1.0], intensity: 0.85 * m.glow * (1 - 0.3 * veil), radius: 0, project: 1.07, soft: 0.0025, rim: 1.0 },
   ];
   const torch = g.torchLight?.();
   if (torch) lights.push(torch);
@@ -75,7 +99,7 @@ export function walkLook(g) {
   // Damascus on the horizon, far right: a faint warm edge on what faces it
   lights.push({ uv: [1.35, 0.55], color: [1, 0.62, 0.34], intensity: 0.09, radius: 0, rim: 0.35 });
   return {
-    ambient: [0.135, 0.15, 0.22],
+    ambient: [0.135, 0.15, 0.22].map((v) => v * (1 - 0.22 * veil) * lerp(0.9, 1, m.glow)),
     lights: lights.slice(0, 4),
     groundShadow: 0.95,
     bloom: 0.8,
@@ -844,7 +868,33 @@ export function drawWalk(R, g) {
   const near = (x0, x1) => x1 > cx - 1500 && x0 < cx + 1500;
 
   // the sky: the moon high, and Damascus's glow on the far horizon
-  nightSky(R, g, { moonUv: MOON_UV });
+  const m = moonRise(g);
+  nightSky(R, g, { moonUv: m.uv });
+  // now and then a thin cloud crosses the moon and dims it
+  const veil = A.moonVeil(t);
+  if (veil > 0.01) {
+    const spr = A.softPuff([34, 42, 72]);
+    const lit = A.softPuff([120, 136, 176]);
+    const u = A.moonVeilU(t);
+    R.sky((c) => {
+      c.save();
+      c.setTransform(1, 0, 0, 1, 0, 0);
+      const mx = m.uv[0] * R.W;
+      const my = m.uv[1] * R.H;
+      const x = mx + (u - 0.5) * R.W * 0.34;
+      for (let i = 0; i < 4; i++) {
+        const w = R.W * (0.2 + 0.05 * i);
+        const h = R.H * (0.045 + 0.01 * (i % 2));
+        const cx = x - R.W * 0.04 * (i - 1.5);
+        const cy = my + (i - 1.5) * R.H * 0.012;
+        c.globalAlpha = 0.5 * veil;
+        c.drawImage(spr, cx - w / 2, cy - h / 2, w, h);
+        c.globalAlpha = 0.18 * veil;
+        c.drawImage(lit, cx - w / 2, cy - h * 0.8, w, h * 0.7);
+      }
+      c.restore();
+    });
+  }
   R.sky((c) => {
     c.save();
     c.setTransform(1, 0, 0, 1, 0, 0);
@@ -933,11 +983,11 @@ export function drawWalk(R, g) {
   for (const w of [...(g.npcs || []), g.player]) {
     if (!w || !w.visible || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, SHEAR, SQUASH);
+    R.shadow((c) => w.draw(c), w.x, w.y, moonRise(g).shear, moonRise(g).squash);
   }
   if (g.cat && !g.cat.hidden && near(g.cat.x - 50, g.cat.x + 50)) {
     R.cast((c) => g.cat.draw(c));
-    R.shadow((c) => g.cat.draw(c), g.cat.x, g.cat.y, SHEAR, SQUASH);
+    R.shadow((c) => g.cat.draw(c), g.cat.x, g.cat.y, moonRise(g).shear, moonRise(g).squash);
     // its eyes catch the moon
     if (!g.cat.eyesClosed && g.cat.blink < 0.5) {
       const [ex, ey] = g.cat.eye();

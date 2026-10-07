@@ -81,14 +81,14 @@ export function surfaceAt(x) {
 // perhaps forty-five minutes from setting and everything has gone deep amber.
 const sunUv = (k) => [1.04, lerp(0.02, 0.3, k)];
 // Shadows are thrown to the LEFT (a positive shear), longer as it sinks.
-export const shearFor = (k) => 2.1 + 1.5 * clamp(k);
+export const shearFor = (k) => A.sunAt(A.DAY.witness(k)).shear;
 const SQUASH = 0.1;
 
 export function quarterLook(g, k = 0) {
   k = clamp(k);
   const fog = g.effects?.fog || 0;
   const uv = sunUv(k);
-  const col = mixc([1.0, 0.76, 0.46], [1.0, 0.52, 0.27], k);
+  const col = A.sunAt(A.DAY.witness(k)).color;
   const lights = [
     { uv, color: col, intensity: lerp(1.1, 0.9, k) * (1 - fog * 0.4), radius: 0, rim: lerp(1.0, 1.25, k) },
     { uv: [-0.6, -1.2], color: mixc([0.58, 0.64, 0.86], [0.62, 0.52, 0.66], k), intensity: lerp(0.28, 0.4, k), radius: 0, rim: 0.2 },
@@ -321,7 +321,7 @@ function womanDoorway(R, x, t = 0) {
     // a curtain hung in the doorway, drawn to one side
     c.fillStyle = '#5e382e';
     c.beginPath();
-    const cw = A.wind(t, 5) * 3;
+    const cw = A.windAt(t, x0, 5) * 3;
     c.moveTo(x0 + w - 4, -h + 2);
     c.lineTo(x0 + w - 36, -h + 2);
     c.quadraticCurveTo(x0 + w - 28 + cw, -h * 0.5, x0 + w - 40 + cw * 1.6, -9);
@@ -447,7 +447,7 @@ function umSaidFlat(R, x, t) {
     cg.addColorStop(0.5, '#693c32');
     cg.addColorStop(1, '#4a2824');
     c.fillStyle = cg;
-    const bw = A.wind(t, 3.3);
+    const bw = A.windAt(t, wx, 3.3);
     c.beginPath();
     c.moveTo(wx + 1, wy + 3);
     c.lineTo(wx + WW - 1, wy + 3);
@@ -488,7 +488,7 @@ function umSaidFlat(R, x, t) {
 // half hanging by its rebar; laundry on a line that still holds. Built for a
 // person: the rail 92 high, the door 205, a woman 170 tall stands on the slab.
 function balcony(R, x, y, t) {
-  const sway = (s) => Math.sin(t * 1.25 + s) * 2 + A.wind(t, s) * 1.5;
+  const sway = (s) => Math.sin(t * 1.25 + s) * 2 + A.windAt(t, x, s) * 1.5;
   const RH = 92;
   const SL = x - 112; // the slab's left end
   const SR = x + 52; // and where the good half stops
@@ -524,7 +524,7 @@ function balcony(R, x, y, t) {
     c.lineTo(dx + 7, y - 90);
     c.fill();
     // a curtain blown out through the gap, a rust-coloured cloth
-    const w1 = A.wind(t, 1.7);
+    const w1 = A.windAt(t, dx, 1.7);
     c.fillStyle = '#9a6a4c';
     c.beginPath();
     c.moveTo(dx + 62, y - 200);
@@ -595,7 +595,7 @@ function balcony(R, x, y, t) {
     c.beginPath();
     for (const dx of [-3, 3, 9]) {
       c.moveTo(SL + 20 + dx, y - 22);
-      c.lineTo(SL + 20 + dx + dx * 0.7 + A.wind(t, dx) * 1.5, y - 48);
+      c.lineTo(SL + 20 + dx + dx * 0.7 + A.windAt(t, SL + 20 + dx, dx) * 1.5, y - 48);
     }
     c.stroke();
   });
@@ -1119,7 +1119,7 @@ function alley(R, g, t, k) {
     for (const [u, w, h, col] of items) {
       const lx = lerp(x0 + 6, x1 - 6, u);
       const ly = lerp(-300, -312, u) + 32 * 4 * u * (1 - u) * 0.7;
-      cloth(c, lx - w / 2, ly, w, h, col, Math.sin(t * 1.3 + u * 9) * 2 + A.wind(t, u * 9) * 3, { sag: 3 });
+      cloth(c, lx - w / 2, ly, w, h, col, Math.sin(t * 1.3 + u * 9) * 2 + A.windAt(t, lx, u * 9) * 3, { sag: 3 });
     }
   });
   // the low sun slants into the alley, a bar of amber down the lit wall
@@ -2093,10 +2093,11 @@ export function drawQuarter(R, g, { k = 0, t = 0 } = {}) {
   for (const w of [...(g.npcs || []), g.player]) {
     if (!w || !w.visible || !near(w.x - 100, w.x + 100)) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, SQUASH);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, A.sunAt(A.DAY.witness(k)).squash);
   }
 
   // ---- in front of everyone: smoke and dust in the air, the foreground
+  A.streetDust(R, cx, t, { color: mixc([210, 164, 120], [180, 120, 108], k).map(Math.round), amount: 0.9, seed: 5 });
   g.effects?.draw?.(R);
   g.effects?.drawFog?.(R, [190, 150, 130]);
   T.motes(R, cx, t, 0.9 * (1 - k * 0.4));

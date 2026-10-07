@@ -21,6 +21,7 @@ import { horizon } from './horizon.js';
 import { deepScenery } from '../engine/dof.js';
 import { extrudePoly, extrudeRect, holeReveal } from './depth.js';
 import { X5, END } from '../story/act4-map.js';
+import * as A from './ambient.js';
 
 // ------------------------------------------------------------ small things --
 
@@ -1316,6 +1317,12 @@ export function drawDawnStreet(R, g, { k = 0, t = g.time } = {}) {
   g.act?.drawProps?.(R, g);
 
   people(R, g, k, near);
+
+  // the night's mist lying along the street: thick before the light, then lifting and thinning
+  {
+    const lift = smooth(0.05, 0.95, k);
+    A.mistBand(R, cx, t, { y: 0, density: 1.15 * (1 - lift) + 0.08, lift, color: mixc([150, 164, 204], [255, 214, 166], smooth(0.2, 0.9, k)).map(Math.round), seed: 3 });
+  }
 
   g.effects?.draw?.(R);
   warmth(R, g, k, cx);

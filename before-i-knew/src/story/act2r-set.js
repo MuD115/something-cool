@@ -73,7 +73,7 @@ export function eveLook(g) {
   const k = g.a.duskK || 0;
   const fog = g.effects.fog;
   const sunUv = [-0.42, lerp(-0.08, 0.32, k)];
-  const col = k < 0.5 ? mixc([1.0, 0.7, 0.42], [1.0, 0.52, 0.28], k * 2) : mixc([1.0, 0.52, 0.28], [0.85, 0.42, 0.42], (k - 0.5) * 2);
+  const col = A.sunAt(A.DAY.two(k)).color;
   const lights = [
     { uv: sunUv, color: col, intensity: lerp(1.15, 0.35, k) * (1 - fog * 0.4), radius: 0, rim: lerp(1.1, 0.7, k) },
     { uv: [0.6, -1.2], color: mixc([0.55, 0.6, 0.8], [0.45, 0.42, 0.75], k), intensity: lerp(0.25, 0.42, k), radius: 0, rim: 0.2 },
@@ -101,7 +101,8 @@ export function eveLook(g) {
   };
 }
 
-export const shearFor = (g) => -(2.2 + 1.4 * (g.a.duskK || 0)); // long shadows, thrown east
+export const shearFor = (g) => -A.sunAt(A.DAY.two(g.a.duskK || 0)).shear;
+const squashFor = (g) => A.sunAt(A.DAY.two(g.a.duskK || 0)).squash; // long shadows, thrown east
 
 function skyStops(k) {
   const a = [[0, '#56688e'], [0.45, '#b99b86'], [0.75, '#e8b27a']];
@@ -224,7 +225,7 @@ function tornCurtain(R, x0, x1, t) {
     A.wire(c, x0, -300, x1, -305, 30, t, x0 * 0.01);
     const rags = [[x0 + 10, 50, 120, '#cfc6b4'], [x0 + 70, 26, 60, '#8e6f5a'], [x1 - 60, 44, 90, '#6d7a82']];
     for (const [rx, w, h, col] of rags) {
-      const sway = Math.sin(t * 1.4 + rx) * 4 + A.wind(t, rx) * 4 + Math.sin(t * 4.3 + rx * 2) * 1.2;
+      const sway = Math.sin(t * 1.4 + rx) * 4 + A.windAt(t, rx, rx) * 4 + Math.sin(t * 4.3 + rx * 2) * 1.2;
       c.fillStyle = col;
       c.beginPath();
       c.moveTo(rx, -298);
@@ -584,7 +585,7 @@ function balcony(R, x, t, sheet) {
       c.fillRect(px, SY - 20, 18, 20);
       c.save();
       c.translate(px + 9, SY - 20);
-      c.rotate(A.wind(t, i + 2) * 0.07);
+      c.rotate(A.windAt(t, px, i + 2) * 0.07);
       c.fillStyle = i ? '#4e6a32' : '#6e8a44';
       c.beginPath();
       c.arc(0, -10, 12, 0, Math.PI * 2);
@@ -601,7 +602,7 @@ function balcony(R, x, t, sheet) {
       const x0 = x - 52;
       const w = 104;
       const h = 218; // a bedsheet is two metres long: its foot hangs to -100, level with the pickup outline
-      const wv = A.wind(t, 0.6);
+      const wv = A.windAt(t, x, 0.6);
       const off = (v) => Math.sin(t * 2.6 - v * 2.4 + 0.5) * 4.5 * v * v + wv * 7 * v;
       c.fillStyle = '#e6e1d4';
       c.beginPath();
@@ -999,7 +1000,7 @@ export function drawStreet(R, g) {
       const cols = ['#6b3f36', '#4a5260', '#8a7a5a', '#6b3f36'];
       for (let i = 0; i < 4; i++) {
         const bx = X.mouth[0] + i * 125;
-        const sway = Math.sin(t * 1.1 + i) * 4 + A.wind(t, i * 1.3) * 6 + Math.sin(t * 3.1 + i * 2) * 1.4;
+        const sway = Math.sin(t * 1.1 + i) * 4 + A.windAt(t, bx, i * 1.3) * 6 + Math.sin(t * 3.1 + i * 2) * 1.4;
         c.fillStyle = cols[i];
         c.beginPath();
         c.moveTo(bx, -326 + i * 2);
@@ -1026,6 +1027,7 @@ export function drawStreet(R, g) {
 
   // --- the people ---
   const shear = shearFor(g);
+  const squash = squashFor(g);
   R.paint((c) => {
     for (const w of [...g.npcs, g.player]) {
       if (!w.visible || w.depthK || !near(w.x - 60, w.x + 60)) continue;
@@ -1042,7 +1044,7 @@ export function drawStreet(R, g) {
   for (const w of g.npcs) {
     if (!w.visible || !near(w.x - 100, w.x + 100) || w.depthK) continue;
     R.cast((c) => w.draw(c));
-    R.shadow((c) => w.draw(c), w.x, w.y, shear, 0.1);
+    R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
   const p = g.player;
   if (p.visible) {
@@ -1050,7 +1052,7 @@ export function drawStreet(R, g) {
       R.cast((c) => p.draw(c));
     } else {
       R.cast((c) => p.draw(c));
-      R.shadow((c) => p.draw(c), p.x, p.y, shear, 0.1);
+      R.shadow((c) => p.draw(c), p.x, p.y, shear, squash);
     }
   }
   for (const w of [p, ...g.npcs]) if (w.visible && w.depthK) depthCast(R, (c) => w.draw(c), figureBox(w), w.depthK, { mode: g.settings.get('dof') || 'bokeh', alpha: 1 - smooth(0.85, 1, w.depthK) });
@@ -1071,6 +1073,7 @@ export function drawStreet(R, g) {
     });
   }
 
+  if (!a.inside) A.streetDust(R, cx, t, { color: mixc([210, 164, 120], [170, 120, 112], k).map(Math.round), amount: 0.9 - 0.3 * k, seed: 2 });
   g.effects.draw(R);
   g.effects.drawFog(R, [190, 150, 130]);
   T.motes(R, cx, t, 0.8 * (1 - k));

@@ -57,15 +57,17 @@ export function sky(R, stops, { sun = [0.78, 0.16], warmth = 0, clouds = 0.5, cl
       const t = R.cam.time || 0;
       const lit = cloudLit || [255, 246 - warmth * 40, 226 - warmth * 80];
       const shd = cloudShade || [150, 140, 150];
-      for (const [yk, sx, sy, spd, al] of [[0.06, 5.2, 0.55, 3, 0.55], [0.2, 3.4, 0.4, 6, 0.4]]) {
+      for (const [yk, sx, sy, spd, al] of [[0.06, 5.2, 0.55, 5, 0.55], [0.2, 3.4, 0.4, 9, 0.4], [0.12, 4.3, 0.3, 7, 0.28]]) {
         const w = cv.width * sx;
         const h = cv.height * sy;
         const off = -((R.cam.x * 0.02 + t * spd) % w) - w;
+        // coverage breathes over a minute or two, so the sky is never the same twice
+        const cover = 0.72 + 0.28 * Math.sin(t * 0.045 + yk * 9 + sx);
         const y0 = R.H * yk;
         for (const [dy, col, a] of [[5, shd, 0.55], [0, lit, 1]]) {
           const tinted = tintedClouds(cv, col);
           c.save();
-          c.globalAlpha = clouds * al * a;
+          c.globalAlpha = clouds * al * a * cover;
           for (let x = off; x < R.W; x += w) c.drawImage(tinted, x, y0 + dy, w, h);
           c.restore();
         }

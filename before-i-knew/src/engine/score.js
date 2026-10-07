@@ -35,6 +35,117 @@ export const MOODS = {
   after: { bass: 0.62, pad: 0.12, pluck: 0, ney: 0, pulse: 0, cutoff: 600, reg: 0 },
 };
 
+// --- Leitmotifs -----------------------------------------------------------
+// Ahmad's theme: a short phrase in Bayati on D, as [freq, beats]. It climbs
+// from A to D, leans on the half-flat E, rises to F, and falls home.
+const THEME = [
+  [N.A3, 1], [N.D4, 1.5], [N.Ed4, 0.5], [N.F4, 2],
+  [N.Ed4, 0.5], [N.D4, 0.5], [N.C4, 0.5], [N.Bb3, 0.5], [N.A3, 1], [N.D4, 3],
+];
+const D2 = N.D3 / 2;
+const A2 = N.A3 / 2;
+const G2 = N.G3 / 2;
+// the oud beneath it: [beat, freq, vol]
+const THEME_OUD = [[0, D2, 1], [2, A2, 0.7], [3.5, D2, 0.6], [5, G2, 0.7], [7, A2, 0.7], [9, D2, 1], [11, D2 * 2, 0.5]];
+const E_NAT = 329.63;
+const FS4 = 369.99;
+const CS4 = 277.18;
+const B3 = 246.94;
+
+const beatsOf = (list) => list.reduce((a, [, b]) => a + b, 0);
+
+// The motif plans: each returns { tempo, ney: [[beat, freq, beats, vol, bright]],
+// oud: [[beat, freq, vol, bright]] } (vol relative to the base levels below).
+function plan(name) {
+  const ney = [];
+  const oud = [];
+  const theme = (at, { f = (x) => x, v = 1, bright = 1, from = 0, to = THEME.length, harm = 0 } = {}) => {
+    let b = at;
+    THEME.forEach(([freq, d], i) => {
+      if (i >= from && i < to) {
+        ney.push([b, f(freq, i), d, v, bright]);
+        if (harm) ney.push([b, f(freq, i) * 0.75, d, v * harm, bright * 0.6]);
+      }
+      b += d;
+    });
+    return b;
+  };
+  const themeOud = (at, v = 1, bright = 1) => THEME_OUD.forEach(([b, f, k]) => oud.push([at + b, f, k * v, bright]));
+  const len = beatsOf(THEME);
+  switch (name) {
+    case 'ahmad':
+      theme(0);
+      themeOud(0);
+      return { tempo: 0.85, ney, oud };
+    case 'ahmad-soft': // as it surfaces in a memory: the oud leads, the ney only half-there
+      theme(0, { v: 0.5, bright: 0.7 });
+      themeOud(0, 0.8);
+      return { tempo: 0.9, ney, oud };
+    case 'ending1': // the Witness: sparse, open, ending on the fifth
+      for (const [b, f, d, v] of [[0, N.A3, 4, 1], [6, N.D4, 4, 0.9], [12, N.Ed4, 2, 0.7], [14.5, N.F4, 4, 0.9], [21, N.A3, 7, 0.8]]) ney.push([b, f, d, v, 0.8]);
+      oud.push([0, D2, 1, 0.7], [14, A2, 0.8, 0.7], [21, D2, 0.7, 0.6]);
+      return { tempo: 1.0, ney, oud };
+    case 'ending2': { // the Last Farewell: the whole theme, warm, twice, with a fourth below the second time
+      theme(0, { v: 0.9 });
+      themeOud(0);
+      const at = len + 2;
+      theme(at, { v: 1, harm: 0.55, bright: 1.2 });
+      themeOud(at, 1.1, 1.2);
+      for (let b = 0; b < len; b += 1) if (b % 2 === 1) oud.push([at + b, D2 * 2, 0.35, 1.2]); // a gentle second line
+      for (const [i, f] of [N.D3, N.A3, N.D4].entries()) oud.push([at + len + 0.15 * i, f, 0.6, 1.4]);
+      return { tempo: 0.88, ney, oud, gain: 0.65 };
+    }
+    case 'ending3': { // the Tunnel: fragments, low, fading into the dark
+      const lo = (f) => f * 0.5;
+      const frag = (at, from, to, v) => theme(at, { f: lo, v, bright: 0.45, from, to });
+      frag(0, 0, 2, 0.9);
+      frag(9, 3, 5, 0.65);
+      frag(20, 1, 2, 0.45);
+      frag(33, 8, 10, 0.3);
+      ney.push([48, N.A3 * 0.5, 6, 0.18, 0.4]);
+      for (const [b, v] of [[0, 0.8], [9, 0.55], [20, 0.4], [33, 0.25], [48, 0.12]]) oud.push([b, D2, v, 0.5]);
+      return { tempo: 0.95, ney, oud };
+    }
+    case 'ending4': { // the One Who Remains: the theme, brightening into something nearly major
+      const major = (p) => (f, i) => {
+        if (p >= 1 && Math.abs(f - N.Ed4) < 1) return E_NAT;
+        if (p >= 2) {
+          if (Math.abs(f - N.F4) < 1) return FS4;
+          if (Math.abs(f - N.C4) < 1) return CS4;
+          if (Math.abs(f - N.Bb3) < 1) return B3;
+        }
+        return f;
+      };
+      let at = 0;
+      for (let p = 0; p < 3; p++) {
+        theme(at, { f: major(p), v: 0.8 + p * 0.2, bright: 0.8 + p * 0.5 });
+        themeOud(at, 0.8 + p * 0.2, 0.8 + p * 0.4);
+        at += len + 1.5;
+      }
+      // the last D rises to a held chord
+      const fin = at - len - 1.5 + len - 3;
+      for (const f of [N.D4, FS4, N.A3 * 2]) ney.push([fin + 3, f, 6, 0.55, 1.6]);
+      for (const [i, f] of [N.D3, N.A3, N.D4, FS4].entries()) oud.push([fin + 3 + i * 0.12, f, 0.55, 1.6]);
+      return { tempo: 0.85, ney, oud, gain: 0.65 };
+    }
+    case 'ending5': { // the Wolf's Hour: very quiet, over the pitch the azan ends on
+      theme(0, { v: 0.45, bright: 0.5 });
+      ney.push([0, N.D3, len + 5, 0.4, 0.3]); // the azan's D, held underneath
+      oud.push([0, D2, 0.5, 0.5], [len, D2, 0.3, 0.5]);
+      return { tempo: 1.1, ney, oud };
+    }
+  }
+  return null;
+}
+// how loud the ney and the oud are at vol 1 (before the music setting)
+const NEY_LEVEL = 0.1;
+const OUD_LEVEL = 0.2;
+// G flattened to G♭ for Saba (the colour of the evening)
+const flat = (f) => {
+  for (const k of [0.5, 1, 2]) if (Math.abs(f / (N.G3 * k) - 1) < 0.002) return f * 0.9439;
+  return f;
+};
+
 const BEAT = 0.75; // seconds
 
 export class Score {
@@ -44,6 +155,11 @@ export class Score {
     this.m = { ...MOODS.off };
     this.started = false;
     this.log = []; // for testing: [time, mood]
+    this.saba = 0; // 1 once the evening moods have bent Bayati's G towards Saba's G♭
+    this.chordI = 0;
+    this.hushUntil = 0; // while a motif plays, no stray plucks or ney
+    this.memoryDue = 0;
+    this.motifLog = [];
   }
 
   start() {
@@ -131,7 +247,51 @@ export class Score {
     this.name = name;
     this.m = { ...MOODS[name] };
     this.log.push([+(this.sound.t || 0).toFixed(2), name]);
+    const saba = name === 'after' || name === 'silence' ? 1 : 0;
+    if (name === 'memory') this.memoryDue = (this.sound.t || 0) + 12 + Math.random() * 8;
     this.apply(fade);
+    if (saba !== this.saba) {
+      this.saba = saba;
+      this.retune(this.sound.t, 5);
+    }
+  }
+
+  // Re-pitch the bass and pad for the current root, bending G to G♭ (Saba)
+  // when the evening moods are on.
+  retune(w, tc = 1.4) {
+    if (!this.started) return;
+    const bend = (f) => (this.saba ? flat(f) : f);
+    const root = bend(ROOTS[this.rootI]);
+    for (const [o, mult] of this.bassOsc) o.frequency.setTargetAtTime(root * mult, w, tc * 0.5);
+    const chord = CHORDS[this.chordI];
+    this.voices.forEach((pair, i) => pair.forEach((o) => o.frequency.setTargetAtTime(bend(chord[i]), w, tc)));
+  }
+
+  // Play one of Ahmad's motifs: 'ahmad' (the theme), 'ahmad-soft', or
+  // 'ending1'…'ending5'. opts.vol scales it. Returns its length in seconds
+  // (0 if it cannot play). It rides the score's own bus, so speech ducks it.
+  motif(name, { vol = 1 } = {}) {
+    const s = this.sound;
+    if (!this.started || !s.ctx || s.ctx.state !== 'running') return 0;
+    if (/^[1-5]$/.test(String(name))) name = 'ending' + name;
+    const p = plan(name);
+    if (!p) return 0;
+    vol *= p.gain ?? 1;
+    const t0 = s.t + 0.25;
+    let end = 0;
+    for (const [b, f, d, v, bright] of p.ney) {
+      const dur = d * p.tempo * 0.97;
+      s.neyNote(f, dur, NEY_LEVEL * v * vol, { when: t0 + b * p.tempo, dest: this.out, bright });
+      end = Math.max(end, b * p.tempo + dur + 0.3);
+    }
+    for (const [b, f, v, bright] of p.oud) {
+      s.pluck(f, t0 + b * p.tempo, OUD_LEVEL * v * vol, this.out, 700 + 1100 * bright);
+      end = Math.max(end, b * p.tempo + 2);
+    }
+    this.phrase = null;
+    this.hushUntil = t0 + end;
+    this.motifLog.push([+t0.toFixed(2), name, +end.toFixed(1)]);
+    return end;
   }
 
   apply(fade) {
@@ -199,10 +359,8 @@ export class Score {
     // harmony moves every 4 bars (12 s), sometimes staying put
     if (inBar === 0 && bar % 4 === 0 && beat > 0 && Math.random() < 0.75) {
       this.rootI = [0, 0, 1, 2, 3, 4, 0, 2][Math.floor(Math.random() * 8)];
-      const root = ROOTS[this.rootI];
-      for (const [o, mult] of this.bassOsc) o.frequency.setTargetAtTime(root * mult, w, 0.6);
-      const chord = CHORDS[CHORD_FOR_ROOT[this.rootI]];
-      this.voices.forEach((pair, i) => pair.forEach((o) => o.frequency.setTargetAtTime(chord[i], w, 1.4)));
+      this.chordI = CHORD_FOR_ROOT[this.rootI];
+      this.retune(w);
     }
     // the bass breathes over 8 beats
     if (inBar === 0 && bar % 2 === 0) {
@@ -225,12 +383,12 @@ export class Score {
       o.stop(w + 0.55);
     }
     // plucks: short phrases that start on the chord and step through the maqam
-    if (m.pluck > 0 && !this.phrase && Math.random() < m.pluck * 0.18) {
+    if (m.pluck > 0 && !this.phrase && w > this.hushUntil && Math.random() < m.pluck * 0.18) {
       const len = 3 + Math.floor(Math.random() * 4);
       let i = 2 + m.reg * 2 + Math.floor(Math.random() * 3);
       const notes = [];
       for (let n = 0; n < len; n++) {
-        notes.push(SCALE[Math.max(0, Math.min(SCALE.length - 1, i))]);
+        notes.push(this.saba ? flat(SCALE[Math.max(0, Math.min(SCALE.length - 1, i))]) : SCALE[Math.max(0, Math.min(SCALE.length - 1, i))]);
         i += Math.random() < 0.6 ? -1 : 1;
       }
       notes.push(SCALE[m.reg >= 1 ? 7 : 0]); // resolve to D
@@ -240,14 +398,23 @@ export class Score {
       const { notes } = this.phrase;
       const f = notes[this.phrase.i++];
       const qanun = m.reg === 0 && Math.random() < 0.3;
-      s.pluck(qanun ? f * 2 : f, w, qanun ? 0.1 : 0.2, this.out, qanun ? 3200 : 1700);
+      s.pluck(qanun ? f * 2 : f, w, this.phrase.vol ?? (qanun ? 0.1 : 0.2), this.out, qanun ? 3200 : 1700);
       if (Math.random() < 0.35) s.pluck(qanun ? f * 2 : f, w + BEAT / 2, 0.07, this.out, 1500);
       if (this.phrase.i >= notes.length) this.phrase = null;
     }
     // a breath of ney, rarely
-    if (m.ney > 0 && inBar === 0 && Math.random() < m.ney) {
+    if (m.ney > 0 && inBar === 0 && w > this.hushUntil && Math.random() < m.ney) {
       const f = [N.A3, N.D4, N.F4, N.G3][Math.floor(Math.random() * 4)];
       s.ney(f, 6 + Math.random() * 4, 0.09, { when: w, dest: this.out });
+    }
+    // in a memory, Ahmad's theme surfaces now and then, softly
+    if (this.name === 'memory' && inBar === 0 && s.t > this.memoryDue && w > this.hushUntil) {
+      this.motif('ahmad-soft');
+      this.memoryDue = s.t + 55 + Math.random() * 35;
+    }
+    // in the evening moods, a lone Saba turn: F, then the G♭ that gives it away
+    if (this.saba && this.name === 'after' && inBar === 0 && !this.phrase && w > this.hushUntil && Math.random() < 0.05) {
+      this.phrase = { notes: [N.F4, flat(N.G4), N.F4, N.Ed4, N.D4], i: 0, vol: 0.07 };
     }
   }
 }
