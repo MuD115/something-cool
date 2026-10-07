@@ -1073,7 +1073,7 @@ export function drawStreet(R, g) {
     });
   }
 
-  if (!a.inside) A.streetDust(R, cx, t, { color: mixc([210, 164, 120], [170, 120, 112], k).map(Math.round), amount: 0.9 - 0.3 * k, seed: 2 });
+  if (!a.inside) A.streetDust(R, cx, t, { color: mixc([196, 146, 104], [150, 104, 100], k).map(Math.round), amount: 0.9 - 0.3 * k, seed: 2 });
   g.effects.draw(R);
   g.effects.drawFog(R, [190, 150, 130]);
   T.motes(R, cx, t, 0.8 * (1 - k));

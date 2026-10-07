@@ -2097,7 +2097,7 @@ export function drawQuarter(R, g, { k = 0, t = 0 } = {}) {
   }
 
   // ---- in front of everyone: smoke and dust in the air, the foreground
-  A.streetDust(R, cx, t, { color: mixc([210, 164, 120], [180, 120, 108], k).map(Math.round), amount: 0.9, seed: 5 });
+  A.streetDust(R, cx, t, { color: mixc([196, 146, 104], [160, 108, 98], k).map(Math.round), amount: 0.9, seed: 5 });
   g.effects?.draw?.(R);
   g.effects?.drawFog?.(R, [190, 150, 130]);
   T.motes(R, cx, t, 0.9 * (1 - k * 0.4));

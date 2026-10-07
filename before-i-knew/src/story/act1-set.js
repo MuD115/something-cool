@@ -759,7 +759,7 @@ export function drawStreet(R, g) {
   R.layer(1);
 
   // gusts lift dust from the street; now and then a small dust devil
-  A.streetDust(R, cx, t, { color: mixc([214, 196, 164], [214, 160, 112], clamp(a.sunK || 0)).map(Math.round), amount: 1 - g.effects.fog * 0.5 });
+  A.streetDust(R, cx, t, { color: mixc([196, 172, 136], [200, 140, 96], clamp(a.sunK || 0)).map(Math.round), amount: 1 - g.effects.fog * 0.5 });
   g.effects.draw(R);
   // the jet's shadow: a swept-wing shape, smeared by its speed, across the
   // street and up the walls in half a second

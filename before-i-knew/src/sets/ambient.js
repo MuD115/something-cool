@@ -340,8 +340,8 @@ function puff() {
   cv.width = cv.height = 32;
   const c = cv.getContext('2d');
   const g = c.createRadialGradient(16, 16, 0, 16, 16, 16);
-  g.addColorStop(0, 'rgba(255,255,255,0.55)');
-  g.addColorStop(0.5, 'rgba(255,255,255,0.2)');
+  g.addColorStop(0, 'rgba(255,255,255,0.95)');
+  g.addColorStop(0.5, 'rgba(255,255,255,0.42)');
   g.addColorStop(1, 'rgba(255,255,255,0)');
   c.fillStyle = g;
   c.fillRect(0, 0, 32, 32);
@@ -384,7 +384,7 @@ export function streetDust(R, camX, t, { y = 0, color = [196, 176, 146], amount 
   const dev = devils && du < 1;
   if (any < 0.04 && !dev) return;
   const spr = puffTint(color);
-  R.paint((c) => {
+  R.glow((c) => {
     c.save();
     if (any >= 0.04) {
       for (let i = 0; i < N; i++) {
@@ -396,9 +396,9 @@ export function streetDust(R, camX, t, { y = 0, color = [196, 176, 146], amount 
         if (gu < 0.03) continue;
         const gw = Math.sin((t - x0 / GUST_SPEED) * 2.6) * 0.5 + 0.5;
         const x = x0 + gu * (90 + 120 * b);
-        const py = y - 3 - b * 22 - gu * (14 + 26 * a) * (0.6 + 0.4 * gw);
-        const r = 16 + 26 * b + 22 * gu;
-        c.globalAlpha = Math.min(0.5, gu * amount * (0.28 + 0.3 * a));
+        const py = y + 20 - b * 46 - gu * (14 + 30 * a) * (0.6 + 0.4 * gw);
+        const r = 20 + 30 * b + 26 * gu;
+        c.globalAlpha = Math.min(0.4, gu * amount * (0.2 + 0.25 * a));
         c.drawImage(spr, x - r, py - r * 0.55, r * 2, r * 1.1);
       }
     }
@@ -415,12 +415,12 @@ export function streetDust(R, camX, t, { y = 0, color = [196, 176, 146], amount 
         const px = cx + Math.cos(ang) * rad + dir * h * 26;
         const py = y - 6 - h * h * 150 - h * 20;
         const r = 12 + h * 26;
-        c.globalAlpha = Math.min(0.5, fade * amount * (0.5 - h * 0.28) * (0.7 + 0.3 * Math.sin(ang)));
+        c.globalAlpha = Math.min(0.4, fade * amount * (0.45 - h * 0.25) * (0.7 + 0.3 * Math.sin(ang)));
         c.drawImage(spr, px - r, py - r * 0.8, r * 2, r * 1.6);
       }
       // dust at its foot
-      c.globalAlpha = fade * 0.4 * amount;
-      c.drawImage(spr, cx - 50, y - 18, 100, 22);
+      c.globalAlpha = fade * 0.35 * amount;
+      c.drawImage(spr, cx - 70, y - 6, 140, 34);
     }
     c.restore();
   });
@@ -444,7 +444,7 @@ export function mistBand(R, camX, t, { y = 0, density = 1, lift = 0, color = [16
   const spr = puffTint(color);
   const n = lite ? 8 : 16;
   const left = camX - span / 2;
-  R.paint((c) => {
+  R.glow((c) => {
     c.save();
     for (let i = 0; i < n; i++) {
       const a = hash(i * 1.3 + seed * 5);
@@ -455,7 +455,7 @@ export function mistBand(R, camX, t, { y = 0, density = 1, lift = 0, color = [16
       const h = 70 + 90 * a + lift * 110;
       const py = y - h * 0.3 - lift * (40 + 70 * b) - 4;
       const breathe = 0.8 + 0.2 * Math.sin(t * 0.25 + i * 1.7);
-      c.globalAlpha = Math.min(0.7, density * (0.3 + 0.25 * b) * breathe * (1 - lift * 0.5));
+      c.globalAlpha = Math.min(0.5, density * (0.2 + 0.15 * b) * breathe * (1 - lift * 0.5));
       c.drawImage(spr, x - w / 2, py - h / 2, w, h);
     }
     c.restore();

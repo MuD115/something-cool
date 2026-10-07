@@ -669,7 +669,7 @@ export function drawCorner(R, g, { k = 0, t = g.time } = {}) {
     R.cast((c) => w.draw(c));
     R.shadow((c) => w.draw(c), w.x, w.y, shear, squash);
   }
-  A.streetDust(R, cx, t, { color: mixc([214, 190, 150], [214, 150, 104], k).map(Math.round), amount: 0.9, seed: 8 });
+  A.streetDust(R, cx, t, { color: mixc([200, 170, 130], [200, 130, 92], k).map(Math.round), amount: 0.9, seed: 8 });
   g.effects?.draw?.(R);
 
   // the sun in the dust: motes drifting in the beam
