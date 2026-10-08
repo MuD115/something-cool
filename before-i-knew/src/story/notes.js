@@ -3,6 +3,8 @@
 // beneath). addNotes() puts them in an act's level; drawNotes() draws them,
 // from the act's drawProps hook.
 
+import { seen } from './notebook.js';
+
 const TAU = Math.PI * 2;
 
 // a wall calendar on a door, its page stopped
@@ -187,7 +189,10 @@ export function addNotes(g, act) {
       label: ['تفحّص', 'Examine'],
       box: n.box,
       enabled: () => !g.locked && !g.a?.mem,
-      use: () => g.line(null, n.line, 4.5, 'examine'),
+      use: () => {
+        g.line(null, n.line, 4.5, 'examine');
+        seen(n.id);
+      },
     });
   }
 }

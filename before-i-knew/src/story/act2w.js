@@ -11,6 +11,7 @@
 // Lines come from act2w-lines.js by key; prompts and objectives here are in
 // Modern Standard Arabic.
 
+import { photo as notePhoto } from './notebook.js';
 import { addNotes, drawNotes } from './notes.js';
 import { POSES } from '../rigs/person.js';
 import { writeSave } from '../engine/save.js';
@@ -30,6 +31,21 @@ const OBJ = {
 const STREET = [XW.end / 2, XW.end / 2 + 400];
 const CAMERA_UP = { ...POSES.stand, armN: 1.85, foreN: 2.95, armF: 1.7, foreF: 2.9, head: 0.05 };
 const EATING = { ...POSES.stand, armN: 1.4, foreN: 2.7, head: 0.1 };
+// The photograph goes into Sami's notebook too: a small print of the frame.
+function keepPhoto(g, id) {
+  try {
+    g.render(g.time);
+    const src = g.R.canvas || document.querySelector('canvas');
+    const c = document.createElement('canvas');
+    c.width = 240;
+    c.height = Math.round((240 * src.height) / src.width);
+    c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    notePhoto(id, c.toDataURL('image/jpeg', 0.72));
+  } catch {
+    notePhoto(id);
+  }
+}
+
 // What can be photographed after the wall (E1), and where.
 const SPOTS = [
   ['balcony', XW.balcony, -260],
@@ -243,6 +259,7 @@ export const ACT2W = {
       shutter(g);
       s.photos.push('wall');
       a.photos.push('wall');
+      keepPhoto(g, 'wall');
       yield 1.4;
       g.text.objective(OBJ.photos);
     } else {
@@ -283,6 +300,7 @@ export const ACT2W = {
     shutter(g);
     a.photos.push(id);
     s.photos.push(id);
+    keepPhoto(g, id);
     yield 0.9;
     p.override = null;
     if (SPOTS.every((q) => a.photos.includes(q[0]))) g.text.objective(null);

@@ -26,3 +26,53 @@ export const HELP_LABELS = {
   smoke: ['اقعد معه', 'Sit with him'],
   hammer: ['ناوله مسمار', 'Pass a nail'],
 };
+
+// Four neighbours with names, who turn up again later in the day. Which
+// worker each is, by act and task; how they look; and what they say when
+// Sami passes them again: one line if he once lent them a hand, another if not.
+export const NEIGHBOURS = {
+  act1: { dig: 'khalil', hammer: 'imad', saw: 'samir', ball: 'hamoudi' },
+  act2w: { tap: 'hamoudi' },
+  act3w: { generator: 'imad', smoke: 'samir' },
+  act4: { dig: 'khalil', tap: 'hamoudi' },
+};
+
+export const NAMES = {
+  khalil: ['أبو خليل', 'Abu Khalil'],
+  imad: ['أبو عماد', 'Abu Imad'],
+  samir: ['أبو سمير', 'Abu Samir'],
+  hamoudi: ['حمّودي', 'Hamoudi'],
+};
+
+export const LOOKS = { khalil: 'man', imad: 'man3', samir: 'man2', hamoudi: 'boy' };
+
+export const REMEMBER = {
+  khalil: {
+    act4: {
+      yes: ['صباح الخير يا ابني. شايف؟ زرعنا البندورة مطرح ما حفرتلي مبارح.', 'Morning, son. See? We planted the tomatoes where you dug for me yesterday.'],
+      no: ['صباح الخير. بكّير صاحي… الله يكون معك.', 'Morning. Up early… God be with you.'],
+    },
+  },
+  imad: {
+    act3w: {
+      yes: ['إنت يلي ناولتني المسامير العصر! الشبّاك صمد، الحمد لله.', 'You’re the one who passed me nails this afternoon! The window held, thank God.'],
+      no: ['مسا الخير. دير بالك بالزاروب التحتاني.', 'Evening. Mind yourself in the lower lane.'],
+    },
+  },
+  samir: {
+    act3w: {
+      yes: ['الحطب يلي نشرناه سوا… طبخت عليه أم سمير. تعال، اقعد شوي.', 'The wood we sawed together… Um Samir cooked on it. Come, sit a while.'],
+      no: ['ما عم تنام إنت كمان؟ ما حدا نايم الليلة.', 'Can’t sleep either? Nobody’s sleeping tonight.'],
+    },
+  },
+  hamoudi: {
+    act2w: {
+      yes: ['عمو! أنا حمّودي، تبع الطابة!', 'Uncle! It’s me, Hamoudi, with the ball!'],
+      no: ['عمو، في مي بالحنفية اليوم.', 'Uncle, there’s water in the tap today.'],
+    },
+    act4: {
+      yes: ['عمو! خبّيت الطابة بالبيت، ما بدي ياها تضيع.', 'Uncle! I hid the ball at home. I don’t want to lose it.'],
+      no: ['صباح الخير عمو.', 'Morning, uncle.'],
+    },
+  },
+};

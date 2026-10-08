@@ -10,7 +10,7 @@
 
 import { clamp, lerp, smooth } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
-import { HELP_LINES, HELP_LABELS } from './life-lines.js';
+import { HELP_LINES, HELP_LABELS, NEIGHBOURS, NAMES, LOOKS, REMEMBER } from './life-lines.js';
 
 const TAU = Math.PI * 2;
 const ST = POSES.stand;
@@ -950,7 +950,7 @@ function* lendHand(g, w) {
   const p = g.player;
   w.helped = true;
   g.lock();
-  const who = kind === 'ball' ? ['ولد', 'A boy'] : ['جار', 'A neighbour'];
+  const who = w.who ? NAMES[w.who] : kind === 'ball' ? ['ولد', 'A boy'] : ['جار', 'A neighbour'];
   if (TAKE_OVER.has(kind)) {
     // he steps back a pace and hands over the tool; Sami works it a while
     const home = w.x;
@@ -982,6 +982,11 @@ function* lendHand(g, w) {
     p.override = null;
   }
   g.state.neighbourly = (g.state.neighbourly || 0) + 1;
+  // the named ones remember it, later in the day
+  if (w.who) {
+    w.greeted = true;
+    g.state.helped = [...new Set([...(g.state.helped || []), w.who])];
+  }
   g.lock(false);
 }
 
@@ -990,7 +995,12 @@ export function populate(g, list) {
   for (const [kind, x, o = {}] of list) {
     const T = TASKS[kind];
     if (!T) continue;
-    const w = g.npc(o.outfit || T.outfit, x, { f: o.f ?? 1, scale: o.scale ?? T.scale ?? 1 });
+    const who = NEIGHBOURS[g.state?.act]?.[kind];
+    const w = g.npc((who && LOOKS[who]) || o.outfit || T.outfit, x, { f: o.f ?? 1, scale: o.scale ?? T.scale ?? 1 });
+    if (who) {
+      w.who = who;
+      w.greet = REMEMBER[who]?.[g.state.act];
+    }
     if (T.lift) {
       // standing up on something (a ladder's rung): held there, no gravity
       w.scripted = true;
@@ -1058,13 +1068,26 @@ export function populate(g, list) {
     }
     out.push(w);
   }
-  g.workers = [...(g.workers || []), ...out];
+  // only this level's people: an earlier act's workers are gone with it
+  for (const w of out) w.level = g.level;
+  g.workers = [...(g.workers || []).filter((w) => w.level === g.level), ...out];
   return out;
 }
 
 // Once a frame: in danger, everyone at work drops to a crouch where they are.
 export function tickLife(g, danger) {
-  for (const w of g.workers || []) w.cower = !!danger;
+  const p = g.player;
+  for (const w of g.workers || []) {
+    if (w.level !== g.level) continue;
+    w.cower = !!danger;
+    // a named neighbour seen again says a word as Sami passes, once
+    if (w.greet && !w.greeted && !danger && !g.locked && w.visible && p && Math.abs(p.x - w.x) < 170) {
+      w.greeted = true;
+      const helped = (g.state.helped || []).includes(w.who);
+      g.line(NAMES[w.who], w.greet[helped ? 'yes' : 'no'], 4.5);
+      g.state.met = [...new Set([...(g.state.met || []), w.who])];
+    }
+  }
 }
 
 export const WORK = Object.keys(TASKS);
@@ -1073,6 +1096,7 @@ export const WORK = Object.keys(TASKS);
 // the workers return to where they were, at their work.
 export function restoreWorkers(g) {
   for (const w of g.workers || []) {
+    if (w.level !== g.level) continue;
     w.visible = true;
     if (!g.npcs.includes(w)) g.npcs.push(w);
   }

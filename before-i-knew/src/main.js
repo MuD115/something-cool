@@ -18,6 +18,9 @@ import { ACT4 } from './story/act4.js';
 import { ACT2W } from './story/act2w.js';
 import { ACT2G } from './story/act2g.js';
 import { ENDINGS } from './story/endings.js';
+import { notebook, onNewEntry, ending as noteEnding, PEOPLE } from './story/notebook.js';
+import { NOTES } from './story/notes.js';
+import { NAMES } from './story/life-lines.js';
 import { ITEMS, JOURNAL } from './story/items.js';
 import { Photo } from './engine/photo.js';
 import { setMaterialSize } from './engine/materials.js';
@@ -416,13 +419,19 @@ function summary4(s) {
   rows.push([ar ? '٤:١٥' : '4:15', ar ? 'رجل بغالون ماء، وامرأة تكنس نصف بيتها، وولدان ذاهبان إلى درس لن يكون.' : 'A man with a jerrycan, a woman sweeping half a house, two boys going to a lesson that won’t happen.']);
   const h = { south: ['South, towards Ahmad.', 'جنوباً، نحو أحمد.'], tunnels: ['To the edge of town, to the tunnels.', 'إلى حدود البلدة، نحو الأنفاق.'], classroom: ['East, to Ahmad’s classroom.', 'شرقاً، إلى صفّ أحمد.'] }[s.h_choice];
   rows.push([ar ? '٤:٢٥' : '4:25', h ? (ar ? `عند المفرق اخترتَ طريقاً: ${h[1]}` : `At the junction you chose a road: ${h[0]}`) : ar ? 'عند المفرق، كانت الليلة قد اختارت طريقك.' : 'At the junction, the night had already chosen your road.']);
+  // the neighbours who remembered the afternoon
+  const rem = (s.helped || []).filter((id) => (s.met || []).includes(id)).map((id) => NAMES[id][ar ? 0 : 1]);
+  if (rem.length) rows.push([ar ? '٤:٢٠' : '4:20', ar ? `تذكّرك ${rem.join(' و')}.` : `${rem.join(' and ')} remembered you.`]);
   if (s.ending) rows.push([ar ? '٤:٣٠' : '4:30', optionFor(DECISIONS.find((d) => d.key === 'ending'), s.ending)[ar ? 2 : 1]]);
   return rows;
 }
 
 function summary(s) {
   const ar = lang() === 'ar';
-  return DECISIONS.filter((d) => d.act === 'act1').map((d) => [d.time[ar ? 1 : 0], optionFor(d, s[d.key])[ar ? 2 : 1]]);
+  const rows = DECISIONS.filter((d) => d.act === 'act1').map((d) => [d.time[ar ? 1 : 0], optionFor(d, s[d.key])[ar ? 2 : 1]]);
+  const n = s.neighbourly || 0;
+  if (n) rows.push([ar ? '٤:٠٠' : '4:00', ar ? (n === 1 ? 'مددتَ يدك لجار في الطريق.' : `مددتَ يدك لجيرانك ${n} مرّات في الطريق.`) : n === 1 ? 'You lent a neighbour a hand on the way.' : `You lent the neighbours a hand ${n} times on the way.`]);
+  return rows;
 }
 
 function startGame(state) {
@@ -544,6 +553,7 @@ function showEnd(s) {
   const dawn = key === 'act4';
   const side2 = key === 'act2w' || key === 'act2g';
   const walk = key === 'act3w';
+  if (dawn && s.ending) noteEnding(s.ending);
   // the night's last part tells the whole night
   const rows = act1 ? summary(s) : key === 'act2w' ? summary2w(s) : key === 'act2g' ? summary2g(s) : dawn ? summary4(s) : small ? [...summary3(s), ...summary3w(s), ...summary3v(s)] : walk ? [...summary3(s), ...summary3w(s)] : act3 ? summary3(s) : summary2(s);
   const first = dawn ? [ar ? '٤:٠٠' : '4:00', ar ? 'الفجر.' : 'Dawn.'] : act1 ? [ar ? '٣:٠٥' : '3:05', ar ? 'أحمد وسامي يسيران في شارع الزيتون.' : 'Ahmad and Sami walk down Zeitoun Street.'] : act3 ? [ar ? '٨:٠٠' : '8:00', ar ? 'الليل وصل.' : 'Night had arrived.'] : [ar ? '٤:١٥' : '4:15', ar ? 'قال أبو يزن: القنّاص ما زال هناك.' : 'Abu Yazan said: the sniper is still there.'];
@@ -801,6 +811,143 @@ function belongingsPage(panel, m) {
   m.backButton(panel);
 }
 
+// Sami's notebook: the people met, the things looked at, the photographs,
+// the endings reached. Kept across playthroughs (story/notebook.js).
+const NB_TABS = [
+  ['people', ['الناس', 'People']],
+  ['things', ['أشياء', 'Things']],
+  ['photos', ['صور', 'Photos']],
+  ['endings', ['النهايات', 'Endings']],
+];
+let nbTab = 'people';
+const NB_CSS = `
+.nb-tabs{display:flex;gap:.4rem;flex-wrap:wrap;margin-block:.4rem .8rem}
+.nb-tabs button[aria-pressed=true]{text-decoration:underline;text-underline-offset:.3em}
+.nb-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.8rem;max-height:52vh;overflow:auto;padding-inline-end:.3rem}
+.nb-card{background:rgba(236,228,210,.06);border:1px solid rgba(236,228,210,.14);border-radius:6px;padding:.5rem .6rem;font-size:.86em;line-height:1.4}
+.nb-card.locked{opacity:.4}
+.nb-card canvas,.nb-card img{display:block;width:100%;height:auto;border-radius:3px;margin-block-end:.4rem;background:#2a2622}
+.nb-card img{border:5px solid #ece4d2;border-block-end-width:16px;box-sizing:border-box}
+.nb-name{font-weight:600;margin:0 0 .2rem}
+.nb-card p{margin:0}
+.nb-count{opacity:.7;font-size:.85em}
+.nb-toast{position:absolute;inset-block-start:14px;inset-inline-end:16px;z-index:40;padding:.35rem .7rem;border-radius:4px;background:rgba(20,17,14,.72);color:#efe6d2;font:500 13px/1.4 'IBM Plex Sans','IBM Plex Sans Arabic',sans-serif;opacity:0;transition:opacity .5s;pointer-events:none}
+.nb-toast.on{opacity:1}`;
+function nbStyle() {
+  if (document.getElementById('nb-css')) return;
+  const st = document.createElement('style');
+  st.id = 'nb-css';
+  st.textContent = NB_CSS;
+  document.head.appendChild(st);
+}
+
+// a thing, drawn small, with the same hand that draws it in the street
+function nbSketch(n) {
+  const c = document.createElement('canvas');
+  c.width = 150;
+  c.height = 110;
+  const x = c.getContext('2d');
+  x.fillStyle = '#d9cfba';
+  x.fillRect(0, 0, c.width, c.height);
+  const k = Math.min(1.4, 84 / n.box[1], 120 / n.box[0]);
+  x.translate(75, n.y === 0 ? 96 : 55 + (n.box[1] * k) / 2);
+  x.scale(k, k);
+  try {
+    n.draw(x, 0, 0, 0);
+  } catch {
+    // a drawing that needs the street around it: the line will do
+  }
+  return c;
+}
+
+function notebookPage(panel, m) {
+  nbStyle();
+  const ar = lang() === 'ar';
+  const subs = settings.get('subtitles');
+  const d = notebook();
+  const two = (L) => `${subs !== 'en' ? `<span class="ar" lang="ar" dir="rtl">${esc(L[0])}</span>` : ''}${subs !== 'ar' ? `<span class="en" dir="ltr">${esc(L[1])}</span>` : ''}`;
+  const things = Object.values(NOTES).flat();
+  const count = { people: [PEOPLE.filter((q) => d.people[q.id]).length, PEOPLE.length], things: [things.filter((n) => d.things[n.id]).length, things.length], photos: [Object.keys(d.photos).length, 4], endings: [Object.keys(d.endings).length, 5] };
+  panel.insertAdjacentHTML('beforeend', `<h2 class="menu-title">${ar ? 'دفتر سامي' : 'Sami’s notebook'}</h2>`);
+  const tabs = document.createElement('div');
+  tabs.className = 'nb-tabs';
+  for (const [id, L] of NB_TABS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'menu-link';
+    b.setAttribute('aria-pressed', String(nbTab === id));
+    b.innerHTML = `${esc(L[ar ? 0 : 1])} <span class="nb-count">${count[id][0]}/${count[id][1]}</span>`;
+    b.addEventListener('click', () => {
+      nbTab = id;
+      m.keepFocus = true;
+      m.render();
+    });
+    tabs.appendChild(b);
+  }
+  panel.appendChild(tabs);
+  const grid = document.createElement('div');
+  grid.className = 'nb-grid';
+  const card = (locked) => {
+    const el = document.createElement('div');
+    el.className = `nb-card${locked ? ' locked' : ''}`;
+    grid.appendChild(el);
+    return el;
+  };
+  const unknown = ar ? 'لم يُكتب بعد.' : 'Not written yet.';
+  if (nbTab === 'people') {
+    for (const q of PEOPLE) {
+      const got = d.people[q.id];
+      card(!got).innerHTML = got ? `<p class="nb-name">${esc(q.name[ar ? 0 : 1])}</p><p>${two(q.note)}</p>` : `<p class="nb-name">…</p><p>${esc(unknown)}</p>`;
+    }
+  } else if (nbTab === 'things') {
+    for (const n of things) {
+      const got = d.things[n.id];
+      const el = card(!got);
+      if (got) {
+        el.appendChild(nbSketch(n));
+        el.insertAdjacentHTML('beforeend', `<p>${two(n.line)}</p>`);
+      } else el.innerHTML = `<p class="nb-name">…</p><p>${esc(unknown)}</p>`;
+    }
+  } else if (nbTab === 'photos') {
+    const CAP = { wall: ['جدار الرسومات', 'The wall of drawings'], balcony: ['البلكون والغسيل', 'The balcony and the washing'], torn: ['البناية المقصوصة', 'The building cut open'], view: ['البلد من فوق', 'The town from above'] };
+    for (const id of Object.keys(CAP)) {
+      const got = d.photos[id];
+      const el = card(!got);
+      if (got) el.innerHTML = `${typeof got === 'string' ? `<img alt="" src="${got}">` : ''}<p class="nb-name">${esc(CAP[id][ar ? 0 : 1])}</p>`;
+      else el.innerHTML = `<p class="nb-name">…</p><p>${esc(ar ? 'صورة لم تُلتقط.' : 'A photograph not taken.')}</p>`;
+    }
+  } else {
+    for (const n of [1, 2, 3, 4, 5]) {
+      const got = d.endings[n];
+      const E = ENDINGS[n];
+      const fin = ACT4_LAST[n];
+      card(!got).innerHTML = got ? `<p class="nb-name">${esc(E[ar ? 'ar' : 'en'])}</p><p>${two([fin.ar, fin.en])}</p>` : `<p class="nb-name">${ar ? `النهاية ${n.toLocaleString('ar-EG')}` : `Ending ${n}`}</p><p>${esc(ar ? 'طريق لم يُمشَ بعد.' : 'A road not yet walked.')}</p>`;
+    }
+  }
+  panel.appendChild(grid);
+  m.backButton(panel);
+}
+
+// A quiet word in the corner when something new goes into the notebook.
+let nbToastT = 0;
+onNewEntry((kind, id) => {
+  if (mode !== 'play') return;
+  nbStyle();
+  let el = document.querySelector('.nb-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'nb-toast';
+    el.setAttribute('aria-live', 'polite');
+    stage.appendChild(el);
+  }
+  const ar = lang() === 'ar';
+  const who = kind === 'people' ? PEOPLE.find((q) => q.id === id)?.name[ar ? 0 : 1] : null;
+  el.textContent = who ? (ar ? `في الدفتر: ${who}` : `In the notebook: ${who}`) : ar ? 'شيء جديد في الدفتر' : 'Something new in the notebook';
+  el.classList.add('on');
+  clearTimeout(nbToastT);
+  nbToastT = setTimeout(() => el.classList.remove('on'), 2600);
+});
+
 let journalAt = 0;
 function journalPage(panel, m) {
   const subs = settings.get('subtitles');
@@ -883,6 +1030,7 @@ const menu = new Menu($('menu'), {
     { label: () => t('newGame'), sub: () => t('newGameSub'), action: () => newGame() },
     { label: () => t('chapters'), action: (m) => m.push('chapters') },
     { label: () => t('yourStory'), action: (m) => m.push('story') },
+    { label: () => (lang() === 'ar' ? 'دفتر سامي' : 'Sami’s notebook'), action: (m) => m.push('notebook') },
     { label: () => t('settings'), action: (m) => m.push('settings') },
     { label: () => t('controls'), action: (m) => m.push('controls') },
     { label: () => t('about'), action: (m) => m.push('about') },
@@ -897,6 +1045,7 @@ const menu = new Menu($('menu'), {
         m.push('belongings');
       },
     },
+    { label: () => (lang() === 'ar' ? 'دفتر سامي' : 'Sami’s notebook'), action: (m) => m.push('notebook') },
     { label: () => t('photo'), action: () => openPhoto() },
     { label: () => t('settings'), action: (m) => m.push('settings') },
     { label: () => t('controls'), action: (m) => m.push('controls') },
@@ -910,7 +1059,7 @@ const menu = new Menu($('menu'), {
     { label: () => t('mainMenu'), action: () => toMainMenu() },
   ],
   pauseAside,
-  pages: { log: logPage, chapters: chaptersPage, story: storyPage, belongings: belongingsPage, journal: journalPage },
+  pages: { log: logPage, chapters: chaptersPage, story: storyPage, belongings: belongingsPage, journal: journalPage, notebook: notebookPage },
   onOpen: () => {
     game.paused = true;
     stage.classList.add('paused');

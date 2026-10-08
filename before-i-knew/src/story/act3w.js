@@ -16,7 +16,7 @@ import { addNotes, drawNotes } from './notes.js';
 import { clamp, lerp, smooth } from '../engine/util.js';
 import { POSES } from '../rigs/person.js';
 import { Cat } from '../rigs/cat.js';
-import { populate } from './life.js';
+import { populate, tickLife } from './life.js';
 import { writeSave } from '../engine/save.js';
 import { X3, buildWalkLevel, surfaceAt, walkLook, drawWalk } from './act3w-set.js';
 import { basementDoor, weddingGlimpse, nightGarden, wateringCan, waterPour } from '../sets/night-props.js';
@@ -322,6 +322,7 @@ export const ACT3W = {
 
   update(g, dt) {
     g.sound.zone?.('act3w', g.player.x); // the sound of each stretch of street
+    tickLife(g, false);
     const a = g.a;
     const p = g.player;
     g.lastDt = dt;

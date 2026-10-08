@@ -1,6 +1,7 @@
 // The running game: player control, NPCs, tools, interaction, choices,
 // camera and checkpoints. Acts plug in their level, art and scripts.
 
+import { meet } from './story/notebook.js';
 import { Level, Runner } from './world/level.js';
 import { Walker } from './world/walker.js';
 import { Effects } from './sets/effects.js';
@@ -161,6 +162,7 @@ export class Game {
   // Examine and item text floats over the thing Sami last reached for (or
   // over Sami himself); everything else is a subtitle.
   show(who, line, d, style) {
+    meet(who); // into Sami's notebook, the first time someone speaks
     if (!who && (style === 'examine' || style === 'item')) {
       const a = this.anchor;
       this.floatAt = a && this.time - this.anchorAt < 12 && Math.abs(a.x + (a.bx || 0) - this.player.x) < 320 ? a : null;
